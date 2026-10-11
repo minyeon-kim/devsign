@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { conflictListRecord } from '@/lib/conflicts'
-import { LocalizedText } from '@/i18n/runtime'
+import { translateText } from '@/i18n/translate'
+import { useLanguage } from '@/i18n/language'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
@@ -17,6 +18,7 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   const { conflicts, reviewConflictId, reviewView, openConflictReview } = useWorkspace()
   const conflict = reviewView === 'overlay' ? conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null : null
   const closeRef = useRef(null)
+  const language = useLanguage()
   const open = Boolean(conflict)
 
   useEffect(() => {
@@ -39,31 +41,26 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   if (!conflict) return null
   return (
     <div data-review-overlay role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150 motion-reduce:animate-none">
-      {/* The same path, in the same place, as a page's: the dashboard, the
-          project, the change list (back to where this was opened from) and
-          this change — with Close at the end of its row. */}
+      {/* The same path, in the same place, as a page's — it stops at the
+          list this was opened from (the change's own title is the heading
+          right under it) — with Close at the end of its row: the row's
+          right edge is the title's and the side panel's too. */}
       <BreadcrumbBar>
-        <Breadcrumb
-          items={[
-            ...projectCrumbs({ id: conflict.projectId, name: conflict.projectName ?? conflict.projectId }),
-            { label: 'Conflict', onClick: () => openConflictReview(null) },
-            { label: conflict.title, key: conflict.id },
-          ]}
-        />
+        <Breadcrumb items={[...projectCrumbs({ id: conflict.projectId, name: conflict.projectName ?? conflict.projectId }), { label: 'Conflicts' }]} />
         <button
           ref={closeRef}
           type="button"
           data-review-overlay-close
+          aria-label="Close"
+          title={`${translateText('Close', language)} · Esc`}
           onClick={() => openConflictReview(null)}
-          className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+          className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
         >
-          <X className="size-3.5" />
-          <LocalizedText text="Close" />
-          <kbd className="ml-0.5 rounded bg-white/[0.08] px-1 font-sans text-[10px] font-normal text-slate-400">Esc</kbd>
+          <X className="size-4" />
         </button>
       </BreadcrumbBar>
       <div className="min-h-0 flex-1">
-        <ReviewDetail conflict={conflict} inMergeStudio={inMergeStudio} />
+        <ReviewDetail page conflict={conflict} inMergeStudio={inMergeStudio} />
       </div>
     </div>
   )

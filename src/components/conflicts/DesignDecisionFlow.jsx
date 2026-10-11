@@ -261,8 +261,9 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
         <dd className="text-slate-100">{decision.reason}</dd>
         <dt className="text-slate-400">반영 시점</dt>
         <dd className="font-medium text-slate-100">{TIMING_LABEL[decision.timing] ?? '—'}</dd>
-        <dt className="text-slate-400">다음 할 일</dt>
-        <dd className="text-slate-200">{typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd>
+        {/* (In the record the proposal is the request's line — not said again here.) */}
+        {!bare && <><dt className="text-slate-400">다음 할 일</dt>
+        <dd className="text-slate-200">{typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd></>}
       </dl>
     </section>
   )
@@ -654,137 +655,64 @@ const PHASE_CHIP = {
   resolved: ['해결됨', 'bg-emerald-400/15 text-emerald-200'],
 }
 
-function StateIcon({ state }) {
-  if (state === 'running') return <LoaderCircle data-state="running" className="size-4 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />
-  if (state === 'done') return <span data-state="done" className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3" strokeWidth={3} /></span>
-  if (state === 'failed') return <TriangleAlert data-state="failed" className="size-4 shrink-0 text-destructive" />
-  return <span data-state="waiting" className="size-4 shrink-0 rounded-full border border-white/20" />
+// The layout decided on: the design as it is, or the proposal approved.
+function decidedLayoutOf(conflict) {
+  const layouts = conflict.layouts ?? {}
+  return conflict.designDecision?.choice === 'approve'
+    ? proposalOf(conflict.decisionRequest?.proposal, conflict.decisionRequest?.custom) ?? layouts.proposal
+    : layouts.original
 }
 
-function FixPanel({ conflict, onPropose, folds, bare = false }) {
+// The fix, in the record: the line it changed and what the check found — in
+// words (the before / after renders are the status block's, above; nothing
+// here is ticked off item by item).
+function FixPanel({ conflict, onPropose, folds }) {
   const decision = conflict.designDecision
   const fix = conflict.decisionFix
   const phase = fixPhaseOf(conflict)
   const [proposalOpen, setProposalOpen] = useState(false)
   const [note, setNote] = useState('Breakpoint 768px의 대시보드 카드 그리드를 1열로 — DashboardGrid / StatCard 공통 규칙 업데이트 제안')
-  const request = conflict.decisionRequest
-  const layouts = conflict.layouts ?? {}
-  // The layout decided on: the design as it is, or the proposal approved.
-  const decided = decision.choice === 'approve'
-    ? { ...(proposalOf(request?.proposal, request?.custom) ?? layouts.proposal), label: '승인된 수정안' }
-    : { ...layouts.original, label: '디자인 원안' }
   const fileName = conflict.file?.split('/').pop()
   const fixLine = fixLineOf(conflict)
   const beforeLine = conflict.diff?.before?.[0]
-  const [chip, chipTone] = PHASE_CHIP[phase]
-  const applyState = fix ? 'done' : phase === 'applying' ? 'running' : 'waiting'
-  const verifyState = fix?.verified ? 'done' : phase === 'verifying' ? 'running' : phase === 'failed' || phase === 'manual' ? 'failed' : 'waiting'
-  // What just happened is brought into view (it runs by itself, below
-  // the decision: without this it would happen off screen).
-  const sectionRef = useRef(null)
-  const firstPhase = useRef(phase)
-  useEffect(() => {
-    if (phase === 'resolved' && firstPhase.current === 'resolved') return
-    sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-  }, [phase])
+  const breakpoint = conflict.breakpoint ?? 768
   return (
-    <section ref={sectionRef} data-decision-fix data-fix-phase={phase} className={cn(bare ? undefined : CARD, 'scroll-mt-3')}>
-      {!bare && (
-        <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-[13px] font-semibold text-white">결정 반영</h3>
-          <span data-fix-chip role="status" className={cn('inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium', chipTone)}>{chip}</span>
-        </div>
-      )}
-
+    <section data-decision-fix data-fix-phase={phase} className="flex flex-col gap-3">
       {/* What the fix changes in the code. */}
-      <Fold
-        data-fix-detail="code"
-        data-state={applyState}
-        open={folds.get('fix-code', true)}
-        onToggle={() => folds.set('fix-code', !folds.get('fix-code', true))}
-        header={(
-          <span className="flex min-w-0 flex-wrap items-center gap-x-2 text-[12.5px] font-medium text-slate-100">
-            <StateIcon state={applyState} />
-            {phase === 'approval' ? '수정할 내용' : fix ? '코드를 수정했어요' : phase === 'unfixable' ? '자동으로 수정할 수 없어요' : '코드를 수정하고 있어요'}
-            <span translate="no" className="font-mono text-[11px] font-normal text-slate-400">{fileName} · {conflict.line}행</span>
-          </span>
-        )}
-      >
+      <div data-fix-detail="code">
+        <p className="text-[12px] text-slate-300">
+          {phase === 'approval' ? '수정할 내용' : fix ? '수정한 코드' : phase === 'unfixable' ? '자동으로 수정할 수 없어요' : '수정 중인 코드'}
+          <span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{fileName} · {conflict.line}행</span>
+        </p>
         {fixLine && (
-          <div data-fix-diff className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5">
+          <div data-fix-diff className="mt-1.5 overflow-x-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5">
             {beforeLine && <p className="flex bg-red-500/[0.14] px-3 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{beforeLine.trim()}</p>}
             <p className="flex bg-emerald-500/[0.14] px-3 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{fixLine.trim()}</p>
           </div>
         )}
-        {phase === 'approval' && <p className="mt-2 text-[11.5px] leading-4 text-amber-200">위험도가 높은 변경이라 자동으로 수정하지 않았어요. 내용을 확인하고 승인하면 수정과 검증이 이어서 진행돼요.</p>}
-        {phase === 'unfixable' && <p className="mt-2 text-[11.5px] leading-4 text-amber-200">이 결정에 맞는 수정 내용을 만들 수 없어요. 코드를 직접 수정해 주세요.</p>}
-      </Fold>
-
-      {/* The render at 768px, before and after the fix — shown once there's a fix to check. */}
+      </div>
+      {/* What the check found. */}
       {fix && (
-        <Fold
-          data-fix-detail="verify"
-          data-state={verifyState}
-          className="mt-4 border-t border-white/[0.06] pt-4"
-          open={folds.get('fix-verify', true)}
-          onToggle={() => folds.set('fix-verify', !folds.get('fix-verify', true))}
-          header={(
-            <span className="flex items-center gap-2 text-[12.5px] font-medium text-slate-100">
-              <StateIcon state={verifyState} />
-              {fix.verified ? '768px 렌더링을 검증했어요' : phase === 'verifying' ? '768px 렌더링을 검증하고 있어요' : phase === 'manual' ? '직접 수정한 뒤 다시 검증해 주세요' : '768px 렌더링이 결정과 달라요'}
-            </span>
-          )}
-        >
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <figure data-fix-render="before" className="m-0 min-w-0">
-              <TabletPreview columns={layouts.implementation?.columns ?? 2} overlap={layouts.implementation?.overlap} widthMode={layouts.implementation?.widthMode} />
-              <figcaption className="mt-2 text-center">
-                <span className="block text-xs font-semibold text-rose-300">수정 전</span>
-                <span className="block text-[11px] leading-4 text-slate-400">{layouts.implementation?.note}</span>
-              </figcaption>
-            </figure>
-            <figure data-fix-render="after" className="m-0 min-w-0">
-              {phase === 'verifying' ? (
-                <div data-fix-rendering className="mx-auto flex w-full max-w-[200px] items-center justify-center rounded-lg border border-dashed border-white/15 text-[11px] text-slate-400" style={{ aspectRatio: '768 / 640' }}>
-                  <LoaderCircle className="mr-1.5 size-3.5 animate-spin motion-reduce:animate-none" />렌더링 중
-                </div>
-              ) : (
-                // (A failed check: the fix as it actually rendered — still overlapping.)
-                <TabletPreview columns={decided.columns ?? 2} overlap={!fix.verified} widthMode={decided.widthMode} gap={decided.gap} />
-              )}
-              <figcaption className="mt-2 text-center">
-                <span className={cn('block text-xs font-semibold', fix.verified ? 'text-emerald-300' : 'text-slate-200')}>수정 후</span>
-                <span className="block text-[11px] leading-4 text-slate-400">{fix.verified ? `768px · ${decided.note?.replace(/^768px · /, '') ?? decided.spec ?? ''}` : phase === 'verifying' ? '768px' : '768px · 아직 결정과 달라요'}</span>
-              </figcaption>
-            </figure>
-          </div>
-          {fix.verified && (
-            <p data-fix-match className="mt-3 flex items-center gap-1.5 rounded-lg bg-emerald-400/[0.08] px-3 py-2 text-[12px] text-emerald-100 ring-1 ring-emerald-400/25 ring-inset">
-              <ShieldCheck className="size-3.5 shrink-0 text-emerald-300" />
-              {decided.label}과 일치해요 · 카드 겹침 없음
-            </p>
-          )}
-          {(phase === 'failed' || phase === 'manual') && fix.failed && (
-            <p data-fix-failure role="alert" className="mt-3 flex items-start gap-1.5 rounded-lg bg-destructive/10 px-3 py-2 text-[12px] leading-[18px] text-slate-100 ring-1 ring-destructive/30 ring-inset">
-              <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-              <span><span className="font-medium text-destructive">검증에 실패했어요.</span> {fix.failed.reason}</span>
-            </p>
-          )}
-        </Fold>
+        <p data-fix-detail="verify" className="text-[12px] leading-[18px] text-slate-300">
+          {fix.verified ? `${breakpoint}px에서 카드가 겹치지 않고, 결정한 레이아웃과 같아요.`
+            : phase === 'verifying' ? `${breakpoint}px 렌더링을 확인하고 있어요.`
+              : `${breakpoint}px 렌더링이 아직 결정과 달라요.`}
+          <span className="text-slate-500"> 수정 전/후 비교는 위에서 볼 수 있어요.</span>
+        </p>
       )}
 
       {/* (Optional: a shared component or token changed along the way.) */}
       {decision.choice === 'approve' && fix && (
         <Fold
           data-fix-detail="design-system"
-          className="mt-4 border-t border-white/[0.06] pt-3"
-          open={folds.get('fix-ds', true)}
-          onToggle={() => folds.set('fix-ds', !folds.get('fix-ds', true))}
-          header={<span className="text-[12.5px] font-medium text-slate-100">Design System 업데이트 <span className="text-[11px] font-normal text-slate-400">(선택)</span></span>}
+          className="border-t border-white/[0.06] pt-3"
+          open={folds.get('fix-ds', false)}
+          onToggle={() => folds.set('fix-ds', !folds.get('fix-ds', false))}
+          header={<span className="text-[12px] text-slate-300">Design System 업데이트 <span className="text-[11px] text-slate-500">(선택)</span></span>}
         >
           <div className="mt-2">
           {conflict.dsProposal ? (
-            <p data-ds-proposal className="flex items-center gap-1.5 text-[11px] text-slate-400"><Check className="size-3.5 text-emerald-300" />Design System 업데이트를 제안했어요 · {conflict.dsProposal.note}</p>
+            <p data-ds-proposal className="text-[11px] text-slate-400">Design System 업데이트를 제안했어요 · {conflict.dsProposal.note}</p>
           ) : proposalOpen ? (
             <div className="flex flex-col gap-2">
               <label className={LABEL}>
@@ -808,27 +736,33 @@ function FixPanel({ conflict, onPropose, folds, bare = false }) {
   )
 }
 
-// The one place the decision's action is pressed: a bar stuck to the bottom
-// of the review, its button always in the same spot. What it says and
-// whether it can be pressed follow the fix; it never moves. Normally that's
-// one press in all — 병합하고 해결하기, once the check has passed: merging is
-// the press, and resolved follows from it (nothing to press after). A failed check
-// offers trying again or taking over by hand; a high-risk change asks for a
-// go-ahead first.
+// The status block: the one thing this page is for right now, first in the
+// body. What it says and what it offers follow the fix — applying, checking,
+// a failed check to retry or take over, a high-risk change waiting for a
+// go-ahead — and, once the check has passed, the render before and after the
+// fix with 병합하고 해결하기: merging is the press, and resolved follows from
+// it. It's the page's only green: success is said here and nowhere else.
 const BAR_STATUS = {
   approval: '수정 내용을 확인하고 승인해 주세요',
   applying: '결정대로 코드를 수정하고 있어요',
-  unfixable: '자동으로 수정할 수 없어요',
+  unfixable: '자동으로 수정할 수 없어요 · 코드를 직접 수정해 주세요',
   verifying: '768px 렌더링을 검증하고 있어요',
   failed: '검증에 실패했어요 · 다시 시도하거나 직접 수정하세요',
   manual: '직접 수정 중 · 수정이 끝나면 다시 검증하세요',
   verified: '검증을 통과했어요 · 병합하면 자동으로 해결돼요',
 }
-function DecisionActionBar({ conflict, onApprove, onRetry, onManual, onResolve }) {
+// A layout's note without what the caption already says (the width, the columns).
+const shortNote = (layout) => (layout?.note ?? layout?.spec ?? '').replace(/^768px · /, '').replace(/^\d열 · /, '')
+function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
   const phase = fixPhaseOf(conflict)
-  // Resolved: nothing is left to press, and the banner above already says it.
+  // Resolved: nothing is left to press — the merged banner says it.
   if (phase === 'resolved') return null
+  const fix = conflict.decisionFix
+  const layouts = conflict.layouts ?? {}
+  const decided = decidedLayoutOf(conflict)
   const busy = phase === 'applying' || phase === 'verifying'
+  const passed = phase === 'verified'
+  const wrong = phase === 'failed' || phase === 'manual'
   const primary = {
     approval: { label: '수정 승인', Icon: Check, onClick: onApprove },
     failed: { label: '다시 시도', Icon: RotateCcw, onClick: onRetry },
@@ -839,18 +773,46 @@ function DecisionActionBar({ conflict, onApprove, onRetry, onManual, onResolve }
     verified: { label: '병합하고 해결하기', Icon: GitMerge, onClick: onResolve },
   }[phase]
   return (
-    <div data-decision-actionbar data-fix-phase={phase} className="sticky bottom-0 z-20 -mx-1 flex min-h-[56px] items-center gap-3 rounded-xl bg-[#1d1d20]/95 px-4 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.08] backdrop-blur ring-inset">
-      <p data-actionbar-status role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[12px] leading-4 text-slate-300">
-        {busy && <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />}
-        <span className="min-w-0">{BAR_STATUS[phase]}</span>
-      </p>
-      {/* (The second way out of a failed check, beside the first — never in its place.) */}
-      {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
-      <button type="button" data-decision-primary disabled={primary.disabled} onClick={primary.onClick} className={cn(PRIMARY, 'min-w-[148px] justify-center')}>
-        <primary.Icon className="size-3.5" />
-        {primary.label}
-      </button>
-    </div>
+    <section data-status-block={phase} data-fix-phase={phase} className={cn('scroll-mt-3 rounded-xl p-4 ring-1 ring-inset', passed ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : wrong ? 'bg-destructive/[0.07] ring-destructive/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
+      <div className="flex flex-wrap items-center gap-3">
+        <p data-status-text role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[14px] leading-5 font-semibold text-white">
+          {busy ? <LoaderCircle className="size-4 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />
+            : passed ? <ShieldCheck className="size-4 shrink-0 text-emerald-300" />
+              : <TriangleAlert className={cn('size-4 shrink-0', wrong ? 'text-destructive' : 'text-amber-300')} />}
+          <span className="min-w-0">{BAR_STATUS[phase]}</span>
+        </p>
+        {/* (The second way out of a failed check, beside the first — never in its place.) */}
+        {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
+        <button type="button" data-decision-primary disabled={primary.disabled} onClick={primary.onClick} className={cn(PRIMARY, 'min-w-[148px] justify-center')}>
+          <primary.Icon className="size-3.5" />
+          {primary.label}
+        </button>
+      </div>
+      {wrong && fix?.failed && <p data-fix-failure role="alert" className="mt-2 text-[12.5px] leading-[18px] text-slate-200">{fix.failed.reason}</p>}
+      {phase === 'approval' && <p className="mt-2 text-[12.5px] leading-[18px] text-amber-200">위험도가 높은 변경이라 자동으로 수정하지 않았어요. 승인하면 수정과 검증이 이어서 진행돼요.</p>}
+
+      {/* The render before and after the fix — once there's a fix to look at. */}
+      {fix && (
+        <div data-fix-compare className="mt-4 flex items-start justify-center gap-4">
+          <figure data-fix-render="before" className="m-0 w-[200px] min-w-0">
+            <TabletPreview columns={layouts.implementation?.columns ?? 2} overlap={layouts.implementation?.overlap} widthMode={layouts.implementation?.widthMode} />
+            <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300"><span className="font-medium text-slate-100">수정 전</span> · {shortNote(layouts.implementation)}</figcaption>
+          </figure>
+          <ArrowRight aria-hidden className="mt-[72px] size-4 shrink-0 text-slate-500" />
+          <figure data-fix-render="after" className="m-0 w-[200px] min-w-0">
+            {phase === 'verifying' ? (
+              <div data-fix-rendering className="mx-auto flex w-full max-w-[200px] items-center justify-center rounded-lg border border-dashed border-white/15 text-[11px] text-slate-400" style={{ aspectRatio: '768 / 640' }}>
+                <LoaderCircle className="mr-1.5 size-3.5 animate-spin motion-reduce:animate-none" />렌더링 중
+              </div>
+            ) : (
+              // (A failed check: the fix as it actually rendered — still overlapping.)
+              <TabletPreview columns={decided?.columns ?? 2} overlap={!fix.verified} widthMode={decided?.widthMode} gap={decided?.gap} />
+            )}
+            <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300"><span className="font-medium text-slate-100">수정 후</span> · {fix.verified ? shortNote(decided) : phase === 'verifying' ? '확인 중' : '아직 결정과 달라요'}</figcaption>
+          </figure>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -987,39 +949,38 @@ export function HistoryReplayButton({ conflict, workspace }) {
   )
 }
 
-// A step's mark: done = a check, current = its number, emphasised, waiting =
-// a grey number.
-function StepMark({ number, state }) {
-  if (state === 'done') return <span aria-hidden className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3" strokeWidth={3} /></span>
-  return (
-    <span aria-hidden className={cn('flex size-5 shrink-0 items-center justify-center rounded-full text-[10.5px] leading-none font-semibold tabular-nums', state === 'current' ? 'bg-emerald-400/15 text-emerald-200 ring-2 ring-emerald-400 ring-inset' : 'bg-white/[0.06] text-slate-400')}>{number}</span>
-  )
+// The record of what's been done, as a thin timeline: a small dot on a line,
+// one row a step — [step] · [who] · [what] · [when] — that opens in place.
+// A finished step's dot is a quiet grey check; only the step under way is in
+// the accent color, and one that needs attention in the warning color.
+function StepDot({ state }) {
+  if (state === 'done') return <span aria-hidden data-step-dot="done" className="flex size-4 items-center justify-center rounded-full bg-[#2a2a2e] text-slate-400"><Check className="size-2.5" strokeWidth={3} /></span>
+  return <span aria-hidden data-step-dot={state} className={cn('flex size-4 items-center justify-center rounded-full bg-[#1b1b1e] ring-2 ring-inset', state === 'problem' ? 'ring-amber-300' : 'ring-sky-300')}><span className={cn('size-1.5 rounded-full', state === 'problem' ? 'bg-amber-300' : 'bg-sky-300')} /></span>
 }
 
-// One step of the approval, as one card that grows: the header is always
-// there — [mark] [step] [who · result] [summary] [time] [chevron] — and the
-// body opens inside the same card (height + opacity, 200ms). The summary is
-// for the folded card only: it fades out as the card opens, so nothing the
-// body says is said twice. The order is the gap between cards, no line.
-function StepCard({ number, state, title, who, summary, time, open, onToggle, children, ...rest }) {
+function StepRow({ state, title, who, summary, time, open, onToggle, last, children, ...rest }) {
   return (
-    <li className="relative" {...rest}>
-      <div data-step-card={state} data-open={open} className={cn('rounded-xl ring-1 ring-inset transition-colors duration-200 motion-reduce:transition-none', state === 'current' ? 'bg-white/[0.045] ring-emerald-400/30' : 'bg-white/[0.03] ring-white/[0.06]')}>
-        <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-          <StepMark number={number} state={state} />
-          <span data-step-title className="shrink-0 text-[13px] font-semibold whitespace-nowrap text-white">{title}</span>
-          <span data-step-who className="shrink-0 text-[12px] whitespace-nowrap text-slate-300">{who}</span>
-          <span data-step-summary aria-hidden={open} className={cn('min-w-0 flex-1 truncate text-[12px] text-slate-400 transition-opacity duration-[120ms] ease-out motion-reduce:transition-none', open && 'opacity-0')}>{summary}</span>
+    <li className="relative pl-7" {...rest}>
+      {/* (The line runs on to the next step's dot; the last one ends at its own.) */}
+      {!last && <span aria-hidden className="absolute top-5 bottom-[-10px] left-[7.5px] w-px bg-white/[0.1]" />}
+      <span className="absolute top-[10px] left-0"><StepDot state={state} /></span>
+      <div data-step-row={state} data-open={open}>
+        <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex h-9 w-full min-w-0 cursor-pointer items-center gap-2 rounded-md text-left text-[12.5px] focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <span data-step-title className={cn('shrink-0 font-medium whitespace-nowrap', state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
+          <span aria-hidden className="shrink-0 text-slate-600">·</span>
+          <span data-step-who className="shrink-0 whitespace-nowrap text-slate-300">{who}</span>
+          {summary && <span aria-hidden className="shrink-0 text-slate-600">·</span>}
+          <span data-step-summary className="min-w-0 flex-1 truncate text-slate-400">{summary}</span>
           {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
-          <Chevron open={open} />
+          <Chevron open={open} className="size-3.5" />
         </button>
-        <FoldBody open={open}><div className="flex flex-col gap-3 px-4 pt-1 pb-4">{children}</div></FoldBody>
+        <FoldBody open={open}><div className="flex flex-col gap-3 pt-1 pr-6 pb-3">{children}</div></FoldBody>
       </div>
     </li>
   )
 }
 const FOLD_STEPS = ['detect', 'request', 'decision', 'fix']
-const FOLD_ALL = [...FOLD_STEPS, 'fix-code', 'fix-verify', 'fix-ds']
+const FOLD_ALL = FOLD_STEPS
 
 // What the detection touched: its file and what's affected — said once, here.
 function DetectionFacts({ conflict }) {
@@ -1046,8 +1007,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   useEffect(() => {
     const reveal = (event) => {
       if (event.detail !== conflict.id) return
-      folds.setMany(['fix', 'fix-verify'], true)
-      window.setTimeout(() => document.querySelector('[data-fix-detail="verify"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 220)
+      document.querySelector('[data-status-block]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     window.addEventListener('devsign:reveal-verify', reveal)
     return () => window.removeEventListener('devsign:reveal-verify', reveal)
@@ -1095,9 +1055,11 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // once everything is done they're all folded.
   const post = Boolean(developer && decision && ['decided', 'fixed', 'verified', 'resolved'].includes(stage))
   const fixPhase = post ? fixPhaseOf(conflict) : null
-  const current = post && stage !== 'resolved' ? 'fix' : null
+  // (Checked and waiting for the merge: nothing in the record is under way —
+  // what's left is the status block's button.)
+  const current = post && stage !== 'resolved' && fixPhase !== 'verified' ? 'fix' : null
   const isOpen = (key) => folds.get(key, key === current)
-  const allOpen = post && FOLD_STEPS.every(isOpen) && FOLD_ALL.slice(FOLD_STEPS.length).every((key) => folds.get(key, true))
+  const allOpen = post && FOLD_STEPS.every(isOpen)
   const toggle = (key) => folds.set(key, !isOpen(key))
   const breakpoint = conflict.breakpoint ?? 768
   const components = conflict.impact?.components ?? []
@@ -1108,23 +1070,37 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const fixedEvent = log.findLast((entry) => entry.type === 'fixed')
   const fileName = conflict.file?.split('/').pop()
   const verified = fixPhase === 'verified' || fixPhase === 'resolved'
+  const DECIDED_WORD = { approve: '승인', keep: '원안 유지', rework: '재검토 요청' }
+  const needsPerson = ['failed', 'manual', 'approval', 'unfixable'].includes(fixPhase)
+  // One line a step: who, and the one thing worth knowing — each said once
+  // (what was proposed is the request's; the decision doesn't repeat it, and
+  // "passed" is the fix's alone).
   const steps = post ? [
-    { key: 'detect', title: '변경 감지', state: 'done', who: `자동 감지 · ${fileName}`, time: timeOf('detected'),
+    { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
       summary: [`${breakpoint}px`, '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
-    { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.round > 1 ? `${request.round}차 요청` : '승인 요청'}`, time: timeOf('requested'),
-      summary: [DEV_STAGE_LABEL[request?.devStage], TIMING_LABEL[request?.timing] && `${TIMING_LABEL[request.timing]} 반영`, proposalPhraseOf(outcome?.shape ?? proposalOf(request?.proposal, request?.custom))].filter(Boolean).join(' · ') },
-    { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${outcome?.label}`, time: timeOf('decided'),
-      summary: [outcome?.name, TIMING_LABEL[decision.timing] && `${TIMING_LABEL[decision.timing]} 반영`].filter(Boolean).join(' · ') },
-    { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : 'current',
+    { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.direct ? '바로 수정' : request?.round > 1 ? `${request.round}차 제안` : '제안'}`, time: timeOf('requested'),
+      summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom)) ?? '').replace(/ · /g, ', ') },
+    { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
+      summary: TIMING_LABEL[decision.timing] ? `${TIMING_LABEL[decision.timing]} 반영` : '' },
+    { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : needsPerson ? 'problem' : 'current',
       who: `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? `${breakpoint}px 검증 통과` : PHASE_CHIP[fixPhase][0]}`,
       time: timeOf('verified', 'fixed'),
-      summary: verified ? `${fileName} ${conflict.line}행 수정 · 카드 겹침 없음` : '' },
+      summary: `${fileName} ${conflict.line}행` },
   ] : []
 
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
       {/* (The merge banner is the list's first item: the same gap as between cards.) */}
       {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
+
+      {/* Steps still to go: the next action, first — what to act on (the ways
+          forward, the request, the decision) is right under it. */}
+      {!post && stage !== 'resolved' && decisionFlowOf(conflict, viewer).next && (
+        <p data-status-block="next" role="status" className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
+          <span aria-hidden className={cn('size-2 shrink-0 rounded-full bg-sky-300', stage === 'requested' && developer && 'animate-pulse motion-reduce:animate-none')} />
+          {decisionFlowOf(conflict, viewer).next}
+        </p>
+      )}
 
       {/* What was detected — said first on the developer's side, before
           anything has been asked. */}
@@ -1164,49 +1140,10 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               />
             </>
           )}
-          {stage === 'requested' && (
-            <p data-decision-waiting className="flex items-center gap-2 rounded-xl bg-sky-400/[0.08] px-4 py-3 text-[13px] text-sky-100 ring-1 ring-sky-400/30 ring-inset">
-              <span className="size-2 animate-pulse rounded-full bg-sky-300" />
-              {designer}님의 결정을 기다리고 있어요. 결정이 오면 알림으로 알려 드려요.
-            </p>
-          )}
           {post && (
             <>
-              <div className={banner ? 'mt-3' : undefined}>
-                {/* The list's own header row (24px under the banner, 8px above the first card). */}
-                <div data-step-list-head className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-[12px] text-slate-500">진행 단계 {steps.length}</span>
-                  <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="cursor-pointer text-[12px] font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
-                    {allOpen ? '모두 접기' : '모두 펼치기'}
-                  </button>
-                </div>
-                <ol data-step-list className="m-0 flex list-none flex-col gap-2.5 p-0">
-                  {steps.map((step, index) => (
-                    <StepCard key={step.key} data-fold={step.key} number={index + 1} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)}>
-                      {step.key === 'detect' && (
-                        <>
-                          <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
-                          <DetectionFacts conflict={conflict} />
-                        </>
-                      )}
-                      {step.key === 'request' && request && <RequestCard bare conflict={conflict} />}
-                      {step.key === 'decision' && <DecisionCard bare conflict={conflict} viewerId={viewer.id} />}
-                      {step.key === 'fix' && (
-                        <FixPanel
-                          bare
-                          conflict={conflict}
-                          folds={folds}
-                          onPropose={(note) => {
-                            workspace.proposeDesignSystemUpdate(conflict.id, note)
-                            toast('Design System 업데이트를 제안했어요', { description: note })
-                          }}
-                        />
-                      )}
-                    </StepCard>
-                  ))}
-                </ol>
-              </div>
-              <DecisionActionBar
+              {/* What's needed now — first. */}
+              <StatusBlock
                 conflict={conflict}
                 onApprove={() => workspace.applyDecisionFix(conflict.id)}
                 onRetry={() => workspace.patchDecisionFix(conflict.id, { failed: null, manual: false, retried: true })}
@@ -1219,6 +1156,39 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                   if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: 'History에서 재생', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
                 }}
               />
+              {/* Then how it got here: the record, light — a line a step. */}
+              <section data-step-record aria-label="진행 기록" className="mt-2">
+                <div data-step-list-head className="mb-1 flex items-center justify-between gap-3">
+                  <h3 className="text-[13px] font-semibold text-white">진행 기록</h3>
+                  <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="cursor-pointer text-[12px] font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
+                    {allOpen ? '모두 접기' : '모두 펼치기'}
+                  </button>
+                </div>
+                <ol data-step-list className="m-0 flex list-none flex-col p-0">
+                  {steps.map((step, index) => (
+                    <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} last={index === steps.length - 1}>
+                      {step.key === 'detect' && (
+                        <>
+                          <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
+                          <DetectionFacts conflict={conflict} />
+                        </>
+                      )}
+                      {step.key === 'request' && request && <RequestCard bare conflict={conflict} />}
+                      {step.key === 'decision' && <DecisionCard bare conflict={conflict} viewerId={viewer.id} />}
+                      {step.key === 'fix' && (
+                        <FixPanel
+                          conflict={conflict}
+                          folds={folds}
+                          onPropose={(note) => {
+                            workspace.proposeDesignSystemUpdate(conflict.id, note)
+                            toast('Design System 업데이트를 제안했어요', { description: note })
+                          }}
+                        />
+                      )}
+                    </StepRow>
+                  ))}
+                </ol>
+              </section>
             </>
           )}
         </>

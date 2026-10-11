@@ -1,6 +1,8 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { comparisonBlockers } from '@/lib/driftDecisions'
-import { NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
+import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
+import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
+import { flowOf } from '@/lib/conflictInsight'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, Pencil, MapPin, Minus, Plus, RotateCcw, Send, Sparkles, TriangleAlert, X, Play } from 'lucide-react'
 import { cn } from 'cn'
@@ -48,7 +50,7 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
-import { decisionOutcomeOf, proposalOf, proposalPhraseOf } from '@/lib/designDecisions'
+import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { HistoryReplayButton } from '@/components/conflicts/DesignDecisionFlow'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
@@ -545,7 +547,8 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   // What the viewer has to do now — and only that: nothing shows when the
   // next move is someone else's. (A review that's yours to give is said on
   // the Review button itself.)
-  const todo = stage === 'resolved' || hideTodo ? null
+  // (A design decision's next step is the main view's status block — not here.)
+  const todo = stage === 'resolved' || hideTodo || conflict.decisionFlow ? null
     : reasonNeeded ? null
         : stage === 'detected' ? 'Review request needed'
           : stage === 'approved' ? (conflict.rollback ? 'Ready to restore previous version' : 'Ready to merge') : null
@@ -620,24 +623,8 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               </Row>
             )}
             {(why || standard) && <Row label="Impact" data-summary-row="Impact">{list(why ? [why] : standard.consequence)}</Row>}
-            {conflict.decisionFlow && !conflict.rollback && (() => {
-              const pick = conflict.decisionRequest?.proposal ?? conflict.decisionDraft?.proposal
-              const shape = proposalOf(pick, conflict.decisionRequest?.custom ?? conflict.decisionDraft?.custom)
-              const outcome = decisionOutcomeOf(conflict)
-              return (
-                <>
-                  <Row label="Proposed fix" data-summary-row="Proposed fix">
-                    {shape
-                      // (Once decided, it says whether the proposal was the one taken.)
-                      ? (outcome && outcome.choice !== 'approve'
-                        ? <span data-proposal-adopted="false" className="text-slate-500">{proposalPhraseOf(shape)} · 미채택</span>
-                        : <span className="font-medium text-sky-200">{proposalPhraseOf(shape)}</span>)
-                      : <span data-no-proposal className="text-slate-500">—</span>}
-                  </Row>
-                  {outcome && <Row label="최종 결정" data-summary-row="Final decision"><span className="font-medium text-slate-100">{outcome.final}</span></Row>}
-                </>
-              )
-            })()}
+            {/* (What was proposed and decided is the main view's — the status
+                block and the record under it — not repeated here.) */}
           </dl>
         </InfoSection>
       )}
@@ -1763,7 +1750,9 @@ function agoLabel(at) {
 // one). Your own sign-off is the window's primary action (Approve change /
 // Request changes); everyone else's status is just shown, and anyone still
 // pending can be reminded.
-function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, expanded = false, onReviewerAssigned }) {
+// `quiet`: an approval is said in the text color, not in green (a page whose
+// one green is its status block).
+function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, expanded = false, onReviewerAssigned, quiet = false }) {
   // On a rollback agreement the reviewers are the people it affects, and
   // their sign-off is a confirmation.
   const statusLabels = conflict.rollback ? { pending: 'Not confirmed yet', approved: 'Confirmed' } : {}
@@ -1879,7 +1868,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                       or a developer's. */}
                   {person.role && <span className="block truncate text-[11px] leading-4 text-slate-500"><LocalizedText text={person.role} /></span>}
                 </span>
-                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : status.className)}>
+                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : quiet && reviewer.status === 'approved' ? 'text-slate-100' : status.className)}>
                   {reviewer.id === author
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
@@ -2318,7 +2307,11 @@ const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/
 // step up from the plain note: larger type and the in-review sky tint.
 const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400/[0.12] px-4 text-[13px] font-medium whitespace-nowrap text-sky-100 ring-1 ring-sky-400/35 ring-inset'
 
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false }) {
+// `page`: the full-screen detail, under the page's path (ConflictReviewOverlay).
+// Everything then sits in the path's own column — the title, the body and the
+// side panel start and end on its lines — and there's no back arrow (the
+// path's row has Close).
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false, page = false }) {
   const workspace = useWorkspaceOptional()
   const navigate = useNavigate()
 
@@ -3068,10 +3061,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div className="flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card px-4 py-4 sm:px-6">
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                  <button
+            <div data-review-header className={cn('flex min-h-[76px] shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'pt-3 pb-4') : 'px-4 py-4 sm:px-6')}>
+              <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
+                <div className={cn('flex min-w-0 items-center gap-2.5', !page && 'flex-wrap')}>
+                  {!page && <button
                     type="button"
                     onClick={() => onOpenChange(false)}
                     title="Back to list"
@@ -3079,13 +3072,13 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
                   >
                     <ChevronLeft className="size-5" />
-                  </button>
-                  <h2 className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
+                  </button>}
+                  <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
                   </h2>
                   {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 </div>
-                <div data-conflict-meta className="flex flex-wrap items-center gap-1.5 pl-10">
+                <div data-conflict-meta className={cn('flex flex-wrap items-center gap-1.5', !page && 'pl-10')}>
                   <ConflictTypeTag conflict={conflict} header />
                   {severity && (
                     <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
@@ -3093,11 +3086,14 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         <LocalizedText text={severity.label} />
                       </span>
                   )}
+                  {/* (The page's meta line: when it's due and where it stands.) */}
+                  {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="ml-1.5 text-xs" />}
+                  {page && !conflict.rollback && <ListStatusLabel conflict={conflict} className="ml-1.5 text-xs" />}
                   {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
                 </div>
               </div>
-              {/* Align the review action with the lower metadata row. */}
-              <div className="relative top-2 flex min-w-0 shrink-0 self-end items-center gap-2">
+              {/* Align the review action with the lower metadata row (on the page: with the title's line). */}
+              <div data-review-actions className={cn('flex min-w-0 shrink-0 items-center gap-2', page ? 'self-start' : 'relative top-2 self-end')}>
                 {conflict.rollback ? primary : conflict.decisionFlow ? <HistoryReplayButton conflict={conflict} workspace={workspace} /> : approvalBar}
               </div>
             </div>
@@ -3135,7 +3131,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 three areas — comparison and diff, reasoning, reviewers and
                 comments — each scroll on their own, so none of these
                 wrappers scrolls; narrower, where they stack, the page does. */}
-            <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto px-4 pt-2 pb-4 sm:px-6 sm:pb-6 xl:overflow-hidden')}>
+            <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto xl:overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
               <div className={cn(
                 'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
                 REVIEW_GUTTER
@@ -3154,6 +3150,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} />
                     </div>
                   ) : !replayId ? (
+                    <>
+                    {/* What's needed now, first (the page's status block): the
+                        next action in words — what to act on is right under it. */}
+                    {page && !conflict.rollback && stage !== 'resolved' && flowOf(conflict)?.next && (
+                      <p data-status-block="next" role="status" className="mb-3 flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
+                        <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
+                        <LocalizedText text={flowOf(conflict).next} />
+                      </p>
+                    )}
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
@@ -3232,6 +3237,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         </div>
                       </section>
                     </div>
+                    </>
                   ) : (
                     <div className="flex min-h-0 flex-1">
                       <ConflictReplay conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onBack={() => setReplayId(null)} onOpenEvidence={openEvidence} />
@@ -3282,6 +3288,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             onUpdate={onUpdate ? update : undefined}
                             onDismiss={workspace?.dismissChangeRequest}
                             onReviewerAssigned={focusNextAction}
+                            quiet={page && Boolean(conflict.decisionFlow)}
                           />
                           <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
                         </InfoSection>
