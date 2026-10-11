@@ -6,7 +6,7 @@ import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionOutcomeOf, decisionStageOf, fixLineOf, proposalOf, proposalPhraseOf, reasonChipsFor, seedValuesFor, withEul } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, controlsOf, decisionOutcomeOf, decisionStageOf, fixLineOf, proposalOf, proposalPhraseOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -126,7 +126,8 @@ export function decisionFlowOf(conflict, viewer) {
     ? { detected: `${designer}님께 디자인 결정을 요청하세요`, rework: '디자이너의 의견을 반영해 다시 요청하세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 자동으로 수정하고 있어요', fixed: '768px 렌더링을 검증하고 있어요', verified: '검증을 통과했어요. 병합하면 자동으로 해결돼요', resolved: '해결됐어요' }
     : { requested: '원안과 구현을 비교해 결정해 주세요', rework: '개발자의 재요청을 확인하세요', decided: '개발자에게 결정이 전달됐어요', resolved: '해결됐어요' })[stage]
   // (A check that failed isn't "being checked": it waits for a choice.)
-  const stuck = developer && stage === 'fixed' && conflict.decisionFix?.failed ? '검증에 실패했어요. 다시 시도하거나 직접 수정하세요' : null
+  const stuck = stage === 'decided' && isDeferred(conflict.designDecision) ? `승인됐어요 · ${scheduleWordOf(conflict.designDecision.timing)} 반영 예정`
+    : developer && stage === 'fixed' && conflict.decisionFix?.failed ? '검증에 실패했어요. 다시 시도하거나 직접 수정하세요' : null
   return {
     current: at >= labels.length ? 'done' : labels[at],
     next: stuck ?? next ?? '',
@@ -225,11 +226,10 @@ function RequestCard({ conflict, bare = false }) {
         </dd>
         <dt className="text-slate-400">구현 화면</dt>
         <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
-        {/* (In the record, when it's wanted by is on the step's line.) */}
-        {!bare && <><dt className="text-slate-400">개발 단계</dt>
+        {/* (Where the project is — read-only context for whoever decides; it comes with the request by itself.) */}
+        {!bare && request.devStage && <><dt className="text-slate-400">개발 단계</dt>
         <dd className="text-slate-200">{DEV_STAGE_LABEL[request.devStage] ?? '—'}</dd>
-        <dt className="text-slate-400">희망 반영 시점</dt>
-        <dd className="text-slate-200">{TIMING_LABEL[request.timing] ?? '—'}</dd></>}
+        </>}
         {!bare && <><dt className="text-slate-400">영향 범위</dt>
         <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd></>}
       </dl>
@@ -260,8 +260,9 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
       <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
         <dt className="text-slate-400">이유</dt>
         <dd className="text-slate-100">{decision.reason}</dd>
-        {!bare && <><dt className="text-slate-400">반영 시점</dt>
-        <dd className="font-medium text-slate-100">{TIMING_LABEL[decision.timing] ?? '—'}</dd></>}
+        {/* (It goes in at once unless the approver put it off: only then is there a time to say.) */}
+        {!bare && scheduleOf(conflict, releaseOf(conflict)) && <><dt className="text-slate-400">반영 시점</dt>
+        <dd data-decision-schedule className="font-medium text-slate-100">{scheduleOf(conflict, releaseOf(conflict))}</dd></>}
         {/* (In the record the proposal is the request's line — not said again here.) */}
         {!bare && <><dt className="text-slate-400">다음 할 일</dt>
         <dd className="text-slate-200">{typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd></>}
@@ -520,8 +521,6 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
   )
 }
 
-const STAGE_SHORT = { early: '초기', mid: '중간', late: '완료 직전' }
-
 const jumpToProposal = () => document.querySelector('[data-proposal-section]')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
 
 function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
@@ -529,10 +528,10 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
   const rework = conflict.designDecision?.choice === 'rework'
   const project = projects.find((candidate) => candidate.id === conflict.projectId)
   const [reason, setReason] = useState(rework ? '' : previous?.reason ?? '')
-  // The stage comes from the project's own data; it is only asked when the project doesn't have one, or the developer says it differs.
-  const [devStage, setDevStage] = useState(previous?.devStage ?? project?.devStage ?? null)
-  const [changingStage, setChangingStage] = useState(!project?.devStage)
-  const [timing, setTiming] = useState(previous?.timing ?? null)
+  // The project's stage goes along by itself (context for the designer — not
+  // something to fill in), and there's no time to wish for: approving is
+  // what starts it going in.
+  const devStage = previous?.devStage ?? project?.devStage ?? null
   const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
   const chosen = proposalOf(proposal, custom)
   // 원안대로 맞추기 needs no approval: nothing to ask, only to start.
@@ -541,12 +540,8 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
     !chosen && '수정안',
     proposal === 'other' && !chosen?.described && '수정안 값',
     !reason.trim() && '변경 사유',
-    !devStage && '개발 단계',
-    !timing && '희망 반영 시점',
   ].filter(Boolean)
-  // Where it could land: the next releases, by name and date when the project has them.
-  const release = project?.release
-  const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage, timing })
+  const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage })
   // 원안대로 맞추기: no form at all — only the way to start.
   if (direct) {
     return (
@@ -555,7 +550,7 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
           <span className="font-medium text-slate-100">원안대로 맞추기</span> · 디자인 원안대로 맞추는 거라 승인이 필요 없어요. {designer}님에게는 알림만 가요.
           <button type="button" onClick={jumpToProposal} className="ml-2 text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">바꾸기</button>
         </p>
-        <button type="button" data-start-direct-fix onClick={() => onDirect({ ...payload(), devStage: devStage ?? project?.devStage ?? null, timing: 'now' })} className={PRIMARY}>
+        <button type="button" data-start-direct-fix onClick={() => onDirect(payload())} className={PRIMARY}>
           <ArrowRight className="size-3.5" />
           바로 수정 시작
         </button>
@@ -567,7 +562,7 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
     <section data-decision-request-form className={CARD}>
       <h3 className="text-[13px] font-semibold text-white">{designer}님(디자이너)에게 디자인 결정 요청</h3>
       <p className="mt-0.5 mb-3 text-xs text-slate-400">
-        디자인 원안과 다르게 바꿔야 한다면, 이유와 희망 반영 시점을 적어 승인을 요청하세요.
+        디자인 원안과 다르게 바꿔야 한다면, 이유를 적어 승인을 요청하세요.
       </p>
 
       {/* The way picked above, in a line; pressing it goes back to the list. */}
@@ -586,30 +581,11 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
           suggestions={reasonChipsFor(proposal, custom)}
           append
         />
-        {(
-          <div className="min-w-0 space-y-3">
-            <Choice
-              label="희망 반영 시점"
-              name="timing"
-              value={timing}
-              onChange={setTiming}
-              options={[['now', '지금', '이번 작업에'], ['before-release', '출시 전', release ? `${release.name} · ${release.date}` : null], ['next-version', '다음 버전']]}
-              hint="희망일 뿐이에요. 디자이너가 결정하면서 반영 시점을 확정해요."
-            />
-            {devStage && !changingStage ? (
-              <p data-dev-stage className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                개발 단계 · <span className="font-medium text-slate-200">{STAGE_SHORT[devStage]}</span>
-                <span className="text-slate-500">프로젝트 정보에서 가져왔어요</span>
-                <button type="button" onClick={() => setChangingStage(true)} className="text-slate-300 underline-offset-2 hover:text-white hover:underline">변경</button>
-              </p>
-            ) : (
-              <Choice label="개발 단계" name="dev-stage" value={devStage} onChange={setDevStage} options={[['early', '초기'], ['mid', '중간'], ['late', '완료 직전']]} />
-            )}
-          </div>
-        )}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
           {/* (The section's own * says a way is required; here only what else is left.) */}
           {chosen && missing.length > 0 && <span className="text-[11px] text-slate-500">{`남은 항목: ${missing.join(', ')}`}</span>}
+          {/* (No time to pick: approving is what starts it.) */}
+          <span data-apply-note className="mr-auto text-xs text-slate-500">승인되면 바로 반영돼요</span>
           <button type="button" data-send-decision-request disabled={missing.length > 0} title={!chosen ? '수정안을 먼저 골라 주세요' : undefined} onClick={() => onSend(payload())} className={PRIMARY}>
             <Send className="size-3.5" />
             {designer}님에게 승인 요청 보내기
@@ -631,21 +607,10 @@ function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
 // Where the fix is: waiting for a go-ahead (a high-risk change only) →
 // applying → verifying → verified | failed (→ retried, or taken over by
 // hand) → resolved.
-function fixPhaseOf(conflict) {
-  const fix = conflict.decisionFix
-  if (conflict.reviewStage === 'resolved') return 'resolved'
-  if (!fix) return fixNeedsApproval(conflict) ? 'approval' : canAutoFix(conflict) ? 'applying' : 'unfixable'
-  if (fix.verified) return 'verified'
-  if (fix.manual) return 'manual'
-  if (fix.failed) return 'failed'
-  return 'verifying'
-}
-// A change Devsign doesn't make by itself: the risk is high, so its diff is
-// looked at and approved first.
-const fixNeedsApproval = (conflict) => conflict.severity === 'high' || conflict.severity === 'critical'
-const canAutoFix = (conflict) => Boolean(fixLineOf(conflict) && conflict.fileId && conflict.line)
+const releaseOf = (conflict) => projects.find((candidate) => candidate.id === conflict.projectId)?.release ?? null
 
 const PHASE_CHIP = {
+  deferred: ['반영 예정', 'bg-sky-400/15 text-sky-200'],
   approval: ['수정 전 확인 필요', 'bg-amber-400/15 text-amber-200'],
   applying: ['코드 수정 중', 'bg-sky-400/15 text-sky-200'],
   unfixable: ['자동 수정 불가', 'bg-amber-400/15 text-amber-200'],
@@ -744,6 +709,7 @@ function FixPanel({ conflict, onPropose, folds }) {
 // fix with 병합하고 해결하기: merging is the press, and resolved follows from
 // it. It's the page's only green: success is said here and nowhere else.
 const BAR_STATUS = {
+  deferred: '승인됨',
   approval: '수정 내용을 확인하고 승인해 주세요',
   applying: '결정대로 코드를 수정하고 있어요',
   unfixable: '자동으로 수정할 수 없어요 · 코드를 직접 수정해 주세요',
@@ -764,7 +730,9 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
   const busy = phase === 'applying' || phase === 'verifying'
   const passed = phase === 'verified'
   const wrong = phase === 'failed' || phase === 'manual'
+  const schedule = scheduleOf(conflict, releaseOf(conflict))
   const primary = {
+    deferred: { label: '병합하고 해결하기', Icon: GitMerge, disabled: true },
     approval: { label: '수정 승인', Icon: Check, onClick: onApprove },
     failed: { label: '다시 시도', Icon: RotateCcw, onClick: onRetry },
     manual: { label: '다시 검증', Icon: ShieldCheck, onClick: onRetry },
@@ -779,8 +747,9 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
         <p data-status-text role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[14px] leading-5 font-semibold text-white">
           {busy ? <LoaderCircle className="size-4 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />
             : passed ? <ShieldCheck className="size-4 shrink-0 text-emerald-300" />
-              : <TriangleAlert className={cn('size-4 shrink-0', wrong ? 'text-destructive' : 'text-amber-300')} />}
-          <span className="min-w-0">{BAR_STATUS[phase]}</span>
+              : phase === 'deferred' ? <CircleCheck className="size-4 shrink-0 text-sky-300" />
+                : <TriangleAlert className={cn('size-4 shrink-0', wrong ? 'text-destructive' : 'text-amber-300')} />}
+          <span className="min-w-0">{BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
         </p>
         {/* (The second way out of a failed check, beside the first — never in its place.) */}
         {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
@@ -790,6 +759,7 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
         </button>
       </div>
       {wrong && fix?.failed && <p data-fix-failure role="alert" className="mt-2 text-[12.5px] leading-[18px] text-slate-200">{fix.failed.reason}</p>}
+      {phase === 'deferred' && <p data-deferred-note className="mt-2 text-[12.5px] leading-[18px] text-slate-300">그때까지 승인된 상태로 있어요. 수정과 검증은 예정 시점에 시작돼요.</p>}
       {phase === 'approval' && <p className="mt-2 text-[12.5px] leading-[18px] text-amber-200">위험도가 높은 변경이라 자동으로 수정하지 않았어요. 승인하면 수정과 검증이 이어서 진행돼요.</p>}
 
       {/* The render before and after the fix — once there's a fix to look at. */}
@@ -829,17 +799,28 @@ const REASON_SUGGESTIONS = {
   rework: '1열은 스크롤이 너무 길어져요. 카드 높이를 줄인 2열 안을 다시 제안해 주세요.',
 }
 
+// The designer decides — and, approving, starts it going in: the fix and its
+// check run at once. Putting it off is the exception, theirs to choose: a
+// quiet "나중에 반영" under the button offers the project's next release, or
+// the version after. (The requester's stage of work is here to read.)
 function DecisionForm({ conflict, onDecide }) {
   const request = conflict.decisionRequest
   const [choice, setChoice] = useState(null)
   const [reason, setReason] = useState('')
-  const [timing, setTiming] = useState(request?.timing ?? null)
+  const [later, setLater] = useState(false)
+  const [timing, setTiming] = useState('now')
   const requester = nameOf(request?.by)
-  const missing = [!choice && '결정', !reason.trim() && '이유', choice !== 'rework' && !timing && '반영 시점'].filter(Boolean)
+  const release = releaseOf(conflict)
+  const settles = choice && choice !== 'rework'
+  const missing = [!choice && '결정', !reason.trim() && '이유'].filter(Boolean)
+  const scheduled = settles && later && timing !== 'now' ? scheduleWordOf(timing, release) : null
   return (
     <section data-decision-form className={CARD}>
       <h3 className="text-[13px] font-semibold text-white">어떻게 할까요?</h3>
-      <p className="mt-0.5 mb-4 text-xs text-slate-400">결정과 이유는 {requester}님에게 전달되고 승인 이력으로 남아요.</p>
+      <p className="mt-0.5 mb-4 text-xs text-slate-400">
+        결정과 이유는 {requester}님에게 전달되고 승인 이력으로 남아요.
+        {request?.devStage && <span data-request-stage className="ml-1.5 text-slate-500">· 요청 시점의 개발 단계: <span className="text-slate-300">{DEV_STAGE_LABEL[request.devStage]}</span></span>}
+      </p>
       <div role="radiogroup" aria-label="디자인 결정" className="grid gap-2 sm:grid-cols-3">
         {DECISIONS.map(([id, title, body]) => (
           <button
@@ -870,27 +851,33 @@ function DecisionForm({ conflict, onDecide }) {
           placeholder={choice ? `왜 ${DECISION_LABEL[choice]}인가요?` : '결정한 이유를 적어 주세요'}
           suggestions={choice ? [REASON_SUGGESTIONS[choice]] : []}
         />
-        {choice !== 'rework' && (
+        {/* Putting it off: only on asking, and only when there's something to put off. */}
+        {settles && later && (
           <Choice
-            label="반영 시점"
+            label="나중에 반영"
             name="decision-timing"
-            value={timing}
+            value={timing === 'now' ? null : timing}
             onChange={setTiming}
-            hint={request?.timing ? `${requester}님 희망: ${TIMING_LABEL[request.timing]}` : null}
-            options={[['now', '지금 반영'], ['before-release', '출시 전'], ['next-version', '다음 버전']]}
+            hint="그때까지 승인된 상태로 두고, 수정은 시작하지 않아요."
+            options={[['before-release', '출시 전', release ? `${release.name} · ${release.date}` : null], ['next-version', '다음 버전']]}
           />
         )}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
           {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
+          {settles && (
+            <button type="button" data-decide-later aria-pressed={later} onClick={() => { setLater(!later); if (later) setTiming('now') }} className="ds-intrinsic mr-auto rounded text-xs text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
+              {later ? '바로 반영으로' : '나중에 반영'}
+            </button>
+          )}
           <button
             type="button"
             data-send-decision
             disabled={missing.length > 0}
-            onClick={() => onDecide({ choice, reason: reason.trim(), timing: choice === 'rework' ? null : timing })}
+            onClick={() => onDecide({ choice, reason: reason.trim(), timing: choice === 'rework' ? null : scheduled ? timing : 'now' })}
             className={PRIMARY}
           >
-            <Send className="size-3.5" />
-            {requester}님에게 결정 보내기
+            {choice === 'rework' ? <Send className="size-3.5" /> : <Check className="size-3.5" />}
+            {choice === 'rework' ? `${requester}님에게 결정 보내기` : scheduled ? `승인 · ${scheduled} 반영` : choice === 'keep' ? '원안 유지하고 바로 반영' : '승인하고 바로 반영'}
           </button>
         </div>
       </div>
@@ -1080,13 +1067,14 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
       summary: [`${breakpoint}px`, '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
     { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.direct ? '바로 수정' : request?.round > 1 ? `${request.round}차 제안` : '제안'}`, time: timeOf('requested'),
-      summary: [(proposalPhraseOf(proposalOf(request?.proposal, request?.custom)) ?? '').replace(/ · /g, ', '), !request?.direct && TIMING_LABEL[request?.timing] && `${TIMING_LABEL[request.timing]} 반영 희망`].filter(Boolean).join(' · ') },
+      summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom)) ?? '').replace(/ · /g, ', ') },
     { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
-      summary: TIMING_LABEL[decision.timing] ? `${TIMING_LABEL[decision.timing]} 반영` : '' },
+      // (Put off: when it goes in. At once: nothing more to say.)
+      summary: isDeferred(decision) ? `${scheduleWordOf(decision.timing, releaseOf(conflict))} 반영` : '' },
     { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : needsPerson ? 'problem' : 'current',
-      who: `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? `${breakpoint}px 검증 통과` : PHASE_CHIP[fixPhase][0]}`,
+      who: fixPhase === 'deferred' ? '반영 예정' : `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? `${breakpoint}px 검증 통과` : PHASE_CHIP[fixPhase][0]}`,
       time: timeOf('verified', 'fixed'),
-      summary: `${fileName} ${conflict.line}행` },
+      summary: fixPhase === 'deferred' ? scheduleWordOf(decision.timing, releaseOf(conflict)) : `${fileName} ${conflict.line}행` },
   ] : []
 
   return (
@@ -1136,7 +1124,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                 }}
                 onSend={(next) => {
                   workspace.requestDesignDecision(conflict.id, next)
-                  toast(`${designer}님에게 승인 요청을 보냈어요`, { description: `${conflict.id} · 희망 반영 시점 ${TIMING_LABEL[next.timing]}` })
+                  toast(`${designer}님에게 승인 요청을 보냈어요`, { description: `${conflict.id} · 승인되면 바로 반영돼요` })
                 }}
               />
             </>
@@ -1209,7 +1197,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               onDecide={(next) => {
                 workspace.decideDesign(conflict.id, next)
                 toast(`${nameOf(request.by)}님에게 결정을 보냈어요: ${DECISION_LABEL[next.choice]}`, {
-                  description: next.timing ? `반영 시점 ${TIMING_LABEL[next.timing]} · 승인 기록이 남았어요` : '승인 기록이 남았어요',
+                  description: isDeferred(next) ? `${scheduleWordOf(next.timing, releaseOf(conflict))} 반영 예정 · 승인 기록이 남았어요` : next.choice === 'rework' ? '승인 기록이 남았어요' : '바로 반영을 시작해요 · 승인 기록이 남았어요',
                   action: { label: '히스토리에서 보기', onClick: openHistory },
                 })
               }}
@@ -1223,6 +1211,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                 <span className="min-w-0 flex-1">
                   {nameOf(request?.by)}님에게 전달됐어요 · 승인 기록이 남았어요.
                   {stage === 'rework' && ' 새 수정안이 오면 다시 알려 드려요.'}
+                  {stage === 'decided' && scheduleOf(conflict, releaseOf(conflict)) && ` ${scheduleOf(conflict, releaseOf(conflict))}.`}
                   {stage === 'fixed' && ` ${nameOf(request?.by)}님이 결정을 반영했어요.`}
                   {stage === 'verified' && ` ${nameOf(request?.by)}님이 반영하고 검증했어요.`}
                   {stage === 'resolved' && ' 변경 확인이 끝났어요.'}

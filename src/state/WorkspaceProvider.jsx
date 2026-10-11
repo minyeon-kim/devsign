@@ -3,7 +3,7 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
-import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, decisionOutcomeOf, fixLineOf, proposalOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, decisionOutcomeOf, fixLineOf, isDeferred, proposalOf, scheduleWordOf } from '@/lib/designDecisions'
 import { appendEvent, eventsOf } from '@/lib/conflictEvents'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
@@ -15,7 +15,10 @@ import { seedMergeDrafts } from '@/lib/sizeAdjustment'
 import { diffLines } from '@/lib/lineDiff'
 import { buildOverrides } from '@/components/mergestudio/mergeSummary'
 import { assemblyToOverride, frameWithLayers } from '@/components/mergestudio/mergeEffects'
-import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
+import { codeMergeVariants, designMergeVariants, projects as allProjects } from '@/data/mockData'
+
+// The project's next release ({ name, date }), for saying when a put-off change goes in.
+const releaseOfProject = (projectId) => allProjects.find((candidate) => candidate.id === projectId)?.release ?? null
 import { reviewAlerts } from '@/lib/inboxNotifications'
 import { useDemoState } from '@/state/useDemoState'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
@@ -1293,7 +1296,7 @@ export function WorkspaceProvider({ children, projectId }) {
       decisionRequest: record,
       designDecision: null,
       decisionFix: null,
-      events: appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: request.reason ?? '', timing: request.timing ?? null, reviewerId: designerId } }),
+      events: appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: request.reason ?? '', reviewerId: designerId } }),
       reviewStage: 'in_review',
       requestedBy: currentUser.id,
       reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
@@ -1356,8 +1359,10 @@ export function WorkspaceProvider({ children, projectId }) {
       reviewers: c.reviewers.map((r) => (r.id === actorId ? { ...r, status: settled ? 'approved' : 'changes_requested', reviewedAt: Date.now(), note: decision.reason } : r)),
     })))
     logEvent({ kind: 'decided', projectId, conflictId, actorId, title: conflict.title })
-    if (actorId === currentUser.id) notifyPerson(conflict.decisionRequest?.by ?? authorOf(conflict), conflict, `${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing] ?? ''} — ${conflict.title}`, 'comment')
-    recordDecisionStep(conflict, { label: `디자인 결정: ${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing] ?? ''} 반영`, reason: decision.reason, actorId })
+    // (When it goes in is said only when it was put off: approving starts it otherwise.)
+    const later = isDeferred(decision) ? ` · ${scheduleWordOf(decision.timing, releaseOfProject(projectId))} 반영 예정` : ''
+    if (actorId === currentUser.id) notifyPerson(conflict.decisionRequest?.by ?? authorOf(conflict), conflict, `${DECISION_LABEL[decision.choice]}${later} — ${conflict.title}`, 'comment')
+    recordDecisionStep(conflict, { label: `디자인 결정: ${DECISION_LABEL[decision.choice]}${later}`, reason: decision.reason, actorId })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
   // The developer acts on the decision: the code (and, for an approved
@@ -1421,7 +1426,7 @@ export function WorkspaceProvider({ children, projectId }) {
     return recordDecisionStep(conflict, {
       kind: 'merge',
       label: `${conflict.id} 해결 · ${decisionOutcomeOf(conflict)?.name}`,
-      reason: `${DECISION_LABEL[conflict.designDecision?.choice] ?? ''} · ${TIMING_LABEL[conflict.designDecision?.timing] ?? ''} 반영 — 검증 완료`,
+      reason: `${DECISION_LABEL[conflict.designDecision?.choice] ?? ''} — 검증 완료`,
     })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
@@ -1466,11 +1471,12 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!asked.length) return
     const timer = window.setTimeout(() => {
       for (const c of asked) {
-        const decision = { ...c.scriptedDecision, timing: c.decisionRequest.timing ?? 'before-release' }
+        // (The walkthrough's designer approves the usual way: it goes in at once.)
+        const decision = { ...c.scriptedDecision, timing: 'now' }
         decideDesign(c.id, decision, { actorId: c.scriptedDecision.by })
         const designer = teamMembers.find((p) => p.id === c.scriptedDecision.by)?.name ?? 'The designer'
-        notifyPerson(currentUser.id, c, `${DECISION_LABEL[decision.choice]} · ${TIMING_LABEL[decision.timing]} — ${c.title}`, 'comment', c.scriptedDecision.by)
-        toast(`${designer}님이 결정했어요: ${DECISION_LABEL[decision.choice]}`, { description: `${c.id} · ${TIMING_LABEL[decision.timing]} 반영`, action: { label: '결정 보기', onClick: () => openConflictReview(c.id, { view: 'overlay' }) } })
+        notifyPerson(currentUser.id, c, `${DECISION_LABEL[decision.choice]} — ${c.title}`, 'comment', c.scriptedDecision.by)
+        toast(`${designer}님이 결정했어요: ${DECISION_LABEL[decision.choice]}`, { description: `${c.id} · 바로 반영을 시작해요`, action: { label: '결정 보기', onClick: () => openConflictReview(c.id, { view: 'overlay' }) } })
       }
     }, Math.max(0, Math.min(...asked.map((c) => c.decisionRequest.sentAt)) + DECISION_REPLY_MS - Date.now()))
     return () => window.clearTimeout(timer)

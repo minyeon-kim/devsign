@@ -938,7 +938,6 @@ export const conflictChecklist = [
       attachment: true,
       proposal: 'one-column',
       devStage: 'mid',
-      timing: 'before-release',
       at: 'Today, 9:20 AM',
     },
     scriptedDecision: {

@@ -3,6 +3,17 @@ import { eventsOf, progressOf } from '@/lib/conflictEvents'
 // shared by the workspace's actions and the review's DesignDecisionFlow.
 export const DECISION_LABEL = { keep: '원안 유지', approve: '변경 승인', rework: '재검토 요청' }
 export const TIMING_LABEL = { now: '지금', 'before-release': '출시 전', 'next-version': '다음 버전' }
+// When an approved change goes in. Approving *is* the start of it — the fix
+// and its check run at once — so "now" is the default and is never said.
+// Putting it off is the approver's call (not the requester's, who can't
+// decide it): only then is there a time to show — "v2.4 출시 전", "다음 버전".
+// The field is the decision's (`designDecision.timing`); a request no longer
+// carries one (older records that do are read as if they didn't).
+export const isDeferred = (decision) => Boolean(decision && decision.choice !== 'rework' && decision.timing && decision.timing !== 'now')
+// `release`: the project's next release ({ name, date }), when it has one.
+export const scheduleWordOf = (timing, release) => (timing === 'before-release' ? `${release?.name ? `${release.name} ` : ''}출시 전` : timing === 'next-version' ? '다음 버전' : null)
+// "v2.4 출시 전 반영 예정" — null when it goes in at once.
+export const scheduleOf = (conflict, release) => (isDeferred(conflict?.designDecision) ? `${scheduleWordOf(conflict.designDecision.timing, release)} 반영 예정` : null)
 export const PROPOSAL_LABEL = { original: '원안대로 맞추기', 'one-column': '1열로 변경', 'narrow-cards': '2열 유지 · 카드 폭 줄이기', other: '다른 수정안' }
 // What the screen is now, said the way a proposal's spec is.
 export const IMPLEMENTATION_SPEC = '360px 고정 2열'
@@ -125,4 +136,21 @@ export const DECISION_REPLY_MS = 6000
 export function decisionStageOf(conflict) {
   if (!conflict) return null
   return progressOf(eventsOf(conflict)).stage
+}
+
+// Where carrying the decision out is: put off to a later time (nothing runs
+// until then) → waiting for a go-ahead (a high-risk change only) → applying →
+// verifying → verified | failed (→ retried, or taken over by hand) → resolved.
+// A change Devsign doesn't make by itself: the risk is high, so its diff is
+// looked at and approved first.
+export const fixNeedsApproval = (conflict) => conflict.severity === 'high' || conflict.severity === 'critical'
+export const canAutoFix = (conflict) => Boolean(fixLineOf(conflict) && conflict.fileId && conflict.line)
+export function fixPhaseOf(conflict) {
+  const fix = conflict.decisionFix
+  if (conflict.reviewStage === 'resolved') return 'resolved'
+  if (!fix) return isDeferred(conflict.designDecision) ? 'deferred' : fixNeedsApproval(conflict) ? 'approval' : canAutoFix(conflict) ? 'applying' : 'unfixable'
+  if (fix.verified) return 'verified'
+  if (fix.manual) return 'manual'
+  if (fix.failed) return 'failed'
+  return 'verifying'
 }

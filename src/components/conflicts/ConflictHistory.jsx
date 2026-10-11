@@ -1,3 +1,4 @@
+import { scheduleWordOf } from '@/lib/designDecisions'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, CornerDownRight, CornerUpLeft, GitPullRequest, RotateCcw, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -64,7 +65,6 @@ function EventContent({ event }) {
             {payload.reason}
           </blockquote>
         )}
-        {payload.timing && <p className="mt-1 text-[11px] text-slate-500">희망 반영 시점 · {payload.timing}</p>}
       </>
     )
   }
@@ -90,6 +90,8 @@ function EventContent({ event }) {
           </p>
         )}
         {payload.reason && <blockquote className={QUOTE}>{payload.reason}</blockquote>}
+        {/* (Put off: when it goes in. Approved to go in at once: nothing to add.) */}
+        {payload.result !== 'rejected' && scheduleWordOf(payload.timing) && <p data-decision-schedule className="mt-1 text-[11px] text-slate-400">{scheduleWordOf(payload.timing)} 반영 예정</p>}
       </>
     )
   }

@@ -8,6 +8,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { LocalizedText } from '@/i18n/runtime'
 import { dueRank, listStatusOf, shortDue } from '@/lib/conflicts'
 import { kindWordOf } from '@/lib/conflictInsight'
+import { scheduleOf } from '@/lib/designDecisions'
+import { projects } from '@/data/mockData'
 
 // The drawer behind the activity bar's Conflict Points icon: the same list
 // as the bottom panel's tab (useConflictList — one set of records, filters
@@ -42,7 +44,9 @@ function ConflictCard({ conflict, selected, hovered, onOpen, onHover }) {
   const done = conflict.reviewStage === 'resolved'
   const when = done ? conflict.resolvedAtLabel ?? conflict.timestamp ?? null : shortDue(conflict.dueLabel)
   const tone = done ? 'later' : dueToneOf(conflict)
-  const status = done ? (conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged') : listStatusOf(conflict).label
+  // (Approved and put off: when it goes in — instead of "in review".)
+  const scheduled = !done && conflict.decisionFlow && !conflict.decisionFix ? scheduleOf(conflict, projects.find((project) => project.id === conflict.projectId)?.release) : null
+  const status = done ? (conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged') : scheduled ? `승인됨 · ${scheduled}` : listStatusOf(conflict).label
   const kind = kindWordOf(conflict)
   return (
     <li>
