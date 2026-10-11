@@ -2,6 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
+import { StepDot, StepLine, StepProgressCount, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { STEP_STATE_WORD, delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
@@ -943,29 +945,36 @@ function useReplayNavigation(conflict, workspace) {
 }
 // The record of what's been done, as a thin timeline: a small dot on a line,
 // one row a step — [step] · [who] · [what] · [when] — that opens in place.
-// A finished step's dot is a quiet grey check; only the step under way is in
-// the accent color, and one that needs attention in the warning color.
-function StepDot({ state }) {
-  if (state === 'done') return <span aria-hidden data-step-dot="done" className="flex size-4 items-center justify-center rounded-full bg-[#2a2a2e] text-slate-400"><Check className="size-2.5" strokeWidth={3} /></span>
-  return <span aria-hidden data-step-dot={state} className={cn('flex size-4 items-center justify-center rounded-full bg-[#1b1b1e] ring-2 ring-inset', state === 'problem' ? 'ring-amber-300' : 'ring-sky-300')}><span className={cn('size-1.5 rounded-full', state === 'problem' ? 'bg-amber-300' : 'bg-sky-300')} /></span>
-}
-
+// A finished step wears a soft success disc and check (StepTimeline); only
+// the step under way is outlined in the accent color, one that needs
+// attention wears the warning color, and one still to come is an empty ring.
 // `onReplay`: the replay opened at this step — a quiet text button that shows
-// on the row's hover or focus.
-function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, last, children, ...rest }) {
+// on the row's hover or focus. `moves`/`delay`/`anim`: the step has just
+// finished and fills in (see StepTimeline); `strong`: the line below it is
+// deeper while a later step is hovered.
+function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
+  const pending = state === 'pending'
   return (
-    <li className="group/step relative pl-7" {...rest}>
+    <li
+      className="group/step relative pl-7"
+      aria-label={`${title} · ${STEP_STATE_WORD[state]}`}
+      data-step-anim={anim}
+      style={{ '--d': `${delay}ms` }}
+      onMouseEnter={onHover && (() => onHover(true))}
+      onMouseLeave={onHover && (() => onHover(false))}
+      {...rest}
+    >
       {/* (The line runs on to the next step's dot; the last one ends at its own.) */}
-      {!last && <span aria-hidden className="absolute top-5 bottom-[-28px] left-[7.5px] w-px bg-white/[0.1]" />}
-      <span className="absolute top-1 left-0"><StepDot state={state} /></span>
+      {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-5 bottom-[-28px] left-[7.5px]" />}
+      <span className="absolute top-1 left-0"><StepDot state={state} moves={moves} arrive={arrive} /></span>
       <div data-step-row={state} data-open={open}>
         <div className="flex h-6 min-w-0 items-center gap-2 text-sm">
           <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-            <span data-step-title className={cn('shrink-0 font-medium whitespace-nowrap', state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
+            <span data-step-title className={cn('shrink-0 font-medium whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
             <span aria-hidden className="shrink-0 text-slate-600">·</span>
-            <span data-step-who className="shrink-0 whitespace-nowrap text-slate-300">{who}</span>
+            <span data-step-who className={cn('shrink-0 whitespace-nowrap', pending ? 'text-slate-500' : 'text-slate-300')}>{who}</span>
             {summary && <span aria-hidden className="shrink-0 text-slate-600">·</span>}
-            <span data-step-summary className="min-w-0 flex-1 truncate text-slate-400">{summary}</span>
+            <span data-step-summary className={cn('min-w-0 flex-1 truncate', pending ? 'text-slate-600' : 'text-slate-400')}>{summary}</span>
           </button>
           {onReplay && (
             <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-xs text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
@@ -1092,9 +1101,12 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       time: timeOf('verified', 'fixed'),
       summary: fixPhase === 'deferred' ? scheduleWordOf(decision.timing, releaseOf(conflict)) : `${fileName} ${conflict.line}행` },
   ] : []
+  const stepStates = steps.map((step) => step.state)
+  const { reveal, ref: listRef } = useStepReveal(conflict.id, stepStates)
+  const [hovered, setHovered] = useState(null)
 
   return (
-    <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
+    <div data-design-decision-flow={developer ? 'developer' : 'designer'} data-step-live={reveal.live ? '' : undefined} className="flex min-w-0 flex-col gap-3">
       {/* (The merge banner is the list's first item: the same gap as between cards.) */}
       {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
 
@@ -1166,6 +1178,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               <section data-step-record aria-label="진행 기록" className="mt-5.5">
                 <div data-step-list-head className="mb-4 flex items-center gap-3">
                   <h3 className="text-sm font-semibold text-white">진행 기록</h3>
+                  <StepProgressCount states={stepStates} ticks={reveal.live} />
                   <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
                     {allOpen ? '모두 접기' : '모두 펼치기'}
                   </button>
@@ -1177,9 +1190,9 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                     </button>
                   )}
                 </div>
-                <ol data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
+                <ol ref={listRef} data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
                   {steps.map((step, index) => (
-                    <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} onReplay={onReplay ? () => onReplay(step.key) : undefined} last={index === steps.length - 1}>
+                    <StepRow key={step.key} data-fold={step.key} state={step.state} moves={stepMoves(reveal, index)} anim={stepMoves(reveal, index) ? reveal.phase : undefined} delay={delayOf(reveal, index)} arrive={reveal.live && step.state === 'current' && index === reveal.to} strong={hovered != null && index < hovered} onHover={(on) => setHovered(on ? index : null)} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} onReplay={onReplay ? () => onReplay(step.key) : undefined} last={index === steps.length - 1}>
                       {step.key === 'detect' && (
                         <>
                           <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
