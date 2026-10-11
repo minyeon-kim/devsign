@@ -9,10 +9,10 @@ import { layerIdsOf } from '@/lib/conflictInsight'
 
 // Sizes are in screen pixels and don't follow the canvas zoom.
 export const PIN = {
-  head: 22, // the head's diameter
-  height: 28, // head top to tail tip
-  headSelected: 28,
-  heightSelected: 36,
+  head: 16, // the head's diameter
+  height: 21, // head top to tail tip
+  headSelected: 20,
+  heightSelected: 26,
   inset: 6, // how far inside the element's corner the tip sits
   gap: 4, // between heads spread side by side
   clusterFrom: 3, // this many at one spot become one "+N" pin

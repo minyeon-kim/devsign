@@ -31,6 +31,15 @@ try {
   // …or its top-left one when the head would leave the frame's right edge.
   assert.deepEqual(anchorOf({ left: 320, top: 200, right: 500, bottom: 260 }, frame), { x: 326, y: 206, flipped: true })
   assert.equal(anchorOf({ left: 320, top: 200, right: 480, bottom: 260 }, frame).flipped, false, 'room for the head: no flip')
+  // A conflict about a screen as a whole links to that screen, with no element marked.
+  const { designLinkOf } = await server.ssrLoadModule('/src/lib/conflictInsight.js')
+  const { canvasPages } = await server.ssrLoadModule('/src/data/mockData.js')
+  const dashboardPages = canvasPages.filter((page) => page.projectId === 'dashboard-redesign')
+  for (const conflict of records) {
+    const link = designLinkOf(conflict, dashboardPages)
+    assert.ok(link?.frame, `${conflict.id} has a screen to show`)
+    assert.equal(Boolean(link.layer), Boolean(conflict.layerId))
+  }
 
   // Heads that don't touch stay where they are.
   const apart = layoutPins([{ id: 'a', number: 1, x: 100, y: 100 }, { id: 'b', number: 2, x: 200, y: 100 }])
@@ -49,8 +58,8 @@ try {
   const opened = layoutPins(crowd, { expanded: new Set([cluster.key]) })
   assert.deepEqual(opened.map((item) => item.pin.number), [1, 2, 3])
   assert.ok(opened.every((item, index) => index === 0 || item.x - opened[index - 1].x === PIN.head + PIN.gap))
-  // Sizes: 22 × 28, and 28 × 36 when picked.
-  assert.deepEqual([PIN.head, PIN.height, PIN.headSelected, PIN.heightSelected], [22, 28, 28, 36])
+  // Sizes: 16 × 21, and 20 × 26 when picked.
+  assert.deepEqual([PIN.head, PIN.height, PIN.headSelected, PIN.heightSelected], [16, 21, 20, 26])
   await server.ssrLoadModule('/src/components/conflicts/ConflictPins.jsx')
   console.log('Passed: pin numbers follow the list, anchors and flipping, spreading two, clustering three, and sizes.')
 } finally { await server.close() }

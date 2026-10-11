@@ -251,6 +251,8 @@ export const conflictChecklist = [
   // Code-versus-code examples belong to the same queue as design drifts.
   {
     "id": "cc-code-payment-submit",
+    // (The screen this code is behind — shown on its detail, nothing marked.)
+    "designPageId": "page-checkout",
     "codeComparison": {"localTitle": "결제 재시도 처리", "remoteTitle": "중복 결제 방지", "local": "결제 실패 시 재시도하도록 submitPayment를 retry로 감쌉니다.", "remote": "제출 중에는 요청을 차단하고 isSubmitting 상태를 설정합니다.", "conflict": "placeOrder 함수의 같은 요청 처리 구간을 수정했습니다.", "resolution": "중복 제출 방지와 재시도를 함께 유지하고, 완료 시 제출 상태를 해제합니다."},
     "kind": "code-conflict",
     "title": "주문 버튼 · 중복 결제 방지 · 겹치는 동작",
@@ -328,6 +330,8 @@ export const conflictChecklist = [
   },
   {
     "id": "cc-code-coupon-total",
+    // (The screen this code is behind — shown on its detail, nothing marked.)
+    "designPageId": "page-checkout",
     "codeComparison": {"localTitle": "쿠폰 할인 적용", "remoteTitle": "금액 반올림 적용", "local": "주문 합계에서 쿠폰 할인 금액을 차감합니다.", "remote": "주문 합계를 소수점 둘째 자리로 반올림합니다.", "conflict": "total을 계산하는 같은 한 줄을 수정했습니다.", "resolution": "쿠폰을 먼저 적용한 뒤 최종 합계를 반올림합니다."},
     "kind": "code-conflict",
     "title": "주문 요약 · 할인 금액 계산 · 겹치는 계산식",
@@ -394,6 +398,8 @@ export const conflictChecklist = [
   },
   {
     "id": "cc-code-nav-handler",
+    // (The screen this code is behind — shown on its detail, nothing marked.)
+    "designPageId": "page-1",
     "codeComparison": {"localTitle": "탭 클릭 이벤트 기록", "remoteTitle": "탭 경로 이동", "local": "탭 클릭 이벤트를 기록하고 활성 탭 상태를 변경합니다.", "remote": "탭 경로로 이동하도록 navigate를 호출합니다.", "conflict": "onTabClick 핸들러의 같은 실행 구간을 수정했습니다.", "resolution": "이벤트 기록, 활성 탭 변경, 경로 이동을 순서대로 실행합니다."},
     "kind": "code-conflict",
     "title": "하단 탭 · 탭 누를 때 동작 · 겹치는 동작",
@@ -857,6 +863,9 @@ export const conflictChecklist = [
   // developer's walkthrough receives it a few seconds after asking.
   {
     id: 'CON-002',
+    // About the Dashboard screen as a whole — no single element on its canvas
+    // frame — so its screen is linked without one marked.
+    designPageId: 'page-dashboard',
     decisionFlow: true,
     driftType: 'structural',
     title: 'DashboardGrid / Mobile Layout Adjustment',
@@ -1014,6 +1023,9 @@ export const conflictChecklist = [
   },
   {
     id: 'CON-008',
+    // About the Dashboard screen as a whole — no single element on its canvas
+    // frame — so its screen is linked without one marked.
+    designPageId: 'page-dashboard',
     title: 'Chart legend / Spacing',
     token: 'Chart legend / Spacing',
     file: 'src/components/dashboard/RevenueChart.tsx',
@@ -1040,6 +1052,9 @@ export const conflictChecklist = [
   },
   {
     id: 'CON-009',
+    // About the Dashboard screen as a whole — no single element on its canvas
+    // frame — so its screen is linked without one marked.
+    designPageId: 'page-dashboard',
     title: 'Sidebar / Breakpoint',
     token: 'Sidebar / Breakpoint',
     file: 'src/components/dashboard/Sidebar.tsx',
@@ -1065,6 +1080,9 @@ export const conflictChecklist = [
   },
   {
     id: 'CON-011',
+    // About the Dashboard screen as a whole — no single element on its canvas
+    // frame — so its screen is linked without one marked.
+    designPageId: 'page-dashboard',
     title: 'Empty state / Illustration size',
     token: 'Empty state / Illustration size',
     file: 'src/components/dashboard/EmptyState.tsx',

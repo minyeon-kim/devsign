@@ -7,8 +7,9 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 // Which design screen a Conflict Point is about: a thumbnail of its frame
 // with the element marked, and its place on the canvas (page 2/4 · frame 1).
 // Pressing either goes there — the canvas page, the element selected and
-// pulsing (WorkspaceProvider's revealConflictOnCanvas). Draws nothing for a
-// conflict that isn't about a screen, or outside a workspace.
+// pulsing (WorkspaceProvider's revealConflictOnCanvas). A conflict about a
+// screen as a whole shows that screen with nothing marked. Draws nothing
+// for a conflict that isn't about a screen, or outside a workspace.
 const SIZES = { sm: { w: 44, h: 52 }, md: { w: 132, h: 120 } }
 
 export function useDesignLink(conflict) {
@@ -27,8 +28,8 @@ export function DesignLinkChip({ conflict, compact = false, className }) {
     <button
       type="button"
       data-design-link-chip
-      aria-label={`${label} · ${link.layer.name}`}
-      title={`${label} · ${link.layer.name}`}
+      aria-label={[label, link.layer?.name].filter(Boolean).join(' · ')}
+      title={[label, link.layer?.name].filter(Boolean).join(' · ')}
       onClick={(event) => { event.stopPropagation(); workspace.revealConflictOnCanvas(conflict) }}
       className={cn('ds-intrinsic inline-flex w-fit max-w-full cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] leading-4 font-medium text-slate-200 tabular-nums transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary', className)}
     >
@@ -37,7 +38,8 @@ export function DesignLinkChip({ conflict, compact = false, className }) {
       ) : (
         <>
           <span>{multiPage && <><LocalizedText text="Page" /> {link.pageNumber}/{link.pageCount} · </>}<LocalizedText text="Frame" /> {link.frameNumber}</span>
-          <span className="truncate text-slate-400">· {link.layer.name}</span>
+          {/* (About the screen as a whole: no element to name.) */}
+          {link.layer && <span className="truncate text-slate-400">· {link.layer.name}</span>}
         </>
       )}
     </button>
@@ -54,7 +56,7 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
   const width = frame.width * scale
   const height = frame.height * scale
   const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
-  const label = `Page ${link.pageNumber}/${link.pageCount} · Frame ${link.frameNumber} · ${layer.name}`
+  const label = [`Page ${link.pageNumber}/${link.pageCount} · Frame ${link.frameNumber}`, layer?.name].filter(Boolean).join(' · ')
   return (
     <button
       type="button"
@@ -69,12 +71,15 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
       <span aria-hidden className="pointer-events-none absolute top-0 left-0 block origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
         {frame.layers.map((item) => <StaticLayer key={item.id} layer={item} />)}
       </span>
-      <span
-        aria-hidden
-        data-design-link-mark
-        className={cn('absolute rounded-[2px] border-2', resolved ? 'border-emerald-400 bg-emerald-400/20' : 'border-amber-400 bg-amber-400/25')}
-        style={{ left: layer.x * scale - 1, top: layer.y * scale - 1, width: Math.max(layer.width * scale + 2, 5), height: Math.max(layer.height * scale + 2, 5) }}
-      />
+      {/* The element it's about, marked — when it's about one. */}
+      {layer && (
+        <span
+          aria-hidden
+          data-design-link-mark
+          className={cn('absolute rounded-[2px] border-2', resolved ? 'border-emerald-400 bg-emerald-400/20' : 'border-amber-400 bg-amber-400/25')}
+          style={{ left: layer.x * scale - 1, top: layer.y * scale - 1, width: Math.max(layer.width * scale + 2, 5), height: Math.max(layer.height * scale + 2, 5) }}
+        />
+      )}
     </button>
   )
 }

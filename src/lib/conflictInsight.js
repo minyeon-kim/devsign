@@ -160,10 +160,15 @@ export function flowOf(conflict) {
 // Which design screen a conflict is about: its element's page, frame and the
 // element itself, with the page's and frame's place in the project's canvas
 // (page 2 of 4, frame 1) — counted from `pages`, the project's canvas pages
-// in order, never stored. Null when it has no element, or the canvas no
-// longer has it (so nothing is drawn for a conflict that isn't about a screen).
+// in order, never stored. A conflict about a screen as a whole (no single
+// element: `designPageId`) links to that page's frame with `layer: null`.
+// Null when it's about neither, or the canvas no longer has it.
 export function designLinkOf(conflict, pages = []) {
-  if (!conflict?.layerId) return null
+  if (!conflict?.layerId) {
+    const pageIndex = conflict?.designPageId ? pages.findIndex((page) => page.id === conflict.designPageId) : -1
+    const frame = pages[pageIndex]?.frames?.[0]
+    return frame ? { page: pages[pageIndex], pageNumber: pageIndex + 1, pageCount: pages.length, frame, frameNumber: 1, frameCount: pages[pageIndex].frames.length, layer: null } : null
+  }
   for (const [pageIndex, page] of pages.entries()) {
     for (const [frameIndex, frame] of (page.frames ?? []).entries()) {
       const layer = frame.layers?.find((candidate) => candidate.id === conflict.layerId)

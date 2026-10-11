@@ -33,7 +33,7 @@ function PinShape({ head, height, color }) {
     // offset by as much — so the tip is exactly at the box's bottom center.)
     <svg aria-hidden width={head + 4} height={height + 4} viewBox={`-2 -2 ${head + 4} ${height + 4}`} className="absolute overflow-visible" style={{ left: -2, top: -2 }}>
       {/* One outline: around the head, down its sides to the tip. */}
-      <path d={`M ${r - spread} ${from} A ${r} ${r} 0 1 1 ${r + spread} ${from} L ${r} ${height} Z`} fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+      <path d={`M ${r - spread} ${from} A ${r} ${r} 0 1 1 ${r + spread} ${from} L ${r} ${height} Z`} fill={color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -173,7 +173,7 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
               style={{ left: item.x - PIN.head / 2, top: item.y - PIN.height, width: PIN.head, height: PIN.height, zIndex: 2 }}
             >
               <PinShape head={PIN.head} height={PIN.height} color={HEAD_COLOR.default} />
-              <span className="absolute inset-x-0 top-0 flex items-center justify-center text-[11px] font-semibold text-slate-950 tabular-nums" style={{ height: PIN.head }}>+{item.pins.length}</span>
+              <span className="absolute inset-x-0 top-0 flex items-center justify-center text-[9px] font-semibold text-slate-950 tabular-nums" style={{ height: PIN.head }}>+{item.pins.length}</span>
             </button>
           )
         }
@@ -208,7 +208,7 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
             {/* (No number on a pin: its color says its state, and a done one carries a check.) */}
             {pin.resolved && (
               <span className="absolute inset-x-0 top-0 flex items-center justify-center text-white" style={{ height: head }}>
-                <Check className="size-3" strokeWidth={3} />
+                <Check className="size-2.5" strokeWidth={3} />
               </span>
             )}
           </button>
