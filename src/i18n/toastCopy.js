@@ -2,6 +2,10 @@ import { translateText } from './translate'
 
 // Toasts describe completed actions; compact status labels elsewhere stay unchanged.
 const KO = {
+  'Workspace reset': '워크스페이스를 초기화했어요',
+  'Restored': '되돌렸어요',
+  'Could not reset. Please try again.': '초기화하지 못했어요. 다시 시도해 주세요',
+  'Could not undo. Please try again.': '되돌리지 못했어요. 다시 시도해 주세요',
   'Review requested': '검토 요청을 보냈어요',
   'Approved by you': '변경 내용을 승인했어요',
   'All approvals received': '검토자 모두가 승인했어요',

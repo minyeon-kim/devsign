@@ -733,10 +733,8 @@ Language|언어
 Applies to the entire app. Code, file paths and your content stay in their original language.|앱 전체에 적용됩니다. 코드, 파일 경로와 사용자 콘텐츠는 원문을 유지합니다.
 Workspace data|워크스페이스 데이터
 Reset workspace data|워크스페이스 데이터 초기화
-Reset all drafts, reviews and history for every project?|모든 프로젝트의 초안, 검토와 히스토리를 초기화할까요?
 Changes could not be saved|변경 사항을 저장하지 못했습니다
 Storage is unavailable or full. Changes remain in this tab; allow browser storage before refreshing.|저장 공간을 사용할 수 없거나 가득 찼습니다. 변경 내용은 이 탭에 남아 있습니다. 새로고침 전에 브라우저 저장소를 허용하세요.
-Reset failed. Allow access to browser storage and try again.|초기화하지 못했습니다. 브라우저 저장소 접근을 허용한 뒤 다시 시도하세요.
 Close|닫기
 Cancel|취소
 Current|현재
