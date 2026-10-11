@@ -15,6 +15,16 @@ export default function StepMeta({ step, onOpenSource }) {
       ? { system: true, text: `자동 수정 · ${check}` }
       : { system: false, name: first.actor.name, text: `수정 · ${check}` }
   }
+  // The last step happens by itself when the code is merged: say so, then who merged and when.
+  if (last.type === 'resolved' && !action.system) {
+    return (
+      <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1">
+        <span>병합 시 자동 해결</span><span aria-hidden>·</span>
+        <span className="text-slate-300">{action.name}</span><span aria-hidden>·</span>
+        <time dateTime={last.createdAt} title={relativeTimeOf(last.createdAt)} className="tabular-nums">{formatTime(last.createdAt)}</time>
+      </span>
+    )
+  }
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1">
       {!action.system && <span className="text-slate-300">{action.name}</span>}

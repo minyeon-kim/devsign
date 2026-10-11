@@ -1,8 +1,8 @@
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { Check, Server, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
-import { useState } from 'react'
 import { REVIEW_HEADER_BADGE } from './ConflictBadges'
+import { FoldBody, useFoldState } from './Fold'
 import { LocalizedText } from '@/i18n/runtime'
 import { baselineOf, conflictTypeOf, differencesOf, flowOf, mismatchesOf } from '@/lib/conflictInsight'
 
@@ -174,12 +174,12 @@ const STEP_LINE_INSET = 4
 // `onStep(index)`: pressing a step goes to its record (its History).
 export function FlowSteps({ conflict, flow: given, className, meta, onStep }) {
   const flow = given ?? flowOf(conflict)
-  const [doneStepsExpanded, setDoneStepsExpanded] = useState(null)
+  // Open or folded is remembered for the session; a finished flow starts folded.
+  const folds = useFoldState(`flow:${conflict?.id}`)
   if (!flow) return null
   const completed = flow.steps.filter(step => step.state === 'done').length
-  // (With a record behind each step, the steps stay open when it's all done:
-  // that's where who-and-when is read, and the way into the History.)
-  const isExpanded = doneStepsExpanded ?? (flow.current !== 'done' || Boolean(meta))
+  const isExpanded = folds.get('steps', flow.current !== 'done')
+  const setDoneStepsExpanded = (value) => folds.set('steps', value)
   return (
     <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
       <div className="px-3 pt-3 pb-1">
@@ -194,7 +194,7 @@ export function FlowSteps({ conflict, flow: given, className, meta, onStep }) {
         </div>
         <p data-flow-next className="mt-1 truncate text-[11px] leading-4 text-slate-400"><LocalizedText text={flow.next} /></p>
       </div>
-      {isExpanded && <ol className="px-3 pt-3 pb-3">
+      <FoldBody open={isExpanded}><ol className="px-3 pt-3 pb-3">
         {flow.steps.map((step, index) => {
           const last = index === flow.steps.length - 1
           return (
@@ -243,7 +243,7 @@ export function FlowSteps({ conflict, flow: given, className, meta, onStep }) {
             </li>
           )
         })}
-      </ol>}
+      </ol></FoldBody>
     </section>
   )
 }

@@ -7,7 +7,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { ComponentSample, ElementPreviewDialog, ElementView, hasSample } from '@/components/conflicts/ElementPreview'
 import { codeOverridesOf, codeSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
-import { referencePick, screenOf } from '@/lib/devicePresets'
+import { ALL_DEVICES, BREAKPOINT_LABEL, breakpointOf, referencePick, screenOf } from '@/lib/devicePresets'
 
 // Which design screen a Conflict Point is about.
 //   · In a list row (`size="sm"`): the element itself — its own component cut
@@ -135,5 +135,60 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
         />
       )}
     </button>
+  )
+}
+
+// ── A layout change's screen: at the width it's about ──────────────────
+// The change's own breakpoint decides the viewport (768 → 768 × 1024, a 3:4
+// tablet held upright) — never a fixed phone frame. Drawn as the screen
+// stands after the fix: the cards in a grid that fits, no overlap, the
+// purchase button under them. Without a breakpoint, or a device at that
+// width, nothing is guessed: "미리보기 없음".
+const BREAKPOINT_KO = { mobile: '모바일', tablet: '태블릿', desktop: '데스크톱' }
+const THUMB_WIDTH = 132
+
+function StatCardDrawing({ tone }) {
+  return (
+    <div style={{ borderRadius: 20, border: '2px solid #e2e8f0', background: '#fff', padding: 28, boxShadow: '0 2px 6px rgba(15,23,42,0.06)' }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: tone }} />
+      <div style={{ marginTop: 22, width: 120, height: 26, borderRadius: 6, background: '#1e293b' }} />
+      <div style={{ marginTop: 14, width: 80, height: 14, borderRadius: 4, background: '#cbd5e1' }} />
+    </div>
+  )
+}
+
+export function BreakpointScreen({ conflict }) {
+  const { link } = useDesignLink(conflict)
+  const width = Number(conflict.breakpoint)
+  const device = Number.isFinite(width) ? ALL_DEVICES.find((entry) => entry.width === width) : null
+  if (!device) {
+    return <span data-breakpoint-missing className="text-[11px] text-slate-500"><LocalizedText text="미리보기 없음" /></span>
+  }
+  const columns = conflict.layouts?.original?.columns ?? 2
+  const scale = THUMB_WIDTH / device.width
+  const label = `프레임 ${link?.frameNumber ?? 1} · ${device.width}px ${BREAKPOINT_KO[breakpointOf(device.width)] ?? BREAKPOINT_LABEL[breakpointOf(device.width)]}`
+  const tones = ['#c7d2fe', '#bae6fd', '#bbf7d0', '#fde68a']
+  return (
+    <div className="flex min-w-0 flex-col items-start gap-1.5">
+      <span data-breakpoint-label className="inline-flex w-fit max-w-full items-center rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] leading-4 font-medium tabular-nums text-slate-200">{label}</span>
+      <button
+        type="button"
+        data-breakpoint-thumb={`${device.width}x${device.height}`}
+        aria-label={`${label} · 768px 렌더링 검증으로 이동`}
+        title="768px 렌더링 검증으로 이동"
+        onClick={() => window.dispatchEvent(new CustomEvent('devsign:reveal-verify', { detail: conflict.id }))}
+        className="ds-intrinsic relative block shrink-0 cursor-pointer overflow-hidden rounded-md bg-white ring-1 ring-white/15 transition-shadow hover:ring-2 hover:ring-emerald-300/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        style={{ width: THUMB_WIDTH, height: Math.round(device.height * scale), aspectRatio: `${device.width} / ${device.height}` }}
+      >
+        <span aria-hidden className="pointer-events-none absolute top-0 left-0 block origin-top-left" style={{ width: device.width, height: device.height, transform: `scale(${scale})`, padding: 48, background: '#fff' }}>
+          <div style={{ width: 200, height: 28, borderRadius: 6, background: '#0f172a' }} />
+          <div style={{ marginTop: 14, width: 280, height: 16, borderRadius: 4, background: '#cbd5e1' }} />
+          <div style={{ marginTop: 40, display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: 32 }}>
+            {tones.map((tone) => <StatCardDrawing key={tone} tone={tone} />)}
+          </div>
+          <div style={{ position: 'absolute', left: 48, right: 48, bottom: 56, height: 88, borderRadius: 22, background: '#2563eb' }} />
+        </span>
+      </button>
+    </div>
   )
 }
