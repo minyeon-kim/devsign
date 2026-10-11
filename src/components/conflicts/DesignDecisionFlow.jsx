@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, CircleCheck, History, LoaderCircle, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
+import { formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionStageOf, proposalOf, reasonChipsFor, seedValuesFor } from '@/lib/designDecisions'
@@ -209,7 +210,7 @@ function RequestCard({ conflict }) {
     <section data-decision-request className={CARD}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
-        <span className="text-[11px] text-slate-500">개발자 · {request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
+        <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
       </div>
       <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
         <dt className="text-slate-400">변경 사유</dt>
@@ -252,7 +253,7 @@ function DecisionCard({ conflict, viewerId }) {
         <h3 className="text-[13px] font-semibold text-white">
           {mine ? '내 결정' : `${nameOf(decision.by)}님의 결정`}: <span className={DECISION_TONE[decision.choice]}>{DECISION_LABEL[decision.choice]}</span>
         </h3>
-        <span className="text-[11px] text-slate-500">{decision.at}</span>
+        <span className="text-[11px] text-slate-500">{decision.decidedAt ? formatTime(decision.decidedAt) : decision.at}</span>
       </div>
       <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
         <dt className="text-slate-400">이유</dt>
@@ -919,7 +920,7 @@ function DetectedSummary({ conflict }) {
         <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">디자인 결정 필요</span>
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-slate-500">자동 감지 · {conflict.detectedBy} · {conflict.timestamp}</p>
+        <p className="text-[11px] text-slate-500">자동 감지 · {conflict.detectedBy} · {formatTimeLabel(conflict.detectedAt ?? conflict.timestamp)}</p>
         <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="text-[11px] font-medium text-slate-400 hover:text-slate-200">
           {open ? '접기' : '자세히 보기'}
         </button>
