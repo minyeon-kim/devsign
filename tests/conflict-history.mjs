@@ -22,7 +22,7 @@ try {
   assert.equal(byType('fixed').replyTo, byType('decided').id)
   assert.equal(byType('verified').replyTo, byType('fixed').id)
   assert.equal(byType('commented', 1).replyTo, byType('commented', 0).id)
-  assert.equal(referenceNameOf(byType('requested')), '결정 요청')
+  assert.equal(referenceNameOf(byType('requested')), '승인 요청')
   assert.equal(referenceNameOf(byType('commented')), 'Taylor 의견')
   // The decision reads result first, with the proposal it moved from.
   assert.deepEqual(decisionLineOf(byType('decided')), { text: '다른 수정안으로 변경 · 원안대로 맞추기', changed: ['1열로 변경', '원안대로 맞추기'], warn: false })

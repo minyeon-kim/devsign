@@ -1290,7 +1290,8 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!conflict) return
     const round = (conflict.decisionRequest?.round ?? 0) + 1
     const record = { ...request, by: currentUser.id, at: timeLabel(), sentAt: Date.now(), round }
-    const designerId = conflict.reviewers[0]?.id ?? 'jane'
+    // (Who it's for comes from the change's reviewers — the side panel's list.)
+    const designerId = conflict.reviewers[0]?.id ?? null
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
       ...c,
       decisionRequest: record,
@@ -1302,8 +1303,9 @@ export function WorkspaceProvider({ children, projectId }) {
       reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
     })))
     logEvent({ kind: 'decision_requested', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
-    notifyPerson(designerId, conflict, `디자인 결정을 요청했어요 · ${conflict.id} ${conflict.title}`)
-    recordDecisionStep(conflict, { label: `${conflict.id} 디자인 결정 요청${round > 1 ? ` (${round}차)` : ''} · ${PROPOSAL_LABEL[request.proposal] ?? '수정안'}`, reason: request.reason })
+    // (It goes to every reviewer on the change — the side panel's list.)
+    for (const reviewer of conflict.reviewers) notifyPerson(reviewer.id ?? reviewer, conflict, `승인을 요청했어요 · ${conflict.id} ${conflict.title}`)
+    recordDecisionStep(conflict, { label: `${conflict.id} 승인 요청${round > 1 ? ` (${round}차)` : ''} · ${PROPOSAL_LABEL[request.proposal] ?? '수정안'}`, reason: request.reason })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
   // The developer's working choice of a way forward, before anything is sent —
@@ -1317,7 +1319,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const startDirectFix = useCallback((conflictId, request) => {
     const conflict = conflicts.find((c) => c.id === conflictId)
     if (!conflict) return
-    const designerId = conflict.reviewers[0]?.id ?? 'jane'
+    // (Who it's for comes from the change's reviewers — the side panel's list.)
+    const designerId = conflict.reviewers[0]?.id ?? null
     const at = timeLabel()
     const decision = { choice: 'keep', by: currentUser.id, at, decidedAt: Date.now(), timing: 'now', direct: true, reason: request.reason || '디자인 원안대로 맞춰 바로 수정해요.' }
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
@@ -1462,7 +1465,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ...c, decisionRequest: { ...c.scriptedRequest, round: 1 }, reviewStage: 'in_review', requestedBy: c.scriptedRequest.by,
     })))
     for (const c of waiting) {
-      recordDecisionStep(c, { label: `${c.id} 디자인 결정 요청 · ${PROPOSAL_LABEL[c.scriptedRequest.proposal] ?? '수정안'}`, reason: c.scriptedRequest.reason, actorId: c.scriptedRequest.by })
+      recordDecisionStep(c, { label: `${c.id} 승인 요청 · ${PROPOSAL_LABEL[c.scriptedRequest.proposal] ?? '수정안'}`, reason: c.scriptedRequest.reason, actorId: c.scriptedRequest.by })
     }
   }, [conflicts, isDeveloperViewer, recordDecisionStep, setConflicts])
   useEffect(() => {

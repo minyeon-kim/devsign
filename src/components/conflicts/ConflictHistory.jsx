@@ -58,7 +58,7 @@ function EventContent({ event }) {
     const reviewer = allPeople.find((entry) => entry.id === payload.reviewerId)?.name
     return (
       <>
-        <p className="text-xs leading-[18px] text-slate-200">{reviewer ? `${reviewer}님에게 디자인 결정을 요청했어요` : '디자인 결정을 요청했어요'}</p>
+        <p className="text-xs leading-[18px] text-slate-200">{reviewer ? `${reviewer}님에게 승인을 요청했어요` : '승인을 요청했어요'}</p>
         {(payload.proposalName || payload.reason) && (
           <blockquote className={QUOTE}>
             {payload.proposalName && <span className="block font-medium text-slate-100">{payload.proposalName}</span>}

@@ -17,7 +17,7 @@ import { allPeople } from '@/data/mockData'
 //   answers), payload (by type — see EVENT_TYPES).
 export const EVENT_TYPES = {
   detected: { label: '변경 감지', step: 1 }, // { summary, width, design, implementation }
-  requested: { label: '결정 요청', step: 2 }, // { proposal, proposalName, reason, timing, reviewerId }
+  requested: { label: '승인 요청', step: 2 }, // { proposal, proposalName, reason, timing, reviewerId }
   commented: { label: '의견', step: null }, // { body, mentions?, editedAt?, deleted? } — the step it was said in
   decided: { label: '결정', step: 3 }, // { result: approved | changed | rejected, proposalName, previousName?, reason }
   fixed: { label: '수정', step: 4 }, // { pr: { number, title }, files, preview? }
@@ -239,7 +239,7 @@ export function decisionLineOf(event) {
   return { text: `승인${proposalName ? ` · ${proposalName}` : ''}`, changed: null, warn: false }
 }
 
-// What a reference line calls the event being answered: "결정 요청", "Taylor 의견".
+// What a reference line calls the event being answered: "승인 요청", "Taylor 의견".
 export function referenceNameOf(event) {
   if (!event) return ''
   return event.type === 'commented' ? `${event.actor.name} 의견` : EVENT_TYPES[event.type].label

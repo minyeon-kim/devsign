@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, Sparkles, TriangleAlert, GitMerge } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
@@ -123,7 +123,7 @@ export function decisionFlowOf(conflict, viewer) {
     ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
     : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
   const next = (developer
-    ? { detected: `${designer}님께 디자인 결정을 요청하세요`, rework: '디자이너의 의견을 반영해 다시 요청하세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 자동으로 수정하고 있어요', fixed: '768px 렌더링을 검증하고 있어요', verified: '검증을 통과했어요. 병합하면 자동으로 해결돼요', resolved: '해결됐어요' }
+    ? { detected: '해결 방법을 골라 주세요', rework: '디자이너의 의견을 보고 해결 방법을 다시 골라 주세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 자동으로 수정하고 있어요', fixed: '768px 렌더링을 검증하고 있어요', verified: '검증을 통과했어요. 병합하면 자동으로 해결돼요', resolved: '해결됐어요' }
     : { requested: '원안과 구현을 비교해 결정해 주세요', rework: '개발자의 재요청을 확인하세요', decided: '개발자에게 결정이 전달됐어요', resolved: '해결됐어요' })[stage]
   // (A check that failed isn't "being checked": it waits for a choice.)
   const stuck = stage === 'decided' && isDeferred(conflict.designDecision) ? `승인됐어요 · ${scheduleWordOf(conflict.designDecision.timing)} 반영 예정`
@@ -164,38 +164,44 @@ function Choice({ label, name, options, value, onChange, hint }) {
   )
 }
 
-function ReasonField({ label, value, onChange, suggestions, placeholder, append = false }) {
+// A reason to give. One spacing inside a field — its label, the box, then
+// what helps with the box (suggestions, an error), each 8px apart:
+//   · the box starts two lines tall and grows with what's typed;
+//   · suggestions sit under it, after a faint "추천": pressing one fills the
+//     box when it's empty and adds to it when it isn't; one already used is
+//     gone from the list (not left there, disabled);
+//   · `error`: said under the box, when it was sent empty.
+function ReasonField({ label, value, onChange, suggestions = [], placeholder, error = null, id }) {
+  const box = useRef(null)
+  // As tall as its text (from two lines up).
+  useEffect(() => {
+    const node = box.current
+    if (!node) return
+    node.style.height = 'auto'
+    node.style.height = `${Math.max(node.scrollHeight, 56)}px`
+  }, [value])
+  const left = suggestions.filter((text) => !value.includes(text))
   return (
-    <div data-reason-field className="min-w-0">
-      <label className={cn(LABEL, 'mb-1.5 block')}>
-        {label} <span className="text-rose-300">*</span>
-        {/* Suggestions sit above the box: pressing one adds its sentence (append) or sets it. */}
-        {append && suggestions?.length > 0 && (
-          <span data-reason-chips className="mt-1.5 mb-1.5 flex flex-wrap gap-1.5">
-            {suggestions.map((text) => {
-              const used = value.includes(text)
-              return (
-                <button key={text} type="button" disabled={used} onClick={() => onChange(value.trim() ? `${value.trim()} ${text}.` : `${text}.`)} className="ds-intrinsic inline-flex min-h-6 items-center gap-1 rounded-full bg-white/[0.04] px-2.5 py-1 text-left text-[11px] font-normal text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-40">
-                  <Sparkles className="size-3 shrink-0 text-slate-400" />
-                  {text}
-                </button>
-              )
-            })}
-          </span>
-        )}
-        <textarea
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          rows={3}
-          className="mt-1.5 block w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60"
-        />
-      </label>
-      {!append && suggestions?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {suggestions.map((text) => (
-            <button key={text} type="button" onClick={() => onChange(text)} className="ds-intrinsic inline-flex min-h-6 items-center gap-1 rounded-full bg-white/[0.04] px-2.5 py-1 text-left text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white">
-              <Sparkles className="size-3 shrink-0 text-emerald-300" />
+    <div data-reason-field className="flex min-w-0 flex-col gap-2">
+      <label htmlFor={id} className={LABEL}>{label} <span aria-hidden className="text-rose-300">*</span></label>
+      <textarea
+        ref={box}
+        id={id}
+        value={value}
+        required
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={2}
+        className={cn('block w-full resize-none overflow-hidden rounded-lg border bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60', error ? 'border-destructive/70' : 'border-white/10')}
+      />
+      {error && <p id={`${id}-error`} data-reason-error role="alert" className="text-xs text-destructive">{error}</p>}
+      {left.length > 0 && (
+        <div data-reason-chips className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-slate-500">추천</span>
+          {left.map((text) => (
+            <button key={text} type="button" onClick={() => onChange(value.trim() ? `${value.trim().replace(/[.。]$/, '')}. ${text}.` : `${text.replace(/[.。]$/, '')}.`)} className="ds-intrinsic inline-flex min-h-6 items-center rounded-full bg-white/[0.04] px-2.5 py-1 text-left text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white">
               {text}
             </button>
           ))}
@@ -205,7 +211,6 @@ function ReasonField({ label, value, onChange, suggestions, placeholder, append 
   )
 }
 
-// The request as sent: who, why, what's attached and proposed, and when.
 function RequestCard({ conflict, bare = false }) {
   const request = conflict.decisionRequest
   return (
@@ -394,7 +399,50 @@ function ProposalControls({ conflict, values, onEdit, note, onNote }) {
   )
 }
 
-function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
+// The whole of "what to do about it", one card: the screen before and after,
+// the ways forward, and — under them — what the way picked needs.
+//   · 원안대로 맞추기: nothing to ask. One button, 이 수정안 적용하기: the fix and
+//     its check start at once.
+//   · any other way: it differs from the design, so it's asked for. A request
+//     area opens under the list (height eased; at once under reduced motion):
+//     why it's needed, then the button. The reason typed stays while another
+//     way is looked at.
+// The request goes to the change's reviewers — the side panel's list, the one
+// place they're named besides the button: one by name, several by count
+// (their names on hover); with none there's nothing to press but the way to
+// add one.
+function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect }) {
+  const previous = conflict.decisionRequest
+  const rework = conflict.designDecision?.choice === 'rework'
+  const [reason, setReason] = useState(rework ? '' : previous?.reason ?? '')
+  const [tried, setTried] = useState(false)
+  const reviewers = (conflict.reviewers ?? []).map((reviewer) => nameOf(reviewer.id ?? reviewer)).filter(Boolean)
+  // (The project's stage goes along by itself — context for whoever decides.)
+  const devStage = previous?.devStage ?? projects.find((candidate) => candidate.id === conflict.projectId)?.devStage ?? null
+  const asking = Boolean(proposal) && proposal !== 'original'
+  const undescribed = proposal === 'other' && !proposalOf(proposal, custom)?.described
+  const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage })
+  const send = () => {
+    setTried(true)
+    if (!reason.trim() || undescribed) return
+    onSend(payload())
+  }
+  // What a way needs comes into view with it: the list, the reason and the
+  // button together (once the area has opened).
+  const actionRef = useRef(null)
+  const picked = useRef(proposal)
+  useEffect(() => {
+    if (picked.current === proposal) return undefined
+    picked.current = proposal
+    if (!proposal) return undefined
+    const timer = window.setTimeout(() => actionRef.current?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 220)
+    return () => window.clearTimeout(timer)
+  }, [proposal])
+  const addReviewer = () => {
+    document.querySelector('[data-side-tab="info"]')?.click()
+    window.setTimeout(() => document.querySelector('[data-review-sidebar] [data-add-reviewer]')?.focus(), 60)
+  }
+
   const layouts = conflict.layouts ?? {}
   const refs = useRef([])
   const [showDesign, setShowDesign] = useState(false)
@@ -434,7 +482,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
   return (
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <h3 className="text-sm font-semibold text-white">수정안 선택 <span className="text-rose-300">*</span></h3>
+        <h3 className="text-sm font-semibold text-white">해결 방법 <span aria-hidden className="text-rose-300">*</span></h3>
         <span className="text-xs text-slate-500">768px에서 어떻게 바꿀지 골라 주세요</span>
         <button
           type="button"
@@ -475,7 +523,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
       </div>
 
       {/* The ways forward: text first, a small layout mark at the end. */}
-      <div role="radiogroup" aria-label="수정안" className="mt-4 flex flex-col">
+      <div role="radiogroup" aria-label="수정안" className="mt-6 flex flex-col">
         {PROPOSALS.map((option, index) => {
           const on = proposal === option.id
           const shape = proposalOf(option.id, custom)
@@ -517,80 +565,48 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom }) {
           )
         })}
       </div>
-    </section>
-  )
-}
 
-const jumpToProposal = () => document.querySelector('[data-proposal-section]')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-
-function RequestForm({ conflict, proposal, custom, onSend, onDirect }) {
-  const previous = conflict.decisionRequest
-  const rework = conflict.designDecision?.choice === 'rework'
-  const project = projects.find((candidate) => candidate.id === conflict.projectId)
-  const [reason, setReason] = useState(rework ? '' : previous?.reason ?? '')
-  // The project's stage goes along by itself (context for the designer — not
-  // something to fill in), and there's no time to wish for: approving is
-  // what starts it going in.
-  const devStage = previous?.devStage ?? project?.devStage ?? null
-  const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
-  const chosen = proposalOf(proposal, custom)
-  // 원안대로 맞추기 needs no approval: nothing to ask, only to start.
-  const direct = proposal === 'original'
-  const missing = [
-    !chosen && '수정안',
-    proposal === 'other' && !chosen?.described && '수정안 값',
-    !reason.trim() && '변경 사유',
-  ].filter(Boolean)
-  const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage })
-  // 원안대로 맞추기: no form at all — only the way to start.
-  if (direct) {
-    return (
-      <section data-decision-request-form data-direct className={cn(CARD, 'flex flex-wrap items-center gap-3')}>
-        <p className="min-w-0 flex-1 text-xs leading-5 text-slate-400">
-          <span className="font-medium text-slate-100">원안대로 맞추기</span> · 디자인 원안대로 맞추는 거라 승인이 필요 없어요. {designer}님에게는 알림만 가요.
-          <button type="button" onClick={jumpToProposal} className="ml-2 text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">바꾸기</button>
-        </p>
-        <button type="button" data-start-direct-fix onClick={() => onDirect(payload())} className={PRIMARY}>
-          <ArrowRight className="size-3.5" />
-          바로 수정 시작
-        </button>
-      </section>
-    )
-  }
-
-  return (
-    <section data-decision-request-form className={CARD}>
-      <h3 className="text-[13px] font-semibold text-white">{designer}님(디자이너)에게 디자인 결정 요청</h3>
-      <p className="mt-0.5 mb-3 text-xs text-slate-400">
-        디자인 원안과 다르게 바꿔야 한다면, 이유를 적어 승인을 요청하세요.
-      </p>
-
-      {/* The way picked above, in a line; pressing it goes back to the list. */}
-      <p data-picked-proposal className="mb-4 flex flex-wrap items-baseline gap-x-2 text-xs">
-        <span className="text-slate-400">선택한 수정안</span>
-        {chosen ? <span className="font-medium text-slate-100">{chosen.name}</span> : <span className="text-slate-500">—</span>}
-        {!chosen && <button type="button" data-go-pick onClick={jumpToProposal} className="ml-auto text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">고르러 가기</button>}
-      </p>
-
-      <div className="flex flex-col gap-4">
-        <ReasonField
-          label="변경 사유"
-          value={reason}
-          onChange={setReason}
-          placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
-          suggestions={reasonChipsFor(proposal, custom)}
-          append
-        />
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
-          {/* (The section's own * says a way is required; here only what else is left.) */}
-          {chosen && missing.length > 0 && <span className="text-[11px] text-slate-500">{`남은 항목: ${missing.join(', ')}`}</span>}
-          {/* (No time to pick: approving is what starts it.) */}
-          <span data-apply-note className="mr-auto text-xs text-slate-500">승인되면 바로 반영돼요</span>
-          <button type="button" data-send-decision-request disabled={missing.length > 0} title={!chosen ? '수정안을 먼저 골라 주세요' : undefined} onClick={() => onSend(payload())} className={PRIMARY}>
-            <Send className="size-3.5" />
-            {designer}님에게 승인 요청 보내기
-          </button>
+      {/* What a way that differs from the design needs: asked for, with why.
+          24px under the list, on the list's own inset. */}
+      <FoldBody open={asking}>
+        <div data-request-area className="flex flex-col gap-6 px-3 pt-6">
+          <p data-request-note className="text-xs text-slate-500">원안과 다른 수정안이라 승인이 필요해요 · 승인되면 바로 반영돼요</p>
+          {tried && undescribed && <p data-proposal-error role="alert" className="text-xs text-destructive">다른 수정안의 내용을 위에서 정해 주세요.</p>}
+          <ReasonField
+            id={`reason-${conflict.id}`}
+            label="변경 사유"
+            value={reason}
+            onChange={setReason}
+            placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
+            suggestions={asking ? reasonChipsFor(proposal, custom) : []}
+            error={tried && !reason.trim() ? '변경 사유를 적어 주세요.' : null}
+          />
         </div>
+      </FoldBody>
+
+      {/* The one action, at the card's lower right: 24px over it, no rule. */}
+      <div ref={actionRef} data-proposal-action className="mt-6 flex scroll-mb-4 flex-wrap items-center justify-end gap-3 px-3">
+        {!proposal ? (
+          <button type="button" data-apply-proposal disabled className={PRIMARY}>이 수정안 적용하기</button>
+        ) : !asking ? (
+          <>
+            <span className="mr-auto text-xs text-slate-500">원안대로 맞추는 거라 승인 없이 바로 적용돼요</span>
+            <button type="button" data-start-direct-fix data-apply-proposal onClick={() => onDirect(payload())} className={PRIMARY}>
+              <ArrowRight className="size-3.5" />
+              이 수정안 적용하기
+            </button>
+          </>
+        ) : reviewers.length === 0 ? (
+          <>
+            <span data-no-reviewer className="text-xs text-amber-200">검토자를 먼저 추가해 주세요</span>
+            <button type="button" data-go-add-reviewer onClick={addReviewer} className={SECONDARY}>검토자 추가</button>
+          </>
+        ) : (
+          <button type="button" data-send-decision-request title={reviewers.length > 1 ? reviewers.join(', ') : undefined} onClick={send} className={PRIMARY}>
+            <Send className="size-3.5" />
+            {reviewers.length === 1 ? `${reviewers[0]}님에게 승인 요청` : `검토자 ${reviewers.length}명에게 승인 요청`}
+          </button>
+        )}
       </div>
     </section>
   )
@@ -843,8 +859,9 @@ function DecisionForm({ conflict, onDecide }) {
           </button>
         ))}
       </div>
-      <div className="mt-4 flex flex-col gap-4">
+      <div className="mt-6 flex flex-col gap-6">
         <ReasonField
+          id={`decision-reason-${conflict.id}`}
           label="이유"
           value={reason}
           onChange={setReason}
@@ -862,7 +879,7 @@ function DecisionForm({ conflict, onDecide }) {
             options={[['before-release', '출시 전', release ? `${release.name} · ${release.date}` : null], ['next-version', '다음 버전']]}
           />
         )}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {missing.length > 0 && <span className="text-[11px] text-slate-500">남은 항목: {missing.join(', ')}</span>}
           {settles && (
             <button type="button" data-decide-later aria-pressed={later} onClick={() => { setLater(!later); if (later) setTiming('now') }} className="ds-intrinsic mr-auto rounded text-xs text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
@@ -987,7 +1004,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const stage = decisionStageOf(conflict)
   const request = conflict.decisionRequest
   const decision = conflict.designDecision
-  const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
   const folds = useFoldState(conflict.id)
   // The screen thumbnail beside it (BreakpointScreen) asks to be taken to the
   // 768px check: open it, then scroll there once it has unfolded.
@@ -1098,7 +1114,26 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       )}
 
       {post ? null : developer && askingNow ? (
-        <ProposalSection conflict={conflict} proposal={proposal} onProposal={setProposal} custom={custom} onCustom={setCustom} />
+        <>
+          {/* (Sent back: what the designer said, first — then the ways forward again.) */}
+          {stage === 'rework' && <DecisionCard conflict={conflict} viewerId={viewer.id} />}
+          <ProposalSection
+            key={`${conflict.id}:${request?.round ?? 0}`}
+            conflict={conflict}
+            proposal={proposal}
+            onProposal={setProposal}
+            custom={custom}
+            onCustom={setCustom}
+            onDirect={(next) => {
+              workspace.startDirectFix(conflict.id, next)
+              toast('수정을 시작했어요', { description: `${conflict.id} · 원안대로 맞추기` })
+            }}
+            onSend={(next) => {
+              workspace.requestDesignDecision(conflict.id, next)
+              toast('승인 요청을 보냈어요', { description: `${conflict.id} · 승인되면 바로 반영돼요` })
+            }}
+          />
+        </>
       ) : (
         <LayoutComparison
           conflict={conflict}
@@ -1110,25 +1145,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
 
       {developer ? (
         <>
-          {(stage === 'detected' || stage === 'rework') && (
-            <>
-              {stage === 'rework' && <DecisionCard conflict={conflict} viewerId={viewer.id} />}
-              <RequestForm
-                key={`${conflict.id}:${request?.round ?? 0}`}
-                conflict={conflict}
-                proposal={proposal}
-                custom={custom}
-                onDirect={(next) => {
-                  workspace.startDirectFix(conflict.id, next)
-                  toast('승인 없이 바로 수정을 시작했어요', { description: `${designer}님에게 알림만 보냈어요 · ${conflict.id}` })
-                }}
-                onSend={(next) => {
-                  workspace.requestDesignDecision(conflict.id, next)
-                  toast(`${designer}님에게 승인 요청을 보냈어요`, { description: `${conflict.id} · 승인되면 바로 반영돼요` })
-                }}
-              />
-            </>
-          )}
           {post && (
             <>
               {/* What's needed now — first. */}
