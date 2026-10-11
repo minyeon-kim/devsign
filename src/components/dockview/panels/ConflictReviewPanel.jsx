@@ -3153,7 +3153,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
                   </h2>
-                  {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-xs font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                  {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 </div>
                 <div data-conflict-meta className={cn('flex flex-wrap items-center gap-1.5', !page && 'pl-10')}>
                   <ConflictTypeTag conflict={conflict} header />
