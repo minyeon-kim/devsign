@@ -924,6 +924,9 @@ export const conflictChecklist = [
     fixes: {
       keep: '  const columns = tablet ? "repeat(2, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))"',
       approve: '  const columns = tablet ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))"',
+      // …and by the way that was approved.
+      'one-column': '  const columns = tablet ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))"',
+      'narrow-cards': '  const columns = tablet ? "repeat(2, minmax(0, 320px))" : "repeat(2, minmax(0, 1fr))"',
     },
     diff: {
       before: ['  const columns = tablet ? "repeat(2, 360px)" : "repeat(2, minmax(0, 1fr))"'],

@@ -3,7 +3,7 @@ import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
 import { composeDraftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { authorOf, requiredReviewers, reviewTabFor } from '@/lib/conflicts'
-import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, proposalOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DECISION_REPLY_MS, PROPOSAL_LABEL, TIMING_LABEL, decisionOutcomeOf, fixLineOf, proposalOf } from '@/lib/designDecisions'
 import { appendEvent, eventsOf } from '@/lib/conflictEvents'
 import { itemConflicts, mergeChatAnswer, mergeChatIntro } from '@/lib/mergeChat'
 import { placeChange } from '@/lib/placeChange'
@@ -1367,7 +1367,7 @@ export function WorkspaceProvider({ children, projectId }) {
   const applyDecisionFix = useCallback((conflictId, { auto = false } = {}) => {
     const conflict = conflicts.find((c) => c.id === conflictId)
     const choice = conflict?.designDecision?.choice
-    const fixLine = conflict?.fixes?.[choice]
+    const fixLine = fixLineOf(conflict)
     if (!conflict || !fixLine || !conflict.fileId || !conflict.line) return
     const base = fileOverrides[conflict.fileId] ?? files.find((f) => f.id === conflict.fileId)?.lines ?? []
     const lines = base.map((line, index) => (index + 1 === conflict.line ? fixLine : line))
@@ -1379,7 +1379,7 @@ export function WorkspaceProvider({ children, projectId }) {
     logEvent({ kind: 'code_change', projectId, conflictId, actorId: auto ? 'system' : currentUser.id, title: conflict.title })
     recordDecisionStep(conflict, {
       kind: 'edit',
-      label: choice === 'approve' ? `${conflict.id} 1열 레이아웃 적용 · 디자인 원안 동기화` : `${conflict.id} 코드를 디자인 원안(2열)에 맞춤`,
+      label: choice === 'approve' ? `${conflict.id} ${decisionOutcomeOf(conflict)?.name} 적용 · 디자인 원안 동기화` : `${conflict.id} 코드를 ${decisionOutcomeOf(conflict)?.name}에 맞춤`,
       reason: conflict.designDecision?.reason,
       lines,
     })
@@ -1420,7 +1420,7 @@ export function WorkspaceProvider({ children, projectId }) {
     notifyPerson(conflict.designDecision?.by, conflict, `충돌을 해결했어요 · ${conflict.id} ${conflict.title}`, 'comment')
     return recordDecisionStep(conflict, {
       kind: 'merge',
-      label: `${conflict.id} 해결 · ${conflict.decisionFix.choice === 'approve' ? '1열 레이아웃' : '디자인 원안 2열'}`,
+      label: `${conflict.id} 해결 · ${decisionOutcomeOf(conflict)?.name}`,
       reason: `${DECISION_LABEL[conflict.designDecision?.choice] ?? ''} · ${TIMING_LABEL[conflict.designDecision?.timing] ?? ''} 반영 — 검증 완료`,
     })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])

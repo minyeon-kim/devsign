@@ -18,17 +18,19 @@ export function useFoldState(scope) {
   }
 }
 
-// The height eases in 180ms; a folded body can't be tabbed into (`inert`).
+// Opens by growing downward, its header held in place: the height and the
+// body's opacity ease out over 200ms (at once under reduced motion). A folded
+// body can't be tabbed into (`inert`).
 export function FoldBody({ open, children, className }) {
   return (
-    <div className={cn('grid transition-[grid-template-rows] duration-[180ms] ease-out motion-reduce:transition-none', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
-      <div inert={!open} aria-hidden={!open} className={cn('min-h-0 overflow-hidden', className)}>{children}</div>
+    <div className={cn('grid [overflow-anchor:none] transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+      <div inert={!open} aria-hidden={!open} className={cn('min-h-0 overflow-hidden transition-opacity duration-200 ease-out motion-reduce:transition-none', open ? 'opacity-100' : 'opacity-0', className)}>{children}</div>
     </div>
   )
 }
 
 export function Chevron({ open, className }) {
-  return <ChevronDown aria-hidden className={cn('size-4 shrink-0 text-slate-400 transition-transform duration-[180ms] motion-reduce:transition-none', open && 'rotate-180', className)} />
+  return <ChevronDown aria-hidden className={cn('size-4 shrink-0 text-slate-400 transition-transform duration-200 ease-out motion-reduce:transition-none', open && 'rotate-180', className)} />
 }
 
 // A small fold inside a card: `header` is always shown, the chevron at its end.

@@ -48,9 +48,9 @@ import { ROLLBACK_REASON, ROLLBACK_STAGE_LABEL } from '@/lib/rollbackImpact'
 import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
-import { proposalOf } from '@/lib/designDecisions'
+import { decisionOutcomeOf, proposalOf, proposalPhraseOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
-import DesignDecisionFlow, { decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow, { HistoryReplayButton, decisionFlowOf } from '@/components/conflicts/DesignDecisionFlow'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import StepMeta from '@/components/conflicts/StepMeta'
 import { eventsOf, humanEventCount, progressOf, sampleHistoryForCon002 } from '@/lib/conflictEvents'
@@ -626,7 +626,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
               const shape = proposalOf(pick, conflict.decisionRequest?.custom ?? conflict.decisionDraft?.custom)
               return (
                 <Row label="Proposed fix" data-summary-row="Proposed fix">
-                  {shape ? <span className="font-medium text-sky-200">{shape.name}<span className="font-normal text-slate-300"> · {shape.spec}</span></span> : <span data-no-proposal className="text-slate-500">—</span>}
+                  {shape ? <span className="font-medium text-sky-200">{proposalPhraseOf(shape)}</span> : <span data-no-proposal className="text-slate-500">—</span>}
                 </Row>
               )
             })()}
@@ -2554,7 +2554,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const mergedSide = decisionState.side ?? conflict?.decidedSide ?? 'A'
   const mergedWith = !conflict ? null
     // (A design decision says what was decided and applied.)
-    : conflict.decisionFlow ? (conflict.decisionFix?.choice === 'approve' ? '변경 승인 · 1열 레이아웃으로 해결' : conflict.decisionFix ? '원안 유지 · 디자인 원안(2열)으로 해결' : null)
+    : conflict.decisionFlow ? (conflict.decisionFix ? decisionOutcomeOf(conflict)?.resolvedLine ?? null : null)
     : mergeConflict ? (conflict.codeChoice === 'both' || !conflict.codeChoice ? 'Resolved by applying both changes'
         : `Resolved with the ${conflict.codeChoice === 'remote' ? 'remote' : 'local'} branch (${conflict.codeChoice === 'remote' ? conflict.branches?.remote : conflict.branches?.local}) value`)
       : mergedSide === 'A' ? 'Resolved with the design reference' : 'Resolved by keeping the current implementation'
@@ -3037,6 +3037,25 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     />
   ) : null
 
+  // The merge, said once: a banner at the top of the review.
+  const mergedBanner = conflict && stage === 'resolved' && (
+                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
+                      <CircleCheck className="size-4 shrink-0 text-emerald-300" />
+                      <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged'} /></span>
+                      {/* The decision, here rather than as a row of the
+                          summary: which value it merged with, who approved,
+                          and when. */}
+                      <span className="min-w-0 text-xs text-emerald-100/80">
+                        {[
+                              conflict.rollback ? null : mergedWith,
+                              approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
+                          conflict.mergedBy && !conflict.rollback ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
+                          conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
+                        ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
+                      </span>
+                      {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
+                    </div>
+                  )
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
@@ -3071,7 +3090,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               </div>
               {/* Align the review action with the lower metadata row. */}
               <div className="relative top-2 flex min-w-0 shrink-0 self-end items-center gap-2">
-                {conflict.rollback ? primary : conflict.decisionFlow ? null : approvalBar}
+                {conflict.rollback ? primary : conflict.decisionFlow ? <HistoryReplayButton conflict={conflict} workspace={workspace} /> : approvalBar}
               </div>
             </div>
             {/* A mix of drafts just sent to merge: its next step — asking the
@@ -3119,29 +3138,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', replayId ? 'max-xl:min-h-[576px]' : 'xl:overflow-hidden')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
-                  {stage === 'resolved' && (
-                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
-                      <CircleCheck className="size-4 shrink-0 text-emerald-300" />
-                      <span className="text-[13px] font-semibold text-emerald-100"><LocalizedText text={conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged'} /></span>
-                      {/* The decision, here rather than as a row of the
-                          summary: which value it merged with, who approved,
-                          and when. */}
-                      <span className="min-w-0 text-xs text-emerald-100/80">
-                        {[
-                              conflict.rollback ? null : mergedWith,
-                              approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
-                          conflict.mergedBy && !conflict.rollback ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
-                          conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
-                        ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
-                      </span>
-                      {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={handleOpenFile} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
-                    </div>
-                  )}
+                  {!conflict.decisionFlow && mergedBanner}
                   {!replayId && conflict.decisionFlow ? (
                     // A structural drift: a design decision to ask for and
                     // make, not values to pick (DesignDecisionFlow).
                     <div data-review-scroll="decision" className="min-h-0 min-w-0 flex-1 overflow-auto">
-                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} />
+                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} />
                     </div>
                   ) : !replayId ? (
                     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
@@ -3237,7 +3239,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
                     {/* A design decision keeps one record — its History — in
                         place of separate Comments and Activity. */}
-                    {(conflict.decisionFlow ? [['info', 'Info'], ['history', '히스토리']] : [['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]).map(([value, label]) => (
+                    {(conflict.decisionFlow ? [['info', 'Info'], ['history', '활동']] : [['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]).map(([value, label]) => (
                       <button
                         key={value}
                         type="button"

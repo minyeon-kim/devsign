@@ -81,6 +81,38 @@ export function reasonChipsFor(id, custom) {
   return chips.slice(0, 3)
 }
 
+// ── What was decided, said one way everywhere ───────────────────────
+// The banner, the decision card and its summary, the fix's summary, the side
+// panel and the History checkpoints all read the decision from here, so none
+// of them can say a different thing.
+//   the way forward, as a noun phrase: "2열 유지 · 카드 폭 줄이기", "1열 레이아웃"
+const PROPOSAL_RESULT = { original: '디자인 원안', 'one-column': '1열 레이아웃', 'narrow-cards': '2열 유지 · 카드 폭 줄이기' }
+// A particle after a word, by whether it ends in a final consonant
+// ("로" after a vowel or ㄹ, "으로" otherwise; "를" / "을").
+function finalConsonant(word) {
+  const code = String(word).trim().slice(-1).charCodeAt(0) - 0xAC00
+  return code >= 0 && code <= 11171 ? code % 28 : null
+}
+export const withRo = (word) => `${word}${[null, 0, 8].includes(finalConsonant(word)) && finalConsonant(word) !== null ? '로' : '으로'}`
+export const withEul = (word) => `${word}${finalConsonant(word) === 0 ? '를' : '을'}`
+export function decisionOutcomeOf(conflict) {
+  const decision = conflict?.designDecision
+  if (!decision) return null
+  const request = conflict.decisionRequest
+  const shape = decision.choice === 'approve' ? proposalOf(request?.proposal, request?.custom) : null
+  const name = decision.choice === 'approve' ? (shape ? (PROPOSAL_RESULT[shape.id] ?? shape.spec) : '수정안') : `디자인 원안(${conflict.layouts?.original?.columns ?? 2}열)`
+  const label = DECISION_LABEL[decision.choice]
+  return { choice: decision.choice, label, name, shape, line: `${label} · ${name}`, resolvedLine: `${label} · ${withRo(name)} 해결` }
+}
+// The code line the decision lands on: the design as it is, or the way
+// that was approved (each has its own).
+export const fixLineOf = (conflict) => {
+  const choice = conflict?.designDecision?.choice
+  return choice === 'approve' ? conflict.fixes?.[conflict.decisionRequest?.proposal] ?? conflict.fixes?.approve : conflict?.fixes?.[choice]
+}
+// A way forward in one phrase (its name; a 다른 수정안 says its values).
+export const proposalPhraseOf = (shape) => (!shape ? null : shape.id === 'other' ? shape.spec : shape.name)
+
 export const DEV_STAGE_LABEL = { early: '개발 초기', mid: '개발 중간', late: '완료 직전' }
 // How long the scripted designer takes to answer the developer's request.
 export const DECISION_REPLY_MS = 6000

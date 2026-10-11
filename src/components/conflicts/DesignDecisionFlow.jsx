@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, ChevronRight, CircleCheck, History, LoaderCircle, Paperclip, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, GitMerge } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, History, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, Sparkles, TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
-import { formatTime, formatTimeLabel } from '@/lib/conflictEvents'
+import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionStageOf, proposalOf, reasonChipsFor, seedValuesFor } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, TIMING_LABEL, controlsOf, decisionOutcomeOf, decisionStageOf, fixLineOf, proposalOf, proposalPhraseOf, reasonChipsFor, seedValuesFor, withEul } from '@/lib/designDecisions'
 
 // A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
 // not values to pick between, but a decision to ask for and to make.
@@ -82,7 +82,7 @@ function TabletPreview({ columns, overlap = false, widthMode = 'fit', gap = null
 
 // Design reference · as built · the developer's proposal, side by side.
 // (`proposal`: the proposal to draw as the third screen, from proposalOf.)
-function LayoutComparison({ conflict, proposal }) {
+function LayoutComparison({ conflict, proposal, bare = false }) {
   const layouts = conflict.layouts ?? {}
   const entries = [
     ['original', layouts.original, 'text-emerald-300'],
@@ -90,8 +90,8 @@ function LayoutComparison({ conflict, proposal }) {
     ...(proposal?.columns ? [['proposal', { label: '개발자 제안', note: `768px · ${proposal.spec}`, columns: proposal.columns, widthMode: proposal.widthMode }, 'text-sky-300']] : []),
   ].filter(([, layout]) => layout)
   return (
-    <section data-decision-compare aria-label="디자인 원안과 구현 비교" className={CARD}>
-      <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{proposal?.columns ? ' · 개발자 제안' : ''} (768px)</h3>
+    <section data-decision-compare aria-label="디자인 원안과 구현 비교" className={bare ? undefined : CARD}>
+      {!bare && <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{proposal?.columns ? ' · 개발자 제안' : ''} (768px)</h3>}
       <div className={cn('grid gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
         {entries.map(([key, layout, tone]) => (
           <figure key={key} data-layout={key} className="min-w-0">
@@ -205,14 +205,14 @@ function ReasonField({ label, value, onChange, suggestions, placeholder, append 
 }
 
 // The request as sent: who, why, what's attached and proposed, and when.
-function RequestCard({ conflict }) {
+function RequestCard({ conflict, bare = false }) {
   const request = conflict.decisionRequest
   return (
-    <section data-decision-request className={CARD}>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+    <section data-decision-request className={bare ? undefined : CARD}>
+      {!bare && <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
         <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
-      </div>
+      </div>}
       <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
         <dt className="text-slate-400">변경 사유</dt>
         <dd className="text-slate-100">{request.reason}</dd>
@@ -229,8 +229,8 @@ function RequestCard({ conflict }) {
         <dd className="text-slate-200">{DEV_STAGE_LABEL[request.devStage] ?? '—'}</dd>
         <dt className="text-slate-400">희망 반영 시점</dt>
         <dd className="text-slate-200">{TIMING_LABEL[request.timing] ?? '—'}</dd>
-        <dt className="text-slate-400">영향 범위</dt>
-        <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
+        {!bare && <><dt className="text-slate-400">영향 범위</dt>
+        <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd></>}
       </dl>
     </section>
   )
@@ -239,30 +239,30 @@ function RequestCard({ conflict }) {
 const DECISION_TONE = { keep: 'text-sky-200', approve: 'text-emerald-200', rework: 'text-amber-200' }
 // What each decision means for the developer — the next thing to do.
 const NEXT_STEP = {
-  keep: '원안 유지 → 코드를 디자인 원안(768px 카드 2열, 화면 폭에 맞춤)에 맞게 수정해요.',
-  approve: '변경 승인 → 1열 레이아웃을 적용하고 디자인 원안에도 동기화해요.',
-  rework: '재검토 요청 → 사유를 보고 다른 수정안으로 다시 요청해요.',
+  keep: '코드를 디자인 원안(768px 카드 2열, 화면 폭에 맞춤)에 맞게 수정해요.',
+  approve: (name) => `${withEul(name)} 적용하고 디자인 원안에도 동기화해요.`,
+  rework: '사유를 보고 다른 수정안으로 다시 요청해요.',
 }
 
-function DecisionCard({ conflict, viewerId }) {
+function DecisionCard({ conflict, viewerId, bare = false }) {
   const decision = conflict.designDecision
   const mine = decision.by === viewerId
   return (
-    <section data-decision-result={decision.choice} className={cn(CARD, 'ring-emerald-400/25')}>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+    <section data-decision-result={decision.choice} className={bare ? undefined : cn(CARD, 'ring-emerald-400/25')}>
+      {!bare && <div className="mb-2 flex flex-wrap items-center gap-2">
         <CircleCheck className="size-4 text-emerald-300" />
         <h3 className="text-[13px] font-semibold text-white">
           {mine ? '내 결정' : `${nameOf(decision.by)}님의 결정`}: <span className={DECISION_TONE[decision.choice]}>{DECISION_LABEL[decision.choice]}</span>
         </h3>
         <span className="text-[11px] text-slate-500">{decision.decidedAt ? formatTime(decision.decidedAt) : decision.at}</span>
-      </div>
+      </div>}
       <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
         <dt className="text-slate-400">이유</dt>
         <dd className="text-slate-100">{decision.reason}</dd>
         <dt className="text-slate-400">반영 시점</dt>
         <dd className="font-medium text-slate-100">{TIMING_LABEL[decision.timing] ?? '—'}</dd>
         <dt className="text-slate-400">다음 할 일</dt>
-        <dd className="text-slate-200">{NEXT_STEP[decision.choice]}</dd>
+        <dd className="text-slate-200">{typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd>
       </dl>
     </section>
   )
@@ -641,7 +641,7 @@ function fixPhaseOf(conflict) {
 // A change Devsign doesn't make by itself: the risk is high, so its diff is
 // looked at and approved first.
 const fixNeedsApproval = (conflict) => conflict.severity === 'high' || conflict.severity === 'critical'
-const canAutoFix = (conflict) => Boolean(conflict.fixes?.[conflict.designDecision?.choice] && conflict.fileId && conflict.line)
+const canAutoFix = (conflict) => Boolean(fixLineOf(conflict) && conflict.fileId && conflict.line)
 
 const PHASE_CHIP = {
   approval: ['수정 전 확인 필요', 'bg-amber-400/15 text-amber-200'],
@@ -661,7 +661,7 @@ function StateIcon({ state }) {
   return <span data-state="waiting" className="size-4 shrink-0 rounded-full border border-white/20" />
 }
 
-function FixPanel({ conflict, onPropose, folds }) {
+function FixPanel({ conflict, onPropose, folds, bare = false }) {
   const decision = conflict.designDecision
   const fix = conflict.decisionFix
   const phase = fixPhaseOf(conflict)
@@ -674,7 +674,7 @@ function FixPanel({ conflict, onPropose, folds }) {
     ? { ...(proposalOf(request?.proposal, request?.custom) ?? layouts.proposal), label: '승인된 수정안' }
     : { ...layouts.original, label: '디자인 원안' }
   const fileName = conflict.file?.split('/').pop()
-  const fixLine = conflict.fixes?.[decision.choice]
+  const fixLine = fixLineOf(conflict)
   const beforeLine = conflict.diff?.before?.[0]
   const [chip, chipTone] = PHASE_CHIP[phase]
   const applyState = fix ? 'done' : phase === 'applying' ? 'running' : 'waiting'
@@ -688,11 +688,13 @@ function FixPanel({ conflict, onPropose, folds }) {
     sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [phase])
   return (
-    <section ref={sectionRef} data-decision-fix data-fix-phase={phase} className={cn(CARD, 'scroll-mt-3')}>
-      <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-[13px] font-semibold text-white">결정 반영</h3>
-        <span data-fix-chip role="status" className={cn('inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium', chipTone)}>{chip}</span>
-      </div>
+    <section ref={sectionRef} data-decision-fix data-fix-phase={phase} className={cn(bare ? undefined : CARD, 'scroll-mt-3')}>
+      {!bare && (
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-[13px] font-semibold text-white">결정 반영</h3>
+          <span data-fix-chip role="status" className={cn('inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium', chipTone)}>{chip}</span>
+        </div>
+      )}
 
       {/* What the fix changes in the code. */}
       <Fold
@@ -796,7 +798,7 @@ function FixPanel({ conflict, onPropose, folds }) {
             </div>
           ) : (
             <button type="button" data-open-ds-proposal onClick={() => setProposalOpen(true)} className="text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline">
-              공통 컴포넌트 · 토큰이 바뀌었나요? Design System 업데이트 제안하기 (선택)
+              공통 컴포넌트 · 토큰이 바뀌었나요? Design System 업데이트 제안하기
             </button>
           )}
           </div>
@@ -964,28 +966,75 @@ function DetectedSummary({ conflict }) {
   )
 }
 
-// One finished-or-current stage of the decision, as a section that folds:
-// [check] title · a line saying how it went · chevron. Open shows the card(s)
-// as they were; the open one is the step that's current.
-function Section({ title, summary, done, open, onToggle, children, ...rest }) {
+// The way to the History's replay of this change (the committed steps).
+function useReplayNavigation(conflict, workspace) {
+  const navigate = useNavigate()
+  return () => {
+    const checkpoint = [...(workspace?.historyEntries ?? [])].reverse().find((entry) => entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
+    navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
+  }
+}
+// "History" names this one thing: the replay of what was committed. (What
+// people said and did is the 활동 tab.) Sits in the page header.
+export function HistoryReplayButton({ conflict, workspace }) {
+  const open = useReplayNavigation(conflict, workspace)
+  if (!conflict.decisionFlow || !(conflict.decisionRequest || conflict.designDecision)) return null
   return (
-    <section className="min-w-0" {...rest}>
-      <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl bg-white/[0.03] px-4 py-2.5 text-left ring-1 ring-white/[0.06] transition-colors ring-inset hover:bg-white/[0.05] focus-visible:outline-2 focus-visible:outline-emerald-300">
-        {done
-          ? <span aria-hidden className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3" strokeWidth={3} /></span>
-          : <span aria-hidden className="size-4 shrink-0 rounded-full border border-white/25" />}
-        <span className="shrink-0 text-[13px] font-semibold text-white">{title}</span>
-        <span data-section-summary className="min-w-0 flex-1 truncate text-[12px] text-slate-400">{summary}</span>
-        <Chevron open={open} />
-      </button>
-      <FoldBody open={open}><div className="flex flex-col gap-3 pt-3">{children}</div></FoldBody>
-    </section>
+    <button type="button" data-decision-history onClick={open} className={SECONDARY}>
+      <Play className="size-3.5" />
+      History에서 재생
+    </button>
   )
 }
-const FOLD_SECTIONS = ['info', 'decision', 'fix']
-const FOLD_ALL = [...FOLD_SECTIONS, 'fix-code', 'fix-verify', 'fix-ds']
 
-export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
+// A step's mark: done = a check, current = its number, emphasised, waiting =
+// a grey number.
+function StepMark({ number, state }) {
+  if (state === 'done') return <span aria-hidden className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check className="size-3" strokeWidth={3} /></span>
+  return (
+    <span aria-hidden className={cn('flex size-5 shrink-0 items-center justify-center rounded-full text-[10.5px] leading-none font-semibold tabular-nums', state === 'current' ? 'bg-emerald-400/15 text-emerald-200 ring-2 ring-emerald-400 ring-inset' : 'bg-white/[0.06] text-slate-400')}>{number}</span>
+  )
+}
+
+// One step of the approval, as one card that grows: the header is always
+// there — [mark] [step] [who · result] [summary] [time] [chevron] — and the
+// body opens inside the same card (height + opacity, 200ms). The summary is
+// for the folded card only: it fades out as the card opens, so nothing the
+// body says is said twice. A thin line joins each card to the next.
+function StepCard({ number, state, title, who, summary, time, open, onToggle, joined, children, ...rest }) {
+  return (
+    <li className="relative" {...rest}>
+      <div data-step-card={state} data-open={open} className={cn('rounded-xl ring-1 ring-inset transition-colors duration-200 motion-reduce:transition-none', state === 'current' ? 'bg-white/[0.045] ring-emerald-400/30' : 'bg-white/[0.03] ring-white/[0.06]')}>
+        <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <StepMark number={number} state={state} />
+          <span data-step-title className="shrink-0 text-[13px] font-semibold whitespace-nowrap text-white">{title}</span>
+          <span data-step-who className="shrink-0 text-[12px] whitespace-nowrap text-slate-300">{who}</span>
+          <span data-step-summary aria-hidden={open} className={cn('min-w-0 flex-1 truncate text-[12px] text-slate-400 transition-opacity duration-[120ms] ease-out motion-reduce:transition-none', open && 'opacity-0')}>{summary}</span>
+          {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
+          <Chevron open={open} />
+        </button>
+        <FoldBody open={open}><div className="flex flex-col gap-3 px-4 pt-1 pb-4">{children}</div></FoldBody>
+      </div>
+      {joined && <span aria-hidden data-step-line className={cn('absolute top-full left-[25.5px] h-3 w-px', state === 'done' ? 'bg-emerald-400/50' : 'bg-white/15')} />}
+    </li>
+  )
+}
+const FOLD_STEPS = ['detect', 'request', 'decision', 'fix']
+const FOLD_ALL = [...FOLD_STEPS, 'fix-code', 'fix-verify', 'fix-ds']
+
+// What the detection touched: its file and what's affected — said once, here.
+function DetectionFacts({ conflict }) {
+  return (
+    <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-[18px]">
+      <dt className="text-slate-400">관련 파일</dt>
+      <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
+      <dt className="text-slate-400">영향 범위</dt>
+      <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
+    </dl>
+  )
+}
+
+export default function DesignDecisionFlow({ conflict, workspace, viewer, banner = null }) {
   const navigate = useNavigate()
   const developer = viewer?.jobRole === 'Developer'
   const stage = decisionStageOf(conflict)
@@ -1004,16 +1053,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     window.addEventListener('devsign:reveal-verify', reveal)
     return () => window.removeEventListener('devsign:reveal-verify', reveal)
   })
-  const openHistory = () => {
-    const checkpoint = [...(workspace?.historyEntries ?? [])].reverse().find((entry) => entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
-    navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
-  }
-  const historyLink = (
-    <button type="button" data-decision-history onClick={openHistory} className={SECONDARY}>
-      <History className="size-3.5" />
-      History에서 이력 보기
-    </button>
-  )
+  const openHistory = useReplayNavigation(conflict, workspace)
 
   // The way forward is picked on the proposal cards (not in the form below);
   // 다른 수정안's own fields are kept while another card is looked at. A new
@@ -1051,36 +1091,41 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
     return () => window.clearTimeout(timer)
   }, [phase, conflict.id, workspace])
 
-  // The finished stages fold (the step that's current stays open; once
-  // everything is done they're all folded, and the banner above says so).
+  // The approval, as a stepper of cards (the last step, 해결, is the banner
+  // above them). Finished steps fold; the one that's current stays open, and
+  // once everything is done they're all folded.
   const post = Boolean(developer && decision && ['decided', 'fixed', 'verified', 'resolved'].includes(stage))
   const fixPhase = post ? fixPhaseOf(conflict) : null
   const current = post && stage !== 'resolved' ? 'fix' : null
   const isOpen = (key) => folds.get(key, key === current)
-  const allOpen = post && FOLD_SECTIONS.every(isOpen) && FOLD_ALL.slice(3).every((key) => folds.get(key, true))
+  const allOpen = post && FOLD_STEPS.every(isOpen) && FOLD_ALL.slice(FOLD_STEPS.length).every((key) => folds.get(key, true))
   const toggle = (key) => folds.set(key, !isOpen(key))
   const breakpoint = conflict.breakpoint ?? 768
   const components = conflict.impact?.components ?? []
-  const decidedShape = decision?.choice === 'approve' ? proposalOf(request?.proposal, request?.custom) : null
-  const fileLine = `${conflict.file?.split('/').pop()} ${conflict.line}행`
-  const summaries = post ? {
-    info: [DEV_STAGE_LABEL[request?.devStage], TIMING_LABEL[request?.timing] && `${TIMING_LABEL[request.timing]} 반영`, `${breakpoint}px`, components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · '),
-    decision: [DECISION_LABEL[decision.choice], decision.choice === 'approve' ? (decidedShape?.columns ? `${decidedShape.columns}열 레이아웃` : decidedShape?.name) : `디자인 원안(${conflict.layouts?.original?.columns ?? 2}열)`, decision.decidedAt ? formatTime(decision.decidedAt) : decision.at].filter(Boolean).join(' · '),
-    fix: conflict.decisionFix?.verified || fixPhase === 'resolved' ? `${fileLine} 수정 · ${breakpoint}px 검증 통과 · 카드 겹침 없음` : PHASE_CHIP[fixPhase][0],
-  } : null
+  // What was decided, from the one place every screen reads it (designDecisions).
+  const outcome = decisionOutcomeOf(conflict)
+  const log = post ? eventsOf(conflict) : []
+  const timeOf = (...types) => { const event = log.findLast((entry) => types.includes(entry.type)); return event ? formatTime(event.createdAt) : null }
+  const fixedEvent = log.findLast((entry) => entry.type === 'fixed')
+  const fileName = conflict.file?.split('/').pop()
+  const verified = fixPhase === 'verified' || fixPhase === 'resolved'
+  const steps = post ? [
+    { key: 'detect', title: '변경 감지', state: 'done', who: `자동 감지 · ${fileName}`, time: timeOf('detected'),
+      summary: [`${breakpoint}px`, '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
+    { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.round > 1 ? `${request.round}차 요청` : '승인 요청'}`, time: timeOf('requested'),
+      summary: [DEV_STAGE_LABEL[request?.devStage], TIMING_LABEL[request?.timing] && `${TIMING_LABEL[request.timing]} 반영`, proposalPhraseOf(outcome?.shape ?? proposalOf(request?.proposal, request?.custom))].filter(Boolean).join(' · ') },
+    { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${outcome?.label}`, time: timeOf('decided'),
+      summary: [outcome?.name, TIMING_LABEL[decision.timing] && `${TIMING_LABEL[decision.timing]} 반영`].filter(Boolean).join(' · ') },
+    { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : 'current',
+      who: `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? `${breakpoint}px 검증 통과` : PHASE_CHIP[fixPhase][0]}`,
+      time: timeOf('verified', 'fixed'),
+      summary: verified ? `${fileName} ${conflict.line}행 수정 · 카드 겹침 없음` : '' },
+  ] : []
 
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} className="flex min-w-0 flex-col gap-3">
-      {(request || decision) && (
-        <div className="flex items-center justify-between gap-3">
-          {post ? (
-            <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="text-[11px] font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline">
-              {allOpen ? '모두 접기' : '모두 펼치기'}
-            </button>
-          ) : <span />}
-          {historyLink}
-        </div>
-      )}
+      {/* (The merge banner is the list's first item: the same gap as between cards.) */}
+      {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
 
       {/* What was detected — said first on the developer's side, before
           anything has been asked. */}
@@ -1128,23 +1173,36 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
           )}
           {post && (
             <>
-              <Section data-fold="info" title="기본 정보" summary={summaries.info} done open={isOpen('info')} onToggle={() => toggle('info')}>
-                <LayoutComparison conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
-                {request && <RequestCard conflict={conflict} />}
-              </Section>
-              <Section data-fold="decision" title={decision.by === viewer.id ? '내 결정' : `${nameOf(decision.by)}님의 결정`} summary={summaries.decision} done open={isOpen('decision')} onToggle={() => toggle('decision')}>
-                <DecisionCard conflict={conflict} viewerId={viewer.id} />
-              </Section>
-              <Section data-fold="fix" title="결정 반영" summary={summaries.fix} done={fixPhase === 'verified' || fixPhase === 'resolved'} open={isOpen('fix')} onToggle={() => toggle('fix')}>
-                <FixPanel
-                  conflict={conflict}
-                  folds={folds}
-                  onPropose={(note) => {
-                    workspace.proposeDesignSystemUpdate(conflict.id, note)
-                    toast('Design System 업데이트를 제안했어요', { description: note })
-                  }}
-                />
-              </Section>
+              <div className="relative">
+                <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="absolute -top-[13px] right-0 text-[10.5px] leading-3 font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline">
+                  {allOpen ? '모두 접기' : '모두 펼치기'}
+                </button>
+                <ol data-step-list className="m-0 flex list-none flex-col gap-3 p-0">
+                  {steps.map((step, index) => (
+                    <StepCard key={step.key} data-fold={step.key} number={index + 1} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} joined={index < steps.length - 1}>
+                      {step.key === 'detect' && (
+                        <>
+                          <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
+                          <DetectionFacts conflict={conflict} />
+                        </>
+                      )}
+                      {step.key === 'request' && request && <RequestCard bare conflict={conflict} />}
+                      {step.key === 'decision' && <DecisionCard bare conflict={conflict} viewerId={viewer.id} />}
+                      {step.key === 'fix' && (
+                        <FixPanel
+                          bare
+                          conflict={conflict}
+                          folds={folds}
+                          onPropose={(note) => {
+                            workspace.proposeDesignSystemUpdate(conflict.id, note)
+                            toast('Design System 업데이트를 제안했어요', { description: note })
+                          }}
+                        />
+                      )}
+                    </StepCard>
+                  ))}
+                </ol>
+              </div>
               <DecisionActionBar
                 conflict={conflict}
                 onApprove={() => workspace.applyDecisionFix(conflict.id)}
@@ -1155,7 +1213,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
                 }}
                 onResolve={() => {
                   const checkpoint = workspace.resolveDecision(conflict.id)
-                  if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: 'History에 수정 · 승인 · 해결 이력이 남았어요.', action: { label: 'History에서 보기', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
+                  if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: 'History에서 재생', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
                 }}
               />
             </>
@@ -1169,8 +1227,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
               onDecide={(next) => {
                 workspace.decideDesign(conflict.id, next)
                 toast(`${nameOf(request.by)}님에게 결정을 보냈어요: ${DECISION_LABEL[next.choice]}`, {
-                  description: next.timing ? `반영 시점 ${TIMING_LABEL[next.timing]} · 승인 이력이 History에 남았어요` : '승인 이력이 History에 남았어요',
-                  action: { label: 'History에서 보기', onClick: openHistory },
+                  description: next.timing ? `반영 시점 ${TIMING_LABEL[next.timing]} · 승인 기록이 남았어요` : '승인 기록이 남았어요',
+                  action: { label: 'History에서 재생', onClick: openHistory },
                 })
               }}
             />
@@ -1181,7 +1239,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer }) {
               <p data-decision-delivered className="flex flex-wrap items-center gap-2 rounded-xl bg-emerald-400/[0.08] px-4 py-3 text-[13px] text-emerald-100 ring-1 ring-emerald-400/30 ring-inset">
                 <Send className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1">
-                  {nameOf(request?.by)}님에게 전달됐어요 · 승인 이력이 History에 남았어요.
+                  {nameOf(request?.by)}님에게 전달됐어요 · 승인 기록이 남았어요.
                   {stage === 'rework' && ' 새 수정안이 오면 다시 알려 드려요.'}
                   {stage === 'fixed' && ` ${nameOf(request?.by)}님이 결정을 반영했어요.`}
                   {stage === 'verified' && ` ${nameOf(request?.by)}님이 반영하고 검증했어요.`}
