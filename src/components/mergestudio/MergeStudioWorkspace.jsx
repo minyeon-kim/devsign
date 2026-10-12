@@ -18,7 +18,7 @@ import { Check, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, Tri
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import MergeInfiniteCanvas from '@/components/mergestudio/MergeInfiniteCanvas'
+import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -34,7 +34,7 @@ import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 import { DesignComparePanel, designCompareOptions, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
-import { LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
+import { GAP as DRAFT_GAP, LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
@@ -102,19 +102,22 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   }
   const focus = (index) => { setStep(index); if (rows[index].region) onShowRegion?.(rows[index].region.id) }
 
+  const screen = draftScreens[item.id]
   return (
-    <div data-mix-panel className="pointer-events-auto flex h-11 max-w-full items-center gap-1 overflow-x-auto rounded-full bg-[#17191d]/95 py-1 pr-1 pl-3.5 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
-      <span className="shrink-0 text-[12px] font-semibold text-slate-100">{ko ? '요소' : 'Parts'}</span>
-      <span className="mr-1 shrink-0 text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
+    <div data-mix-panel className="pointer-events-auto flex max-w-full items-stretch gap-1 overflow-x-auto rounded-2xl bg-[#17191d]/95 p-1.5 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
+      <div className="flex shrink-0 flex-col justify-center px-2">
+        <span className="text-[12px] font-semibold text-slate-100">{ko ? '요소' : 'Parts'}</span>
+        <span className="text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
+      </div>
       {rows.map((row, index) => (
         <div
           key={row.key}
           data-mix-region={row.region?.id ?? row.key}
           aria-current={index === step || undefined}
-          className={cn('flex h-9 shrink-0 items-center gap-1.5 rounded-full pr-1 pl-3 transition-colors', index === step ? 'bg-white/[0.09]' : 'hover:bg-white/[0.04]')}
+          className={cn('flex shrink-0 flex-col gap-1 rounded-xl px-2 pt-1.5 pb-2 transition-colors', index === step ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}
         >
-          <button type="button" onClick={() => focus(index)} className={cn('ds-intrinsic text-[12px] whitespace-nowrap', index === step ? 'text-white' : 'text-slate-300 hover:text-white')}>{partName(row)}</button>
-          <span role="radiogroup" aria-label={partName(row)} className="flex items-center gap-0.5">
+          <button type="button" onClick={() => focus(index)} className={cn('ds-intrinsic text-left text-[11.5px] whitespace-nowrap', index === step ? 'text-white' : 'text-slate-300 hover:text-white')}>{partName(row)}</button>
+          <span role="radiogroup" aria-label={partName(row)} className="flex items-center gap-1.5">
             {row.options.map((option) => {
               const issues = optionIssues(row, option)
               const value = option.literal ? option.value : translateText(String(option.value), language)
@@ -128,10 +131,14 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                   aria-label={`${partName(row)} · ${option.name}`}
                   title={`${option.name} · ${value}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
                   onClick={() => { setStep(index); if (!option.picked) onDecide(row.key, option.decision) }}
-                  className={cn('ds-intrinsic flex size-7 items-center justify-center rounded-full text-[11.5px] font-semibold transition-colors',
-                    option.picked ? (issues.length ? 'bg-amber-300 text-slate-950' : 'bg-emerald-300 text-slate-950') : 'text-slate-400 ring-1 ring-white/15 ring-inset hover:bg-white/[0.08] hover:text-white')}
+                  className={cn('ds-intrinsic relative block rounded-lg p-0.5 transition-shadow',
+                    option.picked ? (issues.length ? 'ring-2 ring-amber-300' : 'ring-2 ring-emerald-300') : 'ring-1 ring-white/10 hover:ring-sky-400/70')}
                 >
-                  {option.letter}
+                  {/* The draft's own version of the part, rendered. */}
+                  {row.region && screen
+                    ? <RegionThumb part={screen.drafts[option.key]?.[row.region.id]} width={72} />
+                    : <span className="flex h-[44px] w-[72px] items-center justify-center truncate rounded-md bg-white px-1 text-[10px] text-slate-600">{value}</span>}
+                  <span className={cn('absolute -top-1 -left-1 flex size-4 items-center justify-center rounded-full text-[9.5px] font-semibold shadow', option.picked ? (issues.length ? 'bg-amber-300 text-slate-950' : 'bg-emerald-300 text-slate-950') : 'bg-slate-700 text-slate-100')}>{option.letter}</span>
                 </button>
               )
             })}
@@ -161,6 +168,21 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  )
+}
+
+// A draft's version of one part, drawn small (its own layers, fit to the box).
+function RegionThumb({ part, width }) {
+  const height = Math.round(width * 0.62)
+  if (!part?.layers.length) return <span className="block rounded-md bg-white/[0.06]" style={{ width, height }} />
+  const h = (part.height ?? 0) + 16
+  const scale = Math.min(width / 280, height / h)
+  return (
+    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width, height }}>
+      <span className="pointer-events-none absolute top-1/2 left-1/2 block origin-center" style={{ width: 280, height: h, transform: `translate(-50%, -50%) scale(${scale})` }}>
+        {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />)}
+      </span>
+    </span>
   )
 }
 
@@ -505,9 +527,14 @@ function MergeStudioWorkspace({ item }) {
       return
     }
     if (designComparison && regionId) {
-      // A click takes the whole part (to swap, reorder or remove it). The
-      // Result is laid out like an auto layout: parts stack in order, so
-      // nothing in one is moved or resized on its own.
+      // A first click takes the whole part (to swap, move or remove it — it
+      // snaps into the stack where it's dropped); a second, inside the part
+      // already taken, takes that element — to move or resize it on its own,
+      // with smart guides and its spacing shown (LayerTransformHandles).
+      if (layerSource(syncSelection?.layerId)?.regionId === regionId && layerId.includes('--')) {
+        setSyncSelection({ layerId, element: true })
+        return
+      }
       const first = frame0?.layers.find((layer) => layer.regionId === regionId)
       setSyncSelection({ layerId: first?.id ?? layerId })
       return
@@ -1322,6 +1349,10 @@ function MergeStudioWorkspace({ item }) {
             onRemove: removeRegion,
             onDuplicate: duplicateRegion,
             onReorder: reorderRegion,
+            // The stack's spacing, said while a part is dragged: the gap
+            // between parts and the screen's side padding.
+            gap: DRAFT_GAP,
+            padding: Math.min(...(frame0?.layers ?? []).filter((layer) => layer.regionId).map((layer) => layer.x)),
             onEditText: editResultText,
             letterOf: (key) => { const at = designCompareOptions(item).findIndex((option) => option.key === key); return at < 0 ? null : String.fromCharCode(65 + at) },
           } : null}

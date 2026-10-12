@@ -241,7 +241,7 @@ export const draftScreens = {
 
 const STATUS_BAR = { id: 'co-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24 }
 const TOP = 40
-const GAP = 22
+export const GAP = 22
 
 // One screen from a pick of regions ({ [regionId]: draftKey }): the regions
 // stacked in order under the status bar, each region's layers tagged with
