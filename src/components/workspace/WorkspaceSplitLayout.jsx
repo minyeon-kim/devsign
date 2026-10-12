@@ -1,3 +1,6 @@
+import { RAIL_ACTIVE, RAIL_WIDTH, RailButton } from '@/components/dashboard/Sidebar'
+import { translateText } from '@/i18n/translate'
+import { getLanguage } from '@/i18n/language'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
@@ -42,33 +45,48 @@ const components = {
 const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
 // The navigator's default width, in px.
-const NAVIGATOR_W = 240
+// (Its own 240px, and the rail beside it: 48px and the 8px between.)
+const NAVIGATOR_W = 240 + 56
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
 // it rather than into it as a tab.
 const EDGE = 0.2
 
-// A minimized window: a slim strip keeping its place — its icon and name
-// (running vertically in a row, across in a stack); click to bring it back.
-function MinimizedStrip({ group, panelsById, dockApi, dir }) {
+// A window's place on the rail at the work area's right edge: the same icon
+// button the left navigation uses (RailButton) — the icon alone, named by its
+// tooltip, lit while its window is open; pressing it opens the window and
+// folds it again. The rail is as wide as the left one and starts level with
+// the work area; anything added to it stacks under, by the same rule (an
+// icon and a tooltip — never a label, so nothing in it can wrap).
+// (`dir` 'col': folded inside a stack, it's a row across instead.)
+function PanelRail({ group, panelsById, dockApi, dir, open = false }) {
   const panel = panelsById[group.activeId]
-  const Icon = PANEL_ICONS[panel?.params?.iconName]
+  const Icon = PANEL_ICONS[panel?.params?.iconName] ?? PANEL_ICONS.Folder
+  const label = translateText(panel?.title ?? 'Window', getLanguage())
   return (
-    <button
-      type="button"
-      title={`Restore ${panel?.title ?? 'window'}`}
-      aria-label={`Restore ${panel?.title ?? 'window'}`}
-      onClick={() => dockApi.minimizeGroup(group.id, false)}
+    <div
+      data-panel-rail={open ? 'open' : 'folded'}
+      role="toolbar"
+      aria-orientation={dir === 'col' ? 'horizontal' : 'vertical'}
+      aria-label={label}
       className={cn(
-        'flex shrink-0 items-center gap-2 text-slate-400 transition-colors hover:text-white',
-        dir === 'col' ? 'h-10 w-full px-4' : 'h-full w-10 flex-col py-3',
+        'flex shrink-0 gap-1 whitespace-nowrap',
+        dir === 'col' ? 'h-[var(--ds-chrome-size)] w-full flex-row items-center px-2' : cn('h-full flex-col items-center pt-2', RAIL_WIDTH),
         PANEL_RADIUS,
         FLOATING_PANEL
       )}
     >
-      {Icon && <Icon className="size-4 shrink-0" />}
-      <span className={cn('text-[12px] font-medium', dir !== 'col' && '[writing-mode:vertical-rl]')}>{panel?.title}</span>
-    </button>
+      <RailButton
+        label={label}
+        icon={Icon}
+        side={dir === 'col' ? 'top' : 'left'}
+        aria-expanded={open}
+        data-panel-toggle={group.activeId}
+        onClick={() => dockApi.minimizeGroup(group.id, open)}
+        // (`ds-intrinsic`: the workspace's 32px control height isn't forced on it — 36px, as the left rail's.)
+        className={cn('ds-intrinsic mx-0', open && RAIL_ACTIVE)}
+      />
+    </div>
   )
 }
 
@@ -411,9 +429,13 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
         // flex layout to actually sit.
         if (floatingSide) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} />
         if (group.panelIds.includes(panelById.chat.id)) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} corner="bottom" />
-        return <MinimizedStrip group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
+        return <PanelRail group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
       }
-      return (
+      // The navigator (Files · Layers · Assets · Properties) keeps its rail
+      // beside it while open too, its button lit — the one place it's opened
+      // and folded from.
+      const railed = !mergeStudio && parentDir === 'row' && group.panelIds.includes(panelById.navigator.id)
+      const leaf = (
         <div data-leaf={group.id} className={cn(
           'min-h-0 min-w-0',
           mergeStudio ? (showStudio ? 'absolute inset-0 flex' : floatingSide ? 'pointer-events-none absolute inset-0 z-40' : 'hidden') : 'relative flex size-full'
@@ -436,6 +458,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
           {showStudio && <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden">{children}</div>}
         </div>
       )
+      return railed ? <div className="flex size-full min-h-0 min-w-0 gap-2"><div className="flex min-h-0 min-w-0 flex-1">{leaf}</div><PanelRail open group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} /></div> : leaf
     }
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} floating={mergeStudio} />
   }

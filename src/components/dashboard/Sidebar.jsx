@@ -33,15 +33,19 @@ const iconButtonClass =
 // Deliberately restrained: a muted surface + a thin primary-tinted ring,
 // not a saturated blue fill — the icon itself stays close to neutral.
 const activeClass = 'bg-white/[0.08] text-foreground'
+// (Shared with the workspace's right rail: one look for every rail button.)
+export const RAIL_ACTIVE = activeClass
+export const RAIL_WIDTH = 'w-[var(--ds-chrome-size)]'
 
 // An icon-only activity bar button, named by its tooltip.
-function RailButton({ label, icon: Icon, className, iconClassName, ...triggerProps }) {
+// (`side`: where the tooltip goes — away from the edge the rail is on.)
+export function RailButton({ label, icon: Icon, className, iconClassName, side = 'right', ...triggerProps }) {
   return (
     <Tooltip>
       <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
         <Icon className={cn('size-[18px]', iconClassName)} />
       </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
+      <TooltipContent side={side}>{label}</TooltipContent>
     </Tooltip>
   )
 }
