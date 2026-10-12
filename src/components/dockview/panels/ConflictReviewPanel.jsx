@@ -1,4 +1,5 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
+import { PreviewFrame } from '@/components/conflicts/ElementPreview'
 import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
@@ -1132,22 +1133,23 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     <>
       {/* Before → After: what's built, beside what the way gives. */}
       {conflict.preview && (
-        <div data-before-after className="grid grid-cols-1 items-center gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <figure data-picture="before" className={cn(PICTURE, 'border-transparent')}>
-            <div className="mx-auto w-full max-w-[300px]"><ChangePreview preview={conflict.preview} side="before" showLabels={false} /></div>
-            <figcaption className="mt-3 text-center">
-              <span className="block text-[13px] font-medium text-slate-200"><LocalizedText text={readOnly ? 'Before the change' : 'What’s built now'} /></span>
-              <span className="block text-xs text-slate-500"><ValueText text={valueLine(cards[1])} /></span>
+            {/* (A frame of fixed ratio, the drawing set in its middle: a 24px button beside a 20px one moves nothing.) */}
+            <div className="mx-auto w-full max-w-[300px]"><PreviewFrame ratio={2}><span className="block w-56"><ChangePreview preview={conflict.preview} side="before" showLabels={false} /></span></PreviewFrame></div>
+            <figcaption className="mt-3 min-w-0 text-center">
+              <span className="block h-5 truncate text-[13px] leading-5 font-medium text-slate-200"><LocalizedText text={readOnly ? 'Before the change' : 'What’s built now'} /></span>
+              <span className="block h-4 truncate text-xs leading-4 text-slate-500 tabular-nums"><ValueText text={valueLine(cards[1])} /></span>
             </figcaption>
           </figure>
-          <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
+          <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 self-center text-slate-500 min-[769px]:rotate-0" />
           <figure data-picture="after" data-after={afterId ?? 'none'} className={cn(PICTURE, choice && afterId === choice && !readOnly ? 'border-emerald-400' : 'border-transparent')}>
-            {/* (Re-keyed per way, so one fades into the next.) */}
-            <div key={afterId ?? 'none'} className="animate-in fade-in duration-150 motion-reduce:animate-none">
-              <div className="mx-auto w-full max-w-[300px]"><ChangePreview preview={conflict.preview} side={afterCard?.side ?? 'after'} showLabels={false} override={afterCard?.id === 'C' && custom ? custom.preview : undefined} /></div>
-              <figcaption className="mt-3 text-center">
-                <span data-after-title className="block text-[13px] font-medium text-slate-200"><LocalizedText text={readOnly ? 'After the change' : choice && afterId === choice ? 'After the change' : afterCard?.title ?? 'Design reference'} /></span>
-                <span data-after-sub className="block text-xs text-slate-500">{afterCard && valueLine(afterCard) ? <ValueText text={valueLine(afterCard)} /> : <LocalizedText text={afterCard?.source ?? ''} />}</span>
+            {/* (The same picture throughout — given the way's values, re-drawn in place; never keyed by the way.) */}
+            <div>
+              <div className="mx-auto w-full max-w-[300px]"><PreviewFrame ratio={2}><span className="block w-56"><ChangePreview preview={conflict.preview} side={afterCard?.side ?? 'after'} showLabels={false} override={afterCard?.id === 'C' && custom ? custom.preview : undefined} /></span></PreviewFrame></div>
+              <figcaption className="mt-3 min-w-0 text-center">
+                <span data-after-title className="block h-5 truncate text-[13px] leading-5 font-medium text-slate-200"><LocalizedText text={readOnly ? 'After the change' : choice && afterId === choice ? 'After the change' : afterCard?.title ?? 'Design reference'} /></span>
+                <span data-after-sub className="block h-4 truncate text-xs leading-4 text-slate-500 tabular-nums">{afterCard && valueLine(afterCard) ? <ValueText text={valueLine(afterCard)} /> : <LocalizedText text={afterCard?.source ?? ''} />}</span>
               </figcaption>
             </div>
           </figure>

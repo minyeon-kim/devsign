@@ -9,7 +9,7 @@ import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
-import { ElementCrop, ElementPreviewDialog, SIDEBAR_PROBE, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
+import { ElementCrop, ElementPreviewDialog, PreviewFrame, SIDEBAR_PROBE, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueScale from '@/components/conflicts/ValueScale'
@@ -84,7 +84,14 @@ function Picture({ conflict, which, overlap, scale = 1, maxWidth = 200 }) {
     if (!layout) return null
     // (A fix that didn't check out is drawn as it actually renders: as built.)
     const failed = overlap === true && !layout.overlap
-    return <TabletPreview columns={layout.columns} overlap={failed || (overlap ?? layout.overlap)} widthMode={layout.widthMode} cardPx={layout.values?.cardWidth?.px} template={failed ? conflict.layouts.implementation?.template : overlap === false ? null : layout.template} scale={scale} maxWidth={maxWidth} />
+    // (In a frame of the screen's own ratio — the same for every layout, whatever it draws.)
+    return (
+      <div className="mx-auto w-full" style={{ maxWidth: maxWidth * scale }}>
+        <PreviewFrame ratio={TABLET.width / PREVIEW_HEIGHT}>
+          <TabletPreview columns={layout.columns} overlap={failed || (overlap ?? layout.overlap)} widthMode={layout.widthMode} cardPx={layout.values?.cardWidth?.px} template={failed ? conflict.layouts.implementation?.template : overlap === false ? null : layout.template} scale={scale} maxWidth={maxWidth} />
+        </PreviewFrame>
+      </div>
+    )
   }
   return <ValuePicture conflict={conflict} which={which} scale={scale} maxWidth={maxWidth} />
 }
@@ -107,6 +114,17 @@ function ValuePicture({ conflict, which, scale = 1, maxWidth = 200 }) {
 // Whether a way can be drawn: a layout's columns, a value's side — or a value
 // of one's own that its kind of change (lib/changeAdapters) reads as one.
 const canDraw = (conflict, shape) => drawableOf(shape) || Boolean(!conflict.layouts && shape && drawingOf(conflict, null, shape))
+// A picture's caption: two lines of fixed height, each on one line (cut with an
+// ellipsis, figures of equal width) — so no value, long or missing, changes
+// the card's height. The full text is the tooltip.
+function PictureCaption({ title, sub, titleProps = {}, subProps = {} }) {
+  return (
+    <figcaption className="mt-3 min-w-0 text-center">
+      <span {...titleProps} title={typeof title === 'string' ? title : undefined} className="block h-5 truncate text-[13px] leading-5 font-medium text-slate-200 tabular-nums">{title}</span>
+      <span {...subProps} title={typeof sub === 'string' ? sub : undefined} className="block h-4 truncate text-xs leading-4 text-slate-500 tabular-nums">{sub || '\u00a0'}</span>
+    </figcaption>
+  )
+}
 // What the check looks at, in a word: the breakpoint's render, or the value.
 const checkWordOf = (conflict) => (conflict.layouts ? `${conflict.breakpoint ?? 768}px 렌더링` : '수정한 값')
 
@@ -569,22 +587,16 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
 
       {/* Before → After: the section's picture. Two cards of the same kind,
           side by side with an arrow between; stacked (before first) when narrow. */}
-      <div data-before-after className="grid grid-cols-1 items-center gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
           <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
-          {valueChange ? (
-            <figcaption className="mt-3 text-center">
-              <span data-before-title className="block text-[13px] font-medium text-slate-200">{mode === 'done' ? '수정 전' : '현재 구현'} · {builtSpecOf(conflict)}</span>
-              <span className="block text-xs text-slate-500">{typeOf(conflict) === 'breakpoint' ? `${SIDEBAR_PROBE}px 화면 기준` : '\u00a0'}</span>
-            </figcaption>
-          ) : (
-          <figcaption className="mt-3 text-center">
-            <span className="block text-[13px] font-medium text-slate-200">{showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현'}</span>
-            <span className="block text-xs text-slate-500">{showDesign ? designSpecOf(conflict) : conflict.layouts ? `${builtSpecOf(conflict)} → 카드 겹침` : builtSpecOf(conflict)}</span>
-          </figcaption>
-          )}
+          <PictureCaption
+            titleProps={{ 'data-before-title': '' }}
+            title={valueChange ? `${mode === 'done' ? '수정 전' : '현재 구현'} · ${builtSpecOf(conflict)}` : showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현'}
+            sub={valueChange ? (typeOf(conflict) === 'breakpoint' ? `${SIDEBAR_PROBE}px 화면 기준` : '') : showDesign ? designSpecOf(conflict) : conflict.layouts ? `${builtSpecOf(conflict)} → 카드 겹침` : builtSpecOf(conflict)}
+          />
         </figure>
-        <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
+        <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 self-center text-slate-500 min-[769px]:rotate-0" />
         <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'ds-tone', chosen && drawable && !peeking && !holding ? 'border-emerald-400' : 'border-transparent')}>
           {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
               It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
@@ -592,10 +604,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
             <div className="flex justify-center">
               <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
             </div>
-            <figcaption className="mt-3 text-center">
-              <span data-after-title className="block text-[13px] font-medium text-slate-200">{after.title}</span>
-              <span data-after-sub className="block text-xs text-slate-500">{after.sub}</span>
-            </figcaption>
+            <PictureCaption titleProps={{ 'data-after-title': '' }} subProps={{ 'data-after-sub': '' }} title={after.title} sub={after.sub} />
           </div>
         </figure>
       </div>
@@ -612,7 +621,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
             return (
               <li key={option.id} data-way={option.id} aria-current={on ? 'true' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-lg px-3 py-2', on && 'bg-emerald-400/[0.08]')}>
                 <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full', on ? 'bg-emerald-400 text-slate-950' : 'border-2 border-white/15')}>{on && <Check className="size-3" strokeWidth={3} />}</span>
-                <span className="min-w-0 flex-1 text-[13px] leading-5">
+                <span className="min-w-0 flex-1 truncate text-[13px] leading-5 tabular-nums">
                   <span className={cn('font-medium', on ? 'text-slate-100' : 'text-slate-400')}>{option.name}</span>
                   <span className="text-slate-500"> · {option.id === 'other' ? (shape?.described ? shape.spec : '직접 입력') : option.spec}</span>
                   {on && resultWord && <span data-way-state className="ml-2 inline-flex h-[18px] items-center rounded bg-white/[0.07] px-1.5 align-middle text-[10.5px] font-medium text-slate-300">{resultWord}</span>}
@@ -650,7 +659,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                 <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>
                   {on && <span className="size-2 rounded-full bg-emerald-400" />}
                 </span>
-                <span className="min-w-0 flex-1 text-[13px] leading-5">
+                <span className="min-w-0 flex-1 truncate text-[13px] leading-5 tabular-nums">
                   <span className="font-medium text-slate-100">{option.name}</span>
                   <span className="text-slate-400"> · {option.id === 'other' ? (shape.described ? shape.spec : valueChange ? '직접 고르기' : '직접 입력') : option.spec}</span>
                   {/* Suggested, not chosen for you: nothing is picked by default. */}

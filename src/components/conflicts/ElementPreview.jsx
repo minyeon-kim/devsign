@@ -155,46 +155,82 @@ function useBox(dependency) {
   return [ref, box]
 }
 
+// The frame a picture is drawn in. Its size is its own — the cell's width and
+// a fixed ratio — never what's inside it: the drawing is taken out of the
+// flow and set in the middle, so a taller button, a bigger icon or a wider
+// gap moves nothing around it. A drawing larger than the frame is scaled
+// down to fit; the frame stays as it is.
+//   ratio: width / height.  children: the drawing, or (box) => the drawing —
+//   given the frame's size, for one that's sized to it.
+export function PreviewFrame({ ratio, children, className, ...rest }) {
+  const [frameRef, box] = useBox(ratio)
+  const inner = useRef(null)
+  const [fit, setFit] = useState(1)
+  useLayoutEffect(() => {
+    const node = inner.current
+    if (!node || !box.width || !box.height) return undefined
+    const measure = () => {
+      const next = node.offsetWidth > 0 && node.offsetHeight > 0 ? Math.min(1, box.width / node.offsetWidth, box.height / node.offsetHeight) : 1
+      setFit((current) => (Math.abs(current - next) < 0.001 ? current : next))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [box.width, box.height])
+  return (
+    <div ref={frameRef} data-preview-frame className={cn('relative w-full overflow-hidden', className)} style={{ aspectRatio: String(ratio), contain: 'strict' }} {...rest}>
+      <div ref={inner} data-preview-drawing className="absolute top-1/2 left-1/2 w-max" style={{ transform: `translate(-50%, -50%) scale(${fit})` }}>
+        {typeof children === 'function' ? children(box) : children}
+      </div>
+    </div>
+  )
+}
+
 // One picture of the change's element as a way forward draws it: the real
 // element from the design screen, cut out with 24px around it and enlarged to
-// its cell's width — the same crop and scale in every cell, so two of them
+// its frame's width — the same crop and scale in every cell, so two of them
 // compare. Nothing is drawn over it (the value is the caption's to say).
 //   overrides: what's put on the element (lib/elementPreview.drawingOf)
 //   values: what it's drawn with — a spacing's inset is tinted and its
 //   dimension said beside the element, outside it (`tone`: the tint's).
 export function ElementCrop({ conflict, link, overrides = {}, values = null, tone = 'open', className }) {
-  const [ref, box] = useBox(conflict.id)
   const target = targetOf(conflict, link)
-  let drawing = null
-  if (box.width > 0 && target) {
-    const region = compareRegionOf(target.frame, target.mainId)
-    const scale = compareScaleOf(box.width, region)
-    const inset = insetOf(conflict, target.frame, values)
-    drawing = (
-      <span className="relative block">
-        <ElementView frame={target.frame} region={region} scale={scale} overrides={overrides} only={ownLayerIdsOf(target.frame, target.mainId)} markIds={inset ? [target.mainId] : []} mark={inset ? { kind: 'inset', band: inset.band } : undefined} tone={tone} className="rounded-lg ring-1 ring-slate-200/80" />
-        {/* (The dimension: in the room over the element's corner — never on it.) */}
-        {inset && (
-          <span data-crop-measure translate="no" className={cn('pointer-events-none absolute rounded px-1.5 font-mono text-[11px] leading-[18px] font-semibold', tone === 'done' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-slate-950')} style={{ left: COMPARE_PAD * scale, bottom: `calc(100% - ${COMPARE_PAD * scale - 4}px)` }}>
-            {inset.label}
+  if (!target) return null
+  const region = compareRegionOf(target.frame, target.mainId)
+  const inset = insetOf(conflict, target.frame, values)
+  return (
+    <PreviewFrame ratio={region.width / region.height} data-element-crop className={className}>
+      {(box) => {
+        if (!box.width) return null
+        const scale = compareScaleOf(box.width, region)
+        return (
+          <span className="relative block">
+            <ElementView frame={target.frame} region={region} scale={scale} overrides={overrides} only={ownLayerIdsOf(target.frame, target.mainId)} markIds={inset ? [target.mainId] : []} mark={inset ? { kind: 'inset', band: inset.band } : undefined} tone={tone} className="rounded-lg ring-1 ring-slate-200/80" />
+            {/* (The dimension: in the room over the element's corner — never on it.) */}
+            {inset && (
+              <span data-crop-measure translate="no" className={cn('pointer-events-none absolute rounded px-1.5 font-mono text-[11px] leading-[18px] font-semibold tabular-nums', tone === 'done' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-slate-950')} style={{ left: COMPARE_PAD * scale, bottom: `calc(100% - ${COMPARE_PAD * scale - 4}px)` }}>
+                {inset.label}
+              </span>
+            )}
           </span>
-        )}
-      </span>
-    )
-  }
-  return <div ref={ref} data-element-crop className={cn('flex min-h-[72px] w-full items-center justify-center overflow-hidden', className)}>{drawing}</div>
+        )
+      }}
+    </PreviewFrame>
+  )
 }
 // Whether a change has an element on the design screen to draw that way.
 export const hasElement = (conflict, link) => Boolean(targetOf(conflict, link))
 
 // The same, for a change that isn't on the design screen (or that the element
-// there can't show): its component drawn alone with `values`, to its cell's width.
+// there can't show): its component drawn alone with `values`, in a frame of
+// its kind's own ratio — whatever size the values make it.
+export const SAMPLE_RATIO = { legend: 5 / 2, sidebar: 5 / 3, empty: 3 / 2, preview: 2 }
 export function SampleCrop({ conflict, values, className }) {
-  const [ref, box] = useBox(conflict.id)
   return (
-    <div ref={ref} data-element-crop="sample" className={cn('flex min-h-[72px] w-full items-center justify-center overflow-hidden', className)}>
-      {box.width > 0 && <ComponentSample conflict={conflict} values={values} zoom={sampleZoomOf(conflict, box.width)} />}
-    </div>
+    <PreviewFrame ratio={SAMPLE_RATIO[SAMPLES.includes(conflict.sample) ? conflict.sample : 'preview']} data-element-crop="sample" className={className}>
+      {(box) => box.width > 0 && <ComponentSample conflict={conflict} values={values} zoom={sampleZoomOf(conflict, box.width)} />}
+    </PreviewFrame>
   )
 }
 
