@@ -147,7 +147,8 @@ export function DifferenceSummary({ conflict, className, resolved = false, merge
 // what to do there — so the next move never has to be guessed.
 // `next`: the line to say after the steps, when the caller already has
 // one (the review's approval area) — so the two never differ.
-const STEP_DESCRIPTION = {
+export const STEP_DESCRIPTION = {
+  conflict: 'A difference between code and design was found',
   compare: 'Compare code and design values',
   select: 'Choose which value to apply',
   approve: 'Get approval from the reviewer',

@@ -2,11 +2,10 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
-import { StepDot, StepLine, StepProgressCount, useStepReveal } from '@/components/conflicts/StepTimeline'
-import { metaLines } from '@/lib/stepProgress'
-import { STEP_STATE_WORD, delayOf, moves as stepMoves } from '@/lib/stepProgress'
+import { StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
-import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
+import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, controlsOf, decisionOutcomeOf, decisionStageOf, fixLineOf, proposalOf, proposalPhraseOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
@@ -947,58 +946,6 @@ function useReplayNavigation(conflict, workspace) {
     const checkpoint = [...(workspace?.historyEntries ?? [])].reverse().find((entry) => entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
     navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
-}
-// The record of what's been done, as a thin timeline: a small dot on a line,
-// one row a step — [step] · [who] · [what] · [when] — that opens in place.
-// A finished step wears a soft success disc and check (StepTimeline); only
-// the step under way is outlined in the accent color, one that needs
-// attention wears the warning color, and one still to come is an empty ring.
-// `onReplay`: the replay opened at this step — a quiet text button that shows
-// on the row's hover or focus. `moves`/`delay`/`anim`: the step has just
-// finished and fills in (see StepTimeline); `strong`: the line below it is
-// deeper while a later step is hovered.
-function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
-  const pending = state === 'pending'
-  return (
-    <li
-      className="group/step relative pl-7"
-      aria-label={`${title} · ${STEP_STATE_WORD[state]}`}
-      data-step-anim={anim}
-      style={{ '--d': `${delay}ms` }}
-      onMouseEnter={onHover && (() => onHover(true))}
-      onMouseLeave={onHover && (() => onHover(false))}
-      {...rest}
-    >
-      {/* (The line runs on to the next step's dot, 48px on; the last one ends at its own.) */}
-      {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-5 bottom-[-28px] left-[7.5px]" />}
-      {/* (12px from the mark to the step's name.) */}
-      <span className="absolute top-1 left-0"><StepDot state={state} moves={moves} arrive={arrive} /></span>
-      {/* 48px from step to step, a hairline halfway — under every step but the last. */}
-      <div data-step-row={state} data-open={open} className={cn(!last && 'border-b border-white/[0.06] pb-[23px]')}>
-        <div data-step-head className="flex min-w-0 items-start gap-3">
-          <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer flex-col items-start rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-            {/* The step's name alone, bold… */}
-            <span data-step-title className={cn('text-base leading-6 font-semibold whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
-            {/* …and who and what under it, grey, at most two "·" to a line. */}
-            {metaLines([who, summary]).map((line, index) => (
-              <span key={line} data-step-meta className={cn('block max-w-full truncate text-[13px] leading-5', index === 0 && 'mt-1', pending ? 'text-slate-600' : 'text-slate-400')}>{line}</span>
-            ))}
-          </button>
-          <div className="flex h-6 shrink-0 items-center gap-2">
-            {onReplay && (
-              <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-[13px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
-                이 단계부터 보기
-              </button>
-            )}
-            {time && <time data-step-time className="shrink-0 text-[13px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
-            <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3.5" /></button>
-          </div>
-        </div>
-        {/* Opened: 20px under its head, from the name's own left edge; 24px between its blocks, a readable measure. */}
-        <FoldBody open={open}><div data-step-body className="flex flex-col gap-6 pt-5 pr-8 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>
-      </div>
-    </li>
-  )
 }
 const FOLD_STEPS = ['detect', 'request', 'decision', 'fix']
 const FOLD_ALL = FOLD_STEPS

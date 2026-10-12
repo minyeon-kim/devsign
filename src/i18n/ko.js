@@ -190,6 +190,11 @@ Changes to this value|이 값으로 변경
 Keeps the value as it is now|지금 값 유지
 Maximize panel|패널 최대화
 Restore panel height|패널 높이 복원
+Progress record|진행 기록
+What’s built now|현재 구현
+Before the change|수정 전
+After the change|수정 후
+A difference between code and design was found|코드와 디자인의 차이를 찾았어요
 Drag to resize · double-click to maximize|끌어서 높이 조절 · 두 번 눌러 최대화
 What it’s for|목적
 Buttons use the primary color token.|버튼 색상에 primary 토큰 사용

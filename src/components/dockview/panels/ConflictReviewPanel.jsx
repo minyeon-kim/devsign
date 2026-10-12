@@ -53,13 +53,14 @@ import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
-import { ReplayStepRail } from '@/components/conflicts/StepTimeline'
+import { ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import { eventsOf, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
-import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
+import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps, STEP_DESCRIPTION } from '@/components/conflicts/ConflictInsight'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
@@ -887,7 +888,11 @@ function codeConflictOptions(conflict) {
   ]
 }
 
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onCodeChoice }) {
+// `page`: on the full-screen detail it's one card of natural height, laid out
+// as a design decision's is (DesignDecisionFlow's 해결 방법): what's built
+// beside what the way picked gives, the ways as a list under them, and the
+// one action (`action`) at the card's foot.
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onCodeChoice, page = false, action = null }) {
   const readOnly = conflict.reviewStage === 'resolved'
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
@@ -994,8 +999,204 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // What it breaks, in a line: each compared value against the standard's.
 
 
+  // A way's values, a line each: its name, then it (set on the row itself
+  // where it's a value of one's own).
+  const valuesOf = (card, { isCustom, empty, picks }) => (
+                    <dl className={cn('@container min-w-0 space-y-2', empty && !picks && 'hidden')}>
+                      {conflict.comparisonFields.map((field, index) => {
+                        // Set by hand: what it was → what it is.
+                        const hand = isCustom && custom?.rows[index]?.to ? custom.rows[index] : null
+                        const text = isCustom ? custom?.rows[index]?.base ?? field.current : card.value(field)
+                        // A color value gets its swatch beside it.
+                        const swatch = hand ? hand.swatch : swatchIn(text)
+                        // (Every card's rows are one height — 28px, the
+                        // editor's — so the cards line up row for row.)
+                        const editorHere = picks && editing && Boolean(flow.controls[index])
+                        return (
+                        <div key={field.label} className="flex min-h-7 min-w-0 items-center justify-between gap-2">
+                          <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
+                          {editorHere ? (
+                            <dd data-value-editor={flow.controls[index].mode} className="-mr-[7px] flex shrink-0"><ValueEditor control={flow.controls[index]} /></dd>
+                          ) : picks && hand ? (
+                            // (Decided: the value it was set to, as the
+                            // other cards show theirs.)
+                            <dd data-adjusted-value className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums', toneOf(hand.to, field))}><ValueText text={hand.to} /></dd>
+                          ) : hand ? (
+                            <dd data-adjusted-value className={HAND_VALUE}>
+                              <span className="font-normal text-slate-500 line-through"><LocalizedText text={hand.base} /></span>
+                              <span aria-hidden className="font-normal text-slate-500">→</span>
+                              {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
+                              <span translate="no" className={toneOf(hand.to, field)}>{hand.to}</span>
+                            </dd>
+                          ) : (
+                          // A value both sides share isn't a difference:
+                          // quiet, and marked "Same". One that differs from
+                          // the standard is the one in color.
+                          <dd data-value={same(field) ? 'same' : 'differs'} className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 break-words tabular-nums', same(field) ? 'font-normal text-slate-500' : cn('font-semibold', toneOf(text, field)))}>
+                            {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
+                            <ValueText text={text} />
+                            {same(field) && <span data-same className="text-[10.5px] font-normal text-slate-500"><LocalizedText text="Same" /></span>}
+                          </dd>
+                          )}
+                        </div>
+                        )
+                      })}
+                      {/* Set by hand on something the comparison doesn't
+                          list (another property, another element) — the
+                          same "old → new" form. */}
+                      {isCustom && custom?.extras.map((change) => (
+                        <div key={`${change.layerName ?? ''}:${change.label}`} data-adjusted-row className="flex min-h-7 min-w-0 items-center justify-between gap-2">
+                          <dt className="min-w-0 truncate text-[11.5px] text-slate-400">
+                            {change.layerName && <><LocalizedText text={change.layerName} /> · </>}
+                            <LocalizedText text={change.label} />
+                          </dt>
+                          <dd translate="no" className={HAND_VALUE}>
+                            {change.from && <>
+                              <span className="font-normal text-slate-500 line-through">{change.from}</span>
+                              <span aria-hidden className="font-normal text-slate-500">→</span>
+                            </>}
+                            {change.swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: change.swatch }} />}
+                            <span className="text-slate-100">{change.to}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+  )
+  // The rules a way runs into, said under it.
+  const rulesOf = (card, { on, isCustom, required, advisories }) => (!readOnly && (required.length > 0 || advisories.length > 0) ? (
+                      <div data-card-rules className="min-w-0 space-y-2">
+                        {required.map((check, index) => (
+                          <RuleNote key={check.id} check={check} required action={index === required.length - 1 && editing ? (
+                            <button type="button" data-request-card-exception={card.id} disabled={isCustom && !flow.custom} onClick={(event) => { event.stopPropagation(); if (!on) flow.choose(card.id); setExceptionEditor(`${conflict.id}:${card.id}`) }} onKeyDown={(event) => event.stopPropagation()} className={cn('ds-intrinsic inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-amber-200 transition-colors hover:bg-white/[0.06] hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40', on && 'border border-amber-300/40')}>
+                              <LocalizedText text="Apply exception" />
+                              <ArrowRight aria-hidden className="size-3" />
+                            </button>
+                          ) : null} />
+                        ))}
+                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
+                      </div>
+  ) : null)
+  // ── The page's layout of the same choice ──
+  // A way's values in a line (those that differ; all of them when none do).
+  const valueLine = (card) => {
+    const fields = conflict.comparisonFields ?? []
+    const told = fields.some((field) => !same(field)) ? fields.map((field, index) => [field, index]).filter(([field]) => !same(field)) : fields.map((field, index) => [field, index])
+    if (card.id === 'C') return custom ? told.map(([field, index]) => custom.rows[index]?.to ?? custom.rows[index]?.base ?? field.current).join(', ') : null
+    return told.map(([field]) => card.value(field)).join(', ')
+  }
+  // What's on the right of the picture: the way under the pointer, else the
+  // one picked, else the reference (never an empty box).
+  const afterId = (hover && hover !== choice ? hover : choice) ?? (offered.some((card) => card.id === 'A') ? 'A' : offered[0]?.id ?? null)
+  const afterCard = cards.find((card) => card.id === afterId) ?? null
+  const PICTURE = 'min-w-0 rounded-xl border-2 bg-black/20 p-4'
+  const pageChoices = () => (
+    <>
+      {/* Before → After: what's built, beside what the way gives. */}
+      {conflict.preview && (
+        <div data-before-after className="grid grid-cols-1 items-center gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <figure data-picture="before" className={cn(PICTURE, 'border-transparent')}>
+            <div className="mx-auto w-full max-w-[300px]"><ChangePreview preview={conflict.preview} side="before" showLabels={false} /></div>
+            <figcaption className="mt-3 text-center">
+              <span className="block text-[13px] font-medium text-slate-200"><LocalizedText text={readOnly ? 'Before the change' : 'What’s built now'} /></span>
+              <span className="block text-xs text-slate-500"><ValueText text={valueLine(cards[1])} /></span>
+            </figcaption>
+          </figure>
+          <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
+          <figure data-picture="after" data-after={afterId ?? 'none'} className={cn(PICTURE, choice && afterId === choice && !readOnly ? 'border-emerald-400' : 'border-transparent')}>
+            {/* (Re-keyed per way, so one fades into the next.) */}
+            <div key={afterId ?? 'none'} className="animate-in fade-in duration-150 motion-reduce:animate-none">
+              <div className="mx-auto w-full max-w-[300px]"><ChangePreview preview={conflict.preview} side={afterCard?.side ?? 'after'} showLabels={false} override={afterCard?.id === 'C' && custom ? custom.preview : undefined} /></div>
+              <figcaption className="mt-3 text-center">
+                <span data-after-title className="block text-[13px] font-medium text-slate-200"><LocalizedText text={readOnly ? 'After the change' : choice && afterId === choice ? 'After the change' : afterCard?.title ?? 'Design reference'} /></span>
+                <span data-after-sub className="block text-xs text-slate-500">{afterCard && valueLine(afterCard) ? <ValueText text={valueLine(afterCard)} /> : <LocalizedText text={afterCard?.source ?? ''} />}</span>
+              </figcaption>
+            </div>
+          </figure>
+        </div>
+      )}
+      {/* The ways forward, a line each: text first, how it stands with the standard at its end. */}
+      <div role={readOnly ? undefined : 'radiogroup'} aria-label="해결 방법 선택" data-choice-list className={cn('flex flex-col', conflict.preview && 'mt-6')}>
+        {offered.filter((card) => !readOnly || showAlternatives || card.id === choice).map((card) => {
+          const on = choice === card.id
+          const isCustom = card.id === 'C'
+          const empty = isCustom && !custom
+          const picks = isCustom && Boolean(flow?.controls)
+          const choose = !editing ? undefined : !on ? () => flow.choose(card.id) : undefined
+          const inert = !choose
+          const required = breaks(card.id)
+          const advisories = required.length ? [] : flow?.advisories?.[card.id] ?? []
+          const badge = required.length || advisories.length ? null : badgeOf(card.id)
+          const line = valueLine(card)
+          return (
+            <div key={card.id} data-applied={readOnly && on ? '' : undefined} className={cn(!readOnly && !editing && !on && 'opacity-50')} onMouseEnter={editing ? () => setHover(card.id) : undefined} onMouseLeave={editing ? () => setHover(null) : undefined}>
+              <div
+                role={readOnly ? undefined : 'radio'}
+                aria-checked={readOnly ? undefined : on}
+                aria-disabled={!editing}
+                tabIndex={inert ? -1 : 0}
+                onClick={inert ? undefined : (event) => { if (event.currentTarget.contains(event.target)) choose() }}
+                onKeyDown={(event) => {
+                  if (inert || event.target !== event.currentTarget || (event.key !== ' ' && event.key !== 'Enter')) return
+                  event.preventDefault()
+                  choose()
+                }}
+                onFocus={editing ? () => setHover(card.id) : undefined}
+                onBlur={editing ? () => setHover(null) : undefined}
+                data-side={card.side}
+                data-decision={card.id}
+                className={cn(
+                  'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
+                  on ? (readOnly ? 'bg-white/[0.05]' : 'bg-emerald-400/[0.08]') : !inert && 'hover:bg-white/[0.04]',
+                  !inert && 'cursor-pointer'
+                )}
+              >
+                {!readOnly && (
+                  <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>
+                    {on && <span className="size-2 rounded-full bg-emerald-400" />}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 text-[13px] leading-5">
+                  <span className="font-medium text-slate-100"><LocalizedText text={card.title} /></span>
+                  <span className="text-slate-400"> · {line ? <ValueText text={line} /> : <LocalizedText text={card.source ?? ''} />}</span>
+                  {badge && !readOnly && (
+                    <span data-card-recommendation={badge.text === 'Recommended' ? '' : undefined} data-card-badge className={cn('ml-2 inline-flex h-[18px] items-center gap-1 rounded px-1.5 align-middle text-[10.5px] leading-none font-medium whitespace-nowrap', badge.tone)}>
+                      {badge.icon && <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} />}
+                      <LocalizedText text={badge.text} />
+                    </span>
+                  )}
+                </span>
+                {readOnly && on && <span data-applied-tag className="shrink-0 rounded bg-white/[0.1] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-white"><LocalizedText text="Applied" /></span>}
+                {/* (Where its values come from, quiet, at the row's end.) */}
+                {!isCustom && card.source && <span className="hidden max-w-[38%] shrink-0 truncate text-[11px] text-slate-500 lg:block" title={card.source}><LocalizedText text={card.source} /></span>}
+              </div>
+              {/* A value of one's own is set right under its row — only there. */}
+              {isCustom && on && (editing || custom) && (
+                <div data-choice-controls className="mt-1 mb-2 ml-10 flex max-w-[360px] flex-col gap-2.5">
+                  {valuesOf(card, { isCustom, empty, picks })}
+                  {editing && !flow.controls && empty && (flow.openStudio ? (
+                    <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'w-fit justify-center bg-transparent')}>
+                      <Plus className={NAV_BUTTON_ICON} />
+                      <LocalizedText text="Set it in Merge Studio" />
+                    </button>
+                  ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>)}
+                  {editing && flow.openStudio && (picks || custom) && (
+                    <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className="ds-intrinsic inline-flex h-6 w-fit cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] font-medium text-slate-300 ring-1 ring-white/[0.14] transition-colors ring-inset hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                      <Pencil className="size-3 shrink-0" />
+                      <LocalizedText text="Edit in Merge Studio" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {(required.length > 0 || advisories.length > 0) && !readOnly && <div className="mt-1 mb-2 ml-10 max-w-[560px]">{rulesOf(card, { on, isCustom, required, advisories })}</div>}
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+
   return (
-    <div className="flex h-full flex-col">
+    <div className={cn('flex flex-col', !page && 'h-full')}>
       {/* ② How to resolve it: the title, and one chip saying whether a way
           is chosen. Which way shows on the cards (the check, the border);
           who's reviewing is the sidebar's; a rule a way breaks is on that
@@ -1021,7 +1222,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       )}
       {/* The decision's button and the title above stay put; only what's
           compared scrolls, so neither is ever pushed out of view. */}
-      <div data-choice-scroll className={cn('min-w-0', pairedPreview && 'min-h-0 flex-1 overflow-auto')}>
+      <div data-choice-scroll className={cn('min-w-0', pairedPreview && !page && 'min-h-0 flex-1 overflow-auto')}>
       {pairedPreview && flow && !readOnly && hideReference && breaks('B').length > 0 && (
         <p data-no-reference className="-mt-1.5 mb-3 text-xs leading-[18px] text-slate-400"><LocalizedText text="The design reference doesn’t keep the rule either. Adjusting it by hand can." /></p>
       )}
@@ -1047,6 +1248,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
               {/* ② One of three, like radio options, all the same height:
                   the picked one in green with a check, the others with an
                   empty ring. Decided: the chosen one stands, the rest fade. */}
+              {page ? pageChoices() : (
               <div role={readOnly ? undefined : 'radiogroup'} aria-label="해결 방법 선택" className={cn('grid gap-2', (readOnly && !showAlternatives ? 1 : offered.length) === 2 ? 'grid-cols-2' : (readOnly && !showAlternatives ? 1 : offered.length) === 3 ? 'grid-cols-3' : '')}>
                 {offered.filter((card) => !readOnly || showAlternatives || card.id === choice).map((card) => {
                   const on = choice === card.id
@@ -1163,78 +1365,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     {/* 4 · The value, one line: its name, then it (and the
                         token it comes from, short). On the third card the
                         value is the dropdown that sets it. */}
-                    <dl className={cn('@container min-w-0 space-y-2', empty && !picks && 'hidden')}>
-                      {conflict.comparisonFields.map((field, index) => {
-                        // Set by hand: what it was → what it is.
-                        const hand = isCustom && custom?.rows[index]?.to ? custom.rows[index] : null
-                        const text = isCustom ? custom?.rows[index]?.base ?? field.current : card.value(field)
-                        // A color value gets its swatch beside it.
-                        const swatch = hand ? hand.swatch : swatchIn(text)
-                        // (Every card's rows are one height — 28px, the
-                        // editor's — so the cards line up row for row.)
-                        const editorHere = picks && editing && Boolean(flow.controls[index])
-                        return (
-                        <div key={field.label} className="flex min-h-7 min-w-0 items-center justify-between gap-2">
-                          <dt className="min-w-0 truncate text-[11.5px] text-slate-400"><LocalizedText text={field.label} /></dt>
-                          {editorHere ? (
-                            <dd data-value-editor={flow.controls[index].mode} className="-mr-[7px] flex shrink-0"><ValueEditor control={flow.controls[index]} /></dd>
-                          ) : picks && hand ? (
-                            // (Decided: the value it was set to, as the
-                            // other cards show theirs.)
-                            <dd data-adjusted-value className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 font-semibold tabular-nums', toneOf(hand.to, field))}><ValueText text={hand.to} /></dd>
-                          ) : hand ? (
-                            <dd data-adjusted-value className={HAND_VALUE}>
-                              <span className="font-normal text-slate-500 line-through"><LocalizedText text={hand.base} /></span>
-                              <span aria-hidden className="font-normal text-slate-500">→</span>
-                              {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
-                              <span translate="no" className={toneOf(hand.to, field)}>{hand.to}</span>
-                            </dd>
-                          ) : (
-                          // A value both sides share isn't a difference:
-                          // quiet, and marked "Same". One that differs from
-                          // the standard is the one in color.
-                          <dd data-value={same(field) ? 'same' : 'differs'} className={cn('flex min-w-0 items-baseline justify-end gap-1.5 text-right text-[13px] leading-5 break-words tabular-nums', same(field) ? 'font-normal text-slate-500' : cn('font-semibold', toneOf(text, field)))}>
-                            {swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: swatch }} />}
-                            <ValueText text={text} />
-                            {same(field) && <span data-same className="text-[10.5px] font-normal text-slate-500"><LocalizedText text="Same" /></span>}
-                          </dd>
-                          )}
-                        </div>
-                        )
-                      })}
-                      {/* Set by hand on something the comparison doesn't
-                          list (another property, another element) — the
-                          same "old → new" form. */}
-                      {isCustom && custom?.extras.map((change) => (
-                        <div key={`${change.layerName ?? ''}:${change.label}`} data-adjusted-row className="flex min-h-7 min-w-0 items-center justify-between gap-2">
-                          <dt className="min-w-0 truncate text-[11.5px] text-slate-400">
-                            {change.layerName && <><LocalizedText text={change.layerName} /> · </>}
-                            <LocalizedText text={change.label} />
-                          </dt>
-                          <dd translate="no" className={HAND_VALUE}>
-                            {change.from && <>
-                              <span className="font-normal text-slate-500 line-through">{change.from}</span>
-                              <span aria-hidden className="font-normal text-slate-500">→</span>
-                            </>}
-                            {change.swatch && <span aria-hidden className="size-3 shrink-0 self-center rounded-full ring-1 ring-white/30" style={{ background: change.swatch }} />}
-                            <span className="text-slate-100">{change.to}</span>
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                    {!readOnly && (required.length > 0 || advisories.length > 0) && (
-                      <div data-card-rules className="min-w-0 space-y-2">
-                        {required.map((check, index) => (
-                          <RuleNote key={check.id} check={check} required action={index === required.length - 1 && editing ? (
-                            <button type="button" data-request-card-exception={card.id} disabled={isCustom && !flow.custom} onClick={(event) => { event.stopPropagation(); if (!on) flow.choose(card.id); setExceptionEditor(`${conflict.id}:${card.id}`) }} onKeyDown={(event) => event.stopPropagation()} className={cn('ds-intrinsic inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-amber-200 transition-colors hover:bg-white/[0.06] hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40', on && 'border border-amber-300/40')}>
-                              <LocalizedText text="Apply exception" />
-                              <ArrowRight aria-hidden className="size-3" />
-                            </button>
-                          ) : null} />
-                        ))}
-                        {advisories.map((check) => <RuleNote key={check.id} check={check} />)}
-                      </div>
-                    )}
+                    {valuesOf(card, { isCustom, empty, picks })}
+                    {rulesOf(card, { on, isCustom, required, advisories })}
                     {/* More than the compared values — another property, another
                         element, the code itself — is set in Merge Studio,
                         whose property panel and code view edit the same
@@ -1250,6 +1382,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   )
                 })}
               </div>
+              )}
               {/* ③ The code that changes, right under the cards — the value
                   picked, its picture and its code read as one: the diff for
                   the way that's chosen, or the one under the pointer. Open
@@ -1437,6 +1570,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
         </section>
       )}
       </div>
+      {/* The one action, at the card's lower right: 24px over it, no rule. */}
+      {page && action && <div data-resolution-action className="mt-6 flex flex-wrap items-center justify-end gap-3 px-3">{action}</div>}
     </div>
   )
 }
@@ -2310,6 +2445,46 @@ const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/
 // step up from the plain note: larger type and the in-review sky tint.
 const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400/[0.12] px-4 text-[13px] font-medium whitespace-nowrap text-sky-100 ring-1 ring-sky-400/35 ring-inset'
 
+// The page's record of a change, under what there is to act on: the same thin
+// timeline a design decision keeps (StepTimeline) — a line a step, the one
+// under way outlined, those to come as empty rings. It takes the place of the
+// side panel's progress card there.
+function ReviewRecord({ conflict }) {
+  const flow = flowOf(conflict)
+  const steps = (flow?.steps ?? []).map((step) => ({ ...step, state: step.state === 'todo' ? 'pending' : step.state }))
+  const states = steps.map((step) => step.state)
+  const { reveal, ref } = useStepReveal(conflict.id, states)
+  const [hovered, setHovered] = useState(null)
+  if (!steps.length) return null
+  return (
+    // (40px under what's above it; 24px to the first step; 48px from step to step.)
+    <section data-step-record aria-label="진행 기록" className="mt-7 shrink-0 pb-2">
+      <div data-step-list-head className="mb-6 flex items-center gap-3">
+        <h3 className="text-sm font-semibold text-white"><LocalizedText text="Progress record" /></h3>
+        <StepProgressCount states={states} ticks={reveal.live} />
+      </div>
+      <ol ref={ref} data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
+        {steps.map((step, index) => (
+          <StepRow
+            key={step.id}
+            data-step={step.id}
+            state={step.state}
+            title={tr(step.label)}
+            summary={tr(step.description ?? STEP_DESCRIPTION[step.id] ?? '')}
+            last={index === steps.length - 1}
+            moves={stepMoves(reveal, index)}
+            anim={stepMoves(reveal, index) ? reveal.phase : undefined}
+            delay={delayOf(reveal, index)}
+            arrive={reveal.live && step.state === 'current' && index === reveal.to}
+            strong={hovered != null && index < hovered}
+            onHover={(on) => setHovered(on ? index : null)}
+          />
+        ))}
+      </ol>
+    </section>
+  )
+}
+
 // `page`: the full-screen detail, under the page's path (ConflictReviewOverlay).
 // Everything then sits in the path's own column — the title, the body and the
 // side panel start and end on its lines — and there's no back arrow (the
@@ -3115,6 +3290,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     />
   ) : null
 
+  // On the page the action belongs to the 해결 방법 card (its foot), as a
+  // design decision's does — not to the header's corner.
+  const actionInCard = page && Boolean(conflict) && !conflict.rollback && !conflict.decisionFlow && !(driftItem && draftColumns(driftItem))
+
   // The merge, said once: a banner at the top of the review.
   const mergedBanner = conflict && stage === 'resolved' && (
                     <div data-merged-banner role="status" className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-400/10 py-2 pr-2 pl-3 ring-1 ring-emerald-300/30 ring-inset">
@@ -3172,7 +3351,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
               {/* Align the review action with the lower metadata row (on the page: with the title's line). */}
               <div data-review-actions className={cn('flex min-w-0 shrink-0 items-center gap-2', page ? 'self-start' : 'relative top-2 self-end')}>
                 {/* (A design decision's actions are its status block's; its replay opens from its record.) */}
-                {conflict.rollback ? primary : conflict.decisionFlow ? null : approvalBar}
+                {conflict.rollback ? primary : conflict.decisionFlow || actionInCard ? null : approvalBar}
               </div>
             </div>
             {/* A mix of drafts just sent to merge: its next step — asking the
@@ -3228,27 +3407,36 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} onReplay={activity.entries.length ? (key) => openReplay(replayEntryFor(key), { autoplay: key === 'start' }) : undefined} />
                     </div>
                   ) : !replayId ? (
-                    <>
+                    // (On the page: one column that scrolls as a whole, 12px
+                    // between its cards — status, what differs, the ways
+                    // forward, then the record — as a design decision's is.)
+                    <div data-review-scroll={page ? 'main' : undefined} className={page ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-auto' : 'contents'}>
                     {/* What's needed now, first (the page's status block): the
                         next action in words — what to act on is right under it. */}
                     {page && !conflict.rollback && stage !== 'resolved' && flowOf(conflict)?.next && (
-                      <p data-status-block="next" role="status" className="mb-3 flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
+                      <p data-status-block="next" role="status" className="flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
                         <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
                         <LocalizedText text={flowOf(conflict).next} />
                       </p>
                     )}
-                    <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden">
+                    {/* What was found, in a card of its own (the page). */}
+                    {actionInCard && conflict.comparisonFields?.length > 0 && (
+                      <section data-difference-section data-detected-summary aria-label="Conflict summary" className={cn(REVIEW_CARD, 'min-w-0 shrink-0 px-4 py-3 ring-1 ring-amber-400/25 ring-inset')}>
+                        <DifferenceSummary compact className="bg-transparent !px-0 !py-0" conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
+                      </section>
+                    )}
+                    <div className={page ? 'min-w-0 shrink-0' : 'grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden'}>
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
-                      <section data-review-diff className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden p-4 sm:p-5', REVIEW_CARD, 'xl:flex-1')}>
+                      <section data-review-diff className={cn('flex min-w-0 flex-col', REVIEW_CARD, page ? 'p-4 ring-1 ring-white/[0.06] ring-inset' : 'min-h-0 overflow-hidden p-4 sm:p-5 xl:flex-1')}>
                         {/* ① What's different: the summary, under the same kind
                             of title as the sections below it. */}
-                        {!conflict.rollback && !(driftItem && draftColumns(driftItem)) && conflict.comparisonFields?.length > 0 && (
+                        {!actionInCard && !conflict.rollback && !(driftItem && draftColumns(driftItem)) && conflict.comparisonFields?.length > 0 && (
                           <section data-difference-section aria-label="Conflict summary" className="mb-5 min-w-0 shrink-0">
                             <DifferenceSummary compact conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
                           </section>
                         )}
-                        <div data-review-scroll="diff" className="min-h-0 min-w-0 flex-1 overflow-auto">
+                        <div data-review-scroll="diff" className={page ? 'min-w-0' : 'min-h-0 min-w-0 flex-1 overflow-auto'}>
                           {(conflict.kind === 'code-conflict' || conflict.diff?.before?.some((line) => line.startsWith('<<<<<<<'))) && (
                             <section data-difference-section className="mb-10 min-w-0">
                               <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Conflict summary" /></h3></div>
@@ -3307,6 +3495,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             reviewerCandidates={reviewerCandidates}
                             onAssignReviewer={assignReviewer}
                             onCodeChoice={(id) => update({ codeChoice: id })}
+                            page={page}
+                            action={actionInCard ? approvalBar : null}
                           />
                           )}
                           {/* Drafts mixed by part have no comparison card —
@@ -3315,7 +3505,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         </div>
                       </section>
                     </div>
-                    </>
+                    {/* Then how far it has come: the record, light — a line a step. */}
+                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} />}
+                    </div>
                   ) : (
                     <div className="flex min-h-0 flex-1 flex-col gap-3">
                       {/* The record, kept in view: the step being replayed is under way, those before it done. */}
@@ -3363,7 +3555,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {sideTab === 'info' ? (
                     <div data-review-scroll="info" role="tabpanel" className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:mt-8 [&>[data-info-section]+[data-review-info]]:mt-8')}>
                       {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
-                      {!conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
+                      {/* (On the page the steps are the record in the main view.) */}
+                      {!page && !conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
                       {!conflict.rollback && (
                         <InfoSection title="Reviewers" className="mb-5">
                           <ReviewersSection
