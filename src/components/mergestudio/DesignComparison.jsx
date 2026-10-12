@@ -2,7 +2,9 @@ import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { isDesignReview } from '@/lib/conflicts'
 import { designReviewStatus, reviewForDesign } from '@/lib/designReview'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { Check, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { draftRows } from '@/lib/driftDecisions'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -26,7 +28,7 @@ export function designCompareOptions(item) {
 }
 
 function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false }) {
-  const { conflicts, addComment, openConflictReview, reviewConflictId } = useWorkspace()
+  const { conflicts, addComment, openConflictReview, reviewConflictId, decisionsFor } = useWorkspace()
   const navigate = useNavigate()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
@@ -51,7 +53,8 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
       setCommentModeVariantKey(null)
       return
     }
-    onToggleVariant(option.key)
+    // (Ticks are read-only once the mix is asked for or merged.)
+    if (selectable) onToggleVariant(option.key)
   }
 
   function postComment(event) {
@@ -87,6 +90,14 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
           : null
   const compose = item && (!next || !requested) ? { disabled: pickedOptions.length < 2, run: () => onCompare(item, pickedOptions) } : null
   const statusLabel = item?.saveOnFinish && status.id === 'merged' ? '저장 완료' : status.label
+  // Which drafts are ticked is what goes into the mix (조합하기 takes them to
+  // Merge Studio) — nothing else reads it. So it's only offered while there's
+  // a mix still to start; once it's been asked for or merged, the ticks say
+  // which drafts the mix used instead, and can't be changed.
+  const selectable = Boolean(compose) && choosing && Boolean(onSelectAll)
+  const usedKeys = !item || selectable ? null : new Set(draftRows({}, item, decisionsFor?.(item.id) ?? {}).flatMap((row) => row.options.filter((option) => option.picked).map((option) => option.key)))
+  const allSelected = selectedOptions.length === options.length
+  const toggleAll = () => onSelectAll(allSelected ? [] : options.map((option) => option.key))
   const pickItem = (id) => {
     setCommentModeVariantKey(null)
     setCommentAnchor(null)
@@ -121,42 +132,67 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
           })}
         </nav>
       )}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-3">
+      <section
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-3"
+        // Esc, with the panel in focus: the ticks cleared — while they're there to change.
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape' || !selectable || !selectedOptions.length || event.defaultPrevented) return
+          if (event.target.closest?.('input, textarea, select, [contenteditable="true"], [role="menu"]')) return
+          event.preventDefault()
+          onSelectAll([])
+        }}
+      >
         {/* One row: which set, where it is, and the one thing to do next. */}
-        <div data-design-compare-head className="mb-3 flex min-w-0 items-center gap-2">
-          <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
-          {item && <span data-design-status={status.id} className={cn('shrink-0 text-[11px]', status.className)}>{statusLabel}</span>}
-          {/* (Picking which drafts to compare: only with more than two.) */}
-          {item && choosing && onSelectAll && (
-            <button
-              type="button"
-              aria-pressed={selectedOptions.length === options.length}
-              onClick={() => onSelectAll(selectedOptions.length === options.length ? [] : options.map((option) => option.key))}
-              className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white"
-            >
-              <CheckCheck className="size-3.5" />
-              <span className="tabular-nums">{selectedOptions.length}/{options.length}</span>
-              {selectedOptions.length === options.length ? '선택 해제' : '모두 선택'}
-            </button>
-          )}
-          {compose && (
-            <button
-              type="button"
-              data-design-compose
-              disabled={compose.disabled}
-              title={compose.disabled ? '비교할 시안을 2개 이상 골라 주세요' : undefined}
-              onClick={compose.run}
-              className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', !(choosing && onSelectAll) && 'ml-auto')}
-            >
-              <Layers3 className="size-3.5" />
-              조합하기
-            </button>
-          )}
-          {next && (
-            <button type="button" data-design-next onClick={next.run} className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors', compose ? 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1]' : 'ml-auto bg-emerald-400 text-slate-950 hover:bg-emerald-300')}>
-              {next.label}
-            </button>
-          )}
+        {/* One row: on the left which set and where it is; on the right what
+            can be done — how many drafts are ticked, clearing / ticking them
+            all, then the one next step. Nothing floats in between. */}
+        <div data-design-compare-head className="@container mb-3 flex min-w-0 items-center gap-3">
+          <div data-design-title className="flex min-w-0 flex-1 items-center gap-2">
+            <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
+            {item && <span data-design-status={status.id} className={cn('shrink-0 text-[11px]', status.className)}>{statusLabel}</span>}
+          </div>
+          <div data-design-actions className="flex shrink-0 items-center">
+            {/* (Picking which drafts to compare: only with more than two, and only while there's a mix to start.) */}
+            {selectable && (
+              <>
+                {/* Said, not pressed: quiet text. (Narrow: the count alone.) */}
+                <span data-design-selection aria-live="polite" className="shrink-0 text-[11.5px] whitespace-nowrap text-slate-500 tabular-nums">
+                  {selectedOptions.length}/{options.length}<span className="hidden @[560px]:inline"> 선택됨</span>
+                </span>
+                {/* 8px on: clear them, or tick them all. (Narrower still: under ⋯.) */}
+                <button type="button" data-design-select-all aria-pressed={allSelected} title={allSelected ? '선택 해제 (Esc)' : undefined} onClick={toggleAll} className="ds-intrinsic ml-2 hidden h-7 shrink-0 items-center rounded-full px-2.5 text-xs whitespace-nowrap text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 @[440px]:inline-flex">
+                  {allSelected ? '선택 해제' : '모두 선택'}
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger data-design-more aria-label="더 보기" title="더 보기" className="ds-intrinsic ml-1 flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white @[440px]:hidden">
+                    <Ellipsis className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-32">
+                    <DropdownMenuItem onClick={toggleAll}>{allSelected ? '선택 해제' : '모두 선택'}</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+            {compose && (
+              <button
+                type="button"
+                data-design-compose
+                disabled={compose.disabled}
+                title={compose.disabled ? '비교할 시안을 2개 이상 골라 주세요' : undefined}
+                onClick={compose.run}
+                // (12px from what's before it.)
+                className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-xs font-semibold whitespace-nowrap text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', selectable && 'ml-3')}
+              >
+                <Layers3 className="size-3.5" />
+                조합하기
+              </button>
+            )}
+            {next && (
+              <button type="button" data-design-next onClick={next.run} className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold whitespace-nowrap transition-colors', compose ? 'ml-2 bg-white/[0.06] text-slate-200 hover:bg-white/[0.1]' : 'bg-emerald-400 text-slate-950 hover:bg-emerald-300')}>
+                {next.label}
+              </button>
+            )}
+          </div>
         </div>
         {commentModeVariantKey && (
           <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
@@ -196,8 +232,10 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                 key={option.key}
                 option={option}
                 index={index}
-                choosing={choosing}
+                choosing={selectable}
                 selected={!choosing || selectedKeys.includes(option.key)}
+                // (Asked for or merged: a mark on the drafts the mix used — read-only.)
+                used={usedKeys ? usedKeys.has(option.key) : null}
                 onToggle={() => onToggleVariant(option.key)}
                 commentMode={commentModeVariantKey === option.key}
                 onStartComment={() => {
@@ -226,7 +264,10 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
 // and — under it — what it is, property by property. Picking it is only
 // offered when there are more than two to choose from; the comment pin
 // shows on hover.
-function DesignOptionCard({ option, index, choosing, selected, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], wide = false }) {
+// `used`: once the mix is asked for or merged — whether it used this draft
+// (true / false), shown as a mark that can't be pressed; null while drafts
+// can still be ticked.
+function DesignOptionCard({ option, index, choosing, selected, used = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], wide = false }) {
   const boardRef = useRef(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
 
@@ -253,6 +294,12 @@ function DesignOptionCard({ option, index, choosing, selected, onToggle, comment
       <div className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-2.5 pb-2">
         <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold', choosing && selected ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-200')}>{letter}</span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-100" title={option.label}>{traits.length ? name : option.label}</span>
+        {used && (
+          <span data-design-used title="병합에 쓰인 시안" className="inline-flex h-5 shrink-0 items-center gap-1 rounded-md bg-white/[0.08] px-1.5 text-[10.5px] font-medium whitespace-nowrap text-slate-300">
+            <Check className="size-3" />
+            사용됨
+          </span>
+        )}
         {choosing && (
           <button type="button" role="checkbox" aria-checked={selected} aria-label={`Select ${option.label}`} onClick={onToggle} className={cn('ds-intrinsic flex size-5 shrink-0 items-center justify-center rounded-md ring-1 ring-inset transition-colors', selected ? 'bg-emerald-400 text-slate-950 ring-emerald-400' : 'text-transparent ring-white/20 hover:ring-white/40')}>
             <Check className="size-3.5" />
