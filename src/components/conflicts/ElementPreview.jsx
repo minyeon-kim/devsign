@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Crosshair, Maximize2, Minimize2, ScanSearch } from 'lucide-react'
+import { Crosshair, Maximize2, Minimize2, Minus, Plus, ScanSearch } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import { codeOverridesOf, codeSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import { COMPARE_MIN_CELL, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, compareSidesOf, cropOf, markOf, shortValue, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, referencePick, screenOf } from '@/lib/devicePresets'
@@ -97,19 +97,96 @@ function useBox(dependency) {
   return [ref, box]
 }
 
+// The changed value, said on the element: a small label at its corner (the
+// mark around it shows where — an inset band for a padding, an outline else).
+function ValueLabel({ layer, region, scale, value, tone }) {
+  return (
+    <span data-compare-value className={cn('pointer-events-none absolute z-20 rounded px-1.5 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap tabular-nums shadow', tone === 'problem' ? 'bg-rose-500 text-white' : 'bg-emerald-400 text-slate-950')} style={{ left: Math.max(4, (layer.x - region.x) * scale + 4), top: Math.max(4, (layer.y - region.y) * scale + 4) }} translate="no">
+      {shortValue(value)}
+    </span>
+  )
+}
+
+function CompareCell({ conflict, target, entry, resolved }) {
+  const [ref, box] = useBox(entry.key)
+  const problem = entry.key === 'built'
+  let drawing = null
+  if (box.width > 0 && target) {
+    const region = compareRegionOf(target.frame, target.mainId)
+    const scale = compareScaleOf(box.width, region)
+    const layer = target.frame.layers.find((candidate) => candidate.id === target.mainId)
+    const mark = markOf(conflict, target.frame, entry.side)
+    drawing = (
+      <span className="relative block">
+        <ElementView
+          frame={target.frame}
+          region={region}
+          scale={scale}
+          overrides={entry.side === 'before' ? codeOverridesOf(conflict, target.frame) : {}}
+          markIds={[target.mainId]}
+          mark={mark}
+          tone={problem && !resolved ? 'open' : 'done'}
+          className="rounded-lg ring-1 ring-slate-200/80"
+        />
+        <ValueLabel layer={layer} region={region} scale={scale} value={entry.value} tone={problem ? 'problem' : 'ok'} />
+      </span>
+    )
+  } else if (box.width > 0) {
+    // (Not on the design screen: the component drawn alone from its values.)
+    drawing = <ComponentSample conflict={conflict} side={entry.side} marked zoom={conflict.sample === 'legend' ? Math.max(1, Math.min(3, (box.width - 24) / 150)) : Math.min(1.4, box.width / 240)} />
+  }
+  return (
+    <figure data-compare-cell={entry.key} className="m-0 flex min-w-0 flex-col">
+      <div ref={ref} className="flex min-h-[96px] items-center justify-center overflow-hidden rounded-lg bg-black/20 p-0">{drawing}</div>
+      <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300">
+        <span className={cn('font-medium', problem ? 'text-rose-200' : entry.key === 'applied' ? 'text-emerald-200' : 'text-slate-100')}>{entry.label}</span>
+        <span translate="no"> · {entry.value}</span>
+      </figcaption>
+    </figure>
+  )
+}
+
+// A value change's element, enlarged and compared — the design, the code as
+// built and (once it's in) what was applied — with the value said on each.
+// Cells are at least 200px wide and stack when there isn't room for them
+// side by side (never a sideways scroll). Draws nothing for a change that
+// has no element or sample of its own (a layout: that's compared as screens).
+export function ElementCompare({ conflict, link, onFullscreen, className }) {
+  const target = targetOf(conflict, link)
+  const sides = compareSidesOf(conflict)
+  if (!sides.length || (!target && !hasSample(conflict))) return null
+  const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
+  return (
+    <div data-element-compare className={cn('min-w-0', className)}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="min-w-0 truncate text-[12px] text-slate-400" translate="no">{[link?.frame?.name, link?.layer?.name ?? conflict.impact?.components?.[0]].filter(Boolean).join(' · ')}</span>
+        {onFullscreen && (
+          <button type="button" data-compare-fullscreen onClick={onFullscreen} className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.06] px-2.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+            <Maximize2 className="size-3 shrink-0" />
+            전체 화면으로 보기
+          </button>
+        )}
+      </div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${COMPARE_MIN_CELL}px, 1fr))` }}>
+        {sides.map((entry) => <CompareCell key={entry.key} conflict={conflict} target={target} entry={entry} resolved={resolved} />)}
+      </div>
+    </div>
+  )
+}
+
 // One side, as large as its pane allows.
-function Pane({ label, value, conflict, target, link, side, marked, whole, tone, resizeKey, sides, screen }) {
+function Pane({ label, value, conflict, target, link, side, marked, whole, tone, resizeKey, sides, screen, zoom = 1, over = null, bare = false }) {
   const [ref, box] = useBox(resizeKey)
   const frame = target?.frame ?? link?.frame
   let content = null
   if (box.width > 0 && sides && !whole) {
     // A layout the code decides: that side's code on a screen of the width
     // picked, the grid marked where the two sides differ at that width.
-    const scale = Math.max(0.05, Math.min(1, (box.width - 8) / screen.width, (box.height - 8) / screen.height))
+    const scale = Math.max(0.05, Math.min(1, (box.width - 8) / screen.width, (box.height - 8) / screen.height)) * zoom
     content = <CodeRender spec={sides[side]} screen={screen} scale={scale} marked={marked && layoutChanged(sides.before, sides.after, screen)} />
   } else if (box.width > 0 && frame && (target || whole)) {
     const region = whole || !target ? { x: 0, y: 0, width: frame.width, height: frame.height } : cropOf(frame, target.ids, 14)
-    const scale = Math.max(0.05, Math.min(whole ? 2.5 : 4, (box.width - 8) / region.width, (box.height - 8) / region.height))
+    const scale = Math.max(0.05, Math.min(whole ? 2.5 : 4, (box.width - 8) / region.width, (box.height - 8) / region.height)) * zoom
     content = (
       <ElementView
         frame={frame}
@@ -127,13 +204,18 @@ function Pane({ label, value, conflict, target, link, side, marked, whole, tone,
   } else if (box.width > 0) {
     content = <ComponentSample conflict={conflict} side={side} marked={marked} zoom={conflict.sample === 'legend' ? Math.max(1, Math.min(4, (box.width - 24) / 150, (box.height - 24) / 60)) : 1} />
   }
+  if (bare) return <span ref={ref} className="flex size-full items-center justify-center bg-[#16181b]">{content}</span>
   return (
     <figure data-element-pane={side} className="m-0 flex min-h-0 min-w-0 flex-1 flex-col gap-2">
       <figcaption className="flex shrink-0 items-baseline gap-2 text-[12px]">
         <span className="font-semibold text-white"><LocalizedText text={label} /></span>
         {value && <span translate="no" className="min-w-0 truncate font-mono text-[11.5px] text-slate-300">{value}</span>}
       </figcaption>
-      <div ref={ref} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-black/25">{content}</div>
+      <div ref={ref} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-black/25">
+        {content}
+        {/* (The slider: the other side drawn over this one, cut at the handle.) */}
+        {over}
+      </div>
     </figure>
   )
 }
@@ -142,7 +224,9 @@ const CONTROL = 'ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md px
 const OFF = 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] hover:text-white'
 const ON = 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/40 ring-inset'
 
-export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onReveal, onOpenReview }) {
+// `startFullscreen`: opened as the detail's full-screen viewer — it fills the
+// window from the start, and Esc closes it.
+export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onReveal, onOpenReview, startFullscreen = false }) {
   const target = targetOf(conflict, link)
   const codeSides = codeSidesOf(conflict)
   const category = codeSides?.category ?? 'tablet'
@@ -153,7 +237,12 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
   const [sides, setSides] = useState('both')
   const [marked, setMarked] = useState(true)
   const [whole, setWhole] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
+  const [fullscreen, setFullscreen] = useState(startFullscreen)
+  // Side by side, or one over the other with a handle to drag across.
+  const [mode, setMode] = useState('side')
+  const [cut, setCut] = useState(50)
+  const [zoom, setZoom] = useState(1)
+  const applied = compareSidesOf(conflict).find((entry) => entry.key === 'applied') ?? null
   const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
   const field = conflict.comparisonFields?.find((entry) => entry.current !== entry.expected) ?? conflict.comparisonFields?.[0]
   // Whether there's anything to mark: an element on the frame, or a sample
@@ -165,7 +254,7 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
 
   // Esc leaves full screen first (the dialog would close on it otherwise).
   useEffect(() => {
-    if (!open || !fullscreen) return undefined
+    if (!open || !fullscreen || startFullscreen) return undefined
     function onKey(event) {
       if (event.key !== 'Escape') return
       event.preventDefault()
@@ -174,9 +263,11 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [open, fullscreen])
+  }, [open, fullscreen, startFullscreen])
 
-  const shown = sides === 'both' ? ['before', 'after'] : [sides]
+  // (All of them: the code, the design and — once it's in — what was applied.)
+  const shown = mode === 'slider' ? ['after'] : sides === 'both' ? ['before', 'after', ...(applied ? ['applied'] : [])] : [sides]
+  const drawingOf = (side) => (side === 'applied' ? applied.side : side)
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) setFullscreen(false); onOpenChange(next) }}>
       <DialogContent
@@ -207,7 +298,17 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
               </button>
             ))}
           </div>
+          <div role="tablist" aria-label="Compare mode" className="inline-flex h-7 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+            {[['side', '나란히'], ['slider', '슬라이더']].map(([id, label]) => (
+              <button key={id} type="button" role="tab" data-element-mode={id} aria-selected={mode === id} onClick={() => setMode(id)} className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11.5px] font-medium whitespace-nowrap transition-colors', mode === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-white')}>{label}</button>
+            ))}
+          </div>
           {codeSides && <DevicePicker category={category} pick={devicePick} onPick={setDevicePick} screen={viewport} />}
+          <div data-element-zoom className="inline-flex h-7 items-center gap-0.5 rounded-md bg-white/[0.05] px-0.5">
+            <button type="button" aria-label="축소" disabled={zoom <= 0.5} onClick={() => setZoom((value) => Math.max(0.5, +(value - 0.25).toFixed(2)))} className="ds-intrinsic flex size-6 items-center justify-center rounded text-slate-300 hover:bg-white/[0.1] hover:text-white disabled:opacity-40"><Minus className="size-3" /></button>
+            <button type="button" data-element-zoom-reset title="맞춤" onClick={() => setZoom(1)} className="ds-intrinsic h-6 min-w-10 rounded px-1 text-[11px] text-slate-300 tabular-nums hover:bg-white/[0.1] hover:text-white">{Math.round(zoom * 100)}%</button>
+            <button type="button" aria-label="확대" disabled={zoom >= 3} onClick={() => setZoom((value) => Math.min(3, +(value + 0.25).toFixed(2)))} className="ds-intrinsic flex size-6 items-center justify-center rounded text-slate-300 hover:bg-white/[0.1] hover:text-white disabled:opacity-40"><Plus className="size-3" /></button>
+          </div>
           <button type="button" data-element-marked aria-pressed={marked && canMark} disabled={!canMark} onClick={() => setMarked((current) => !current)} className={cn(CONTROL, marked && canMark ? ON : OFF)}>
             <Crosshair className="size-3 shrink-0" />
             <LocalizedText text="Show changed elements" />
@@ -224,24 +325,33 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
         </div>
 
         <div className="flex min-h-0 flex-1 gap-3">
-          {shown.map((side) => (
-            <Pane
-              key={side}
-              side={side}
-              label={side === 'before' ? 'Current code' : 'Design'}
-              value={field ? (side === 'before' ? field.current : field.expected) : null}
-              conflict={conflict}
-              target={target}
-              link={link}
-              marked={marked && canMark}
-              whole={whole && Boolean(link?.frame)}
-              tone={resolved ? 'done' : 'open'}
-              resizeKey={`${fullscreen}:${sides}`}
-              sides={codeSides}
-              screen={viewport}
-            />
-          ))}
+          {shown.map((side) => {
+            const common = { conflict, target, link, marked: marked && canMark, whole: whole && Boolean(link?.frame), tone: resolved ? 'done' : 'open', sides: codeSides, screen: viewport, zoom }
+            return (
+              <Pane
+                key={side}
+                side={drawingOf(side)}
+                label={mode === 'slider' ? '구현 ↔ 원안' : side === 'before' ? 'Current code' : side === 'applied' ? '반영 결과' : 'Design'}
+                value={mode === 'slider' || !field ? null : side === 'before' ? field.current : side === 'applied' ? applied.value : field.expected}
+                resizeKey={`${fullscreen}:${sides}:${mode}:${Boolean(applied)}`}
+                {...common}
+                // The slider: the code as built over the design, shown up to the handle.
+                over={mode === 'slider' ? (
+                  <span data-element-slider className="absolute inset-0 flex" style={{ clipPath: `inset(0 ${100 - cut}% 0 0)` }}>
+                    <Pane side="before" label="" value={null} resizeKey={`over:${fullscreen}:${zoom}`} {...common} bare />
+                  </span>
+                ) : null}
+              />
+            )
+          })}
         </div>
+        {mode === 'slider' && (
+          <label className="flex shrink-0 items-center gap-3 text-[11.5px] text-slate-400">
+            <span className="shrink-0">구현</span>
+            <input type="range" min={0} max={100} value={cut} onChange={(event) => setCut(Number(event.target.value))} aria-label="구현과 원안 사이 비교 위치" data-element-cut className="h-1 min-w-0 flex-1 accent-emerald-300" />
+            <span className="shrink-0">원안</span>
+          </label>
+        )}
 
         {codeSides && !differsHere && differsAt.length > 0 && !whole && (
           <p data-element-no-effect role="status" className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-amber-400/10 px-3 py-2 text-[11.5px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">

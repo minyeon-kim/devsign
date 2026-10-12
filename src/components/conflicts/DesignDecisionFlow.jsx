@@ -10,6 +10,8 @@ import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 import ChangePreview from '@/components/conflicts/ChangePreview'
+import { ElementCompare, ElementPreviewDialog } from '@/components/conflicts/ElementPreview'
+import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutAt } from '@/lib/codeRender'
 
@@ -736,7 +738,9 @@ const BAR_STATUS = {
 }
 // A layout's note without what the caption already says (the width, the columns).
 const shortNote = (layout) => (layout?.note ?? layout?.spec ?? '').replace(/^768px · /, '').replace(/^\d열 · /, '')
-function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
+// `compare`: a value change's element, enlarged and compared (ElementCompare) —
+// shown here in place of the small before / after. (A layout keeps its screens.)
+function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve, compare = null }) {
   const phase = fixPhaseOf(conflict)
   // Resolved: nothing is left to press — the merged banner says it.
   if (phase === 'resolved') return null
@@ -778,8 +782,9 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
       {phase === 'deferred' && <p data-deferred-note className="mt-2 text-[12.5px] leading-[18px] text-slate-300">그때까지 승인된 상태로 있어요. 수정과 검증은 예정 시점에 시작돼요.</p>}
       {phase === 'approval' && <p className="mt-2 text-[12.5px] leading-[18px] text-amber-200">위험도가 높은 변경이라 자동으로 수정하지 않았어요. 승인하면 수정과 검증이 이어서 진행돼요.</p>}
 
+      {compare && <div className="mt-4">{compare}</div>}
       {/* The render before and after the fix — once there's a fix to look at. */}
-      {fix && (
+      {fix && !compare && (
         <div data-fix-compare className="mt-4 flex items-start justify-center gap-4">
           <figure data-fix-render="before" className="m-0 w-[200px] min-w-0">
             <Picture conflict={conflict} which="implementation" />
@@ -976,6 +981,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const request = conflict.decisionRequest
   const decision = conflict.designDecision
   const folds = useFoldState(conflict.id)
+  const { link } = useDesignLink(conflict)
+  const [viewerOpen, setViewerOpen] = useState(false)
   // The screen thumbnail beside it (BreakpointScreen) asks to be taken to the
   // 768px check: open it, then scroll there once it has unfolded.
   useEffect(() => {
@@ -1071,10 +1078,18 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const { reveal, ref: listRef } = useStepReveal(conflict.id, stepStates)
   const [hovered, setHovered] = useState(null)
 
+  // A value change's element, enlarged and compared (원안 / 구현 / 반영) — with
+  // the status, whatever it is: in the status block while a fix is under way,
+  // under the status line or the merged banner otherwise. A layout (CON-002)
+  // is compared as whole screens, as before.
+  const compare = conflict.layouts ? null : <ElementCompare conflict={conflict} link={link} onFullscreen={() => setViewerOpen(true)} />
+  const compareInStatus = post && fixPhase !== 'resolved'
+
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} data-step-live={reveal.live ? '' : undefined} className="flex min-w-0 flex-col gap-3">
       {/* (The merge banner is the list's first item: the same gap as between cards.) */}
       {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
+      {viewerOpen && <ElementPreviewDialog conflict={conflict} link={link} open startFullscreen onOpenChange={setViewerOpen} />}
 
       {/* Steps still to go: the next action, first — what to act on (the ways
           forward, the request, the decision) is right under it. */}
@@ -1084,6 +1099,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           {decisionFlowOf(conflict, viewer).next}
         </p>
       )}
+      {compare && !compareInStatus && <section data-status-compare className={CARD}>{compare}</section>}
 
       {/* What was detected — said first on the developer's side, before
           anything has been asked. */}
@@ -1127,6 +1143,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
             <>
               {/* What's needed now — first. */}
               <StatusBlock
+                compare={compareInStatus ? compare : null}
                 conflict={conflict}
                 onApprove={() => workspace.applyDecisionFix(conflict.id)}
                 onRetry={() => workspace.patchDecisionFix(conflict.id, { failed: null, manual: false, retried: true })}

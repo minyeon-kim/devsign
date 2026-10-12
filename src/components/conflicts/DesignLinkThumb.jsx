@@ -112,13 +112,15 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
   const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
   const label = [`Page ${link.pageNumber}/${link.pageCount} · Frame ${link.frameNumber}`, layer?.name].filter(Boolean).join(' · ')
   return (
+    <>
     <button
       type="button"
       data-design-link-thumb
-      aria-label={label}
-      title={label}
-      onClick={(event) => { event.stopPropagation(); workspace.revealConflictOnCanvas(conflict) }}
-      className={cn('ds-intrinsic relative block shrink-0 cursor-pointer overflow-hidden rounded-md bg-white ring-1 ring-white/15 transition-shadow hover:ring-2 hover:ring-emerald-300/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary', className)}
+      aria-label={`${label} · 전체 화면으로 보기`}
+      title={`${label} · 전체 화면으로 보기`}
+      // (Where it is on the screen; pressed, the full-screen viewer opens on it.)
+      onClick={(event) => { event.stopPropagation(); setPreviewOpen(true) }}
+      className={cn('ds-intrinsic relative block shrink-0 cursor-zoom-in overflow-hidden rounded-md bg-white ring-1 ring-white/15 transition-shadow hover:ring-2 hover:ring-emerald-300/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary', className)}
       style={{ width, height }}
     >
       {/* The frame drawn at its real size, then scaled down; never interactive. */}
@@ -130,11 +132,14 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
         <span
           aria-hidden
           data-design-link-mark
-          className={cn('absolute rounded-[2px] border-2', resolved ? 'border-emerald-400 bg-emerald-400/20' : 'border-amber-400 bg-amber-400/25')}
-          style={{ left: layer.x * scale - 1, top: layer.y * scale - 1, width: Math.max(layer.width * scale + 2, 5), height: Math.max(layer.height * scale + 2, 5) }}
+          // (A 2px line around it, and everything else stepped back a little.)
+          className={cn('absolute rounded-[2px] border-2 shadow-[0_0_0_9999px_rgba(15,23,42,0.28)]', resolved ? 'border-emerald-400' : 'border-amber-400')}
+          style={{ left: layer.x * scale - 2, top: layer.y * scale - 2, width: Math.max(layer.width * scale + 4, 6), height: Math.max(layer.height * scale + 4, 6) }}
         />
       )}
     </button>
+    {previewOpen && <ElementPreviewDialog conflict={conflict} link={link} open startFullscreen onOpenChange={setPreviewOpen} onReveal={() => workspace.revealConflictOnCanvas(conflict)} />}
+    </>
   )
 }
 
@@ -149,6 +154,7 @@ const THUMB_WIDTH = 132
 
 export function BreakpointScreen({ conflict }) {
   const { link } = useDesignLink(conflict)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const width = Number(conflict.breakpoint)
   const device = Number.isFinite(width) ? ALL_DEVICES.find((entry) => entry.width === width) : null
   if (!device) {
@@ -164,10 +170,10 @@ export function BreakpointScreen({ conflict }) {
       <button
         type="button"
         data-breakpoint-thumb={`${device.width}x${device.height}`}
-        aria-label={`${label} · 768px 렌더링 검증으로 이동`}
-        title="768px 렌더링 검증으로 이동"
-        onClick={() => window.dispatchEvent(new CustomEvent('devsign:reveal-verify', { detail: conflict.id }))}
-        className="ds-intrinsic relative block shrink-0 cursor-pointer overflow-hidden rounded-md bg-white ring-1 ring-white/15 transition-shadow hover:ring-2 hover:ring-emerald-300/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        aria-label={`${label} · 전체 화면으로 보기`}
+        title="전체 화면으로 보기"
+        onClick={() => setPreviewOpen(true)}
+        className="ds-intrinsic relative block shrink-0 cursor-zoom-in overflow-hidden rounded-md bg-white ring-1 ring-white/15 transition-shadow hover:ring-2 hover:ring-emerald-300/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         // (Where it is, not what it looks like — the renders are the main
         // view's: the top of the screen, with the cards, is enough.)
         style={{ width: THUMB_WIDTH, height: Math.min(Math.round(device.height * scale), 96) }}
@@ -177,6 +183,7 @@ export function BreakpointScreen({ conflict }) {
           <CodeRender spec={{ component: 'dashboard-grid', tablet: template, base: template }} screen={device} scale={scale} crop={Math.ceil(96 / scale)} labels={false} className="!rounded-none !shadow-none !ring-0" />
         </span>
       </button>
+      {previewOpen && <ElementPreviewDialog conflict={conflict} link={link} open startFullscreen onOpenChange={setPreviewOpen} />}
     </div>
   )
 }

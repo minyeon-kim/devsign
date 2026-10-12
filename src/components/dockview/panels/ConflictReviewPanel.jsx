@@ -637,7 +637,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
         <InfoSection title="Conflict information" className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
             {designLink && (
-              <Row label="Screen" data-summary-row="Screen">
+              <Row label="Where on the screen" data-summary-row="Screen">
                 {conflict.decisionFlow && conflict.layouts ? <BreakpointScreen conflict={conflict} /> : (
                   <div className="flex min-w-0 flex-col items-start gap-1.5">
                     <DesignLinkChip conflict={conflict} />

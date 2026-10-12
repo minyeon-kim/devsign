@@ -191,6 +191,7 @@ Keeps the value as it is now|지금 값 유지
 Maximize panel|패널 최대화
 Restore panel height|패널 높이 복원
 Progress record|진행 기록
+Where on the screen|화면 위치
 Why approve it? (required)|승인하는 이유를 적어 주세요 (필수)
 What’s built now|현재 구현
 Before the change|수정 전

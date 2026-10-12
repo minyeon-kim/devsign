@@ -87,3 +87,37 @@ export function codeSidesOf(conflict) {
   const after = renderOf(conflict.projectId, conflict.fileId, [conflict.fixes.keep])?.spec
   return before && after ? { before, after, category: conflict.targetDevice ?? categoryFor(conflict.projectId, conflict.fileId) } : null
 }
+
+// ── The change's element, enlarged, side by side (the detail's comparison) ──
+// Not the whole screen: the element with COMPARE_PAD of what's around it,
+// scaled so that crop fills its cell's width (never past COMPARE_MAX_ZOOM,
+// where a small element would turn into a blur of pixels).
+export const COMPARE_PAD = 24
+export const COMPARE_MIN_CELL = 200
+export const COMPARE_MAX_ZOOM = 6
+export const compareRegionOf = (frame, mainId) => cropOf(frame, [mainId], COMPARE_PAD)
+export const compareScaleOf = (cellWidth, region) => (region?.width > 0 && cellWidth > 0 ? Math.min(COMPARE_MAX_ZOOM, cellWidth / region.width) : 1)
+
+// A value without what's said about it in brackets: "16px (space.4)" → "16px".
+export const shortValue = (value) => String(value ?? '').replace(/\s*\(.*\)\s*$/, '')
+
+// Which sides the comparison shows, by where the change stands:
+//   not fixed yet → 원안 / 현재 구현;  fixed or merged → 원안 / 구현 / 반영.
+// `side`: which drawing it is — 'after' the design, 'before' the code as built.
+// out: [{ key: 'design' | 'built' | 'applied', label, value, side, caption }]
+export function compareSidesOf(conflict) {
+  const field = conflict?.comparisonFields?.find((entry) => entry.current !== entry.expected) ?? conflict?.comparisonFields?.[0]
+  if (!field) return []
+  const applied = Boolean(conflict.decisionFix?.appliedAtMs || conflict.decisionFix?.verified || conflict.autoFix?.appliedAtMs || conflict.reviewStage === 'resolved' || conflict.resolved)
+  const side = (key, label, value, drawing) => ({ key, label, value, side: drawing, caption: `${label} · ${value}` })
+  const sides = [
+    side('design', '원안', field.expected, 'after'),
+    side('built', applied ? '구현' : '현재 구현', field.current, 'before'),
+  ]
+  if (applied) {
+    // What went in: the design's value, unless keeping the code's was what was approved.
+    const kept = conflict.decisionRequest?.proposal === 'current' || conflict.decidedSide === 'B'
+    sides.push(side('applied', '반영', shortValue(kept ? field.current : field.expected), kept ? 'before' : 'after'))
+  }
+  return sides
+}
