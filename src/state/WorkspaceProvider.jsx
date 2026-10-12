@@ -25,6 +25,7 @@ import { allConflictRecords } from '@/lib/conflicts'
 import { formatTime } from '@/lib/conflictEvents'
 import { DEMO_PREFIX } from '@/lib/demoStorage'
 import { useDemoState } from '@/state/useDemoState'
+import useNotificationThumbs from '@/state/useNotificationThumbs'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/i18n/toast'
@@ -404,6 +405,8 @@ export function WorkspaceProvider({ children, projectId }) {
     // Newest first; the last 30 days, 200 at most.
     return prune([...alerts, ...rest], now)
   }, [liveAlerts, storedNotifications, currentUser.id])
+  // The two small pictures a change's notification carries, made once and kept.
+  const notificationThumbs = useNotificationThumbs({ projectId, notifications, conflicts, pages: projectPages })
   // The AI chat's unsent draft and an explicitly picked request target,
   // kept here (not in the chat pane) so collapsing the pane or switching
   // tabs never loses them (see ChatConversation).
@@ -2619,6 +2622,7 @@ export function WorkspaceProvider({ children, projectId }) {
     mergeDrawer,
     setMergeDrawer,
     notifications,
+    notificationThumbs,
     markNotificationRead,
     markAllNotificationsRead,
     replyToNotification,

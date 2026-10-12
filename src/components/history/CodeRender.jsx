@@ -38,7 +38,7 @@ const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow
 // screen — for comparing layouts at a readable size.
 // `labels`: false leaves the overlap / squeeze pills out — for a render drawn
 // too small to read them (its caller says it in its own words).
-export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true }) {
+export default function CodeRender({ spec, screen, scale = 1, marked = false, markStyle = null, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true }) {
   const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
   const layout = layoutAt(spec, screen)
   const viewport = crop ? { ...screen, height: Math.min(screen.height, typeof crop === 'number' ? crop : layout.contentHeight) } : screen
@@ -63,7 +63,7 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, pa
             // a fitting one would otherwise leave the column gap cleared.)
             rowGap: gap,
             columnGap: overflowing ? 0 : gap,
-            ...(marked && { ...MARK, outlineOffset: 8, borderRadius: 12 }),
+            ...(marked && (markStyle ? { ...markStyle, borderRadius: 12 } : { ...MARK, outlineOffset: 8, borderRadius: 12 })),
           }}
         >
           {CARDS.map(([value, label, Icon], index) => (
