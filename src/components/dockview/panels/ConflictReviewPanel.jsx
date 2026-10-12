@@ -1,5 +1,5 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
-import { RecentBox, RecentTime } from '@/components/ui/RecentTime'
+import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
@@ -2023,8 +2023,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                   the same height. The role sits under the name, so names of
                   any length line up; the status is flush with the panel's
                   right edge (the hover actions sit just before it). */}
-              {/* (A sign-off just given: the row lit once — ui/RecentTime.) */}
-              <RecentBox id={`review:${conflict.id}:${reviewer.id}:${reviewer.reviewedAt ?? ''}`} at={reviewer.status !== 'pending' ? reviewer.reviewedAt : null} className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
+              <div className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
                 <PersonAvatar person={person} />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-1.5 leading-[18px]">
@@ -2037,7 +2036,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                       or a developer's. */}
                   {person.role && <span className="block truncate text-[11px] leading-4 text-slate-500"><LocalizedText text={person.role} /></span>}
                 </span>
-                <span key={reviewer.status} className={cn('ds-fade order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : quiet && reviewer.status === 'approved' ? 'text-slate-100' : status.className)}>
+                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : quiet && reviewer.status === 'approved' ? 'text-slate-100' : status.className)}>
                   {reviewer.id === author
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt
@@ -2087,7 +2086,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                     </button>
                   )}
                 </div>
-              </RecentBox>
+              </div>
               {/* What they said with it, in a line. */}
               {reviewer.note && reviewer.status !== 'pending' && (
                 <p data-review-note className="-mt-1 mb-1.5 truncate pl-[34px] text-xs leading-[18px] text-slate-400" title={reviewer.note}>“<LocalizedText text={reviewer.note} />”</p>

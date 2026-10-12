@@ -591,50 +591,22 @@ button.editor-line-comment {
   animation: history-row-flash-add 1100ms ease-out;
 }
 /* ── Motion: one set of times, one curve ───────────────────────────
-   What changes on a card or a row changes the same way everywhere:
-     --duration-fast  a state's colours (a border, a background)
-     --duration-base  content swapping in, a height settling
-     --ease-out       both of them
-   Nothing here loops, grows or glows; under reduced motion nothing moves. */
+   When a value or a state changes, what's on the screen is re-drawn in
+   place, at once: nothing is taken down and put up again, nothing starts
+   from empty or from transparent. The only things eased are a state's
+   colours (--duration-fast) and a card's height (--duration-base, ui/
+   SmoothHeight). Nothing loops, grows, rings or glows; under reduced motion
+   nothing moves at all. */
 :root {
   --duration-fast: 150ms;
   --duration-base: 200ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  /* Something that just changed: a mint wash over its whole row or card. */
-  --highlight-recent: color-mix(in oklab, var(--color-emerald-400) 7%, transparent);
-  --highlight-recent-dot: var(--color-emerald-400);
-  --duration-highlight: 1500ms;
 }
-/* Something that just changed (a merged row, a sign-off given): its own
-   outer row or card lit once as it first shows — the background alone,
-   fading out. No border, ring, shadow or size is touched, and it's never
-   replayed (ui/RecentTime's useRecentHighlight remembers what has played). */
-@keyframes ds-recent { from { background-color: var(--highlight-recent); } to { background-color: transparent; } }
-/* Content that replaces other content (a status line, a card's rows, a row
-   moving to another group): faded in, 4px at most — never a size change. */
-@keyframes ds-swap { from { opacity: 0; transform: translateY(4px); } }
-@keyframes ds-fade { from { opacity: 0; } }
 .ds-tone { transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-@media (prefers-reduced-motion: no-preference) {
-  .ds-recent { animation: ds-recent var(--duration-highlight) ease-out 1 both; }
-  .ds-swap { animation: ds-swap var(--duration-base) var(--ease-out) 1 backwards; }
-  .ds-fade { animation: ds-fade var(--duration-fast) var(--ease-out) 1 backwards; }
-}
 @media (prefers-reduced-motion: reduce) {
   .ds-tone { transition: none; }
 }
 
-/* Canvas: the comment pin "Show on canvas" landed on — a wash over the pin
-   itself, fading out once. (No ring spreading from it.) */
-@keyframes canvas-pin-arrived { from { background-color: rgb(52 211 153 / 45%); } to { background-color: transparent; } }
-@media (prefers-reduced-motion: no-preference) {
-  .canvas-pin-arrived { animation: canvas-pin-arrived var(--duration-highlight) ease-out 1 both; }
-}
-
-/* History list: the checkpoint a conflict's "check the reasoning" link
-   landed on — the same wash as anything that just changed, once. */
-.history-row-arrived { animation: ds-recent var(--duration-highlight) ease-out 1; }
-@media (prefers-reduced-motion: reduce) { .history-row-arrived { animation: none; } }
 .history-row-flash-remove {
   animation: history-row-flash-remove 1100ms ease-out;
 }
@@ -1120,7 +1092,6 @@ button.editor-line-comment {
 @keyframes ds-step-line-x { from { transform: scaleX(0); } }
 @keyframes ds-step-arrive { from { opacity: 0; } }
 @keyframes ds-step-tick { from { opacity: 0; transform: translateY(4px); } }
-@keyframes ds-step-status { from { opacity: 0.35; } }
 .ds-step-check { stroke-dasharray: 1; stroke-dashoffset: 0; }
 @media (prefers-reduced-motion: no-preference) {
   [data-step-anim='wait'] { opacity: 0; }
@@ -1131,5 +1102,4 @@ button.editor-line-comment {
   .ds-step-line-x { transform-origin: left; animation: ds-step-line-x 200ms ease-out calc(var(--d, 0ms) + 260ms) backwards; }
   .ds-step-arrive { animation: ds-step-arrive 200ms ease-out calc(var(--d, 0ms) + 460ms) backwards; }
   .ds-step-tick { animation: ds-step-tick 160ms ease-out 80ms backwards; }
-  [data-step-live] [data-status-block] { animation: ds-step-status 400ms ease-out 640ms backwards; }
 }

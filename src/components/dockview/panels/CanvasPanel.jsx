@@ -219,7 +219,7 @@ function CommentPin({ comment, open, flash, onToggle }) {
       className="absolute z-20 -translate-x-1/2 -translate-y-full cursor-pointer"
       style={{ left: comment.target.x, top: comment.target.y }}
     >
-      {flash && <span aria-hidden className="canvas-pin-arrived absolute inset-0 rounded-full rounded-bl-sm" />}
+      {flash && <span aria-hidden className="absolute -inset-0.5 rounded-full rounded-bl-sm ring-2 ring-emerald-300/80" />}
       <span
         className={cn(
           'relative flex size-6 items-center justify-center rounded-full rounded-bl-sm text-white shadow-lg ring-2 ring-background',

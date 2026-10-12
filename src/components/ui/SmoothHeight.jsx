@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
+import { cn } from 'cn'
 
 // A box whose height eases when what's in it changes with `trigger` (a card
 // going from "picking" to "waiting": rows leave, the card shortens) — so the
@@ -26,5 +27,6 @@ export function SmoothHeight({ trigger, children, className, ...rest }) {
     const timer = window.setTimeout(settle, 260)
     return () => { window.clearTimeout(timer); settle() }
   })
-  return <div ref={box} data-smooth-height className={className} {...rest}>{children}</div>
+  // (flow-root: its children's margins are its own, eased or not — so the height measured is the height it settles at.)
+  return <div ref={box} data-smooth-height className={cn('flow-root', className)} {...rest}>{children}</div>
 }

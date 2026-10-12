@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Crosshair, Maximize2, Minimize2, Minus, Plus, ScanSearch } from 'lucide-react'
 import { cn } from 'cn'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -135,13 +135,20 @@ export function ComponentSample({ conflict, side = 'before', values = null, mark
   )
 }
 
+// The box a drawing is sized to. Measured before the first paint (a layout
+// effect), so what's drawn is there in the very first frame — never an empty
+// box that fills in a frame later — and kept up to date as it's resized.
 function useBox(dependency) {
   const ref = useRef(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = ref.current
     if (!element) return undefined
-    const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }))
+    const style = getComputedStyle(element)
+    const inner = (size, a, b) => Math.max(0, size - parseFloat(style[a] || 0) - parseFloat(style[b] || 0))
+    const measured = { width: inner(element.clientWidth, 'paddingLeft', 'paddingRight'), height: inner(element.clientHeight, 'paddingTop', 'paddingBottom') }
+    setBox((current) => (current.width === measured.width && current.height === measured.height ? current : measured))
+    const observer = new ResizeObserver(([entry]) => setBox((current) => (current.width === entry.contentRect.width && current.height === entry.contentRect.height ? current : { width: entry.contentRect.width, height: entry.contentRect.height })))
     observer.observe(element)
     return () => observer.disconnect()
   }, [dependency])

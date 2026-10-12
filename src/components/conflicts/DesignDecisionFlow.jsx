@@ -217,7 +217,7 @@ function ReasonField({ label, value, onChange, suggestions = [], placeholder, er
 function RequestCard({ conflict, bare = false }) {
   const request = conflict.decisionRequest
   return (
-    <section data-decision-request className={bare ? undefined : cn(CARD, 'ds-swap')}>
+    <section data-decision-request className={bare ? undefined : CARD}>
       {!bare && <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
         <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
@@ -522,14 +522,13 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     : peeking ? { title: `미리보기 · ${peeking.name}`, sub: drawable ? peeking.spec : '직접 입력한 수정안은 미리보기가 없어요' }
       : !drawable ? { title: '디자인 원안', sub: '직접 입력한 수정안은 미리보기가 없어요' }
         : { title: proposal === 'original' ? '수정 후 · 디자인 원안과 동일' : '수정 후', sub: chosen.spec }
-  const afterKey = holding ? 'hold' : peeking ? `peek:${stepTried?.key ?? hovered}` : chosen ? `pick:${proposal}:${valueChange ? chosen.values?.value ?? '' : ''}` : 'design'
   const PICTURE = 'min-w-0 rounded-xl border-2 bg-black/20 p-4'
   return (
     <section data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h3 className="text-sm font-semibold text-white">해결 방법{!readOnly && <> <span aria-hidden className="text-rose-300">*</span></>}</h3>
         {readOnly
-          ? modeChip && <span key={modeChip[0]} data-proposal-state className={cn('ds-fade inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>
+          ? modeChip && <span data-proposal-state className={cn('inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>
           : <span className="text-xs text-slate-500">{conflict.layouts ? '768px에서 어떻게 바꿀지 골라 주세요' : '어떤 값으로 맞출지 골라 주세요'}</span>}
         {valueChange ? (
           // Held, not toggled: the design for as long as it's pressed (pointer, or Space / Enter).
@@ -587,8 +586,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         </figure>
         <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
         <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'ds-tone', chosen && drawable && !peeking && !holding ? 'border-emerald-400' : 'border-transparent')}>
-          {/* (Re-keyed by what it shows, so one fades into the next — opacity alone, --duration-fast. The cell itself never moves or lights up.) */}
-          <div key={afterKey} className="ds-fade">
+          {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
+              It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
+          <div data-after-picture>
             <div className="flex justify-center">
               <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
             </div>
@@ -602,7 +602,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
 
       {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}
       <SmoothHeight trigger={mode}>
-      <div key={readOnly ? 'read' : 'pick'} className={readOnly ? 'ds-swap' : undefined}>
+      <div>
       {readOnly ? (
         // Not pickable: the ways as a list, the one taken marked — or (done) that one alone.
         <ul data-proposal-ways={mode} aria-label="수정안" className="m-0 mt-6 flex list-none flex-col p-0">
@@ -870,7 +870,7 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
             : passed ? <ShieldCheck className="size-4 shrink-0 text-emerald-300" />
               : phase === 'deferred' ? <CircleCheck className="size-4 shrink-0 text-sky-300" />
                 : <TriangleAlert className={cn('size-4 shrink-0', wrong ? 'text-destructive' : 'text-amber-300')} />}
-          <span key={phase} className="ds-swap min-w-0">{typeof BAR_STATUS[phase] === 'function' ? BAR_STATUS[phase](conflict) : BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
+          <span className="min-w-0">{typeof BAR_STATUS[phase] === 'function' ? BAR_STATUS[phase](conflict) : BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
         </p>
         {/* (The second way out of a failed check, beside the first — never in its place.) */}
         {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
@@ -1193,7 +1193,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       {!post && stage !== 'resolved' && decisionFlowOf(conflict, viewer).next && (
         <p data-status-block="next" role="status" className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
           <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
-          <span key={decisionFlowOf(conflict, viewer).next} className="ds-swap">{decisionFlowOf(conflict, viewer).next}</span>
+          {decisionFlowOf(conflict, viewer).next}
         </p>
       )}
       {/* (Sent back: what the designer said, first — then the ways forward again.) */}

@@ -363,7 +363,7 @@ function HistoryDrawer({ project }) {
               className="group relative flex items-stretch"
             >
               <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={ROW_HEIGHT} />
-              <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]', flashId === entry.id && 'history-row-arrived')}>
+              <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]', flashId === entry.id && 'bg-emerald-400/[0.07]')}>
               <div
                 // The row selects a preview; secondary actions use its context menu.
                 role="button"
