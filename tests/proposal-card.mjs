@@ -7,7 +7,8 @@ import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom', logLevel: 'silent' })
 try {
-  const { drawingOf, previewValuesFor, valueOptionsOf, codeOverridesOf } = await server.ssrLoadModule('/src/lib/elementPreview.js')
+  const { drawingOf, codeOverridesOf } = await server.ssrLoadModule('/src/lib/elementPreview.js')
+  const { adapterOf } = await server.ssrLoadModule('/src/lib/changeAdapters.js')
   const { allConflictRecords } = await server.ssrLoadModule('/src/lib/conflicts.js')
   const { proposalOf, proposalsOf } = await server.ssrLoadModule('/src/lib/designDecisions.js')
   const byId = (id) => allConflictRecords().find((conflict) => conflict.id === id)
@@ -28,15 +29,15 @@ try {
   assert.ok(JSON.stringify(other('800').overrides).includes('800'), 'a picked weight is applied at once')
   assert.notDeepEqual(other('800').overrides, other('500').overrides, 'another value, another drawing')
   assert.equal(other('bold-ish'), null, 'a value that reads as nothing is not drawn')
-  assert.deepEqual(previewValuesFor(weight, '700'), { fontWeight: 700 })
+  assert.equal(adapterOf(weight).values(weight, '700').fontWeight, 700)
 
   // Every kind has values to pick from, and parses them.
   for (const id of ['CON-003', 'CON-005', 'CON-006']) {
     const conflict = byId(id)
     assert.ok(proposalsOf(conflict).some((way) => way.id === 'original'), `${id}: the recommended way exists (picked to start)`)
-    const options = valueOptionsOf(conflict)
+    const options = adapterOf(conflict).options(conflict)
     assert.ok(options.length >= 3, `${id}: values to pick from`)
-    for (const option of options) assert.ok(previewValuesFor(conflict, option), `${id}: "${option}" can be drawn`)
+    for (const option of options) assert.ok(adapterOf(conflict).values(conflict, option), `${id}: "${option}" can be drawn`)
     assert.ok(drawn(conflict, 'other', { values: { value: options.at(-1) } }), `${id}: its last option draws`)
   }
 } finally {
@@ -51,7 +52,7 @@ assert.equal(flow.match(/<ProposalSection\b/g).length, 1, 'one 해결 방법 car
 assert.ok(flow.includes('<ElementCrop conflict={conflict} link={link} overrides={drawing.overrides} />'), 'a value change is drawn as its real element')
 assert.ok(flow.includes('data-show-design="hold"') && flow.includes('data-proposal-fullscreen'), '원안 보기 (held) and 전체 화면으로 보기 are the card\'s own')
 assert.ok(flow.includes("way.id === 'original') ? 'original' : null"), 'the recommended way is picked to start')
-assert.ok(flow.includes('!(developer && askingNow) && <section data-status-compare'), 'no separate 원안 / 현재 구현 card while a way is picked')
+assert.ok(!flow.includes('data-status-compare'), 'no separate 원안 / 현재 구현 card')
 assert.ok(flow.includes('data-step-record="detect"') && flow.includes('자동 감지 · {conflict.detectedBy}'), 'what detected it is in the record\'s 변경 감지 step')
 const preview = readFileSync(new URL('../src/components/conflicts/ElementPreview.jsx', import.meta.url), 'utf8')
 assert.ok(!preview.includes('data-compare-value'), 'no value badge over the element')

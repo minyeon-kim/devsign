@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import { COMPARE_MIN_CELL, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, compareSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import { appliedSideOf, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, referencePick, screenOf } from '@/lib/devicePresets'
@@ -71,15 +71,65 @@ function LegendSample({ gap, marked, zoom = 1 }) {
   )
 }
 
+// A screen at a width between the two breakpoints (900px — a tablet on its
+// side), drawn small: the sidebar open, or folded to its icons once the
+// screen is narrower than `collapseAt`.
+export const SIDEBAR_PROBE = 900
+function SidebarSample({ collapseAt, zoom = 1 }) {
+  const folded = SIDEBAR_PROBE < collapseAt
+  const side = (folded ? 16 : 52) * zoom
+  return (
+    <span data-sample="sidebar" data-sidebar={folded ? 'folded' : 'open'} className="flex overflow-hidden rounded-lg bg-white" style={{ width: 180 * zoom, height: 108 * zoom }}>
+      <span className="flex shrink-0 flex-col bg-slate-800" style={{ width: side, padding: 5 * zoom, gap: 5 * zoom }}>
+        {['Overview', 'Orders', 'Customers', 'Settings'].map((label, index) => (
+          <span key={label} className="flex items-center" style={{ gap: 3 * zoom }}>
+            <span className={cn('shrink-0 rounded-[2px]', index === 0 ? 'bg-indigo-400' : 'bg-slate-500')} style={{ width: 6 * zoom, height: 6 * zoom }} />
+            {!folded && <span translate="no" className="truncate font-medium text-slate-200" style={{ fontSize: 5.5 * zoom, lineHeight: `${7 * zoom}px` }}>{label}</span>}
+          </span>
+        ))}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col bg-slate-50" style={{ padding: 6 * zoom, gap: 5 * zoom }}>
+        <span translate="no" className="font-semibold text-slate-800" style={{ fontSize: 7 * zoom, lineHeight: `${9 * zoom}px` }}>Dashboard</span>
+        <span className="grid flex-1 grid-cols-2" style={{ gap: 4 * zoom }}>
+          {[0, 1, 2, 3].map((card) => <span key={card} className="rounded-[3px] bg-white ring-1 ring-slate-200" />)}
+        </span>
+      </span>
+    </span>
+  )
+}
+
+// An empty state drawn alone: its illustration `px` wide (as in the product,
+// drawn at a third), the line under it and its button.
+function EmptySample({ px, zoom = 1 }) {
+  const unit = zoom / 3
+  return (
+    <span data-sample="empty" className="flex flex-col items-center rounded-lg bg-white" style={{ width: 180 * zoom, padding: 8 * zoom, gap: 5 * zoom }}>
+      <span data-sample-illustration className="flex items-center justify-center rounded-[18%] bg-indigo-50 ring-1 ring-indigo-200" style={{ width: px * unit, height: px * unit }}>
+        <span className="rounded-full bg-indigo-300" style={{ width: px * unit * 0.42, height: px * unit * 0.42 }} />
+      </span>
+      <span translate="no" className="font-semibold text-slate-800" style={{ fontSize: 7 * zoom, lineHeight: `${9 * zoom}px` }}>No data yet</span>
+      <span translate="no" className="rounded-full bg-indigo-600 font-medium text-white" style={{ fontSize: 5.5 * zoom, lineHeight: `${7 * zoom}px`, padding: `${2 * zoom}px ${6 * zoom}px` }}>Connect a source</span>
+    </span>
+  )
+}
+
 // Whether a conflict has a component of its own to draw (no element on the
 // frame, but a sample or a preview spec).
-export const hasSample = (conflict) => Boolean(conflict?.sample === 'legend' || conflict?.preview)
+export const SAMPLES = ['legend', 'sidebar', 'empty']
+export const hasSample = (conflict) => Boolean(SAMPLES.includes(conflict?.sample) || conflict?.preview)
+// (A sample drawn in its own units is enlarged to its cell; a preview spec is a fixed 224px wide.)
+const sampleZoomOf = (conflict, width) => (SAMPLES.includes(conflict.sample) ? Math.max(1, Math.min(3, (width - 24) / (conflict.sample === 'legend' ? 150 : 180))) : Math.min(1.4, width / 240))
 
-export function ComponentSample({ conflict, side = 'before', marked = false, zoom = 1 }) {
-  if (conflict.sample === 'legend') return <LegendSample gap={conflict.preview?.[side]?.gap ?? '8px'} marked={marked} zoom={zoom} />
+// `values`: what it's drawn with — the side's own (`conflict.preview[side]`)
+// unless given (a value being tried: lib/elementPreview.drawingOf).
+export function ComponentSample({ conflict, side = 'before', values = null, marked = false, zoom = 1 }) {
+  const spec = values ?? conflict.preview?.[side] ?? {}
+  if (conflict.sample === 'legend') return <LegendSample gap={spec.gap ?? '8px'} marked={marked} zoom={zoom} />
+  if (conflict.sample === 'sidebar') return <SidebarSample collapseAt={spec.collapseAt ?? 768} zoom={zoom} />
+  if (conflict.sample === 'empty') return <EmptySample px={spec.px ?? 120} zoom={zoom} />
   return (
     <span data-sample="preview" className="block w-56 origin-center" style={{ transform: `scale(${zoom})` }}>
-      <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
+      <ChangePreview preview={values ? { ...conflict.preview, before: values } : conflict.preview} side={values ? 'before' : side} showLabels={false} />
     </span>
   )
 }
@@ -115,72 +165,17 @@ export function ElementCrop({ conflict, link, overrides = {}, className }) {
 // Whether a change has an element on the design screen to draw that way.
 export const hasElement = (conflict, link) => Boolean(targetOf(conflict, link))
 
-function CompareCell({ conflict, target, entry, resolved }) {
-  const [ref, box] = useBox(entry.key)
-  const problem = entry.key === 'built'
-  let drawing = null
-  if (box.width > 0 && target) {
-    const region = compareRegionOf(target.frame, target.mainId)
-    const scale = compareScaleOf(box.width, region)
-    const mark = markOf(conflict, target.frame, entry.side)
-    drawing = (
-      <span className="relative block">
-        <ElementView
-          frame={target.frame}
-          region={region}
-          scale={scale}
-          overrides={entry.side === 'before' ? codeOverridesOf(conflict, target.frame) : {}}
-          markIds={[target.mainId]}
-          mark={mark}
-          tone={problem && !resolved ? 'open' : 'done'}
-          className="rounded-lg ring-1 ring-slate-200/80"
-        />
-      </span>
-    )
-  } else if (box.width > 0) {
-    // (Not on the design screen: the component drawn alone from its values.)
-    drawing = <ComponentSample conflict={conflict} side={entry.side} marked zoom={conflict.sample === 'legend' ? Math.max(1, Math.min(3, (box.width - 24) / 150)) : Math.min(1.4, box.width / 240)} />
-  }
+// The same, for a change that isn't on the design screen (or that the element
+// there can't show): its component drawn alone with `values`, to its cell's width.
+export function SampleCrop({ conflict, values, className }) {
+  const [ref, box] = useBox(conflict.id)
   return (
-    <figure data-compare-cell={entry.key} className="m-0 flex min-w-0 flex-col">
-      <div ref={ref} className="flex min-h-[96px] items-center justify-center overflow-hidden rounded-lg bg-black/20 p-0">{drawing}</div>
-      <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300">
-        <span className={cn('font-medium', problem ? 'text-rose-200' : entry.key === 'applied' ? 'text-emerald-200' : 'text-slate-100')}>{entry.label}</span>
-        <span translate="no"> · {entry.value}</span>
-      </figcaption>
-    </figure>
-  )
-}
-
-// A value change's element, enlarged and compared — the design, the code as
-// built and (once it's in) what was applied — with the value said on each.
-// Cells are at least 200px wide and stack when there isn't room for them
-// side by side (never a sideways scroll). Draws nothing for a change that
-// has no element or sample of its own (a layout: that's compared as screens).
-export function ElementCompare({ conflict, link, onFullscreen, className }) {
-  const target = targetOf(conflict, link)
-  const sides = compareSidesOf(conflict)
-  if (!sides.length || (!target && !hasSample(conflict))) return null
-  const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
-  return (
-    <div data-element-compare className={cn('min-w-0', className)}>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="min-w-0 truncate text-[12px] text-slate-400" translate="no">{[link?.frame?.name, link?.layer?.name ?? conflict.impact?.components?.[0]].filter(Boolean).join(' · ')}</span>
-        {onFullscreen && (
-          <button type="button" data-compare-fullscreen onClick={onFullscreen} className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.06] px-2.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-            <Maximize2 className="size-3 shrink-0" />
-            전체 화면으로 보기
-          </button>
-        )}
-      </div>
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${COMPARE_MIN_CELL}px, 1fr))` }}>
-        {sides.map((entry) => <CompareCell key={entry.key} conflict={conflict} target={target} entry={entry} resolved={resolved} />)}
-      </div>
+    <div ref={ref} data-element-crop="sample" className={cn('flex min-h-[72px] w-full items-center justify-center overflow-hidden', className)}>
+      {box.width > 0 && <ComponentSample conflict={conflict} values={values} zoom={sampleZoomOf(conflict, box.width)} />}
     </div>
   )
 }
 
-// One side, as large as its pane allows.
 function Pane({ label, value, conflict, target, link, side, marked, whole, tone, resizeKey, sides, screen, zoom = 1, over = null, bare = false }) {
   const [ref, box] = useBox(resizeKey)
   const frame = target?.frame ?? link?.frame
@@ -208,7 +203,7 @@ function Pane({ label, value, conflict, target, link, side, marked, whole, tone,
       />
     )
   } else if (box.width > 0) {
-    content = <ComponentSample conflict={conflict} side={side} marked={marked} zoom={conflict.sample === 'legend' ? Math.max(1, Math.min(4, (box.width - 24) / 150, (box.height - 24) / 60)) : 1} />
+    content = <ComponentSample conflict={conflict} side={side} marked={marked} zoom={conflict.sample === 'legend' ? Math.max(1, Math.min(4, (box.width - 24) / 150, (box.height - 24) / 60)) : SAMPLES.includes(conflict.sample) ? Math.max(1, Math.min(4, (box.width - 24) / 180, (box.height - 24) / 120)) : 1} />
   }
   if (bare) return <span ref={ref} className="flex size-full items-center justify-center bg-[#16181b]">{content}</span>
   return (
@@ -248,7 +243,7 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
   const [mode, setMode] = useState('side')
   const [cut, setCut] = useState(50)
   const [zoom, setZoom] = useState(1)
-  const applied = compareSidesOf(conflict).find((entry) => entry.key === 'applied') ?? null
+  const applied = appliedSideOf(conflict)
   const resolved = conflict.resolved || conflict.reviewStage === 'resolved'
   const field = conflict.comparisonFields?.find((entry) => entry.current !== entry.expected) ?? conflict.comparisonFields?.[0]
   // Whether there's anything to mark: an element on the frame, or a sample

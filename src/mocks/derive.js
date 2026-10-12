@@ -111,7 +111,7 @@ function previewOf(preview) {
   return { ...asBeforeAfter(rest), ...(themes && { themes: themes.map(asBeforeAfter) }) }
 }
 // What a change carries as it is, beside what's worked out.
-const KEPT = ['fileId', 'line', 'sample', 'mergeItemId', 'mergeTitle', 'linkedCommentId', 'ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation',
+const KEPT = ['fileId', 'line', 'sample', 'changeType', 'tokens', 'mergeItemId', 'mergeTitle', 'linkedCommentId', 'ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation',
   'resolution', 'adjustment', 'adjustmentReason', 'references', 'suggestion', 'suggestionReason', 'riskReason', 'uxNote', 'expectedResult', 'previewPrompt', 'branches']
 
 // A value that differs from the design: the property (or properties), the

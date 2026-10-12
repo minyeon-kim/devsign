@@ -168,6 +168,8 @@ function nameOf(id, viewerId) {
   return allPeople.find((p) => p.id === id)?.name ?? id
 }
 
+const withSeedPreview = (saved, seed) => (!saved || !seed ? saved ?? seed : { ...seed, ...saved, before: { ...seed.before, ...saved.before }, after: { ...seed.after, ...saved.after } })
+
 function joinNames(ids, viewerId) {
   const names = ids.map((id) => nameOf(id, viewerId))
   if (names.length <= 1) return names[0] ?? ''
@@ -352,7 +354,8 @@ export function toConflictRecord(raw) {
   return {
     ...raw,
     codeComparison: { ...conflictChecklist.find((seed) => seed.id === raw.id)?.codeComparison, ...raw.codeComparison },
-    preview: raw.preview ?? conflictChecklist.find((seed) => seed.id === raw.id)?.preview,
+    // (A saved preview picks up values its seed has since been given — what a sample is drawn from.)
+    preview: withSeedPreview(raw.preview, conflictChecklist.find((seed) => seed.id === raw.id)?.preview),
     // (A title saved with the prefix stacked reads as one.)
     title: raw.rollback
       ? raw.rollback.component ?? String(raw.rollback.target ?? raw.title ?? raw.file ?? '').replace(/\.[a-z]+$/i, '').replace(/^Rollback · /, '')
@@ -362,7 +365,7 @@ export function toConflictRecord(raw) {
     // …their details (components, files)…
     impact: raw.impact?.components?.length ? raw.impact : conflictChecklist.find((seed) => seed.id === raw.id)?.impact ?? raw.impact,
     // …and so do the registered reasons (lib/rationale) the samples carry.
-    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation', 'adjustmentReason', 'designPageId', 'sample', 'targetDevice']
+    ...Object.fromEntries(['ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation', 'adjustmentReason', 'designPageId', 'sample', 'targetDevice', 'changeType', 'tokens']
       .filter((key) => raw[key] === undefined)
       .map((key) => [key, conflictChecklist.find((seed) => seed.id === raw.id)?.[key]])
       .filter(([, value]) => value !== undefined)),

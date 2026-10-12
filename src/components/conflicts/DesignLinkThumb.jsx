@@ -4,7 +4,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { designLinkOf } from '@/lib/conflictInsight'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
-import { ComponentSample, ElementPreviewDialog, ElementView, hasSample } from '@/components/conflicts/ElementPreview'
+import { ComponentSample, ElementPreviewDialog, ElementView, SAMPLES, hasSample } from '@/components/conflicts/ElementPreview'
 import { codeOverridesOf, codeSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
 import { ALL_DEVICES, BREAKPOINT_LABEL, breakpointOf, referencePick, screenOf } from '@/lib/devicePresets'
@@ -78,7 +78,7 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
       const scale = Math.min(3, box.w / region.width, box.h / region.height)
       drawing = <ElementView frame={target.frame} region={region} scale={scale} overrides={codeOverridesOf(conflict, target.frame)} markIds={[target.mainId]} mark={markOf(conflict, target.frame, 'before')} tone={resolved ? 'done' : 'open'} />
     } else if (mode === 'sample') {
-      drawing = <ComponentSample conflict={conflict} side="before" marked zoom={conflict.sample === 'legend' ? 0.72 : 0.33} />
+      drawing = <ComponentSample conflict={conflict} side="before" marked zoom={conflict.sample === 'legend' ? 0.72 : SAMPLES.includes(conflict.sample) ? 0.6 : 0.33} />
     } else {
       const scale = Math.min(box.w / link.frame.width, box.h / link.frame.height)
       drawing = <ElementView frame={link.frame} region={{ x: 0, y: 0, width: link.frame.width, height: link.frame.height }} scale={scale} />

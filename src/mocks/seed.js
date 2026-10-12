@@ -81,6 +81,7 @@ export const SEED = {
       kind: 'value',
       reasons: ['카드 4개가 한 줄에 들어가려면 안쪽 여백을 12px로 둬야 해요', '숫자가 커서 16px이면 두 줄로 넘어가요'], // why keep the code's value — offered, never filled in
       severity: 'low',
+      changeType: 'spacing', // which adapter the 해결 방법 card uses (lib/changeAdapters)
       property: 'Padding',
       design: '16px (space.4)',
       built: '12px',
@@ -106,6 +107,8 @@ export const SEED = {
       kind: 'value',
       reasons: ['color.cta(#2563EB)는 흰 글자와의 대비가 4.5:1에 못 미쳐요', '토큰을 고칠 때까지 지금 색을 유지하고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
+      changeType: 'color',
+      tokens: ['color.ctaDark (#0F172A)', 'color.accent (#7C3AED)'], // what else there is to pick, beside the design's and the code's
       property: 'Background',
       design: 'color.cta (#2563EB)',
       built: '#1D4ED8 (fixed hex)',
@@ -133,6 +136,7 @@ export const SEED = {
       kind: 'value',
       reasons: ['700이면 제목이 옆 숫자보다 무거워 보여요', '시스템 폰트에서 700은 글자가 뭉개져 보여요'], // why keep the code's value — offered, never filled in
       severity: 'low',
+      changeType: 'weight',
       property: 'Font weight',
       design: '700',
       built: '600',
@@ -158,6 +162,7 @@ export const SEED = {
       kind: 'value',
       reasons: ['범례 항목이 6개라 8px이면 좁은 화면에서 두 줄로 넘어가요', '차트 폭이 좁아 범례를 한 줄로 두고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'low',
+      changeType: 'spacing',
       property: 'Gap',
       design: '8px (space.2)',
       built: '4px',
@@ -183,18 +188,20 @@ export const SEED = {
       kind: 'value',
       reasons: ['태블릿 가로(1024px)에서는 본문이 좁아 사이드바를 접는 게 나아요', '1024px에서 차트가 잘려 보여요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
+      changeType: 'breakpoint',
       property: 'Collapse at',
       design: '768px (breakpoint.tablet)',
       built: '1024px',
       file: 'src/components/dashboard/Sidebar.tsx',
       code: { built: 'const collapsed = width < 1024', design: 'const collapsed = width < 768' },
       wholeScreen: true,
+      sample: 'sidebar', // the screen at a width between the two, its sidebar open or folded (ElementPreview's ComponentSample)
       screens: ['Dashboard · tablet'],
       components: ['Sidebar'],
       effect: '태블릿 가로 화면에서 사이드바가 일찍 접힘',
       cause: '사이드바 접힘 기준 1024px · 디자인은 768px',
       says: '사이드바가 1024px부터 접혀요. 디자인은 768px(breakpoint.tablet)에서 접혀요.',
-      preview: { kind: 'card', content: { title: 'Sidebar.tsx', detail: 'collapse < 1024px → 768px' }, built: { radius: 12 }, design: { radius: 12 } },
+      preview: { kind: 'card', content: { title: 'Sidebar.tsx', detail: 'collapse < 1024px → 768px' }, built: { radius: 12, collapseAt: 1024 }, design: { radius: 12, collapseAt: 768 } }, // collapseAt: where the sidebar folds — what the sample is drawn from
       changedBy: 'min',
       branch: { source: 'feature/dashboard-responsive', target: 'develop' },
       reviewers: ['jane'],
@@ -208,18 +215,20 @@ export const SEED = {
       kind: 'value',
       reasons: ['작은 화면에서 120px이면 빈 상태의 버튼이 첫 화면 아래로 밀려요', '일러스트보다 버튼이 먼저 보여야 해요'], // why keep the code's value — offered, never filled in
       severity: 'low',
+      changeType: 'size',
       property: 'Size',
       design: '120px',
       built: '96px',
       file: 'src/components/dashboard/EmptyState.tsx',
       code: { built: '<img className="size-24" src={empty} alt="" />', design: '<img className="size-30" src={empty} alt="" />' },
       wholeScreen: true,
+      sample: 'empty', // the empty state drawn alone, its illustration at the size said
       screens: ['Dashboard · empty'],
       components: ['EmptyState'],
       effect: '빈 화면이 허전해 보임',
       cause: '빈 상태 일러스트 96px · 디자인은 120px',
       says: '빈 상태 일러스트가 96px이에요. 디자인은 120px이에요.',
-      preview: { kind: 'icon', built: { size: 24, stroke: 2 }, design: { size: 30, stroke: 2 } },
+      preview: { kind: 'icon', built: { size: 24, stroke: 2, px: 96 }, design: { size: 30, stroke: 2, px: 120 } }, // px: the illustration's real size
       changedBy: 'james',
       branch: { source: 'feature/empty-state', target: 'develop' },
       reviewers: ['jane'],
