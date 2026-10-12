@@ -103,7 +103,7 @@ const layerIdsOf = (change) => (change.layers ?? []).map((layer) => `ai-a--${cha
 const reviewersOf = (change, status = 'pending') => change.reviewers.map((id) => ({ id, status }))
 
 // A value that differs from the design: one property, the built value, the design's.
-function valueRecord(change) {
+function valueRecord(change, now) {
   const [layerId, ...others] = layerIdsOf(change)
   return {
     id: change.id,
@@ -122,7 +122,7 @@ function valueRecord(change) {
     resolved: false,
     severity: change.severity,
     reviewStage: change.stage,
-    ...(change.steps.requested && { requestedBy: change.steps.requested.by }),
+    ...(change.steps.requested && { requestedBy: change.steps.requested.by, requestedAtMs: momentOf(change.steps.requested, now).getTime() }),
     detectedBy: SYNC,
     changedBy: { type: 'person', id: change.changedBy, what: 'Changed the code' },
     gitFlow: change.branch,
@@ -232,7 +232,7 @@ function structuralRecord(change, now) {
 
 // Dashboard Redesign's changes, as the app's change records.
 export function dashboardConflicts(now = Date.now()) {
-  return SEED.changes.map((change) => (change.kind === 'structural' ? structuralRecord(change, now) : valueRecord(change)))
+  return SEED.changes.map((change) => (change.kind === 'structural' ? structuralRecord(change, now) : valueRecord(change, now)))
 }
 
 // ── The History ──────────────────────────────────────────────────────

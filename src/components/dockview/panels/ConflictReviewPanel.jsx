@@ -54,7 +54,7 @@ import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
 import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
-import { hasBody, reviewRecordOf } from '@/lib/reviewRecord'
+import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { useFoldState } from '@/components/conflicts/Fold'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
@@ -2328,16 +2328,18 @@ function approvalStateOf(conflict, canReview) {
 // Approving and merging happen here and nowhere else. The avatars open the
 // reviewers themselves: adding or removing one, reminding, dismissing a
 // change request.
-function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, request, revise, onReview, onMerge, onRevert }) {
+function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, request, revise, onReview, onMerge, onRevert, requireApproveNote = false }) {
   const { mode, waiting, nameOf, viewerId } = state
   const author = authorOf(conflict)
   // The sign-off being given: which way, and what's said with it.
   const [deciding, setDeciding] = useState(null)
   const [note, setNote] = useState('')
   const needsNote = deciding === 'changes'
+  // (`requireApproveNote`: an approval says why too.)
+  const noteRequired = needsNote || (requireApproveNote && deciding === 'approve')
   function submit(event) {
     event.preventDefault()
-    if (!deciding || (needsNote && !note.trim())) return
+    if (!deciding || (noteRequired && !note.trim())) return
     onReview(deciding, note.trim())
     setDeciding(null)
     setNote('')
@@ -2372,14 +2374,14 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
               value={note}
               onChange={(event) => setNote(event.target.value)}
               onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event) }}
-              aria-label={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
-              placeholder={tr(needsNote ? 'What needs to change? (required)' : 'Leave a comment (optional)')}
+              aria-label={tr(needsNote ? 'What needs to change? (required)' : noteRequired ? 'Why approve it? (required)' : 'Leave a comment (optional)')}
+              placeholder={tr(needsNote ? 'What needs to change? (required)' : noteRequired ? 'Why approve it? (required)' : 'Leave a comment (optional)')}
               className="block w-full resize-none rounded-xl border border-white/15 bg-white/[0.02] px-3 py-2 text-xs leading-[18px] text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60"
             />
           </div>
           <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-4 py-3">
             <button type="button" onClick={() => setDeciding(null)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white"><LocalizedText text="Cancel" /></button>
-            <button type="submit" disabled={needsNote && !note.trim()} className={cn('ds-intrinsic inline-flex h-8 items-center rounded-full px-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', needsNote ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300')}>
+            <button type="submit" disabled={noteRequired && !note.trim()} className={cn('ds-intrinsic inline-flex h-8 items-center rounded-full px-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', needsNote ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300')}>
               <LocalizedText text={needsNote ? 'Request changes' : 'Submit approval'} />
             </button>
           </div>
@@ -2455,7 +2457,7 @@ const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400
 // `choice` / `choiceLabel` / `reason`: the way picked on the page, and why.
 const ROW_TONE = { accent: 'font-medium text-sky-200', done: 'font-medium text-emerald-200', warn: 'font-medium text-amber-200' }
 function ReviewRecord({ conflict, choice, choiceLabel, reason }) {
-  const steps = reviewRecordOf(conflict, { t: tr, nameOf: personNameOf, choice, choiceLabel, reason })
+  const steps = reviewRecordOf(conflict, { t: tr, nameOf: personNameOf, roleOf: (id) => { const person = allPeople.find((entry) => entry.id === id); return person?.jobRole ?? (person?.role === 'You' ? 'Designer' : person?.role) ?? null }, choice, choiceLabel, reason })
   const states = steps.map((step) => step.state)
   const { reveal, ref } = useStepReveal(conflict.id, states)
   const [hovered, setHovered] = useState(null)
@@ -3313,6 +3315,29 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     }
   }
 
+  // A value change on its page follows the reference's approval (lib/reviewRecord):
+  // asked → decided → fixed and checked by itself → merged.
+  const alignedFlow = page && Boolean(conflict) && cardFlow && !conflict.decisionFlow && !conflict.rollback
+  const alignedPhase = alignedFlow ? reviewFixPhaseOf(conflict) : null
+  // Step 2's time, and step 4 running by itself once the decision is in: the
+  // fix is applied, then checked — a moment each, so both are seen.
+  const alignedStage = alignedFlow ? stage : null
+  const hasRequestTime = Boolean(conflict?.requestedAtMs)
+  const runAligned = useEffectEvent((patch) => { if (onUpdate) update(patch) })
+  // (Stamped when it's asked for here — a sample already in review keeps the time it came with, or none.)
+  const stageSeen = useRef({ id: conflict?.id, stage: alignedStage })
+  useEffect(() => {
+    const before = stageSeen.current
+    stageSeen.current = { id: conflict?.id, stage: alignedStage }
+    if (before.id === conflict?.id && before.stage === 'detected' && alignedStage === 'in_review' && !hasRequestTime) { runAligned({ requestedAtMs: Date.now() }); return undefined }
+    if (alignedPhase !== 'applying' && alignedPhase !== 'verifying') return undefined
+    const timer = window.setTimeout(() => runAligned(alignedPhase === 'applying'
+      ? { autoFix: { appliedAtMs: Date.now(), verified: false } }
+      : { autoFix: { ...conflict.autoFix, verified: true, verifiedAtMs: Date.now() } }), 1400)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alignedStage, alignedPhase, hasRequestTime, conflict?.id])
+
   // Approval: where it stands (the same line after the steps) and the one
   // action that calls for, at the header's right (ApprovalBar) — approving
   // and merging happen only there.
@@ -3342,7 +3367,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         : { run: handleRequestReview, disabled: !requiredReviewers(conflict).length || decisionState.reasonNeeded || Boolean(reasonRequest) }}
       revise={onUpdate && (ownChange || conflict.requestedBy === viewerId) ? { run: cardFlow && flow.canChange ? flow.changeDecision : handleRequestReview } : null}
       onReview={handleReview}
-      onMerge={handleMerge}
+      // (Only a checked fix merges; approving says why, as the reference's decision does.)
+      onMerge={alignedFlow && !canMerge(conflict) ? undefined : handleMerge}
+      requireApproveNote={alignedFlow}
       onRevert={() => setConfirmRevert(true)}
     />
   ) : null
@@ -3480,10 +3507,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <div data-review-scroll={page ? 'main' : undefined} className={page ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-auto' : 'contents'}>
                     {/* What's needed now, first (the page's status block): the
                         next action in words — what to act on is right under it. */}
-                    {page && !conflict.rollback && stage !== 'resolved' && flowOf(conflict)?.next && (
+                    {page && !conflict.rollback && stage !== 'resolved' && (alignedFlow ? reviewStatusOf(conflict) : flowOf(conflict)?.next) && (
                       <p data-status-block="next" role="status" className="flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
                         <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
-                        <LocalizedText text={flowOf(conflict).next} />
+                        {alignedFlow ? reviewStatusOf(conflict, { nameOf: personNameOf, viewerId }) : <LocalizedText text={flowOf(conflict).next} />}
                       </p>
                     )}
                     {/* What was found, in a card of its own (the page). */}

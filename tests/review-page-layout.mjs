@@ -21,33 +21,50 @@ try {
   assert.deepEqual(states('approved'), ['done', 'done', 'done', 'done', 'current'])
   assert.deepEqual(states('resolved'), ['done', 'done', 'done', 'done', 'done'])
 
-  // The record says who, what and when for each step from the change's own data, and what a step opens to.
-  const { reviewRecordOf, hasBody } = await server.ssrLoadModule('/src/lib/reviewRecord.js')
+  // The record has the reference's five steps (CON-002's), for every value change.
+  const { reviewRecordOf, reviewFixPhaseOf, reviewStatusOf, canMerge, hasBody } = await server.ssrLoadModule('/src/lib/reviewRecord.js')
   const { allConflictRecords } = await server.ssrLoadModule('/src/lib/conflicts.js')
   const padding = allConflictRecords().find((conflict) => conflict.id === 'CON-003')
-  const nameOf = (id) => ({ min: 'Alex', jane: 'Taylor' })[id] ?? id
-  const open = reviewRecordOf(padding, { nameOf })
-  assert.deepEqual(open.map((step) => [step.title, step.state]), [['차이 확인', 'done'], ['값 비교', 'done'], ['해결 방법 선택', 'current'], ['승인', 'pending'], ['병합', 'pending']])
+  const nameOf = (id) => ({ min: 'Alex', jane: 'Taylor', james: 'Jordan' })[id] ?? id
+  const roleOf = (id) => (id === 'jane' ? 'Designer' : 'Developer')
+  const TITLES = ['변경 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '병합']
+  const open = reviewRecordOf(padding, { nameOf, roleOf })
+  assert.deepEqual(open.map((step) => step.title), TITLES)
+  assert.deepEqual(open.map((step) => step.state), ['done', 'current', 'pending', 'pending', 'pending'])
   assert.equal(open[0].who, '자동 감지')
   assert.match(open[0].summary, /12px → 16px \(space\.4\)/)
   assert.ok(open[0].time && open[0].preview)
-  assert.deepEqual(open[0].rows.map((row) => row.label), ['감지', '관련 파일', '영향 범위', '원인'])
-  assert.equal(open[1].who, 'Alex')
-  assert.deepEqual(open.map(hasBody), [true, true, false, false, false], 'a step still to come has nothing to open')
-  // A way picked: said on its step, with the code it changes; asked for: who asked, and who's to approve.
-  const picked = reviewRecordOf(padding, { nameOf, choice: 'A', choiceLabel: '원격 브랜치 · 16px (space.4)' })
-  assert.equal(picked[2].summary, '원격 브랜치 · 16px (space.4) · 요청 전')
-  assert.deepEqual([picked[2].code.before.length, picked[2].code.after.length], [1, 1])
-  const asked = reviewRecordOf({ ...padding, reviewStage: 'in_review', requestedBy: 'min' }, { nameOf, choice: 'A', choiceLabel: '원격 브랜치 · 16px (space.4)' })
-  assert.deepEqual([asked[2].who, asked[2].summary, asked[3].who, asked[3].summary], ['Alex', '원격 브랜치 · 16px (space.4)', 'Taylor', '0/1 승인'])
-  const done = reviewRecordOf({ ...padding, reviewStage: 'resolved', requestedBy: 'min', mergedBy: 'min', resolvedAtLabel: 'Just now', reviewers: [{ id: 'jane', status: 'approved' }] }, { nameOf, choice: 'A', choiceLabel: '원격 브랜치' })
-  assert.deepEqual([done[3].summary, done[4].who, done[4].summary], ['모두 승인', 'Alex', '반영 완료'])
-  assert.ok(done.every((step) => step.state === 'done') && done.every(hasBody))
-  // Every sample change has a record with something on every line.
-  for (const conflict of allConflictRecords().filter((record) => !record.rollback && !record.decisionFlow)) {
-    const steps = reviewRecordOf(conflict, { nameOf })
-    assert.equal(steps.length, 5, conflict.id)
+  assert.equal(reviewStatusOf(padding), '해결 방법을 골라 주세요')
+  // Asked: the reviewer's to decide.
+  const asked = { ...padding, reviewStage: 'in_review', requestedBy: 'min', requestedAtMs: Date.now() }
+  const askedSteps = reviewRecordOf(asked, { nameOf, roleOf, choice: 'A', choiceLabel: '원격 브랜치 · 16px (space.4)' })
+  assert.deepEqual(askedSteps.map((step) => step.state), ['done', 'done', 'current', 'pending', 'pending'])
+  assert.deepEqual([askedSteps[1].who, askedSteps[1].summary, askedSteps[2].who], ['Alex · 제안', '원격 브랜치, 16px (space.4)', 'Taylor'])
+  assert.equal(reviewStatusOf(asked, { nameOf }), 'Taylor님의 결정을 기다리고 있어요')
+  assert.equal(reviewStatusOf(asked, { nameOf, viewerId: 'jane' }), '요청을 확인하고 결정해 주세요')
+  // Approved: the fix is applied, then checked, by itself — and only a checked fix merges.
+  const approved = { ...asked, reviewStage: 'approved', reviewers: [{ id: 'jane', status: 'approved', reviewedAt: Date.now(), note: '기준 값이에요.' }] }
+  assert.deepEqual([reviewFixPhaseOf(approved), canMerge(approved), reviewStatusOf(approved)], ['applying', false, '결정대로 코드를 자동으로 수정하고 있어요'])
+  const applied = { ...approved, autoFix: { appliedAtMs: Date.now(), verified: false } }
+  assert.deepEqual([reviewFixPhaseOf(applied), canMerge(applied)], ['verifying', false])
+  const checked = { ...approved, autoFix: { appliedAtMs: Date.now(), verified: true, verifiedAtMs: Date.now() } }
+  assert.deepEqual([reviewFixPhaseOf(checked), canMerge(checked), reviewStatusOf(checked)], ['verified', true, '검증을 통과했어요 · 병합하면 자동으로 해결돼요'])
+  const checkedSteps = reviewRecordOf(checked, { nameOf, roleOf, choice: 'A', choiceLabel: '원격 브랜치' })
+  assert.deepEqual(checkedSteps.map((step) => step.state), ['done', 'done', 'done', 'done', 'current'])
+  assert.deepEqual(checkedSteps[2].rows.map((row) => row.value), ['승인', '기준 값이에요.'], 'the decision keeps its reason')
+  assert.deepEqual([checkedSteps[3].code.before.length, checkedSteps[3].code.after.length], [1, 1], 'the fix shows the code it changed')
+  // Merged: all five done.
+  const done = reviewRecordOf({ ...checked, reviewStage: 'resolved', mergedBy: 'min', resolvedAtLabel: 'Just now' }, { nameOf, roleOf, choice: 'A', choiceLabel: '원격 브랜치' })
+  assert.ok(done.every((step) => step.state === 'done'))
+  assert.deepEqual([done[4].who, done[4].summary], ['Alex', '반영 완료'])
+  // Reviewers who aren't all designers: it's the reviewers' decision.
+  assert.equal(reviewRecordOf({ ...padding, reviewers: [{ id: 'james', status: 'pending' }] }, { nameOf, roleOf })[2].title, '검토자 결정')
+  // Every value change gets the same five steps, each saying something — and the reference isn't one of them.
+  for (const conflict of allConflictRecords().filter((record) => !record.rollback && !record.decisionFlow && record.comparisonFields?.length)) {
+    const steps = reviewRecordOf(conflict, { nameOf, roleOf })
+    assert.deepEqual(steps.map((step) => step.key), ['detect', 'request', 'decision', 'fix', 'resolve'], conflict.id)
     assert.ok(steps.every((step) => step.title && (step.who || step.summary)), `${conflict.id}: every step says something`)
+    assert.ok(hasBody(steps[0]))
   }
 
   const panel = readFileSync(new URL('../src/components/dockview/panels/ConflictReviewPanel.jsx', import.meta.url), 'utf8')
@@ -56,6 +73,8 @@ try {
   assert.match(panel, /action=\{actionInCard \? approvalBar : null\}/)
   assert.match(panel, /\{!page && !conflict\.rollback && !conflict\.decisionFlow && <FlowSteps/)
   assert.match(panel, /\{page && !conflict\.rollback && <ReviewRecord/)
+  assert.match(panel, /onMerge=\{alignedFlow && !canMerge\(conflict\) \? undefined : handleMerge\}/)
+  assert.match(panel, /requireApproveNote=\{alignedFlow\}/)
   // The ways are a list under a before/after picture there, and the card grid everywhere else.
   assert.match(panel, /\{page \? pageChoices\(\) : \(/)
   assert.ok(panel.includes('data-before-after') && panel.includes('data-choice-list') && panel.includes('data-resolution-action'))
