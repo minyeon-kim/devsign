@@ -20,6 +20,10 @@ import { codeMergeVariants, designMergeVariants, projects as allProjects } from 
 // The project's next release ({ name, date }), for saying when a put-off change goes in.
 const releaseOfProject = (projectId) => allProjects.find((candidate) => candidate.id === projectId)?.release ?? null
 import { reviewAlerts } from '@/lib/inboxNotifications'
+import { addNotification, createNotification, isUnread, markAllRead, markRead, normalize, prune, seedNotificationsOf, shouldNotify } from '@/lib/notifications'
+import { allConflictRecords } from '@/lib/conflicts'
+import { formatTime } from '@/lib/conflictEvents'
+import { DEMO_PREFIX } from '@/lib/demoStorage'
 import { useDemoState } from '@/state/useDemoState'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -350,18 +354,56 @@ export function WorkspaceProvider({ children, projectId }) {
     // (Merge Studio's sample feed is the other projects' — Dashboard
     // Redesign's Inbox is its own walkthrough's.)
     ...(projectId === 'dashboard-redesign' ? [] : seedMergeNotifications),
+    // The history this project's changes imply — who was told what, when
+    // (lib/notifications): so the Inbox has its past from the first open and
+    // after a reset, some of it still unread.
+    ...seedNotificationsOf(allConflictRecords().filter((conflict) => conflict.projectId === projectId), { eventsOf }),
   ])
+  // Another tab (or another person on this browser) adds to the same list:
+  // picked up as it's saved there.
+  useEffect(() => {
+    const key = `${DEMO_PREFIX}project:${projectId}:notifications`
+    const onStorage = (event) => {
+      if (event.key !== key || !event.newValue) return
+      try { const saved = JSON.parse(event.newValue); if (Array.isArray(saved?.value)) setNotifications(saved.value) } catch { /* not ours */ }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
   const notificationDay = new Date().toLocaleDateString('en-CA')
+  // The reviews waiting on you right now, worked out from the changes.
+  const liveAlerts = useMemo(() => reviewAlerts(conflicts, currentUser.id, notificationDay), [conflicts, currentUser.id, notificationDay])
+  // …kept, too, the moment they appear: once the review is done the alert is
+  // no longer live, but it stays in the list as what you were asked.
+  const liveAlertKey = liveAlerts.map((alert) => alert.id).join('|')
+  useEffect(() => {
+    if (!liveAlerts.length) return
+    setNotifications((prev) => {
+      const missing = liveAlerts.filter((alert) => !prev.some((n) => n.id === alert.id))
+      return missing.length ? [...missing.map((alert) => ({ ...alert, type: 'request', recipientId: currentUser.id, createdAt: Date.now(), readAt: null })), ...prev] : prev
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveAlertKey, currentUser.id])
   const notifications = useMemo(() => {
-    const alerts = reviewAlerts(conflicts, currentUser.id, notificationDay).map((alert) => ({
-      ...alert, unread: storedNotifications.find((n) => n.id === alert.id)?.unread ?? true,
-    }))
-    const pendingIds = new Set(alerts.flatMap(alert => alert.reviewConflictIds))
-    return [...alerts, ...storedNotifications.filter((n) => n.notificationType !== 'review_request'
-      // Addressed to someone else (e.g. a review decision sent to its author).
-      && (!n.recipientId || n.recipientId === currentUser.id)
-      && !(n.kind === 'approval' && pendingIds.has(n.target?.conflictId))) ]
-  }, [conflicts, storedNotifications, notificationDay, currentUser.id])
+    const now = Date.now()
+    const live = new Set(liveAlerts.map((alert) => alert.id))
+    const pendingIds = new Set(liveAlerts.flatMap((alert) => alert.reviewConflictIds))
+    const saved = (id) => storedNotifications.find((n) => n.id === id)
+    const alerts = liveAlerts.map((alert) => normalize({ ...alert, ...(saved(alert.id) && { createdAt: saved(alert.id).createdAt, readAt: saved(alert.id).readAt, unread: saved(alert.id).unread }) }, now))
+    const rest = storedNotifications
+      // (A live alert is shown as itself, above; once it's no longer live it's history.)
+      .filter((n) => !live.has(n.id)
+        // Addressed to someone else (e.g. a review decision sent to its author).
+        && (!n.recipientId || n.recipientId === currentUser.id)
+        // (The seeded request for a review that's live is that alert — not said twice.)
+        && !(n.kind === 'approval' && isUnread(n) && pendingIds.has(n.target?.conflictId)))
+      .map((n) => normalize(n, now))
+      // (Said by its time once it has one; a sample keeps its own words.)
+      .map((n) => (n.seeded || !n.timeLabel || n.timeLabel === 'Just now' ? { ...n, timeLabel: n.timeLabel === 'Just now' && now - n.createdAt < 60000 ? 'Just now' : formatTime(n.createdAt, now) } : n))
+    // Newest first; the last 30 days, 200 at most.
+    return prune([...alerts, ...rest], now)
+  }, [liveAlerts, storedNotifications, currentUser.id])
   // The AI chat's unsent draft and an explicitly picked request target,
   // kept here (not in the chat pane) so collapsing the pane or switching
   // tabs never loses them (see ChatConversation).
@@ -643,16 +685,18 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [openConflictReview])
 
   const markNotificationRead = useCallback((id, unread = false) => {
+    // (Read is when it was read — nothing leaves the list. `unread`: back to unread.)
     setNotifications((prev) => {
-      if (prev.some((n) => n.id === id)) return prev.map((n) => n.id === id ? { ...n, unread } : n)
+      if (prev.some((n) => n.id === id)) return markRead(prev.map((n) => normalize(n)), id, !unread)
       const alert = notifications.find((n) => n.id === id)
-      return alert ? [...prev, { ...alert, unread }] : prev
+      return alert ? markRead([...prev, alert], id, !unread) : prev
     })
   }, [setNotifications, notifications])
 
   const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => [...prev.map((n) => ({ ...n, unread: false })), ...notifications.filter(n => !prev.some(saved => saved.id === n.id)).map(n => ({ ...n, unread: false }))])
-  }, [setNotifications, notifications])
+    // (Yours only, and only read: the list stays as it is.)
+    setNotifications((prev) => markAllRead([...prev.map((n) => normalize(n)), ...notifications.filter(n => !prev.some(saved => saved.id === n.id))], Date.now(), currentUser.id))
+  }, [setNotifications, notifications, currentUser.id])
 
   const replyToNotification = useCallback(
     (id, text) => {
@@ -1103,6 +1147,8 @@ export function WorkspaceProvider({ children, projectId }) {
       ?? (blocking.length ? `${blocking.length} check${blocking.length === 1 ? '' : 's'} failing: ${blocking.map((c) => c.title).join(' · ')}` : null)
     if (reason) { toast("Can't merge yet", { description: reason }); return false }
     const mergedIds = new Set(related.map((c) => c.id))
+    // Merged: told to everyone the change involved.
+    for (const merged of related) for (const id of involvedIn(merged)) notifyPerson(id, merged, `병합했어요 · ${merged.title}`, 'update', currentUser.id, 'merged')
     const nextConflicts = conflicts.map((c) => mergedIds.has(c.id)
       ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
         // (The decisions the merge shipped with — the review of a merged
@@ -1206,17 +1252,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // human author, or you'd be notifying yourself.
   const notifyAuthor = useCallback((conflict, text, kind) => {
     const authorId = authorOf(conflict)
-    if (!authorId || authorId === currentUser.id) return
-    setNotifications((prev) => [{
-      id: nextId('n'),
-      kind,
-      authorId: currentUser.id,
-      recipientId: authorId,
-      text,
-      timeLabel: 'Just now',
-      unread: true,
+    if (!shouldNotify({ authorId: currentUser.id, recipientId: authorId })) return
+    setNotifications((prev) => addNotification(prev, createNotification({
+      id: nextId('n'), type: kind === 'comment' ? 'decision' : 'decision', kind, authorId: currentUser.id, recipientId: authorId, text, timeLabel: 'Just now',
       target: { conflictId: conflict.id, label: conflict.title },
-    }, ...prev])
+    })))
   }, [currentUser.id, setNotifications])
 
   // Your own sign-off on a conflict in review (approving never changes
@@ -1276,13 +1316,19 @@ export function WorkspaceProvider({ children, projectId }) {
     })
   }, [activeFileId, currentSnapshot, currentUser.id, fileOverrides, files, recordHistory])
 
-  const notifyPerson = useCallback((recipientId, conflict, text, kind = 'approval', authorId = currentUser.id) => {
-    if (!recipientId) return
-    setNotifications((prev) => [{
-      id: nextId('n'), kind, authorId, recipientId, text, timeLabel: 'Just now', unread: true,
+  // `type`: what it is (lib/notifications) — a request, a decision, a comment, a merge.
+  const notifyPerson = useCallback((recipientId, conflict, text, kind = 'approval', authorId = currentUser.id, type = kind === 'comment' ? 'comment' : 'request') => {
+    // (Never yourself: what you did isn't news to you.)
+    if (!shouldNotify({ authorId, recipientId })) return
+    setNotifications((prev) => addNotification(prev, createNotification({
+      id: nextId('n'), type, kind, authorId, recipientId, text, timeLabel: 'Just now',
       target: { conflictId: conflict.id, label: conflict.title },
-    }, ...prev])
+    })))
   }, [currentUser.id, setNotifications])
+  // Everyone a change involves but the one acting: its reviewers, whoever
+  // asked for the review and whoever's change it is.
+  const involvedIn = useCallback((conflict) => [...new Set([...(conflict.reviewers ?? []).map((reviewer) => reviewer.id), conflict.requestedBy, conflict.decisionRequest?.by, authorOf(conflict)])]
+    .filter((id) => id && id !== currentUser.id), [currentUser.id])
 
   // The developer asks: the conflict goes to review with the designer.
   const requestDesignDecision = useCallback((conflictId, request) => {
@@ -1364,7 +1410,7 @@ export function WorkspaceProvider({ children, projectId }) {
     logEvent({ kind: 'decided', projectId, conflictId, actorId, title: conflict.title })
     // (When it goes in is said only when it was put off: approving starts it otherwise.)
     const later = isDeferred(decision) ? ` · ${scheduleWordOf(decision.timing, releaseOfProject(projectId))} 반영 예정` : ''
-    if (actorId === currentUser.id) notifyPerson(conflict.decisionRequest?.by ?? authorOf(conflict), conflict, `${DECISION_LABEL[decision.choice]}${later} — ${conflict.title}`, 'comment')
+    if (actorId === currentUser.id) notifyPerson(conflict.decisionRequest?.by ?? authorOf(conflict), conflict, `${DECISION_LABEL[decision.choice]}${later} — ${conflict.title}`, 'approval', currentUser.id, 'decision')
     recordDecisionStep(conflict, { label: `디자인 결정: ${DECISION_LABEL[decision.choice]}${later}`, reason: decision.reason, actorId })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
@@ -1436,7 +1482,7 @@ export function WorkspaceProvider({ children, projectId }) {
       events: appendEvent(c, { type: 'resolved', actorId: currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'verified')?.id, payload: { how: c.decisionFix?.choice === 'approve' ? 'design-change' : 'fix' } }),
     })))
     logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
-    notifyPerson(conflict.designDecision?.by, conflict, `충돌을 해결했어요 · ${conflict.id} ${conflict.title}`, 'comment')
+    notifyPerson(conflict.designDecision?.by, conflict, `병합했어요 · ${conflict.id} ${conflict.title}`, 'update', currentUser.id, 'merged')
     return recordDecisionStep(conflict, {
       kind: 'merge',
       label: `${conflict.id} 해결 · ${decisionOutcomeOf(conflict)?.name}`,
@@ -1452,8 +1498,9 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!conflict || !text) throw new Error('Nothing to send')
     const events = appendEvent(conflict, { type: 'commented', actorId: currentUser.id, replyTo: replyTo ?? undefined, payload: { body: text, mentions: [...text.matchAll(/@([\p{L}\p{N}_]+)/gu)].map((match) => match[1]) } })
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, events: appendEvent(c, { type: 'commented', actorId: currentUser.id, replyTo: replyTo ?? undefined, payload: events.at(-1).payload }) })))
+    for (const id of involvedIn(conflict)) notifyPerson(id, conflict, text, 'comment', currentUser.id, 'comment')
     return events.at(-1).id
-  }, [conflicts, currentUser.id, setConflicts])
+  }, [conflicts, currentUser.id, involvedIn, notifyPerson, setConflicts])
 
   // A shared component or token changed along the way: a note for the
   // design system's owners (optional; kept on the conflict).
@@ -2282,6 +2329,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (target?.conflictId) {
       const conflict = conflicts.find((candidate) => candidate.id === target.conflictId)
       if (conflict) {
+        for (const id of involvedIn(conflict)) notifyPerson(id, conflict, trimmed, 'comment', currentUser.id, 'comment')
         logEvent({
           kind: 'comment',
           projectId,

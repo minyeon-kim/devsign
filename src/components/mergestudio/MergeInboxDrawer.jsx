@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { DAY_GROUP_LABEL, badgeOf, dayGroupOf, defaultTabOf, isUnread, showsIn } from '@/lib/notifications'
+import { Fragment, useState } from 'react'
 import { ArrowRight, Bell, CheckCheck, ChevronDown, ChevronRight, Send } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
@@ -26,7 +27,8 @@ const forInbox = (notifications) => notifications.filter((n) => n.kind !== 'feed
 
 export function InboxButton({ open, onToggle }) {
   const notifications = forInbox(useWorkspace().notifications)
-  const unreadCount = notifications.filter((n) => n.unread).length
+  const unreadCount = notifications.filter(isUnread).length
+  const badge = badgeOf(notifications)
 
   return (
     <Tooltip>
@@ -43,9 +45,9 @@ export function InboxButton({ open, onToggle }) {
         )}
       >
         <Bell className="size-4" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
-            {unreadCount}
+        {badge && (
+          <span data-inbox-badge className="absolute -top-1 -right-1 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 tabular-nums ring-2 ring-card">
+            {badge}
           </span>
         )}
       </TooltipTrigger>
@@ -265,8 +267,10 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   const openThread = expanded && card.type === 'thread'
 
   return (
-    <div className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
-      <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-left transition-colors hover:bg-white/[0.03]">
+    <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
+      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-xl py-3 pr-3 pl-2 text-left transition-colors hover:bg-white/[0.03]', !group.unread && !expanded && 'opacity-60 hover:opacity-100')}>
+        {/* Unread: a dot at the left (its place is kept when read, so the rows line up). */}
+        <span aria-label={group.unread ? 'Unread' : undefined} data-inbox-dot={group.unread ? '' : undefined} className={cn('mt-2 size-1.5 shrink-0 rounded-full', group.unread ? 'bg-[#5EEAB5]' : 'bg-transparent')} />
         {!openThread && <span className="mt-0.5 flex w-6 shrink-0 justify-center">
           {card.authorId ? <Person id={card.authorId} /> : (
             <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-sky-400')} />
@@ -294,7 +298,6 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
           )}
         </span>
         <span className="mt-1 flex shrink-0 items-center gap-1.5">
-          {group.unread && <span className="ds-status-dot rounded-full bg-[#5EEAB5]" aria-label="Unread" />}
           <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-300', expanded && 'rotate-180')} />
         </span>
       </button>
@@ -357,42 +360,90 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
 function MergeInboxDrawer({ onJump, onClose, inset }) {
   const { notifications: allNotifications, conflicts, mergeItems, markNotificationRead, markAllNotificationsRead } = useWorkspace()
   const notifications = forInbox(allNotifications)
-  const [tab, setTab] = useState('unread')
+  // Opened on what's new — with nothing new, on everything (never an empty first view of a full Inbox).
+  const [tab, setTab] = useState(() => defaultTabOf(notifications))
   const [expandedId, setExpandedId] = useState(null)
-  const [unreadIds, setUnreadIds] = useState(() => new Set(notifications.filter(n => n.unread).map(n => n.id)))
-  const unread = notifications.filter((n) => n.unread).length
+  // (What was unread when the tab was opened stays listed there while it's read, one by one.)
+  const [unreadIds, setUnreadIds] = useState(() => new Set(notifications.filter(isUnread).map(n => n.id)))
+  const unread = notifications.filter(isUnread).length
   const groups = groupInboxNotifications(notifications)
+  // Older ones come in as the list is scrolled to its end.
+  const PAGE = 30
+  const [limit, setLimit] = useState(PAGE)
 
   function pick(id) {
     setTab(id)
     setExpandedId(null)
-    setUnreadIds(id === 'unread' ? new Set(notifications.filter((n) => n.unread).map((n) => n.id)) : null)
+    setLimit(PAGE)
+    setUnreadIds(id === 'unread' ? new Set(notifications.filter(isUnread).map((n) => n.id)) : null)
   }
   function toggleGroup(group) {
     if (expandedId === group.id) { setExpandedId(null); return }
     setExpandedId(group.id)
     group.notifications.forEach(n => markNotificationRead(n.id))
   }
-  const visible = groups.filter(group => tab === 'all' || (tab === 'unread'
-    ? group.notifications.some(n => n.unread || unreadIds?.has(n.id)) : group.kind === tab))
+  // Read ↔ unread, by hand (the whole card: every notification it holds).
+  const setRead = (group, read) => {
+    group.notifications.forEach((n) => markNotificationRead(n.id, !read))
+    if (!read) setUnreadIds((current) => (current ? new Set([...current, ...group.notifications.map((n) => n.id)]) : current))
+  }
+  // Unread: not read yet. All: everything, read or not. Approvals / Comments: their kind, read or not.
+  const matching = groups.filter((group) => (tab === 'unread'
+    ? group.notifications.some((n) => isUnread(n) || unreadIds?.has(n.id))
+    : group.notifications.some((n) => showsIn(tab, n))))
+    // Newest first.
+    .sort((a, b) => Math.max(...b.notifications.map((n) => n.createdAt ?? 0)) - Math.max(...a.notifications.map((n) => n.createdAt ?? 0)))
+  const visible = matching.slice(0, limit)
+  const now = Date.now()
+  const dayOf = (group) => dayGroupOf(Math.max(...group.notifications.map((n) => n.createdAt ?? now)), now)
 
   return (
     <MergeDrawer icon={Bell} title="Inbox" onClose={onClose} inset={inset} aside={
-      <button type="button" onClick={() => { markAllNotificationsRead(); setUnreadIds(new Set()) }} disabled={unread === 0} className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40">
+      // (Read, all of them — and the list stays as it is.)
+      <button type="button" data-inbox-read-all onClick={() => markAllNotificationsRead()} disabled={unread === 0} className="flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40">
         <CheckCheck className="size-3.5" /> Mark all read
       </button>
     }>
       <div className="grid shrink-0 grid-cols-4 gap-1 px-3 pb-2" role="tablist" aria-label="Filter notifications">
-        {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
+        {tabs.map(([id, label]) => <button key={id} type="button" role="tab" data-inbox-tab={id} aria-selected={tab === id} onClick={() => pick(id)} className={cn(CATEGORY_TAB, 'min-w-0 w-full gap-1 px-1.5', tab === id ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}>
           <span className="truncate">{label}</span>
-          {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread}</span>}
+          {id === 'unread' && unread > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/20 px-1 text-[10px] leading-none font-semibold text-emerald-300 tabular-nums">{unread > 99 ? '99+' : unread}</span>}
         </button>)}
       </div>
-      <div className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3">
-        {visible.map(group => (
-          <InboxCard key={group.id} group={group} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
-        ))}
-        {!visible.length && <p className="p-6 text-center text-xs text-muted-foreground">{tab === 'unread' ? 'You’re all caught up.' : 'Nothing here yet.'}</p>}
+      <div
+        data-inbox-list
+        className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3"
+        onScroll={(event) => { const list = event.currentTarget; if (limit < matching.length && list.scrollTop + list.clientHeight >= list.scrollHeight - 80) setLimit((count) => count + PAGE) }}
+      >
+        {visible.map((group, index) => {
+          const day = dayOf(group)
+          return (
+            <Fragment key={group.id}>
+              {/* 오늘 / 어제 / 이번 주 / 이전 — said once, over the first of each. */}
+              {(index === 0 || dayOf(visible[index - 1]) !== day) && <h3 data-inbox-day={day} className="px-1 pt-2 pb-0.5 text-[11px] font-medium text-slate-500 first:pt-0">{DAY_GROUP_LABEL[day]}</h3>}
+              <div className="group/inbox relative">
+                <InboxCard group={group} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
+                {/* On hover or focus: read ↔ unread, without opening it. */}
+                <button
+                  type="button"
+                  data-inbox-toggle-read
+                  aria-label={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
+                  title={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
+                  onClick={(event) => { event.stopPropagation(); setRead(group, group.unread) }}
+                  className="ds-intrinsic absolute top-2.5 right-8 flex h-6 items-center rounded-md bg-[#1c1e22] px-1.5 text-[10.5px] whitespace-nowrap text-slate-300 opacity-0 ring-1 ring-white/10 transition-opacity hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-300 group-hover/inbox:opacity-100"
+                >
+                  {group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
+                </button>
+              </div>
+            </Fragment>
+          )
+        })}
+        {!visible.length && (
+          <div data-inbox-empty={tab} className="flex flex-col items-center gap-2 p-6 text-center text-xs text-muted-foreground">
+            <p>{tab === 'unread' ? '새 알림이 없어요' : notifications.length ? '여기에 해당하는 알림이 없어요' : '아직 받은 알림이 없어요'}</p>
+            {tab === 'unread' && notifications.length > 0 && <button type="button" data-inbox-show-all onClick={() => pick('all')} className="ds-intrinsic text-xs font-medium text-emerald-300 underline-offset-2 hover:underline">전체 알림 보기</button>}
+          </div>
+        )}
       </div>
     </MergeDrawer>
   )
