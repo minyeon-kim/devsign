@@ -21,7 +21,9 @@ export function reviewAlerts(conflicts, userId, day) {
     // the alert) is only the id's cache key — showing it as the time would
     // print a raw "2026-10-01" instead of a label the Today/Yesterday
     // translation rule can read.
-    timeLabel: 'Today', unread: true, reviewConflictIds: medium.map(c => c.id), target: { label: 'Medium changes awaiting your review' },
+    timeLabel: 'Today', unread: true, reviewConflictIds: medium.map(c => c.id),
+    // (A digest of one is that change: it goes to it, and its card says what changed.)
+    target: medium.length === 1 ? { conflictId: medium[0].id, label: medium[0].title } : { label: 'Medium changes awaiting your review' },
   })
   return alerts
 }

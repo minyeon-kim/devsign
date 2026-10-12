@@ -9,6 +9,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { allPeople } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { groupInboxNotifications } from '@/lib/inboxNotifications'
+import { closedPartsOf, summaryOf } from '@/lib/notificationSummary'
+import { THUMB, thumbOf } from '@/lib/notificationThumbs'
 import { RISK_LABEL, needsReviewFrom, taskFor } from '@/lib/conflicts'
 import MergeDrawer from '@/components/mergestudio/MergeDrawer'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
@@ -206,10 +208,87 @@ function CommentThread({ comments }) {
   )
 }
 
+// A notification about one change's values (found, asked about, due, approved):
+// its two closed lines and what opens under them come from the change itself
+// (lib/notificationSummary) — the same names and values its detail lists.
+const nameOfPerson = (id) => allPeople.find((person) => person.id === id)?.name ?? id
+function noticeOf(group, conflicts) {
+  if (group.kind === 'comment' || (group.reviewConflictIds && group.reviewConflictIds.length !== 1)) return null
+  const notification = group.notifications[0]
+  const change = conflicts.find((conflict) => conflict.id === notification?.target?.conflictId)
+  const summary = summaryOf(notification, change, { nameOf: nameOfPerson })
+  if (!summary) return null
+  return { type: 'notice', summary, change, severity: change.severity, authorId: notification.authorId ?? null, title: summary.target, closed: closedPartsOf(summary) }
+}
+
+// "Padding  12px → 16px": the property, then what the code has → what the design asks for.
+function ChangeText({ change }) {
+  return (
+    <span translate="no" className="tabular-nums">
+      <LocalizedText text={change.label} /> <LocalizedText text={change.from} /> <span aria-hidden>→</span> <LocalizedText text={change.to} />
+    </span>
+  )
+}
+
+// One picture: a fixed place (the same size before it's there, so opening a card
+// never moves what's under it) and the picture faded in once it's loaded.
+function ThumbImage({ src }) {
+  const [loaded, setLoaded] = useState(false)
+  return <img key={src} src={src} alt="" draggable={false} onLoad={() => setLoaded(true)} className={cn('size-full object-contain transition-opacity duration-150 motion-reduce:transition-none', loaded ? 'opacity-100' : 'opacity-0')} />
+}
+
+// The code's picture and the design's, side by side, each under its small label.
+// Pressing either goes to the change. A picture that couldn't be made is not here.
+function NoticeThumbs({ thumb, labels, onOpen, title }) {
+  return (
+    <div data-notice-thumbs={thumb.status} className="flex gap-2">
+      {['before', 'after'].map((side, index) => (
+        <figure key={side} className="m-0 shrink-0" style={{ width: THUMB.width }}>
+          <figcaption className="mb-1 text-[10px] leading-3 font-medium text-slate-500"><LocalizedText text={labels[index]} /></figcaption>
+          <button type="button" data-notice-thumb={side} aria-label={`${title} · ${labels[index]}`} onClick={onOpen} className="ds-intrinsic block overflow-hidden rounded-md bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-emerald-300" style={{ width: THUMB.width, height: THUMB.height }}>
+            {thumb.status === 'ready' && <ThumbImage src={thumb[side]} />}
+          </button>
+        </figure>
+      ))}
+    </div>
+  )
+}
+
+// What opens under a change's notification: its sentence, the properties that
+// differ (two, then "외 N건"), the two pictures, the file and who asked, and the way in.
+function NoticeBody({ card, thumb, destination }) {
+  const { summary } = card
+  const by = summary.requester ? `${summary.requester} 요청` : null
+  return (
+    <>
+      {summary.lead && <p data-notice-lead className="text-xs leading-5 text-slate-300"><LocalizedText text={summary.lead} /></p>}
+      {summary.changes.shown.length > 0 && (
+        <p data-notice-changes className="text-xs leading-5 text-slate-300">
+          {summary.changes.shown.map((change, index) => <Fragment key={change.label}>{index > 0 && <span aria-hidden className="text-slate-600"> · </span>}<ChangeText change={change} /></Fragment>)}
+          {summary.changes.more > 0 && <span className="text-slate-500"> 외 {summary.changes.more}건</span>}
+        </p>
+      )}
+      {thumb.status !== 'failed' && <NoticeThumbs thumb={thumb} labels={summary.images} title={summary.target} onOpen={destination?.go} />}
+      <p data-notice-meta className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-slate-500">
+        {summary.file && <span translate="no" className="min-w-0 truncate font-mono">{summary.file}</span>}
+        {summary.file && by && <span aria-hidden>·</span>}
+        {by && <span className="shrink-0"><LocalizedText text={by} /></span>}
+      </p>
+      {destination && (
+        <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
+          <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
+        </button>
+      )}
+    </>
+  )
+}
+
 // What a notification is, worked out once for its card: the closed card's
 // three things (title · one-line summary · time) and what opens under it.
 // A digest of a single change isn't a group — it's that change.
 function cardOf(group, conflicts, mergeItems) {
+  const notice = noticeOf(group, conflicts)
+  if (notice) return notice
   if (group.reviewConflictIds) {
     const changes = group.reviewConflictIds.map((id) => conflicts.find((c) => c.id === id)).filter(Boolean)
     if (changes.length === 1) {
@@ -248,7 +327,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   // canvas the notification is about — the Inbox closes, that canvas tab
   // and frame come up centered on it, a comment's thread open on its pin.
   // With neither (no tab, frame or position to go to) there's no button.
-  const { canvasLocationFor, revealOnCanvas, dockApi } = useWorkspace()
+  const { canvasLocationFor, revealOnCanvas, dockApi, notificationThumbs } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const onCanvas = !first.target?.conflictId && Boolean(canvasLocationFor(first.target))
@@ -265,6 +344,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   // Open, a conversation is its thread: the header's avatar and one-line
   // preview would only repeat the first comment right under them.
   const openThread = expanded && card.type === 'thread'
+  const notice = card.type === 'notice'
 
   return (
     <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
@@ -278,10 +358,32 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
         </span>}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-baseline gap-2">
-            <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium text-white', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
+            {notice ? (
+              // The kind and the thing it's about: only the thing is cut short.
+              <span className="flex min-w-0 flex-1 text-[13px] leading-5 font-medium text-white">
+                <span className="shrink-0 whitespace-pre"><LocalizedText text={card.summary.label} /> · </span>
+                <span className={cn('min-w-0', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
+              </span>
+            ) : (
+              <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium text-white', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
+            )}
             <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={group.timeLabel} /></span>
           </span>
-          {(card.summary || card.severity) && !openThread && (
+          {notice && (
+            // The closed card's second line gives way to the full text below as it opens (a collapsing row, so nothing pops).
+            <span className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}>
+              <span className="min-h-0 overflow-hidden">
+                <span data-notice-line className="mt-0.5 block min-w-0 truncate text-xs leading-5 text-slate-400">
+                  {card.closed.lead && <LocalizedText text={card.closed.lead} />}
+                  {card.closed.lead && card.closed.change && <span aria-hidden> · </span>}
+                  {card.closed.change && <ChangeText change={card.closed.change} />}
+                  {card.closed.more > 0 && <span> 외 {card.closed.more}건</span>}
+                  {!card.closed.lead && !card.closed.change && card.summary.kind && <LocalizedText text={card.summary.kind} />}
+                </span>
+              </span>
+            </span>
+          )}
+          {!notice && (card.summary || card.severity) && !openThread && (
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-slate-400">
               {/* The level, once per card. */}
               {card.severity && <span className={cn('shrink-0 font-medium', card.severity === 'high' ? 'text-rose-300' : 'text-slate-300')}><LocalizedText text={RISK_LABEL[card.severity]} /></span>}
@@ -298,15 +400,16 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
           )}
         </span>
         <span className="mt-1 flex shrink-0 items-center gap-1.5">
-          <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-300', expanded && 'rotate-180')} />
+          <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-200', expanded && 'rotate-180')} />
         </span>
       </button>
 
       {/* Opens by growing (grid rows 0fr → 1fr), so the cards under it
           slide down instead of jumping. */}
-      <div className={cn('grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+      <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
         <div className="min-h-0 overflow-hidden" inert={!expanded}>
           <div className={cn('space-y-3.5 pr-3 pb-3', card.type === 'thread' ? 'pl-3 pt-1' : 'pl-[46px]')}>
+            {notice && <NoticeBody card={card} thumb={thumbOf(notificationThumbs, first.id)} destination={destination && { ...destination, label: '변경 검토하기' }} />}
             {card.type === 'change' && (
               <>
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={card.change.message ?? card.change.suggestion} /></p>

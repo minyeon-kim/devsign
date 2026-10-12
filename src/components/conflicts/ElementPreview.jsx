@@ -20,19 +20,21 @@ import DevicePicker from '@/components/history/DevicePicker'
 //     beside the design (or one at a time), the changed element marked, its
 //     place in the whole screen, and full screen.
 
-const MARK_TONE = { open: '251 191 36', done: '52 211 153' }
+// (`mint`: the Inbox's thumbnails — the app's mint, one thin line and nothing around it.)
+const MARK_TONE = { open: '251 191 36', done: '52 211 153', mint: '94 234 181' }
 
 // The mark over an element, in frame coordinates (it scales with the frame;
 // `scale` keeps its line the same weight on screen).
 function ElementMark({ layer, mark, scale, tone }) {
   const rgb = MARK_TONE[tone]
-  const line = 2 / scale
+  const thin = tone === 'mint'
+  const line = (thin ? 1.25 : 2) / scale
   const style = { left: layer.x, top: layer.y, width: layer.width, height: layer.height }
   if (mark.kind === 'inset') {
     // The padding itself: a band along the inside edge.
     return <span aria-hidden data-element-mark="inset" className="pointer-events-none absolute z-10 rounded-[inherit]" style={{ ...style, borderRadius: 10, boxShadow: `inset 0 0 0 ${mark.band}px rgb(${rgb} / 38%), 0 0 0 ${line}px rgb(${rgb})` }} />
   }
-  return <span aria-hidden data-element-mark={mark.kind} className="pointer-events-none absolute z-10" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, borderRadius: 8, boxShadow: `0 0 0 ${line}px rgb(${rgb}), 0 0 0 ${line * 3}px rgb(${rgb} / 22%)` }} />
+  return <span aria-hidden data-element-mark={mark.kind} className="pointer-events-none absolute z-10" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, borderRadius: 8, boxShadow: thin ? `0 0 0 ${line}px rgb(${rgb})` : `0 0 0 ${line}px rgb(${rgb}), 0 0 0 ${line * 3}px rgb(${rgb} / 22%)` }} />
 }
 
 // `only`: the layers drawn (ids) — all of the frame's when not given.
