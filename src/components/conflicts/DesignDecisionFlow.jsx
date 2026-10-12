@@ -10,6 +10,8 @@ import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 import ChangePreview from '@/components/conflicts/ChangePreview'
+import CodeRender from '@/components/history/CodeRender'
+import { layoutAt } from '@/lib/codeRender'
 
 // A design change's review (a `decisionFlow` conflict — CON-002, the
 // reference, and every other design change the same way): not values to
@@ -36,54 +38,33 @@ const SECONDARY = 'ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 ro
 
 const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
 
-// One tablet screen (768px) of the dashboard, drawn small: the cards in
-// the given number of columns — or, built with fixed widths that don't fit,
-// overlapping each other.
-function TabletPreview({ columns, overlap = false, widthMode = 'fit', gap = null, maxWidth = 200, scale = 1 }) {
-  if (scale !== 1) {
-    // The same small drawing, scaled up as a whole so it stays in proportion.
-    return (
-      <div className="mx-auto" style={{ width: 200 * scale, height: 200 * scale * (640 / 768) }}>
-        <div style={{ width: 200, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-          <TabletPreview columns={columns} overlap={overlap} widthMode={widthMode} gap={gap} />
-        </div>
-      </div>
-    )
-  }
-  const cards = [0, 1, 2, 3, 4, 5]
-  const shown = columns === 1 ? 3 : columns === 3 ? 6 : 4
-  // 'narrow' / 'fixed': the cards keep a set width inside their column instead of filling it.
-  const set = widthMode === 'narrow' || widthMode === 'fixed'
+// One tablet screen (768px) of the dashboard, drawn as it renders (the
+// History's CodeRender: the title, the stat cards, the button) and scaled
+// down — the cards in the given number of columns, at the width the code
+// gives them, or, fixed wider than the screen holds, overlapping.
+//   template: the grid's columns as the code has them ("repeat(2, 360px)");
+//   without one, it's made from `columns` / `widthMode` / `cardPx`.
+const TABLET = { id: 'tablet-768', width: 768, height: 1024 }
+const PREVIEW_HEIGHT = 560 // (every screen cut at the same height, so they compare side by side)
+function templateOf({ template, columns = 2, overlap, widthMode, cardPx }) {
+  if (template) return template
+  if (overlap) return `repeat(${columns}, 360px)`
+  if (widthMode === 'fixed' || widthMode === 'narrow') return `repeat(${columns}, ${cardPx || 320}px)`
+  return columns === 1 ? 'minmax(0, 1fr)' : `repeat(${columns}, minmax(0, 1fr))`
+}
+function TabletPreview({ columns, overlap = false, widthMode = 'fit', cardPx = null, template = null, maxWidth = 200, scale = 1 }) {
+  const width = maxWidth * scale
+  const tablet = templateOf({ template, columns, overlap, widthMode, cardPx })
+  const fit = width / TABLET.width
+  const layout = layoutAt({ tablet, base: tablet }, TABLET)
   return (
-    <div className="relative mx-auto w-full overflow-hidden rounded-lg border border-slate-300 bg-white p-2.5 shadow-sm" style={{ maxWidth, aspectRatio: '768 / 640' }}>
-      <div className="mb-1.5 h-2 w-14 rounded-sm bg-slate-800" />
-      <div className="mb-2 h-1 w-20 rounded-sm bg-slate-300" />
-      {overlap ? (
-        <div className="relative h-[58%]">
-          {cards.slice(0, 4).map((index) => (
-            <div
-              key={index}
-              className="absolute h-[44%] w-[62%] rounded-md border border-rose-400 bg-indigo-50/90 shadow-sm"
-              style={{ left: `${(index % 2) * 46}%`, top: `${Math.floor(index / 2) * 52}%` }}
-            >
-              <div className="m-1 h-1.5 w-1.5 rounded-sm bg-indigo-400" />
-            </div>
-          ))}
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[8px] font-bold text-white">겹침</span>
-        </div>
-      ) : (
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: gap != null && gap !== '' ? Math.max(1, Math.min(12, Number(gap) * 0.26)) : 6 }}>
-          {cards.slice(0, shown).map((index) => (
-            <div
-              key={index}
-              className={cn('rounded-md border border-slate-200 bg-indigo-50', columns === 1 ? 'h-5' : columns === 3 ? 'h-7' : 'h-9', set && 'mx-auto w-[72%]')}
-            >
-              <div className="m-1 h-1.5 w-1.5 rounded-sm bg-indigo-400" />
-            </div>
-          ))}
-        </div>
+    <div data-tablet-preview className="relative mx-auto w-fit">
+      <CodeRender spec={{ component: 'dashboard-grid', tablet, base: tablet }} screen={TABLET} scale={fit} crop={PREVIEW_HEIGHT} labels={false} className="!rounded-lg !shadow-md" />
+      {/* (The render's own label is too small to read at this size: said
+          here instead, in the middle of the card grid.) */}
+      {layout.overlap > 0 && (
+        <span data-preview-overlap className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap text-white shadow" style={{ left: (layout.grid.x + layout.grid.width / 2) * fit, top: (layout.grid.y + layout.grid.height / 2) * fit }}>겹침</span>
       )}
-      <div className="absolute inset-x-2.5 bottom-2 h-3 rounded bg-blue-600" />
     </div>
   )
 }
@@ -96,7 +77,9 @@ function Picture({ conflict, which, overlap, scale = 1, maxWidth = 200 }) {
   if (conflict.layouts) {
     const layout = which === 'original' ? conflict.layouts.original : which === 'implementation' ? conflict.layouts.implementation : which
     if (!layout) return null
-    return <TabletPreview columns={layout.columns} overlap={overlap ?? layout.overlap} widthMode={layout.widthMode} gap={layout.gap} scale={scale} maxWidth={maxWidth} />
+    // (A fix that didn't check out is drawn as it actually renders: as built.)
+    const failed = overlap === true && !layout.overlap
+    return <TabletPreview columns={layout.columns} overlap={failed || (overlap ?? layout.overlap)} widthMode={layout.widthMode} cardPx={layout.values?.cardWidth?.px} template={failed ? conflict.layouts.implementation?.template : overlap === false ? null : layout.template} scale={scale} maxWidth={maxWidth} />
   }
   if (!conflict.preview) return null
   const side = which === 'original' ? 'after' : which === 'implementation' ? 'before' : which?.side
@@ -312,18 +295,6 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
 // to edit, and only 다른 수정안 opens controls under its row. The design itself is not a third thumbnail:
 // 원안 보기 swaps it in for the left-hand screen while pressed.
 // Green marks the pick, and nothing else here.
-// A way's layout, as a small mark at its row's end — in the accent color on
-// the picked row. (A way with no layout to draw yet has no mark.)
-function LayoutGlyph({ columns, widthMode, on = false }) {
-  if (!columns) return <span aria-hidden className="size-5 shrink-0" />
-  const set = widthMode === 'narrow' || widthMode === 'fixed'
-  return (
-    <span aria-hidden data-glyph={on ? 'on' : 'off'} className={cn('grid size-5 shrink-0 gap-px rounded-[4px] border p-[2px]', on ? 'border-emerald-400' : 'border-white/25')} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr' }}>
-      {Array.from({ length: columns === 1 ? 3 : columns === 3 ? 3 : 4 }).map((_, index) => <span key={index} className={cn('rounded-[1px]', on ? 'bg-emerald-400' : 'bg-white/40', set && columns > 1 && 'mx-auto w-[70%]')} />)}
-    </span>
-  )
-}
-
 // 다른 수정안's controls — the only way with any: a preset is a fixed set of
 // values, picked and nothing more.
 // One row shows what matters most — how many columns, and whether a card
@@ -550,7 +521,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         </figure>
       </div>
 
-      {/* The ways forward: text first, a small layout mark at the end. */}
+      {/* The ways forward, as text. */}
       <div role="radiogroup" aria-label="수정안" className="mt-6 flex flex-col">
         {ways.map((option, index) => {
           const on = proposal === option.id
@@ -585,7 +556,6 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                   {/* Suggested, not chosen for you: nothing is picked by default. */}
                   {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-white/[0.07] px-1.5 align-middle text-[10.5px] font-medium text-slate-300">추천</span>}
                 </span>
-                <LayoutGlyph columns={shape.columns} widthMode={shape.widthMode} on={on} />
               </button>
               {/* Controls belong to 다른 수정안 alone, right under its row. */}
               {on && option.id === 'other' && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}

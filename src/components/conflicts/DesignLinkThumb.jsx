@@ -147,16 +147,6 @@ export default function DesignLinkThumb({ conflict, size = 'sm', className, plac
 const BREAKPOINT_KO = { mobile: '모바일', tablet: '태블릿', desktop: '데스크톱' }
 const THUMB_WIDTH = 132
 
-function StatCardDrawing({ tone }) {
-  return (
-    <div style={{ borderRadius: 20, border: '2px solid #e2e8f0', background: '#fff', padding: 28, boxShadow: '0 2px 6px rgba(15,23,42,0.06)' }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: tone }} />
-      <div style={{ marginTop: 22, width: 120, height: 26, borderRadius: 6, background: '#1e293b' }} />
-      <div style={{ marginTop: 14, width: 80, height: 14, borderRadius: 4, background: '#cbd5e1' }} />
-    </div>
-  )
-}
-
 export function BreakpointScreen({ conflict }) {
   const { link } = useDesignLink(conflict)
   const width = Number(conflict.breakpoint)
@@ -165,9 +155,9 @@ export function BreakpointScreen({ conflict }) {
     return <span data-breakpoint-missing className="text-[11px] text-slate-500"><LocalizedText text="미리보기 없음" /></span>
   }
   const columns = conflict.layouts?.original?.columns ?? 2
+  const template = conflict.layouts?.original?.template ?? `repeat(${columns}, minmax(0, 1fr))`
   const scale = THUMB_WIDTH / device.width
   const label = `프레임 ${link?.frameNumber ?? 1} · ${device.width}px ${BREAKPOINT_KO[breakpointOf(device.width)] ?? BREAKPOINT_LABEL[breakpointOf(device.width)]}`
-  const tones = ['#c7d2fe', '#bae6fd', '#bbf7d0', '#fde68a']
   return (
     <div className="flex min-w-0 flex-col items-start gap-1.5">
       <span data-breakpoint-label className="inline-flex w-fit max-w-full items-center rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] leading-4 font-medium tabular-nums text-slate-200">{label}</span>
@@ -182,13 +172,9 @@ export function BreakpointScreen({ conflict }) {
         // view's: the top of the screen, with the cards, is enough.)
         style={{ width: THUMB_WIDTH, height: Math.min(Math.round(device.height * scale), 96) }}
       >
-        <span aria-hidden className="pointer-events-none absolute top-0 left-0 block origin-top-left" style={{ width: device.width, height: device.height, transform: `scale(${scale})`, padding: 48, background: '#fff' }}>
-          <div style={{ width: 200, height: 28, borderRadius: 6, background: '#0f172a' }} />
-          <div style={{ marginTop: 14, width: 280, height: 16, borderRadius: 4, background: '#cbd5e1' }} />
-          <div style={{ marginTop: 40, display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap: 32 }}>
-            {tones.map((tone) => <StatCardDrawing key={tone} tone={tone} />)}
-          </div>
-          <div style={{ position: 'absolute', left: 48, right: 48, bottom: 56, height: 88, borderRadius: 22, background: '#2563eb' }} />
+        {/* The design's screen as it renders (CodeRender), its top. */}
+        <span aria-hidden className="pointer-events-none absolute top-0 left-0 block">
+          <CodeRender spec={{ component: 'dashboard-grid', tablet: template, base: template }} screen={device} scale={scale} crop={Math.ceil(96 / scale)} labels={false} className="!rounded-none !shadow-none !ring-0" />
         </span>
       </button>
     </div>

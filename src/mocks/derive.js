@@ -304,8 +304,9 @@ export function mergedStructuralRecord(change, now = Date.now()) {
       { id: 'range', label: '적용 구간', kind: 'choice', options: [`~${bp}px`, '~1024px', '전체'], current: `~${bp}px`, currentText: `현재 ~${bp}px` },
     ],
     layouts: {
-      original: { label: '디자인 원안', note: `${bp}px · 카드 ${design.columns}열 (화면 폭에 맞춤)`, columns: design.columns },
-      implementation: { label: '실제 구현', note: `${bp}px · ${builtWords} → 카드 겹침`, columns: built.columns, overlap: true },
+      // (`template`: the grid's columns in the code — what the screen is drawn from.)
+      original: { label: '디자인 원안', note: `${bp}px · 카드 ${design.columns}열 (화면 폭에 맞춤)`, columns: design.columns, template: grid.design },
+      implementation: { label: '실제 구현', note: `${bp}px · ${builtWords} → 카드 겹침`, columns: built.columns, overlap: true, template: grid.built },
       proposal: { label: '개발자 제안', note: `${bp}px · 카드 ${decided.columns}열`, columns: decided.columns },
     },
     // The code each way forward lands on (the grid's line). What was decided

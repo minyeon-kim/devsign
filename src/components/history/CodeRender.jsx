@@ -36,7 +36,9 @@ const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow
 // `crop`: stop at the end of the content (or at a height given, so two
 // renders compared are the same size) instead of drawing the whole (tall)
 // screen — for comparing layouts at a readable size.
-export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [], crop = false, className, inspect = null, emphasis = null }) {
+// `labels`: false leaves the overlap / squeeze pills out — for a render drawn
+// too small to read them (its caller says it in its own words).
+export default function CodeRender({ spec, screen, scale = 1, marked = false, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true }) {
   const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
   const layout = layoutAt(spec, screen)
   const viewport = crop ? { ...screen, height: Math.min(screen.height, typeof crop === 'number' ? crop : layout.contentHeight) } : screen
@@ -81,12 +83,12 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, pa
               <span className="text-[13px] text-slate-500">{label}</span>
             </article>
           ))}
-          {!inspect && overlap > 0 && (
+          {!inspect && labels && overlap > 0 && (
             <span data-render-overlap className="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-3 py-1 text-[14px] font-bold whitespace-nowrap text-white shadow-lg">
               카드 겹침 {overlap}px
             </span>
           )}
-          {!inspect && squeezed != null && (
+          {!inspect && labels && squeezed != null && (
             <span data-render-squeezed className="absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500 px-3 py-1 text-[14px] font-bold whitespace-nowrap text-white shadow-lg">
               간격 {squeezed}px (기준 {gap}px)
             </span>
