@@ -4,7 +4,7 @@ import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } fro
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
 import { flowOf } from '@/lib/conflictInsight'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, Pencil, MapPin, Minus, Plus, RotateCcw, Send, Sparkles, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
@@ -52,7 +52,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
-import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY } from '@/components/conflicts/DesignDecisionFlow'
 import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { useFoldState } from '@/components/conflicts/Fold'
@@ -2449,6 +2449,29 @@ const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/
 // step up from the plain note: larger type and the in-review sky tint.
 const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400/[0.12] px-4 text-[13px] font-medium whitespace-nowrap text-sky-100 ring-1 ring-sky-400/35 ring-inset'
 
+// A value change once approved: what the fix is doing and the one button —
+// 병합하고 해결하기, pressable once the fix has been checked — in one block at
+// the top, as a design decision's status block has them (DesignDecisionFlow).
+function FixStatusBlock({ phase, text, blocked, onMerge }) {
+  const passed = phase === 'verified'
+  return (
+    <section data-status-block={phase} data-fix-phase={phase} className={cn('shrink-0 scroll-mt-3 rounded-xl p-4 ring-1 ring-inset', passed ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
+      <div className="flex flex-wrap items-center gap-3">
+        <p data-status-text role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[14px] leading-5 font-semibold text-white">
+          {passed ? <ShieldCheck className="size-4 shrink-0 text-emerald-300" /> : <LoaderCircle className="size-4 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />}
+          <span className="min-w-0">{text}</span>
+        </p>
+        {onMerge && (
+          <button type="button" data-decision-primary data-approval-merge disabled={!passed || blocked} title={blocked ? tr('Resolve the failing checks before merging.') : undefined} onClick={onMerge} className={cn(DECISION_PRIMARY, 'min-w-[148px] justify-center')}>
+            <GitMerge className="size-3.5" />
+            병합하고 해결하기
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}
+
 // The page's record of a change, under what there is to act on: the same thin
 // timeline a design decision keeps (StepTimeline) — a line a step with who,
 // what and when, the one under way outlined, those to come as empty rings;
@@ -3319,6 +3342,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // asked → decided → fixed and checked by itself → merged.
   const alignedFlow = page && Boolean(conflict) && cardFlow && !conflict.decisionFlow && !conflict.rollback
   const alignedPhase = alignedFlow ? reviewFixPhaseOf(conflict) : null
+  // (Approved and not merged yet: the merge is the status block's, at the top.)
+  const fixUnderWay = ['applying', 'verifying', 'verified'].includes(alignedPhase)
   // Step 2's time, and step 4 running by itself once the decision is in: the
   // fix is applied, then checked — a moment each, so both are seen.
   const alignedStage = alignedFlow ? stage : null
@@ -3507,7 +3532,17 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <div data-review-scroll={page ? 'main' : undefined} className={page ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-auto' : 'contents'}>
                     {/* What's needed now, first (the page's status block): the
                         next action in words — what to act on is right under it. */}
-                    {page && !conflict.rollback && stage !== 'resolved' && (alignedFlow ? reviewStatusOf(conflict) : flowOf(conflict)?.next) && (
+                    {/* Approved, the fix under way or checked: the status and the
+                        merge in one block, where a design decision has them. */}
+                    {page && fixUnderWay && (
+                      <FixStatusBlock
+                        phase={alignedPhase}
+                        text={reviewStatusOf(conflict, { nameOf: personNameOf, viewerId })}
+                        blocked={(checks?.blocking.length ?? 0) > 0}
+                        onMerge={onUpdate ? handleMerge : null}
+                      />
+                    )}
+                    {page && !fixUnderWay && !conflict.rollback && stage !== 'resolved' && (alignedFlow ? reviewStatusOf(conflict) : flowOf(conflict)?.next) && (
                       <p data-status-block="next" role="status" className="flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
                         <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
                         {alignedFlow ? reviewStatusOf(conflict, { nameOf: personNameOf, viewerId }) : <LocalizedText text={flowOf(conflict).next} />}
@@ -3590,7 +3625,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             onAssignReviewer={assignReviewer}
                             onCodeChoice={(id) => update({ codeChoice: id })}
                             page={page}
-                            action={actionInCard ? approvalBar : null}
+                            action={actionInCard && !fixUnderWay ? approvalBar : null}
                           />
                           )}
                           {/* Drafts mixed by part have no comparison card —

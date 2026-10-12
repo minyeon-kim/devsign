@@ -16,7 +16,8 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // 16: Dashboard Redesign (AI drafts, CON-002's design decision) joined.
 // 17: Dashboard Redesign is built from the seed (mocks/seed.js): CON-002 merged, four saved versions.
 // 18: every project's design changes come from the seed, numbered CON-0xx, each with one merged end to end.
-export const DEMO_VERSION = 18
+// 19: CON-002 starts the walkthrough from 변경 감지 again (not merged); two saved versions.
+export const DEMO_VERSION = 19
 
 export function readDemo(key, fallback) {
   try {

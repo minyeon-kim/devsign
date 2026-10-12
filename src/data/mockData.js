@@ -274,12 +274,13 @@ export const conflictChecklist = [
   // ── Every project's changes ─────────────────────────────────────────
   // Design changes and merge conflicts alike come from the seed
   // (mocks/seed.js → mocks/derive.js). Dashboard Redesign's CON-002 is the
-  // reference — the Structural Drift found at 768px, asked about by Alex,
-  // approved by Taylor, fixed, checked and merged — and every other design
-  // change follows its steps: Checkout Redesign's CON-012 and Mobile Nav
-  // Revamp's CON-021 are merged the same way, the rest each at their own
-  // stage. The merge conflicts (CON-022 – CON-024) are numbered and timed the
-  // same way but resolved as before, in Merge Studio. `decisionFlow` gives
+  // walkthrough — the Structural Drift found at 768px, which Alex asks about,
+  // Taylor approves, and is fixed, checked and merged as it's played; it
+  // starts from 변경 감지. Every other design change follows its steps:
+  // Checkout Redesign's CON-012 and Mobile Nav Revamp's CON-021 are merged
+  // that way, the rest each at their own stage. The merge conflicts
+  // (CON-022 – CON-025) are numbered and timed the same way but resolved as
+  // before, in Merge Studio. `decisionFlow` gives
   // CON-002's review the design-decision flow (DesignDecisionFlow) instead
   // of picking values.
   ...seededConflicts(),
@@ -2371,8 +2372,8 @@ export const projectHistorySeeds = {
     navCheckpoint({ id: 'history-nav-hotfix-3', label: '터치 영역 48px로 변경', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
   ],
   // Dashboard Redesign — its saved versions, from the seed (mocks/derive):
-  // the AI drafts, the responsive grid that brought the overlap in, CON-002's
-  // fix and its merge.
+  // the AI drafts and the responsive grid that brought the overlap in.
+  // CON-002's fix and merge are saved as the walkthrough plays them.
   'dashboard-redesign': dashboardHistory(),
   'checkout-redesign': [
     {

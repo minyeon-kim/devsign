@@ -24,9 +24,10 @@ try {
     // conflicts alike.
     const own = records.filter((record) => record.projectId === project)
     assert.deepEqual(own.map((record) => record.id).sort(), seed.changes.map((change) => change.id).sort(), `${project}: every change is from the seed`)
-    // One change merged end to end: the project's reference.
-    const merged = seed.changes.filter((change) => change.steps.merged)
-    assert.equal(merged.length, 1, `${project}: one change merged end to end`)
+    // One change merged end to end — except Dashboard, whose CON-002 is the
+    // walkthrough: nothing there is done until it's played.
+    const merged = seed.changes.filter((change) => change.stage === 'resolved')
+    assert.equal(merged.length, project === 'dashboard-redesign' ? 0 : 1, `${project}: merged end to end`)
     for (const change of seed.changes) {
       const record = byId(change.id)
       assert.equal(record.timestamp, derive.timeLabelOf(change.steps.detected), `${change.id}: found when its seed says`)
@@ -36,7 +37,7 @@ try {
         assert.deepEqual(change.reviewers ?? [seed.people.designer], [seed.people.designer], `${change.id}: the designer decides`)
         if (change.steps.requested) assert.notEqual(change.steps.requested.by, seed.people.designer, `${change.id}: a developer asks`)
       }
-      if (change.kind !== 'code') assert.equal(Boolean(change.steps.requested), record.reviewStage !== 'detected', `${change.id}: asked ⇔ past 변경 감지`)
+      if (change.kind === 'value') assert.equal(Boolean(change.steps.requested), record.reviewStage !== 'detected', `${change.id}: asked ⇔ past 변경 감지`)
     }
   }
 

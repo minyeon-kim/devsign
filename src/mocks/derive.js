@@ -173,8 +173,14 @@ function valueRecord(project, change, now) {
 }
 
 // The structural drift: the grid at the breakpoint, as designed, as built and
-// as decided — and, since it's merged, every step of how it got there.
+// as decided — and every step of how it gets there: done if it's merged,
+// otherwise the walkthrough's script, from before it was asked about.
 function structuralRecord(change, now) {
+  const record = mergedStructuralRecord(change, now)
+  return change.stage === 'resolved' ? record : asDetected(record)
+}
+// …and as it ends once its script has been played through.
+export function mergedStructuralRecord(change, now = Date.now()) {
   const { grid } = SEED
   const design = layoutOf(grid.design)
   const built = layoutOf(grid.built)

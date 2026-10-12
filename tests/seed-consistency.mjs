@@ -25,50 +25,44 @@ try {
   // The app's records are the seed's, not copies kept beside it.
   assert.deepEqual(JSON.parse(JSON.stringify(seeded)), JSON.parse(JSON.stringify(derive.dashboardConflicts())).map((record) => ({ ...byId(record.id), ...record })).map((record) => JSON.parse(JSON.stringify(record))))
 
-  // ── CON-002: one ending, said the same everywhere ──
+  // ── CON-002: the walkthrough, found and not yet asked about ──
   const drift = byId('CON-002')
   const story = SEED.changes[0].steps
-  assert.equal(drift.reviewStage, 'resolved')
-  assert.equal(fixPhaseOf(drift), 'resolved')
-  assert.equal(decisionOutcomeOf(drift)?.name, '1열 레이아웃')
-  assert.deepEqual([drift.decisionRequest.by, drift.decisionRequest.proposal, drift.decisionRequest.reason], ['min', 'one-column', story.requested.reason])
-  assert.deepEqual([drift.designDecision.by, drift.designDecision.choice, drift.designDecision.reason], ['jane', 'approve', story.decided.reason])
-  assert.ok(drift.decisionFix.verified && drift.decisionFix.auto && drift.reviewers.every((reviewer) => reviewer.status === 'approved'))
-  // Its events are the story's steps, in order, at the story's times.
+  assert.equal(drift.reviewStage, 'detected')
+  assert.notEqual(fixPhaseOf(drift), 'resolved')
+  assert.ok(!drift.resolved && !drift.decisionRequest && !drift.designDecision && !drift.decisionFix && !drift.mergedBy)
+  assert.ok(drift.reviewers.every((reviewer) => reviewer.status === 'pending'))
+  // Its script is the seed's: who asks and why, who decides and why.
+  assert.deepEqual([drift.scriptedRequest.by, drift.scriptedRequest.proposal, drift.scriptedRequest.reason], ['min', 'one-column', story.requested.reason])
+  assert.deepEqual([drift.scriptedDecision.by, drift.scriptedDecision.choice, drift.scriptedDecision.reason], ['jane', 'approve', story.decided.reason])
+  assert.equal(decisionOutcomeOf({ ...drift, decisionRequest: drift.scriptedRequest, designDecision: drift.scriptedDecision })?.name, '1열 레이아웃')
+  // Its events: only that it was found, when the seed says.
   const events = eventsOf(drift)
-  assert.deepEqual(events.map((event) => event.type), ['detected', 'requested', 'decided', 'fixed', 'verified', 'resolved'])
-  assert.deepEqual(events.map((event) => new Date(event.createdAt).getTime()), ['detected', 'requested', 'decided', 'fixed', 'verified', 'merged'].map((step) => derive.momentOf(story[step]).getTime()))
-  assert.deepEqual(events.map((event) => event.actor.name), ['Devsign', 'Alex', 'Taylor', 'Devsign', 'Devsign', 'Alex'])
-  // The code: what was built → what was decided, on the grid's line; no other value anywhere in its record.
+  assert.deepEqual(events.map((event) => event.type), ['detected'])
+  assert.equal(new Date(events[0].createdAt).getTime(), derive.momentOf(story.detected).getTime())
+  // The code: what was built → what the decision lands on, on the grid's line.
   assert.deepEqual(drift.diff, { before: [derive.gridLineOf(SEED.grid.built)], after: [derive.gridLineOf(SEED.grid.decided)] })
   assert.equal(drift.fixes.approve, drift.diff.after[0])
   assert.equal(drift.fixes['one-column'], drift.diff.after[0])
 
-  // ── The History: four saved versions, and the code they hold ──
+  // ── The History: two saved versions; the fix and merge are the walkthrough's to save ──
   const history = projectHistorySeeds[project]
   const saved = history.filter((entry) => entry.kind !== 'conflict')
   assert.equal(saved.length, SEED.checkpoints.length)
-  assert.equal(saved.length, 4)
+  assert.equal(saved.length, 2)
   assert.equal(derive.savedVersionCount(), saved.length, '"저장된 버전 N개" is the checkpoint count')
   assert.equal(foldConflictCheckpoints(withBranches(history, records)).length, saved.length, 'the History page lists exactly the saved versions')
-  assert.deepEqual(saved.map((entry) => entry.label), ['AI 시안 A · B 생성', 'DashboardGrid 반응형 구현 · 768px에서 2열 360px 고정', 'CON-002 수정 · 768px 이하 1열 (검증 통과)', 'CON-002 병합 · 반영 완료'])
-  assert.deepEqual(saved.map((entry) => entry.timestamp.split(',')[0]), ['Yesterday', 'Today', 'Today', 'Today'])
-  // The overlap comes in with the second version and is gone from the third.
+  assert.deepEqual(saved.map((entry) => entry.label), ['AI 시안 A · B 생성', 'DashboardGrid 반응형 구현 · 768px에서 2열 360px 고정'])
+  assert.deepEqual(saved.map((entry) => entry.timestamp.split(',')[0]), ['Yesterday', 'Today'])
+  // The overlap comes in with the second version — and that's the file as it is now.
   const line = (entry) => entry.snapshot.lines[SEED.grid.line - 1]
   assert.ok(!saved[0].snapshot.lines.some((text) => text.includes('useBreakpoint')), 'the drafts: no responsive branch yet')
   assert.equal(line(saved[1]), drift.diff.before[0])
-  // CON-002's last checkpoint holds the code its 수정 · 검증 step shows.
-  assert.equal(line(saved[2]), drift.diff.after[0])
-  assert.equal(line(saved.at(-1)), drift.diff.after[0])
-  // …and that's the file as it is now.
   assert.deepEqual(projectFileSets[project][0].lines, saved.at(-1).snapshot.lines)
   // The mark is on the version that brought it in, at the time it was found.
   const mark = history.find((entry) => entry.kind === 'conflict')
   assert.equal(history[history.indexOf(mark) - 1].id, saved[1].id)
   assert.equal(mark.timestamp, drift.timestamp)
-  // A code diff is only ever the difference between two checkpoints' code.
-  const changed = (a, b) => a.snapshot.lines.filter((text, index) => text !== b.snapshot.lines[index]).length
-  assert.ok(changed(saved[1], saved[2]) === 1 && changed(saved[2], saved[3]) === 0)
 
   // ── The other changes: each at its own stage, with the values the code has ──
   assert.deepEqual(['CON-003', 'CON-005', 'CON-006'].map((id) => byId(id).reviewStage), ['detected', 'in_review', 'detected'])
@@ -84,7 +78,7 @@ try {
   const open = records.filter(isOpen)
   const done = records.filter((record) => !isOpen(record))
   assert.equal(open.length + done.length, records.length)
-  assert.deepEqual(done.map((record) => record.id), ['CON-002'], 'one is done: the merged one')
+  assert.deepEqual(done.map((record) => record.id), [], 'nothing is done: the walkthrough starts open')
   // The record's finished steps and the list's state agree: all five done ⇔ listed as done.
   for (const record of seeded) assert.equal(!isOpen(record), record.reviewStage === 'resolved')
   // A pin for every open change about an element — and none for the merged one or one with no element.
@@ -98,8 +92,8 @@ try {
   const later = new Date(); later.setDate(later.getDate() + 30)
   const then = derive.dashboardConflicts(later.getTime()).find((record) => record.id === 'CON-002')
   assert.equal(then.timestamp, drift.timestamp, 'said relative to the day it’s applied')
-  assert.equal(new Date(then.decisionRequest.sentAt).toDateString(), later.toDateString())
+  assert.equal(new Date(eventsOf(then, later.getTime())[0].createdAt).toDateString(), later.toDateString())
   // The same seed always gives the same state.
   assert.deepEqual(JSON.stringify(derive.dashboardConflicts(0)), JSON.stringify(derive.dashboardConflicts(0)))
-  console.log('Passed: Dashboard Redesign reads from one seed — CON-002 merged with one ending, four saved versions whose code matches its fix, counts and pins that match the changes, and times relative to today.')
+  console.log('Passed: Dashboard Redesign reads from one seed — CON-002 starts the walkthrough from 변경 감지 with its script, two saved versions whose code is the overlap, counts and pins that match the changes, and times relative to today.')
 } finally { await server.close() }

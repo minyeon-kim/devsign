@@ -2,9 +2,10 @@
 // said. Nothing here is worded for a screen: summaries, code diffs, the
 // record's steps, list states and counts, the History's checkpoints, the
 // canvas pins and the activity feed are all worked out from this
-// (mocks/derive.js). Dashboard Redesign (SEED) is the reference; Checkout
-// Redesign and Mobile Nav Revamp follow it: each has one change merged end
-// to end and the rest at their own stages.
+// (mocks/derive.js). Dashboard Redesign (SEED) is the reference — its
+// CON-002 is the walkthrough, starting from 변경 감지; Checkout Redesign and
+// Mobile Nav Revamp follow it: each has one change merged end to end and the
+// rest at their own stages.
 //
 // Times are relative to the day the seed is applied: `day` 0 is today, -1
 // yesterday; `at` is the clock time. A due date is days from today.
@@ -56,7 +57,10 @@ export const SEED = {
       branch: { source: 'feature/dashboard-responsive', target: 'develop' },
       reviewers: ['jane'],
       due: 1,
-      // What happened, in order. Every step is done: it's merged.
+      // The walkthrough: it starts found and not yet asked about. The steps
+      // after that are its script — what Alex asks and Taylor decides when
+      // the scenario is played (scriptedRequest / scriptedDecision), and when.
+      stage: 'detected',
       steps: {
         detected: { day: 0, at: '09:12' },
         requested: { by: 'min', day: 0, at: '09:20', proposal: 'one-column', reason: '360px 고정 2열이라 768px에서 카드가 겹쳐요.' },
@@ -216,11 +220,10 @@ export const SEED = {
 
   // The saved versions, oldest first — each with the grid's 768px columns as
   // they were then (`grid`: a key of `grid` above; null: the desktop-only file).
+  // CON-002's fix and merge are saved when the walkthrough gets there.
   checkpoints: [
     { id: 'history-db-1', what: 'drafts', by: 'jane', day: -1, at: '10:20', grid: null, target: 'Dashboard.jsx' },
     { id: 'history-db-2', what: 'responsive', by: 'min', day: 0, at: '09:05', grid: 'built', reason: '태블릿에서도 데스크톱과 같은 2열을 유지하려고' },
-    { id: 'history-db-3', what: 'fix', change: 'CON-002', step: 'verified', grid: 'decided' },
-    { id: 'history-db-4', what: 'merge', change: 'CON-002', step: 'merged', grid: 'decided' },
   ],
 }
 

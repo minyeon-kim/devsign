@@ -70,7 +70,12 @@ try {
   const panel = readFileSync(new URL('../src/components/dockview/panels/ConflictReviewPanel.jsx', import.meta.url), 'utf8')
   // On the page: the action is the card's, the steps are the record's — neither is in the header or the side panel.
   assert.match(panel, /conflict\.decisionFlow \|\| actionInCard \? null : approvalBar/)
-  assert.match(panel, /action=\{actionInCard \? approvalBar : null\}/)
+  assert.match(panel, /action=\{actionInCard && !fixUnderWay \? approvalBar : null\}/)
+  // Once approved, the merge is where a design decision's is: in the status
+  // block at the top, the same button with the same words — not the card's.
+  assert.match(panel, /\{page && fixUnderWay && \(\s*<FixStatusBlock/)
+  assert.match(panel, /className=\{cn\(DECISION_PRIMARY, 'min-w-\[148px\] justify-center'\)\}/)
+  assert.ok(panel.includes('병합하고 해결하기') && flowSource.includes("label: '병합하고 해결하기'"))
   assert.match(panel, /\{!page && !conflict\.rollback && !conflict\.decisionFlow && <FlowSteps/)
   assert.match(panel, /\{page && !conflict\.rollback && <ReviewRecord/)
   assert.match(panel, /onMerge=\{alignedFlow && !canMerge\(conflict\) \? undefined : handleMerge\}/)
