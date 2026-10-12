@@ -35,7 +35,8 @@ export default function DemoTools({ onDone }) {
       return
     }
     onDone?.()
-    window.location.assign(`${import.meta.env.BASE_URL}dashboard`)
+    // (Reloaded where it was: the same page, with the data back to its start.)
+    window.location.reload()
   }
   return (
     <section aria-label="Workspace data" className="mt-1 border-t border-white/10 pt-1">
@@ -47,7 +48,7 @@ export default function DemoTools({ onDone }) {
   )
 }
 
-// After a reset the app has reloaded onto the dashboard: say so, with Undo
+// After a reset the app has reloaded on the page it was on: say so, with Undo
 // for what is left of the 10 seconds. Undo writes the snapshot back and
 // reloads in place; "Restored" shows on the other side of that reload.
 export function useResetUndoToast() {

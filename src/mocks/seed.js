@@ -23,6 +23,7 @@
 //     code's value; following the design needs no asking)
 //   steps.decided — the designer's decision: { by, choice: 'keep' | 'approve', reason }
 //   draft — a way picked, not asked about yet
+//   reasons — why the code's value might be kept: the request's suggested reasons
 //
 // A merge conflict (`kind: 'code'`) is two branches changing the same lines:
 // it's numbered and timed like the rest, and resolved its own way (pick a
@@ -78,6 +79,7 @@ export const SEED = {
       id: 'CON-003',
       title: 'StatCard / Padding',
       kind: 'value',
+      reasons: ['카드 4개가 한 줄에 들어가려면 안쪽 여백을 12px로 둬야 해요', '숫자가 커서 16px이면 두 줄로 넘어가요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Padding',
       design: '16px (space.4)',
@@ -102,6 +104,7 @@ export const SEED = {
       id: 'CON-005',
       title: 'PurchaseCTA / Color token',
       kind: 'value',
+      reasons: ['color.cta(#2563EB)는 흰 글자와의 대비가 4.5:1에 못 미쳐요', '토큰을 고칠 때까지 지금 색을 유지하고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       property: 'Background',
       design: 'color.cta (#2563EB)',
@@ -128,6 +131,7 @@ export const SEED = {
       id: 'CON-006',
       title: 'Dashboard header / Font weight',
       kind: 'value',
+      reasons: ['700이면 제목이 옆 숫자보다 무거워 보여요', '시스템 폰트에서 700은 글자가 뭉개져 보여요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Font weight',
       design: '700',
@@ -152,6 +156,7 @@ export const SEED = {
       id: 'CON-008',
       title: 'Chart legend / Spacing',
       kind: 'value',
+      reasons: ['범례 항목이 6개라 8px이면 좁은 화면에서 두 줄로 넘어가요', '차트 폭이 좁아 범례를 한 줄로 두고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Gap',
       design: '8px (space.2)',
@@ -176,6 +181,7 @@ export const SEED = {
       id: 'CON-009',
       title: 'Sidebar / Breakpoint',
       kind: 'value',
+      reasons: ['태블릿 가로(1024px)에서는 본문이 좁아 사이드바를 접는 게 나아요', '1024px에서 차트가 잘려 보여요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       property: 'Collapse at',
       design: '768px (breakpoint.tablet)',
@@ -200,6 +206,7 @@ export const SEED = {
       id: 'CON-011',
       title: 'Empty state / Illustration size',
       kind: 'value',
+      reasons: ['작은 화면에서 120px이면 빈 상태의 버튼이 첫 화면 아래로 밀려요', '일러스트보다 버튼이 먼저 보여야 해요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Size',
       design: '120px',
@@ -245,6 +252,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-012',
       title: 'CheckoutForm / Field gap',
       kind: 'value',
+      reasons: ['폼이 길어서 6px로 두면 결제 버튼까지 스크롤이 줄어요', '입력 칸이 많아 간격을 좁게 두고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       property: 'Field gap',
       design: '8px',
@@ -283,6 +291,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-013',
       title: 'ShippingOptions / Icon stroke',
       kind: 'value',
+      reasons: ['16px 아이콘이라 2.5여야 또렷하게 보여요', '배송 옵션을 다른 아이콘보다 눈에 띄게 하고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Stroke',
       design: '2',
@@ -315,6 +324,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-014',
       title: 'PlaceOrderButton / Height & color',
       kind: 'value',
+      reasons: ['결제 버튼 A/B 테스트가 끝날 때까지 지금 높이와 색을 유지하고 싶어요', '브랜드 보라색의 전환율이 더 높게 나왔어요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       fields: [
         { label: 'Height', design: '44px (button.height.lg)', built: '40px (default size)' },
@@ -364,6 +374,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-015',
       title: 'PaymentForm / Letter spacing',
       kind: 'value',
+      reasons: ['카드 번호 라벨은 자간이 넓어야 읽기 쉬워요', '작은 라벨이라 기본 자간이면 글자가 붙어 보여요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Tracking',
       design: 'normal',
@@ -395,6 +406,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-016',
       title: 'OrderSummary / Divider color',
       kind: 'value',
+      reasons: ['디자인이 확정될 때까지 임시로 유지하고 싶어요', '다크 테마에서 border 토큰이 너무 어두워 구분선이 안 보여요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Divider',
       design: 'border (token)',
@@ -485,6 +497,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-018',
       title: 'CheckoutTabs / Icon size',
       kind: 'value',
+      reasons: ['탭 라벨과 함께 놓이면 24px 아이콘이 커 보여요', '작은 화면에서 탭 폭이 좁아요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Icon size',
       design: '24px',
@@ -691,6 +704,7 @@ export const MOBILE_NAV_SEED = {
       id: 'CON-020',
       title: 'BottomNav / Icon size',
       kind: 'value',
+      reasons: ['배지가 붙는 탭이라 아이콘을 20px로 두면 배지와 겹치지 않아요', '라벨을 숨긴 지금 화면에서는 20px로 충분해요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       fields: [
         { label: 'Icon size', design: '24px', built: '20px' },
@@ -735,6 +749,7 @@ export const MOBILE_NAV_SEED = {
       id: 'CON-021',
       title: 'BottomNav / Badge count',
       kind: 'value',
+      reasons: ['알림이 몇 개인지 정확한 수를 보여 주고 싶어요', '세 자리 수 알림은 드물어서 제한이 필요 없어요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Badge count',
       design: 'Capped at 99 (99+)',

@@ -207,6 +207,17 @@ function designDecisionOf(project, change, fields, ms) {
       { id: 'current', name: '현재 값 유지', spec: builtSpec, side: 'before', result: `현재 값 유지(${builtSpec})` },
       { id: 'other', name: '다른 값', spec: '직접 입력', values: {} },
     ],
+    // Reasons to pick from, never filled in: the developer's, by way (the
+    // seed's for keeping the code's value); the designer's, by decision.
+    reasonChips: {
+      current: change.reasons ?? [],
+      other: [`디자인 원안(${designSpec})과 현재 값(${builtSpec}) 사이로 맞추면 둘 다 지킬 수 있어요`],
+    },
+    decisionChips: {
+      keep: `디자인 시스템 기준(${designSpec})을 지켜 주세요. 원안대로 맞춰요.`,
+      approve: `제안한 이유가 맞아요. 디자인 원안도 ${steps.requested?.proposal === 'other' ? '제안한 값' : builtSpec}${/[가-힣]$/.test(builtSpec) ? '으로' : '로'} 바꿀게요.`,
+      rework: '이 값으로는 어려워요. 다른 값을 다시 제안해 주세요.',
+    },
     // 다른 값's one field: the value, starting from what the code has.
     driftProps: [{ id: 'value', label: told.length > 1 ? '값' : told[0].label, kind: 'text', primary: true, current: builtSpec, currentText: `현재 ${builtSpec}` }],
     // The code each outcome lands on: the design's lines, or the code as it is.

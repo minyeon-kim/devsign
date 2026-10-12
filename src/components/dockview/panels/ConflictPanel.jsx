@@ -7,7 +7,7 @@ import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSu
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { ArrowRight, Check, CheckCheck, ChevronDown, CircleCheck, FileCode2, Layers3, MapPin, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, CheckCheck, ChevronDown, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -103,9 +103,9 @@ function ConflictPanel({ inMergeStudio }) {
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages, conflictPin, hoverConflictPin, focusConflictPin, selectConflictPin } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages, conflictPin, hoverConflictPin, focusConflictPin } = useWorkspace()
   // A marker pressed on the canvas: the list is that change alone (whatever
-  // the filter), until "Show all" lets go of the marker.
+  // the filter), until the marker is let go (pressed again, or the panel shut).
   const pinnedId = conflictPin?.selected?.conflictId ?? null
   const pinned = pinnedId ? visible.find((c) => c.id === pinnedId) ?? listRecords.find((c) => c.id === pinnedId) ?? null : null
   const rows = pinned ? [pinned] : visible
@@ -197,13 +197,6 @@ function ConflictPanel({ inMergeStudio }) {
             markedDays={markedDueDates}
             statusOptions={CONFLICT_STATUS_FILTERS}
           />
-        </div>
-      )}
-      {pinned && (
-        <div data-pin-only className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 py-1.5 text-xs text-slate-300">
-          <MapPin className="size-3.5 shrink-0 text-amber-300" />
-          <span className="min-w-0 flex-1 truncate"><LocalizedText text="Showing only the change picked on the canvas" /></span>
-          <button type="button" data-pin-show-all onClick={() => selectConflictPin(null)} className="shrink-0 font-medium text-slate-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="Show all" /></button>
         </div>
       )}
       {conflicts.length === 0 ? (
