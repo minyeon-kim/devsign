@@ -555,10 +555,12 @@ export const mergeListItems = [
     saveOnFinish: true,
     // What sets the two drafts apart — shown above them in Design Compare.
     differences: [
-      { id: 'layout', label: '레이아웃', values: ['2열 카드', '3열 카드'] },
-      { id: 'color', label: '컬러', values: ['Blue CTA', 'Dark CTA'] },
-      { id: 'spacing', label: '간격', values: ['카드 간격 16px · 여백 20px', '카드 간격 8px · 여백 16px'] },
-      { id: 'component', label: '컴포넌트', values: ['아이콘 카드 · 전체 너비 버튼', '숫자 타일 · 캡슐형 버튼 + 가격'] },
+      // (`regions`: the parts of the screen a property is about — a mix that
+      // takes one of them from a draft has used that draft's property.)
+      { id: 'layout', label: '레이아웃', values: ['2열 카드', '3열 카드'], regions: ['cards'] },
+      { id: 'color', label: '컬러', values: ['Blue CTA', 'Dark CTA'], regions: ['cta'] },
+      { id: 'spacing', label: '간격', values: ['카드 간격 16px · 여백 20px', '카드 간격 8px · 여백 16px'], regions: ['cards'] },
+      { id: 'component', label: '컴포넌트', values: ['아이콘 카드 · 전체 너비 버튼', '숫자 타일 · 캡슐형 버튼 + 가격'], regions: ['cards', 'cta'] },
     ],
     variants: [
       { key: 'ai-a', label: '2열 카드 · Blue CTA', ai: true },

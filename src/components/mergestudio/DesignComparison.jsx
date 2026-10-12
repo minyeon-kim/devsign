@@ -1,6 +1,10 @@
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { isDesignReview } from '@/lib/conflicts'
 import { designReviewStatus, reviewForDesign } from '@/lib/designReview'
+import { MIX_ACTION_LABEL, mixActionsOf, mixRecordsOf, mixSourcesOf, mixStatusOf, traitUsedOf, usedCountOf } from '@/lib/mixRecord'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import HistoryCompare from '@/components/history/HistoryCompare'
+import { LocalizedText } from '@/i18n/runtime'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Check, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -8,8 +12,8 @@ import { draftRows } from '@/lib/driftDecisions'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
-import { canvasPages, designMergeVariants } from '@/data/mockData'
-import { draftFrame, draftScreens } from '@/data/draftScreens'
+import { allPeople, canvasPages, designMergeVariants } from '@/data/mockData'
+import { composeDraftFrame, draftFrame, draftScreens, regionLayout, regionPicks } from '@/data/draftScreens'
 import { useNavigate } from 'react-router-dom'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { toast } from '@/i18n/toast'
@@ -28,7 +32,7 @@ export function designCompareOptions(item) {
 }
 
 function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false }) {
-  const { conflicts, addComment, openConflictReview, reviewConflictId, decisionsFor } = useWorkspace()
+  const { conflicts, addComment, openConflictReview, reviewConflictId, decisionsFor, historyEntries, createMergeRequest, updateConflict, updateMergeItem, currentUser, otherMembers } = useWorkspace()
   const navigate = useNavigate()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
@@ -40,7 +44,22 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
   // one thread — tagged with the draft and element they're pinned to.
   const conflict = reviewForDesign(item, conflicts)
   const activeReview = conflicts.find(record => record.id === reviewConflictId && isDesignReview(record))
-  const status = designReviewStatus(item, conflict)
+  // A set of drafts to mix has one state, and its saves are a record
+  // (lib/mixRecord) — read here, so nobody is sent to History to find out
+  // what was put together. (Other sets — a design against its code — keep
+  // their review's status.)
+  const mixSet = Boolean(item && draftScreens[item.id])
+  const mixRequest = mixSet && conflict && isDesignReview(conflict) ? conflict : null
+  const saves = mixSet ? mixRecordsOf(item, historyEntries) : []
+  const status = mixSet ? mixStatusOf(item, mixRequest, saves.length > 0) : designReviewStatus(item, conflict)
+  // The mix as it stands: its last save — or, asked for without a save yet, what's picked now.
+  const liveSources = mixSet ? mixSourcesOf(item, decisionsFor?.(item.id) ?? {}) : []
+  const base = mixSet ? canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0] : null
+  const current = saves[0] ?? (mixSet && status.id !== 'draft' && liveSources.length ? {
+    id: null, by: mixRequest?.requestedBy ?? null, at: null, savedAt: mixRequest?.submittedForMergeAt ?? null, sources: liveSources, changed: [], hasCode: false,
+    frame: base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisionsFor?.(item.id) ?? {}), item.authorAId ?? item.variants?.[0]?.key, regionLayout(item.id, decisionsFor?.(item.id) ?? {})) : null,
+  } : null)
+  const [codeEntryId, setCodeEntryId] = useState(null)
 
   function chooseLayer(option, layer) {
     if (commentModeVariantKey === option.key) {
@@ -83,19 +102,34 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
   //   · asked for review → that review's next step;
   //   · a screen the designer owns, saved → History.
   const requested = Boolean(conflict && isDesignReview(conflict))
+  const actions = mixSet ? mixActionsOf(status.id) : null
+  // Asked for from here, for a saved mix: the same request Merge Studio's parts bar sends.
+  function requestMerge() {
+    const record = mixRequest ?? createMergeRequest(item)
+    const reviewers = (record.reviewers?.length ? record.reviewers : (otherMembers ?? []).slice(0, 2)).map((reviewer) => ({ id: reviewer.id, status: 'pending' }))
+    updateConflict(record.id, { submittedForMergeAt: Date.now(), reviewStage: 'in_review', requestedBy: currentUser?.id ?? null, reviewers, mixRequest: { note: null, warnings: 0, at: Date.now() } })
+    const names = reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name).filter(Boolean)
+    toast(`${names.join(', ') || '검토자'}에게 승인을 요청했어요`, { description: item.title })
+  }
+  // Back into Merge Studio on the same drafts (a kept mix opens for changing again).
+  function editMix() {
+    if (item.tag === 'Merged') updateMergeItem?.(item.id, { tag: 'In Progress', updatedLabel: 'Just now' })
+    onCompare(item, options)
+  }
   const next = !item ? null
-    : item.saveOnFinish && status.id === 'merged' ? { label: 'History에서 보기', run: () => navigate(`/projects/${item.projectId}/history`) }
+    : mixSet ? (actions.primary === 'request' ? { label: MIX_ACTION_LABEL.request, run: requestMerge }
+      : actions.primary === 'open-request' ? { label: MIX_ACTION_LABEL['open-request'], run: () => openConflictReview(mixRequest.id, { view: 'overlay' }) } : null)
       : requested ? { label: { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기', run: () => openConflictReview(conflict.id) }
         : conflict && !isDesignReview(conflict) ? { label: '변경 검토', run: () => openConflictReview(conflict.id) }
           : null
-  const compose = item && (!next || !requested) ? { disabled: pickedOptions.length < 2, run: () => onCompare(item, pickedOptions) } : null
-  const statusLabel = item?.saveOnFinish && status.id === 'merged' ? '저장 완료' : status.label
+  const compose = item && (mixSet ? actions.primary === 'compose' : (!next || !requested)) ? { disabled: pickedOptions.length < 2, run: () => onCompare(item, pickedOptions) } : null
+  const edit = mixSet && actions.secondary === 'edit' ? { label: MIX_ACTION_LABEL.edit, run: editMix } : null
   // Which drafts are ticked is what goes into the mix (조합하기 takes them to
   // Merge Studio) — nothing else reads it. So it's only offered while there's
   // a mix still to start; once it's been asked for or merged, the ticks say
   // which drafts the mix used instead, and can't be changed.
   const selectable = Boolean(compose) && choosing && Boolean(onSelectAll)
-  const usedKeys = !item || selectable ? null : new Set(draftRows({}, item, decisionsFor?.(item.id) ?? {}).flatMap((row) => row.options.filter((option) => option.picked).map((option) => option.key)))
+  const usedKeys = !item || selectable || mixSet ? null : new Set(draftRows({}, item, decisionsFor?.(item.id) ?? {}).flatMap((row) => row.options.filter((option) => option.picked).map((option) => option.key)))
   const allSelected = selectedOptions.length === options.length
   const toggleAll = () => onSelectAll(allSelected ? [] : options.map((option) => option.key))
   const pickItem = (id) => {
@@ -113,7 +147,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
           <h2 className="px-2.5 pt-1 pb-1.5 text-[11px] font-semibold text-slate-400">Design sets</h2>
           {items.length === 0 && <p className="px-2.5 py-2 text-[11px] text-slate-500">No design sets are available in this project yet.</p>}
           {items.map((candidate) => {
-            const state = designReviewStatus(candidate, reviewForDesign(candidate, conflicts))
+            const review = reviewForDesign(candidate, conflicts)
+            // (The same state the set's own view works from.)
+            const state = draftScreens[candidate.id] ? mixStatusOf(candidate, review && isDesignReview(review) ? review : null, mixRecordsOf(candidate, historyEntries).length > 0) : designReviewStatus(candidate, review)
             return (
               <button
                 key={candidate.id}
@@ -124,7 +160,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[12px] font-medium">{candidate.title}</span>
-                  <span data-design-status={state.id} className={cn('mt-0.5 block text-[10.5px]', state.className)}>{candidate.saveOnFinish && state.id === 'merged' ? '저장 완료' : state.label}</span>
+                  <span data-design-status={state.id} className={cn('mt-0.5 block text-[10.5px]', state.className)}>{state.label}</span>
                 </span>
                 <span className="shrink-0 text-[10.5px] text-slate-500 tabular-nums">{designCompareOptions(candidate).length}</span>
               </button>
@@ -149,7 +185,6 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
         <div data-design-compare-head className="@container mb-3 flex min-w-0 items-center gap-3">
           <div data-design-title className="flex min-w-0 flex-1 items-center gap-2">
             <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
-            {item && <span data-design-status={status.id} className={cn('shrink-0 text-[11px]', status.className)}>{statusLabel}</span>}
           </div>
           <div data-design-actions className="flex shrink-0 items-center">
             {/* (Picking which drafts to compare: only with more than two, and only while there's a mix to start.) */}
@@ -185,6 +220,11 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               >
                 <Layers3 className="size-3.5" />
                 조합하기
+              </button>
+            )}
+            {edit && (
+              <button type="button" data-design-edit onClick={edit.run} className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium whitespace-nowrap text-slate-200 transition-colors hover:bg-white/[0.1]', next && 'mr-2')}>
+                {edit.label}
               </button>
             )}
             {next && (
@@ -226,7 +266,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
         {item && (
           // Every draft side by side, each carrying what sets it apart — the
           // same properties in the same order, so the cards read across.
-          <div className="grid min-h-[220px] flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(options.length, 4)}, minmax(0, 1fr))` }}>
+          <div className="grid min-h-[220px] flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(options.length, 4) + (current ? 1 : 0)}, minmax(0, 1fr))` }}>
             {options.map((option, index) => (
               <DesignOptionCard
                 key={option.key}
@@ -249,14 +289,100 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                   return base && draftScreens[item.id] ? draftFrame(item.id, base, option.key) : base
                 })()}
                 effects={optionEffects(item, option)}
-                traits={(item.differences ?? []).map((difference) => ({ id: difference.id, label: difference.label, value: difference.values[index] }))}
-                wide={options.length <= 2}
+                // (Once there's a mix: which of its properties went in, and how many parts it gave.)
+                traits={(item.differences ?? []).map((difference) => ({ id: difference.id, label: difference.label, value: difference.values[index], used: current ? traitUsedOf(difference, current.sources, option.key) : null }))}
+                usedCount={current ? usedCountOf(current.sources, option.key) : null}
+                wide={options.length <= 2 && !current}
               />
             ))}
+            {current && <MixResultCard item={item} record={current} older={saves.slice(1)} status={status} onViewCode={current.hasCode && current.id ? () => setCodeEntryId(current.id) : null} />}
           </div>
+        )}
+        {/* The code this mix changed, in the History's own viewer — over the panel, without leaving it. */}
+        {codeEntryId && (
+          <Dialog open onOpenChange={(open) => { if (!open) setCodeEntryId(null) }}>
+            <DialogContent data-mix-code-viewer className="flex h-[min(780px,calc(100dvh-2rem))] w-[min(1180px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
+              <DialogTitle className="shrink-0 px-4 pt-4 text-[14px] font-semibold text-white">코드 변경 · {item.title}</DialogTitle>
+              <DialogDescription className="shrink-0 px-4 pb-2 text-[12px] text-slate-400">이 조합을 저장하면서 바뀐 코드와 그 렌더링이에요.</DialogDescription>
+              <div className="flex min-h-0 flex-1 flex-col"><HistoryCompare embedded hideRestore codeOpenByDefault entryId={codeEntryId} /></div>
+            </DialogContent>
+          </Dialog>
         )}
       </section>
     </div>
+  )
+}
+
+// The mix itself, as a card beside the drafts it was made from: the screen it
+// makes, which part came from which draft, who put it together and when, and
+// where it stands. Saved more than once: the earlier ones fold out under it.
+function MixResultCard({ item, record, older = [], status, onViewCode }) {
+  const boardRef = useRef(null)
+  const [box, setBox] = useState({ width: 0, height: 0 })
+  const [showOlder, setShowOlder] = useState(false)
+  useEffect(() => {
+    if (!boardRef.current) return undefined
+    const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }))
+    observer.observe(boardRef.current)
+    return () => observer.disconnect()
+  }, [])
+  const frame = record.frame
+  const tall = frame ? Math.max(frame.height ?? 0, ...frame.layers.map((layer) => (layer.y ?? 0) + (layer.height ?? 0))) : 0
+  const scale = frame && box.width && box.height ? Math.min(box.width / frame.width, box.height / tall) : 0
+  const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? null
+  const Letter = ({ letter }) => <span className="flex size-4 shrink-0 items-center justify-center rounded bg-emerald-300 text-[9.5px] font-semibold text-slate-950">{letter}</span>
+  return (
+    <article data-mix-result className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-emerald-400/30 bg-emerald-400/[0.03]">
+      <div className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-2.5 pb-2">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-300 text-slate-950"><Layers3 className="size-3" /></span>
+        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-100">조합 결과</span>
+        {/* Where it stands — said here, once for the set's view. */}
+        <span data-mix-status={status.id} className={cn('shrink-0 text-[11px] font-medium whitespace-nowrap', status.className)}>{status.label}</span>
+      </div>
+      <div ref={boardRef} className="relative mx-3 flex min-h-[140px] flex-1 justify-center overflow-hidden rounded-lg bg-black/20 py-2">
+        {frame && scale > 0 && (
+          <div className="relative overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale, height: tall * scale }}>
+            <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: tall, transform: `scale(${scale})` }}>
+              {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
+            </div>
+          </div>
+        )}
+      </div>
+      {/* Which part came from which draft. */}
+      <dl data-mix-sources className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-3 pt-2.5 text-[11.5px] leading-4">
+        {record.sources.map((source) => (
+          <Fragment key={source.regionId}>
+            <dt className="truncate text-slate-300">{source.label}</dt>
+            <dd data-mix-source={source.letter} className="flex items-center justify-end"><Letter letter={source.letter} /></dd>
+          </Fragment>
+        ))}
+      </dl>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 px-3 pt-2 pb-3 text-[11px] text-slate-500">
+        {/* Who put it together, and when. */}
+        <span data-mix-by className="min-w-0 truncate">{[nameOf(record.by), record.at].filter(Boolean).length ? <>{nameOf(record.by)}{nameOf(record.by) && record.at ? ' · ' : ''}{record.at && <LocalizedText text={record.at} />}</> : '방금'}</span>
+        {onViewCode && <button type="button" data-mix-view-code onClick={onViewCode} className="ds-intrinsic ml-auto shrink-0 text-[11px] font-medium text-slate-300 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">코드 변경 보기</button>}
+      </div>
+      {older.length > 0 && (
+        <div className="shrink-0 border-t border-white/[0.06] px-3 py-2">
+          <button type="button" data-mix-older aria-expanded={showOlder} onClick={() => setShowOlder((value) => !value)} className="ds-intrinsic text-[11px] font-medium text-slate-400 hover:text-white">{`이전 조합 ${older.length}개`}{showOlder ? ' 접기' : ''}</button>
+          {showOlder && (
+            <ol className="mt-1.5 space-y-1.5">
+              {older.map((entry, index) => {
+                // (What changed when the save after this one was made.)
+                const after = index === 0 ? record : older[index - 1]
+                return (
+                  <li key={entry.id} data-mix-older-row className="text-[11px] leading-4 text-slate-400">
+                    <span className="text-slate-300">{nameOf(entry.by)}{entry.at && <> · <LocalizedText text={entry.at} /></>}</span>
+                    <span className="ml-1.5 inline-flex items-center gap-1 align-middle">{entry.sources.map((source) => <Letter key={source.regionId} letter={source.letter} />)}</span>
+                    {after.changed.length > 0 && <span className="block text-slate-500">이후 바뀐 항목: {after.changed.join(', ')}</span>}
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </div>
+      )}
+    </article>
   )
 }
 
@@ -267,7 +393,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
 // `used`: once the mix is asked for or merged — whether it used this draft
 // (true / false), shown as a mark that can't be pressed; null while drafts
 // can still be ticked.
-function DesignOptionCard({ option, index, choosing, selected, used = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], wide = false }) {
+// `usedCount`: once there's a mix, how many parts it took from this draft
+// ("요소 N개 사용" — the count Merge Studio's draft cards show).
+function DesignOptionCard({ option, index, choosing, selected, used = null, usedCount = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], wide = false }) {
   const boardRef = useRef(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
 
@@ -294,6 +422,11 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, onTo
       <div className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-2.5 pb-2">
         <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold', choosing && selected ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-200')}>{letter}</span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-100" title={option.label}>{traits.length ? name : option.label}</span>
+        {usedCount != null && (
+          <span data-design-used-count className={cn('inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[10.5px] font-medium whitespace-nowrap', usedCount > 0 ? 'bg-emerald-300/15 text-emerald-200' : 'bg-white/[0.06] text-slate-500')}>
+            {usedCount > 0 ? `요소 ${usedCount}개 사용` : '사용 안 함'}
+          </span>
+        )}
         {used && (
           <span data-design-used title="병합에 쓰인 시안" className="inline-flex h-5 shrink-0 items-center gap-1 rounded-md bg-white/[0.08] px-1.5 text-[10.5px] font-medium whitespace-nowrap text-slate-300">
             <Check className="size-3" />
@@ -342,8 +475,9 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, onTo
         <dl data-design-traits className={cn('grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[11.5px] leading-4', wide ? 'w-[42%] min-w-[180px] content-center pr-3' : 'px-3 pt-2.5 pb-3')}>
           {traits.map((trait) => (
             <Fragment key={trait.id}>
-              <dt className="text-slate-500">{trait.label}</dt>
-              <dd className="truncate text-slate-200" title={trait.value}>{trait.value}</dd>
+              {/* In the mix: lit. Left out: stepped back. (Before there's a mix, as they are.) */}
+              <dt data-trait-used={trait.used ?? undefined} className={cn(trait.used === true ? 'text-emerald-300' : trait.used === false ? 'text-slate-600' : 'text-slate-500')}>{trait.label}</dt>
+              <dd className={cn('truncate', trait.used === true ? 'font-medium text-white' : trait.used === false ? 'text-slate-500' : 'text-slate-200')} title={trait.value}>{trait.value}</dd>
             </Fragment>
           ))}
         </dl>

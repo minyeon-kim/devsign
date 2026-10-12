@@ -1627,7 +1627,8 @@ function MergeStudioWorkspace({ item }) {
             </span>
             {/* Where it stands — said, not a button to finish from: that's the
                 parts bar's, where the picking is. Pressing it goes there. */}
-            <button
+            {/* (Saved: said by the parts bar, where the work is — not here too.) */}
+            {item.tag !== 'Merged' && <button
               type="button"
               data-mix-status={mixRequested ? 'requested' : item.tag === 'Merged' ? 'done' : 'picking'}
               title={mixRequested || item.tag === 'Merged' ? undefined : '다음 항목 고르기'}
@@ -1635,8 +1636,8 @@ function MergeStudioWorkspace({ item }) {
               className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium whitespace-nowrap text-slate-300 tabular-nums transition-colors hover:bg-white/[0.08] hover:text-white"
             >
               <span aria-hidden className="text-slate-600">·</span>
-              {mixRequested === 'approved' ? '승인됨' : mixRequested ? '검토 대기' : item.tag === 'Merged' ? '저장됨' : `${mixPicked}/${mixRows.length} 선택`}
-            </button>
+              {mixRequested === 'approved' ? '승인됨' : mixRequested ? '검토 대기' : `${mixPicked}/${mixRows.length} 선택`}
+            </button>}
           </div>
         )}
       {/* The header row's right side: the canvas's session controls

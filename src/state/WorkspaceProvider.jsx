@@ -1217,6 +1217,8 @@ export function WorkspaceProvider({ children, projectId }) {
         .map((region) => `${region.label} ← 시안 ${String.fromCharCode(65 + Math.max(0, item.variants.findIndex((variant) => variant.key === picks[region.id])))}`).join(' · ')
       : null
     const historyId = recordHistory({ label: title, kind: 'merge', actorId: currentUser.id, target: conflict?.file ?? item?.title,
+      // (Whose mix it is: Design Compare lists a set's saves from this.)
+      ...(item && { mergeItemId: item.id }),
       ...(picksReason && !conflict && { reason: picksReason }),
       conflictIds: [...mergedIds],
       timestamp: timeLabel(), approvedBy: [...new Set((related.length ? related.flatMap(requiredReviewers) : item.reviewers ?? []).filter((r) => r.status === 'approved').map((r) => r.id))],
