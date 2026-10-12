@@ -43,6 +43,13 @@ try {
   assert.deepEqual(sp.replayStates(4, 2, false), ['done', 'current', 'pending', 'pending'])
   assert.deepEqual(sp.replayStates(4, 4, false), ['done', 'done', 'done', 'current'])
   assert.deepEqual(sp.replayStates(4, 4, true), ['done', 'done', 'done', 'done'])
+  // A step's meta under its name: never more than two "·" to a line, nothing dropped.
+  const { metaLines } = await server.ssrLoadModule('/src/lib/stepProgress.js')
+  assert.deepEqual(metaLines(['자동 감지', '768px · 카드 겹침 · DashboardGrid 외 2']), ['자동 감지 · 768px · 카드 겹침', 'DashboardGrid 외 2'])
+  assert.deepEqual(metaLines(['Taylor · 승인', '']), ['Taylor · 승인'])
+  assert.deepEqual(metaLines(['자동 수정 · 768px 검증 통과', 'DashboardGrid.tsx 7행']), ['자동 수정 · 768px 검증 통과 · DashboardGrid.tsx 7행'])
+  assert.ok(metaLines(['a · b · c · d · e · f · g']).every((line) => line.split(' · ').length <= 3))
+  assert.deepEqual(metaLines([null, undefined, '']), [])
   console.log('step-progress: ok')
 } finally {
   await server.close()

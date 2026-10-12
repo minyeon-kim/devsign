@@ -67,3 +67,12 @@ export function replayStates(total, reached, atEnd) {
     return 'pending'
   })
 }
+
+// A step's meta, under its name: its parts a few to a line — never more than
+// `separators` "·" in one — so a long one breaks instead of running on.
+export function metaLines(parts = [], separators = 2) {
+  const pieces = parts.filter(Boolean).flatMap((part) => String(part).split(' · ')).filter(Boolean)
+  const lines = []
+  for (let index = 0; index < pieces.length; index += separators + 1) lines.push(pieces.slice(index, index + separators + 1).join(' · '))
+  return lines
+}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
 import { StepDot, StepLine, StepProgressCount, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { metaLines } from '@/lib/stepProgress'
 import { STEP_STATE_WORD, delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Chevron, Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
@@ -25,6 +26,10 @@ import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS,
 
 const CARD = 'rounded-xl bg-white/[0.03] p-4 ring-1 ring-white/[0.06] ring-inset'
 const LABEL = 'text-[11px] leading-4 font-medium text-slate-400'
+// The record's label / value rows (on the 8px grid): 12px between rows, a
+// 96px label column in grey 13px, values at 14px with room between lines.
+const RECORD_ROWS = 'grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-3 text-[14px] leading-[1.6] [&>dt]:text-[13px]'
+const CARD_ROWS = 'grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]'
 const PRIMARY = 'ds-intrinsic inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-4 text-[13px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500'
 const SECONDARY = 'ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
 
@@ -94,11 +99,11 @@ function LayoutComparison({ conflict, proposal, bare = false }) {
   return (
     <section data-decision-compare aria-label="디자인 원안과 구현 비교" className={bare ? undefined : CARD}>
       {!bare && <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{proposal?.columns ? ' · 개발자 제안' : ''} (768px)</h3>}
-      <div className={cn('grid', bare ? 'max-w-[760px] gap-8' : 'gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+      <div className={cn('grid', bare ? 'max-w-[760px] gap-6' : 'gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
         {entries.map(([key, layout, tone]) => (
           <figure key={key} data-layout={key} className="min-w-0">
             <TabletPreview columns={layout.columns} overlap={layout.overlap} widthMode={layout.widthMode} />
-            <figcaption className="mt-2 text-center">
+            <figcaption className={cn('text-center', bare ? 'mt-3' : 'mt-2')}>
               <span className={cn('block text-xs font-semibold', tone)}>{layout.label}</span>
               <span className="block text-[11px] leading-4 text-slate-400">{layout.note}</span>
             </figcaption>
@@ -221,7 +226,7 @@ function RequestCard({ conflict, bare = false }) {
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
         <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
       </div>}
-      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
+      <dl className={bare ? RECORD_ROWS : CARD_ROWS}>
         <dt className="text-slate-400">변경 사유</dt>
         <dd className="text-slate-100">{request.reason}</dd>
         <dt className="text-slate-400">수정안</dt>
@@ -229,7 +234,7 @@ function RequestCard({ conflict, bare = false }) {
           {PROPOSAL_LABEL[request.proposal] ?? request.proposal}
           {request.proposal === 'other' && ` · ${proposalOf('other', request.custom).spec}`}
           {request.proposalNote ? ` · ${request.proposalNote}` : ''}
-          {request.proposal === 'other' && request.custom?.note && <span className="mt-0.5 block text-xs font-normal text-slate-300">{request.custom.note}</span>}
+          {request.proposal === 'other' && request.custom?.note && <span className={cn('mt-0.5 block font-normal text-slate-300', bare ? 'text-[13px]' : 'text-xs')}>{request.custom.note}</span>}
         </dd>
         <dt className="text-slate-400">구현 화면</dt>
         <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
@@ -264,7 +269,7 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
         </h3>
         <span className="text-[11px] text-slate-500">{decision.decidedAt ? formatTime(decision.decidedAt) : decision.at}</span>
       </div>}
-      <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
+      <dl className={bare ? RECORD_ROWS : CARD_ROWS}>
         <dt className="text-slate-400">이유</dt>
         <dd className="text-slate-100">{decision.reason}</dd>
         {/* (It goes in at once unless the approver put it off: only then is there a time to say.) */}
@@ -661,7 +666,7 @@ function FixPanel({ conflict, onPropose, folds }) {
   const beforeLine = conflict.diff?.before?.[0]
   const breakpoint = conflict.breakpoint ?? 768
   return (
-    <section data-decision-fix data-fix-phase={phase} className="flex flex-col gap-3">
+    <section data-decision-fix data-fix-phase={phase} className="flex flex-col gap-4">
       {/* What the fix changes in the code. */}
       <div data-fix-detail="code">
         <p className="text-[12px] text-slate-300">
@@ -669,9 +674,9 @@ function FixPanel({ conflict, onPropose, folds }) {
           <span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{fileName} · {conflict.line}행</span>
         </p>
         {fixLine && (
-          <div data-fix-diff className="mt-1.5 overflow-x-auto rounded-lg bg-black/25 py-1.5 font-mono text-[11px] leading-5">
-            {beforeLine && <p className="flex bg-red-500/[0.14] px-3 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{beforeLine.trim()}</p>}
-            <p className="flex bg-emerald-500/[0.14] px-3 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{fixLine.trim()}</p>
+          <div data-fix-diff className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
+            {beforeLine && <p className="flex bg-red-500/[0.14] px-4 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{beforeLine.trim()}</p>}
+            <p className="flex bg-emerald-500/[0.14] px-4 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{fixLine.trim()}</p>
           </div>
         )}
       </div>
@@ -689,7 +694,7 @@ function FixPanel({ conflict, onPropose, folds }) {
       {decision.choice === 'approve' && fix && (
         <Fold
           data-fix-detail="design-system"
-          className="border-t border-white/[0.06] pt-3"
+          className="mt-2 border-t border-white/[0.06] pt-3"
           open={folds.get('fix-ds', false)}
           onToggle={() => folds.set('fix-ds', !folds.get('fix-ds', false))}
           header={<span className="text-[12px] text-slate-300">Design System 업데이트 <span className="text-[11px] text-slate-500">(선택)</span></span>}
@@ -964,28 +969,33 @@ function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, l
       onMouseLeave={onHover && (() => onHover(false))}
       {...rest}
     >
-      {/* (The line runs on to the next step's dot; the last one ends at its own.) */}
+      {/* (The line runs on to the next step's dot, 48px on; the last one ends at its own.) */}
       {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-5 bottom-[-28px] left-[7.5px]" />}
+      {/* (12px from the mark to the step's name.) */}
       <span className="absolute top-1 left-0"><StepDot state={state} moves={moves} arrive={arrive} /></span>
-      <div data-step-row={state} data-open={open}>
-        <div className="flex h-6 min-w-0 items-center gap-2 text-sm">
-          <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-            <span data-step-title className={cn('shrink-0 font-medium whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
-            <span aria-hidden className="shrink-0 text-slate-600">·</span>
-            <span data-step-who className={cn('shrink-0 whitespace-nowrap', pending ? 'text-slate-500' : 'text-slate-300')}>{who}</span>
-            {summary && <span aria-hidden className="shrink-0 text-slate-600">·</span>}
-            <span data-step-summary className={cn('min-w-0 flex-1 truncate', pending ? 'text-slate-600' : 'text-slate-400')}>{summary}</span>
+      {/* 48px from step to step, a hairline halfway — under every step but the last. */}
+      <div data-step-row={state} data-open={open} className={cn(!last && 'border-b border-white/[0.06] pb-[23px]')}>
+        <div data-step-head className="flex min-w-0 items-start gap-3">
+          <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer flex-col items-start rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+            {/* The step's name alone, bold… */}
+            <span data-step-title className={cn('text-base leading-6 font-semibold whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
+            {/* …and who and what under it, grey, at most two "·" to a line. */}
+            {metaLines([who, summary]).map((line, index) => (
+              <span key={line} data-step-meta className={cn('block max-w-full truncate text-[13px] leading-5', index === 0 && 'mt-1', pending ? 'text-slate-600' : 'text-slate-400')}>{line}</span>
+            ))}
           </button>
-          {onReplay && (
-            <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-xs text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
-              이 단계부터 보기
-            </button>
-          )}
-          {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
-          <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3.5" /></button>
+          <div className="flex h-6 shrink-0 items-center gap-2">
+            {onReplay && (
+              <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-[13px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
+                이 단계부터 보기
+              </button>
+            )}
+            {time && <time data-step-time className="shrink-0 text-[13px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
+            <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3.5" /></button>
+          </div>
         </div>
-        {/* Opened: 16px under its line, set to the line's own text, a readable measure. */}
-        <FoldBody open={open}><div className="flex flex-col gap-4 pt-4 pr-8 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>
+        {/* Opened: 20px under its head, from the name's own left edge; 24px between its blocks, a readable measure. */}
+        <FoldBody open={open}><div data-step-body className="flex flex-col gap-6 pt-5 pr-8 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>
       </div>
     </li>
   )
@@ -996,9 +1006,9 @@ const FOLD_ALL = FOLD_STEPS
 // What the detection touched: its file and what's affected — said once, here.
 function DetectionFacts({ conflict }) {
   return (
-    <dl className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]">
+    <dl data-detection-facts className={cn(RECORD_ROWS, 'mt-2')}>
       <dt className="text-slate-400">관련 파일</dt>
-      <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
+      <dd translate="no" className="font-mono text-slate-200">{conflict.file} · {conflict.line}행</dd>
       <dt className="text-slate-400">영향 범위</dt>
       <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
     </dl>
@@ -1174,9 +1184,9 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                 }}
               />
               {/* Then how it got here: the record, light — a line a step. */}
-              {/* (40px under the status block; 24px between its lines.) */}
-              <section data-step-record aria-label="진행 기록" className="mt-5.5">
-                <div data-step-list-head className="mb-4 flex items-center gap-3">
+              {/* (40px under the status block; 24px to the first step; 48px from step to step.) */}
+              <section data-step-record aria-label="진행 기록" className="mt-7">
+                <div data-step-list-head className="mb-6 flex items-center gap-3">
                   <h3 className="text-sm font-semibold text-white">진행 기록</h3>
                   <StepProgressCount states={stepStates} ticks={reveal.live} />
                   <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
