@@ -2,7 +2,8 @@ import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { isDesignReview } from '@/lib/conflicts'
 import { designReviewStatus, reviewForDesign } from '@/lib/designReview'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { Check, CheckCheck, ChevronDown, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -71,190 +72,160 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
 
   if (activeReview) return <ReviewDetail conflict={activeReview} inMergeStudio={inMergeStudio} />
 
+  // Which drafts are compared is a choice only when there are more than two
+  // (two are always both compared).
+  const choosing = options.length > 2
+  const pickedOptions = choosing ? selectedOptions : options
+  // The one thing to do next, named for where the set is — no separate steps:
+  //   · not started → 조합하기 (mix the drafts compared, in Merge Studio);
+  //   · asked for review → that review's next step;
+  //   · a screen the designer owns, saved → History.
+  const requested = Boolean(conflict && isDesignReview(conflict))
+  const next = !item ? null
+    : item.saveOnFinish && status.id === 'merged' ? { label: 'History에서 보기', run: () => navigate(`/projects/${item.projectId}/history`) }
+      : requested ? { label: { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기', run: () => openConflictReview(conflict.id) }
+        : conflict && !isDesignReview(conflict) ? { label: '변경 검토', run: () => openConflictReview(conflict.id) }
+          : null
+  const compose = item && (!next || !requested) ? { disabled: pickedOptions.length < 2, run: () => onCompare(item, pickedOptions) } : null
+  const statusLabel = item?.saveOnFinish && status.id === 'merged' ? '저장 완료' : status.label
+  const pickItem = (id) => {
+    setCommentModeVariantKey(null)
+    setCommentAnchor(null)
+    setCommentDraft('')
+    onSelectItem(id)
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-card text-xs">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-auto p-3 xl:grid-cols-[clamp(190px,30%,320px)_minmax(0,1fr)]">
-        <section className="min-h-0 overflow-auto rounded-xl bg-white/[0.03] p-3 xl:max-w-[360px]">
-          <h2 className="mb-2 text-[11px] font-semibold text-slate-300">Design sets</h2>
-          <div className="space-y-1">
-            {items.map((candidate) => (
-              <button
-                key={candidate.id}
-                type="button"
-                onClick={() => {
-                  setCommentModeVariantKey(null)
-                  setCommentAnchor(null)
-                  setCommentDraft('')
-                  onSelectItem(candidate.id)
-                }}
-                aria-pressed={candidate.id === itemId}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
-                  candidate.id === itemId ? 'bg-white/[0.09] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
-                )}
-              >
-                <Layers3 className="size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">{candidate.title}</span>
-                  {(() => { const state = designReviewStatus(candidate, reviewForDesign(candidate, conflicts)); return <span data-design-status={state.id} className={cn('mt-1 block text-[10px]', state.className)}>{state.label}</span> })()}
-                </span>
-                <span className="shrink-0 text-[10px] text-slate-500">{designCompareOptions(candidate).length}</span>
-              </button>
-            ))}
-            {items.length === 0 && <p className="px-2 py-3 text-[11px] text-slate-500">No design sets are available in this project yet.</p>}
-          </div>
-        </section>
-
-        <section className="flex min-h-0 flex-col overflow-auto rounded-xl bg-white/[0.03] p-3">
-          {/* Title, how many are picked, and the action — at the top, like
-              the other panels' actions. */}
-          <div className="mb-2.5 flex items-center gap-2">
-            <h2 className="truncate text-xs font-medium text-slate-200">{item?.title ?? 'Choose a design set'}</h2>
-            {/* How many are picked (once any are), then the two actions side
-                by side: everything at once, and comparing. */}
-            {item && selectedOptions.length > 0 && (
-              <span className="shrink-0 text-[11px] text-emerald-300 tabular-nums">{`${selectedOptions.length} selected`}</span>
-            )}
-            {item && onSelectAll && (
-              <button
-                type="button"
-                aria-pressed={selectedOptions.length === options.length}
-                onClick={() => onSelectAll(selectedOptions.length === options.length ? [] : options.map((option) => option.key))}
-                className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white"
-              >
-                <CheckCheck className="size-3.5" />
-                {selectedOptions.length === options.length ? 'Clear selection' : 'Select all'}
-              </button>
-            )}
+      <section className="flex min-h-0 flex-1 flex-col overflow-auto p-3">
+        {/* One row: which set (a menu, when there's more than one), where it
+            is, and the one thing to do next. */}
+        <div data-design-compare-head className="mb-3 flex min-w-0 items-center gap-2">
+          {items.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger data-design-set-menu className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-semibold text-slate-100 transition-colors hover:bg-white/[0.06]">
+                <span className="truncate">{item?.title ?? 'Choose a design set'}</span>
+                <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-64">
+                <DropdownMenuRadioGroup value={itemId ?? ''} onValueChange={pickItem}>
+                  {items.map((candidate) => {
+                    const state = designReviewStatus(candidate, reviewForDesign(candidate, conflicts))
+                    return (
+                      <DropdownMenuRadioItem key={candidate.id} value={candidate.id} className="text-xs">
+                        <span className="min-w-0 flex-1 truncate">{candidate.title}</span>
+                        <span data-design-status={state.id} className={cn('ml-3 shrink-0 text-[10.5px]', state.className)}>{candidate.saveOnFinish && state.id === 'merged' ? '저장 완료' : state.label}</span>
+                      </DropdownMenuRadioItem>
+                    )
+                  })}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? 'No design sets are available in this project yet.'}</h2>
+          )}
+          {item && <span data-design-status={status.id} className={cn('shrink-0 text-[11px]', status.className)}>{statusLabel}</span>}
+          {/* (Picking which drafts to compare: only with more than two.) */}
+          {item && choosing && onSelectAll && (
             <button
               type="button"
-              disabled={!item || selectedOptions.length < 2}
-              title={item && selectedOptions.length < 2 ? 'Select 2 or more drafts to compare' : undefined}
-              onClick={() => onCompare(item, selectedOptions)}
-              className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/40 ring-inset transition-colors hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:bg-white/[0.04] disabled:text-slate-500 disabled:ring-white/10', !onSelectAll && 'ml-auto')}
+              aria-pressed={selectedOptions.length === options.length}
+              onClick={() => onSelectAll(selectedOptions.length === options.length ? [] : options.map((option) => option.key))}
+              className="ds-intrinsic ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white"
+            >
+              <CheckCheck className="size-3.5" />
+              <span className="tabular-nums">{selectedOptions.length}/{options.length}</span>
+              {selectedOptions.length === options.length ? '선택 해제' : '모두 선택'}
+            </button>
+          )}
+          {compose && (
+            <button
+              type="button"
+              data-design-compose
+              disabled={compose.disabled}
+              title={compose.disabled ? '비교할 시안을 2개 이상 골라 주세요' : undefined}
+              onClick={compose.run}
+              className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', !(choosing && onSelectAll) && 'ml-auto')}
             >
               <Layers3 className="size-3.5" />
-              Compose
+              조합하기
             </button>
-          </div>
-          {item && (() => {
-            // Where this set is on its way to merging, as steps with the
-            // current one lit — and, beside it, the one thing to do next
-            // (named for that step), when it's done from the review.
-            // (A screen the designer owns is saved straight from the mix —
-            // no review round: compare, compose, save.)
-            const STEPS = item.saveOnFinish ? ['비교', '조합', '저장 완료'] : ['조합', '검토 요청', '승인', '병합 완료']
-            const requested = Boolean(conflict && isDesignReview(conflict))
-            const current = status.id === 'merged' ? STEPS.length
-              : item.saveOnFinish ? 0
-                : status.id === 'approved' ? 3
-                  : status.id === 'in_review' || status.id === 'changes_requested' ? 2
-                    : requested ? 1 : 0
-            const action = item.saveOnFinish ? (status.id === 'merged' ? 'History에서 보기' : null)
-              : !conflict ? null
-                : !isDesignReview(conflict) ? '변경 검토'
-                  : { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기'
-            return (
-              <div data-design-review-summary className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-white/10 px-3 py-2">
-                <ol data-design-steps className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-[11.5px]">
-                  {STEPS.map((step, index) => (
-                    <li key={step} data-step-state={index < current ? 'done' : index === current ? 'current' : 'todo'} className="flex items-center gap-1">
-                      {index > 0 && <span aria-hidden className={cn('h-px w-3', index <= current ? 'bg-emerald-400/50' : 'bg-white/15')} />}
-                      <span className={cn('rounded-full px-2 py-0.5',
-                        index < current ? 'text-emerald-300' : index === current ? 'bg-emerald-400/15 font-semibold text-emerald-200 ring-1 ring-emerald-400/40' : 'text-slate-500')}>
-                        {index < current && '✓ '}{step}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-                {action && (
-                  <button type="button" data-design-next onClick={() => (item.saveOnFinish ? navigate(`/projects/${item.projectId}/history`) : openConflictReview(conflict.id))} className="ds-intrinsic shrink-0 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300">
-                    {action}
-                  </button>
-                )}
-              </div>
-            )
-          })()}
-          {/* What sets the drafts apart, property by property — so the
-              comparison starts from the differences, not a hunt for them. */}
-          {item?.differences?.length > 0 && (
-            <dl data-design-differences className="mb-3 grid grid-cols-[auto_repeat(var(--cols),minmax(0,1fr))] gap-x-3 gap-y-1 rounded-lg border border-white/10 px-3 py-2 text-[11.5px]" style={{ '--cols': options.length }}>
-              <dt className="text-slate-500">차이</dt>
-              {options.map((option, index) => <dd key={option.key} className="truncate font-medium text-slate-300">{`시안 ${String.fromCharCode(65 + index)}`}</dd>)}
-              {item.differences.map((difference) => (
-                <Fragment key={difference.id}>
-                  <dt className="text-slate-400">{difference.label}</dt>
-                  {difference.values.map((value, index) => <dd key={index} className="truncate text-slate-200" title={value}>{value}</dd>)}
-                </Fragment>
-              ))}
-            </dl>
           )}
-          {commentModeVariantKey && (
-            <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
+          {next && (
+            <button type="button" data-design-next onClick={next.run} className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors', compose ? 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1]' : 'ml-auto bg-emerald-400 text-slate-950 hover:bg-emerald-300')}>
+              {next.label}
+            </button>
+          )}
+        </div>
+        {commentModeVariantKey && (
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] text-emerald-300">
+            <MapPin className="size-3 shrink-0" />
+            <span className="min-w-0 flex-1">{`${options.find((option) => option.key === commentModeVariantKey)?.label}에서 코멘트를 남길 요소를 누르세요.`}</span>
+            <button type="button" onClick={() => setCommentModeVariantKey(null)} aria-label="Cancel pinning" className="rounded p-0.5 hover:bg-white/10">
+              <X className="size-3" />
+            </button>
+          </p>
+        )}
+        {commentAnchor && (
+          <form onSubmit={postComment} className="mb-3 flex items-center gap-2 rounded-lg bg-black/20 p-1.5 pl-2">
+            <span className="flex max-w-[45%] shrink-0 items-center gap-1 truncate rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-200">
               <MapPin className="size-3 shrink-0" />
-              <span className="min-w-0 flex-1">{`Click an element in ${options.find((option) => option.key === commentModeVariantKey)?.label} to comment on it.`}</span>
-              <button type="button" onClick={() => setCommentModeVariantKey(null)} aria-label="Cancel pinning" className="rounded p-0.5 hover:bg-white/10">
-                <X className="size-3" />
-              </button>
-            </p>
-          )}
-          {commentAnchor && (
-            <form onSubmit={postComment} className="mb-3 flex items-center gap-2 rounded-lg bg-black/20 p-1.5 pl-2">
-              <span className="flex max-w-[45%] shrink-0 items-center gap-1 truncate rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-200">
-                <MapPin className="size-3 shrink-0" />
-                <span className="truncate">{`${commentAnchor.variantLabel} · ${commentAnchor.layerName}`}</span>
-              </span>
-              <input
-                autoFocus
-                value={commentDraft}
-                onChange={(event) => setCommentDraft(event.target.value)}
-                onKeyDown={(event) => event.key === 'Escape' && setCommentAnchor(null)}
-                placeholder="시안에 대한 코멘트"
-                aria-label="Write a design comment"
-                className="h-7 min-w-0 flex-1 bg-transparent text-[11px] text-slate-100 outline-none placeholder:text-slate-500"
+              <span className="truncate">{`${commentAnchor.variantLabel} · ${commentAnchor.layerName}`}</span>
+            </span>
+            <input
+              autoFocus
+              value={commentDraft}
+              onChange={(event) => setCommentDraft(event.target.value)}
+              onKeyDown={(event) => event.key === 'Escape' && setCommentAnchor(null)}
+              placeholder="시안에 대한 코멘트"
+              aria-label="Write a design comment"
+              className="h-7 min-w-0 flex-1 bg-transparent text-[11px] text-slate-100 outline-none placeholder:text-slate-500"
+            />
+            <button type="submit" disabled={!commentDraft.trim() || !conflict} aria-label="Post design comment" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-40">
+              <Send className="size-3.5" />
+            </button>
+          </form>
+        )}
+        {item && (
+          // Every draft side by side, each carrying what sets it apart — the
+          // same properties in the same order, so the cards read across.
+          <div className="grid min-h-[220px] flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(options.length, 4)}, minmax(0, 1fr))` }}>
+            {options.map((option, index) => (
+              <DesignOptionCard
+                key={option.key}
+                option={option}
+                index={index}
+                choosing={choosing}
+                selected={!choosing || selectedKeys.includes(option.key)}
+                onToggle={() => onToggleVariant(option.key)}
+                commentMode={commentModeVariantKey === option.key}
+                onStartComment={() => {
+                  setCommentModeVariantKey(option.key)
+                  setCommentAnchor(null)
+                }}
+                onSelectLayer={(layer) => chooseLayer(option, layer)}
+                frame={(() => {
+                  const base = canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0]
+                  // Drafts with their own layout show their own screen.
+                  return base && draftScreens[item.id] ? draftFrame(item.id, base, option.key) : base
+                })()}
+                effects={optionEffects(item, option)}
+                traits={(item.differences ?? []).map((difference) => ({ id: difference.id, label: difference.label, value: difference.values[index] }))}
+                wide={options.length <= 2}
               />
-              <button type="submit" disabled={!commentDraft.trim() || !conflict} aria-label="Post design comment" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-40">
-                <Send className="size-3.5" />
-              </button>
-            </form>
-          )}
-          {item && (
-            // Every draft in view at once: one row, each preview fit to the
-            // panel's height rather than its width.
-            <div className="grid min-h-[180px] flex-1 grid-cols-2 gap-2.5 lg:grid-cols-4 lg:grid-rows-[minmax(0,1fr)]">
-              {options.map((option, index) => {
-                const selected = selectedKeys.includes(option.key)
-                return (
-                  <DesignOptionCard
-                    key={option.key}
-                    option={option}
-                    index={index}
-                    selected={selected}
-                    onToggle={() => onToggleVariant(option.key)}
-                    commentMode={commentModeVariantKey === option.key}
-                    onStartComment={() => {
-                      setCommentModeVariantKey(option.key)
-                      setCommentAnchor(null)
-                    }}
-                    onSelectLayer={(layer) => chooseLayer(option, layer)}
-                    frame={(() => {
-                      const base = canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0]
-                      // Drafts with their own layout show their own screen.
-                      return base && draftScreens[item.id] ? draftFrame(item.id, base, option.key) : base
-                    })()}
-                    effects={optionEffects(item, option)}
-                  />
-                )
-              })}
-            </div>
-          )}
-        </section>
-      </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }
 
-function DesignOptionCard({ option, index, selected, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects }) {
+// One draft: its letter and name, its screen as large as the card allows,
+// and — under it — what it is, property by property. Picking it is only
+// offered when there are more than two to choose from; the comment pin
+// shows on hover.
+function DesignOptionCard({ option, index, choosing, selected, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], wide = false }) {
   const boardRef = useRef(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
 
@@ -266,50 +237,44 @@ function DesignOptionCard({ option, index, selected, onToggle, commentMode, onSt
   }, [])
 
   const letter = String.fromCharCode(65 + index)
+  const name = `${option.label.startsWith('AI ') ? 'AI ' : ''}시안 ${letter}`
   // The whole screen, fit inside the preview box (by width and height).
   const scale = frame && box.width && box.height ? Math.min(box.width / frame.width, box.height / frame.height) : 0
+  const toggle = choosing ? onToggle : undefined
+  const pickable = choosing ? { role: 'checkbox', tabIndex: 0, 'aria-checked': selected, 'aria-label': `Select ${option.label}`, onClick: toggle, onKeyDown: (event) => {
+    if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
+    event.preventDefault()
+    toggle()
+  } } : {}
 
   return (
-    <article className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border transition-colors', selected ? 'border-emerald-400/50 bg-emerald-400/[0.05]' : 'border-white/[0.07] bg-black/10')}>
-      <div className="flex min-w-0 shrink-0 items-center gap-2 px-2.5 py-1.5">
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={selected}
-          onClick={onToggle}
-          className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-md py-0.5 text-left', selected ? 'text-emerald-100' : 'text-slate-300 hover:text-white')}
-        >
-          <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold', selected ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.07]')}>
-            {letter}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-medium">{option.label}</span>
-          {selected && <Check className="size-3.5 shrink-0 text-emerald-300" />}
-        </button>
+    <article data-design-option={option.key} className={cn('group flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border transition-colors', choosing && selected ? 'border-emerald-400/50 bg-emerald-400/[0.04]' : 'border-white/[0.07] bg-white/[0.02]', choosing && !selected && 'opacity-60')}>
+      <div className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-2.5 pb-2">
+        <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold', choosing && selected ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-200')}>{letter}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-100" title={option.label}>{traits.length ? name : option.label}</span>
+        {choosing && (
+          <button type="button" role="checkbox" aria-checked={selected} aria-label={`Select ${option.label}`} onClick={onToggle} className={cn('ds-intrinsic flex size-5 shrink-0 items-center justify-center rounded-md ring-1 ring-inset transition-colors', selected ? 'bg-emerald-400 text-slate-950 ring-emerald-400' : 'text-transparent ring-white/20 hover:ring-white/40')}>
+            <Check className="size-3.5" />
+          </button>
+        )}
         <button
           type="button"
           title={`Pin comment to ${option.label}`}
           aria-label={`Pin comment to ${option.label}`}
           aria-pressed={commentMode}
           onClick={onStartComment}
-          className={cn('flex size-6 shrink-0 items-center justify-center rounded-md transition-colors', commentMode ? 'bg-emerald-400/15 text-emerald-300' : 'text-slate-500 hover:bg-white/[0.07] hover:text-slate-200')}
+          className={cn('ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md transition-[color,background-color,opacity]', commentMode ? 'bg-emerald-400/15 text-emerald-300 opacity-100' : 'text-slate-500 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-white/[0.07] hover:text-slate-200')}
         >
           <MessageSquarePlus className="size-3.5" />
         </button>
       </div>
+      {/* (Two drafts, each card wide: the screen and what it is side by side.) */}
+      <div className={cn('flex min-h-0 flex-1', wide ? 'flex-row items-stretch gap-1 pb-3' : 'flex-col')}>
       {frame ? (
         <div
-          role="checkbox"
-          tabIndex={0}
-          aria-label={`Select ${option.label}`}
-          aria-checked={selected}
-          onClick={onToggle}
-          onKeyDown={(event) => {
-            if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
-            event.preventDefault()
-            onToggle()
-          }}
+          {...pickable}
           ref={boardRef}
-          className={cn('relative mx-2 mb-2 flex min-h-0 flex-1 justify-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', commentMode && 'cursor-crosshair')}
+          className={cn('relative mx-3 flex min-h-[140px] flex-1 justify-center overflow-hidden rounded-lg bg-black/20 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', commentMode && 'cursor-crosshair', choosing && !commentMode && 'cursor-pointer')}
         >
           <div className="relative overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale, height: frame.height * scale }}>
           <div className="absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
@@ -320,22 +285,22 @@ function DesignOptionCard({ option, index, selected, onToggle, commentMode, onSt
           </div>
         </div>
       ) : (
-        <div
-          role="checkbox"
-          tabIndex={0}
-          aria-label={`Select ${option.label}`}
-          aria-checked={selected}
-          onClick={onToggle}
-          onKeyDown={(event) => {
-            if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
-            event.preventDefault()
-            onToggle()
-          }}
-          className="mx-2 mb-2 flex min-h-28 w-[calc(100%-1rem)] items-center justify-center rounded-lg bg-black/10 text-[10px] text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
-        >
+        <div {...pickable} className="mx-3 flex min-h-28 flex-1 items-center justify-center rounded-lg bg-black/10 text-[10px] text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
           No design preview
         </div>
       )}
+      {/* What this draft is — the same rows on every card, so they read across. */}
+      {traits.length > 0 ? (
+        <dl data-design-traits className={cn('grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[11.5px] leading-4', wide ? 'w-[42%] min-w-[180px] content-center pr-3' : 'px-3 pt-2.5 pb-3')}>
+          {traits.map((trait) => (
+            <Fragment key={trait.id}>
+              <dt className="text-slate-500">{trait.label}</dt>
+              <dd className="truncate text-slate-200" title={trait.value}>{trait.value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      ) : <div className="h-3 shrink-0" />}
+      </div>
     </article>
   )
 }
