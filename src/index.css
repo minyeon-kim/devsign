@@ -590,39 +590,51 @@ button.editor-line-comment {
      settles from a soft tint. */
   animation: history-row-flash-add 1100ms ease-out;
 }
-/* Something that just changed (a merged row, a sign-off given): lit once
-   when it first shows — a mint wash fading out — then still. Never looped,
-   never replayed (ui/RecentTime's useRecentHighlight), and not at all under
-   reduced motion. The colour and the time are tokens. */
+/* ── Motion: one set of times, one curve ───────────────────────────
+   What changes on a card or a row changes the same way everywhere:
+     --duration-fast  a state's colours (a border, a background)
+     --duration-base  content swapping in, a height settling
+     --ease-out       both of them
+   Nothing here loops, grows or glows; under reduced motion nothing moves. */
 :root {
-  --highlight-recent: color-mix(in oklab, var(--color-emerald-400) 10%, transparent);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Something that just changed: a mint wash over its whole row or card. */
+  --highlight-recent: color-mix(in oklab, var(--color-emerald-400) 7%, transparent);
   --highlight-recent-dot: var(--color-emerald-400);
-  --duration-highlight: 1800ms;
+  --duration-highlight: 1500ms;
 }
+/* Something that just changed (a merged row, a sign-off given): its own
+   outer row or card lit once as it first shows — the background alone,
+   fading out. No border, ring, shadow or size is touched, and it's never
+   replayed (ui/RecentTime's useRecentHighlight remembers what has played). */
 @keyframes ds-recent { from { background-color: var(--highlight-recent); } to { background-color: transparent; } }
+/* Content that replaces other content (a status line, a card's rows, a row
+   moving to another group): faded in, 4px at most — never a size change. */
+@keyframes ds-swap { from { opacity: 0; transform: translateY(4px); } }
+@keyframes ds-fade { from { opacity: 0; } }
+.ds-tone { transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
 @media (prefers-reduced-motion: no-preference) {
   .ds-recent { animation: ds-recent var(--duration-highlight) ease-out 1 both; }
+  .ds-swap { animation: ds-swap var(--duration-base) var(--ease-out) 1 backwards; }
+  .ds-fade { animation: ds-fade var(--duration-fast) var(--ease-out) 1 backwards; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-tone { transition: none; }
 }
 
-/* Canvas: the comment pin "Show on canvas" landed on — rings spreading
-   out from it, once. */
-@keyframes canvas-pin-arrived {
-  0% { box-shadow: 0 0 0 0 rgb(52 211 153 / 85%); }
-  100% { box-shadow: 0 0 0 18px rgb(52 211 153 / 0%); }
-}
-.canvas-pin-arrived {
-  animation: canvas-pin-arrived 800ms ease-out 1;
+/* Canvas: the comment pin "Show on canvas" landed on — a wash over the pin
+   itself, fading out once. (No ring spreading from it.) */
+@keyframes canvas-pin-arrived { from { background-color: rgb(52 211 153 / 45%); } to { background-color: transparent; } }
+@media (prefers-reduced-motion: no-preference) {
+  .canvas-pin-arrived { animation: canvas-pin-arrived var(--duration-highlight) ease-out 1 both; }
 }
 
 /* History list: the checkpoint a conflict's "check the reasoning" link
    landed on — the same wash as anything that just changed, once. */
-@keyframes history-row-arrived {
-  from { box-shadow: inset 0 0 0 1.5px rgb(110 231 183 / 60%); background-color: var(--highlight-recent); }
-  to { box-shadow: inset 0 0 0 1.5px rgb(110 231 183 / 0%); background-color: transparent; }
-}
-.history-row-arrived {
-  animation: history-row-arrived var(--duration-highlight) ease-out 1;
-}
+.history-row-arrived { animation: ds-recent var(--duration-highlight) ease-out 1; }
+@media (prefers-reduced-motion: reduce) { .history-row-arrived { animation: none; } }
 .history-row-flash-remove {
   animation: history-row-flash-remove 1100ms ease-out;
 }
@@ -633,15 +645,10 @@ button.editor-line-comment {
    change reads on the canvas itself, not only back in the chat
    transcript. Two pulses (2 x 1s) then the badge fades, timed under the
    2.1s the state stays set for. */
-@keyframes ai-layer-pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgb(52 211 153 / 0.55); }
-  70%, 100% { box-shadow: 0 0 0 10px rgb(52 211 153 / 0); }
-}
 .ai-layer-pulse {
   border-radius: 4px;
   outline: 2px solid rgb(52 211 153 / 0.9);
-  outline-offset: 2px;
-  animation: ai-layer-pulse-ring 1000ms ease-out 1;
+  outline-offset: 2px; /* (An outline, still — no ring spreading from it.) */
 }
 @keyframes ai-layer-badge-in {
   0% { opacity: 0; transform: translateY(2px) scale(0.85); }
@@ -1033,18 +1040,12 @@ button.editor-line-comment {
 }
 
 /* The canvas's change pins (ConflictPins): they grow from their tip on
-   hover and when picked, and a pin picked from the list rings once. */
+   hover and when picked. (Nothing rings out from one.) */
 .ds-pin { transition: transform 120ms ease-out; } /* (Never left / top / size: a pin sits on its element's corner in the same frame the element moves.) */
 .ds-pin:hover, .ds-pin:focus-visible { transform: scale(1.1); }
-@keyframes ds-pin-pulse {
-  from { transform: scale(1); opacity: 0.55; }
-  to { transform: scale(2.6); opacity: 0; }
-}
-.ds-pin-pulse { animation: ds-pin-pulse 400ms ease-out 1 both; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .ds-pin { transition: none; }
   .ds-pin:hover, .ds-pin:focus-visible { transform: none; }
-  .ds-pin-pulse { animation: none; opacity: 0; }
 }
 
 /* Inline decision reasons enter without an extra card surface. */
@@ -1113,24 +1114,21 @@ button.editor-line-comment {
    Transform, opacity and stroke only. Under reduced motion none of it is
    defined, so the still state shows at once. */
 @keyframes ds-step-row { from { opacity: 0; transform: translateY(4px); } }
-@keyframes ds-step-pop { from { transform: scale(0.6); opacity: 0.4; } }
+@keyframes ds-step-pop { from { opacity: 0; } }
 @keyframes ds-step-check { from { stroke-dashoffset: 1; } }
 @keyframes ds-step-line { from { transform: scaleY(0); } }
 @keyframes ds-step-line-x { from { transform: scaleX(0); } }
-@keyframes ds-step-ring { 0% { transform: scale(1); opacity: 0.55; } 70%, 100% { transform: scale(1.9); opacity: 0; } }
-@keyframes ds-step-arrive { from { opacity: 0; transform: scale(0.8); } }
+@keyframes ds-step-arrive { from { opacity: 0; } }
 @keyframes ds-step-tick { from { opacity: 0; transform: translateY(4px); } }
 @keyframes ds-step-status { from { opacity: 0.35; } }
 .ds-step-check { stroke-dasharray: 1; stroke-dashoffset: 0; }
 @media (prefers-reduced-motion: no-preference) {
   [data-step-anim='wait'] { opacity: 0; }
   [data-step-anim='play'] { animation: ds-step-row 160ms ease-out var(--d, 0ms) backwards; }
-  .ds-step-pop { animation: ds-step-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--d, 0ms) + 60ms) backwards; }
+  .ds-step-pop { animation: ds-step-pop 200ms ease-out calc(var(--d, 0ms) + 60ms) backwards; }
   .ds-step-check-draw { animation: ds-step-check 240ms ease-out calc(var(--d, 0ms) + 160ms) backwards; }
   .ds-step-line { transform-origin: top; animation: ds-step-line 200ms ease-out calc(var(--d, 0ms) + 260ms) backwards; }
   .ds-step-line-x { transform-origin: left; animation: ds-step-line-x 200ms ease-out calc(var(--d, 0ms) + 260ms) backwards; }
-  /* (The current step's ring: once, as it becomes current — not for as long as it is.) */
-  .ds-step-ring { animation: ds-step-ring 1.2s ease-out 1 both; }
   .ds-step-arrive { animation: ds-step-arrive 200ms ease-out calc(var(--d, 0ms) + 460ms) backwards; }
   .ds-step-tick { animation: ds-step-tick 160ms ease-out 80ms backwards; }
   [data-step-live] [data-status-block] { animation: ds-step-status 400ms ease-out 640ms backwards; }

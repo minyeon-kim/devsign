@@ -41,12 +41,31 @@ try {
   await server.close()
 }
 
-// ── The tokens, and the one highlight: once, eased out, off under reduced motion. ──
+// ── The tokens, and the one highlight: the background alone, once, off under reduced motion. ──
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
-assert.match(css, /--highlight-recent: color-mix\(in oklab, var\(--color-emerald-400\) 10%, transparent\)/)
-assert.match(css, /--duration-highlight: 1800ms/)
-assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.ds-recent \{ animation: ds-recent var\(--duration-highlight\) ease-out 1 both; \}/)
+assert.match(css, /--highlight-recent: color-mix\(in oklab, var\(--color-emerald-400\) 7%, transparent\)/)
+assert.match(css, /--duration-highlight: 1500ms/)
+assert.match(css, /--duration-fast: 150ms;\s*--duration-base: 200ms;\s*--ease-out: cubic-bezier/)
 assert.match(css, /@keyframes ds-recent \{ from \{ background-color: var\(--highlight-recent\); \} to \{ background-color: transparent; \} \}/)
+assert.match(css, /\.ds-recent \{ animation: ds-recent var\(--duration-highlight\) ease-out 1 both; \}/)
+// Content swapping in: opacity and 4px at most — over the tokens, and not at all under reduced motion.
+assert.match(css, /@keyframes ds-swap \{ from \{ opacity: 0; transform: translateY\(4px\); \} \}/)
+assert.match(css, /\.ds-swap \{ animation: ds-swap var\(--duration-base\) var\(--ease-out\) 1 backwards; \}/)
+const motion = css.slice(css.indexOf('@keyframes ds-swap'), css.indexOf('/* Canvas: the comment pin'))
+assert.ok(/@media \(prefers-reduced-motion: no-preference\) \{[^}]*\.ds-recent/.test(motion) && motion.includes('.ds-tone { transition: none; }'), 'nothing moves under reduced motion')
+// No highlight grows, rings or glows: no keyframes animate a box-shadow, an outline or a scale.
+const keyframes = [...css.matchAll(/@keyframes ([\w-]+) \{((?:[^{}]|\{[^{}]*\})*)\}/g)].filter(([, name]) => !/^(ai-gen|ai-layer-badge|history-row-(typein|flash))/.test(name))
+const loud = keyframes.filter(([, , body]) => /box-shadow|outline|scale\(/.test(body)).map(([, name]) => name)
+assert.deepEqual(loud, [], `keyframes that ring, glow or scale: ${loud.join(', ')}`)
+
+// ── A card is the same card through its states; what changes in it fades. ──
+const flow = readFileSync(new URL('../src/components/conflicts/DesignDecisionFlow.jsx', import.meta.url), 'utf8')
+assert.ok(flow.includes('key={`${conflict.id}:${formRound}`}') && !/key=\{`[^`]*\$\{(cardMode|request\?\.round)/.test(flow), 'the 해결 방법 card is not re-mounted when its state changes')
+assert.equal(flow.match(/\{card\}/g).length, 1, 'the card is rendered from one place in the tree')
+assert.ok(!flow.includes('data-after-flash') && !/ring-2 ring-emerald-300/.test(flow), 'no ring around the result')
+assert.ok(flow.includes('<SmoothHeight trigger={mode}>') && flow.includes('<div key={afterKey} className="ds-fade">'))
+const drawer = readFileSync(new URL('../src/components/dashboard/ConflictsDrawer.jsx', import.meta.url), 'utf8')
+assert.ok(drawer.includes('<ConflictCard key={conflict.id}') && drawer.includes('<li className="ds-swap">'), 'a list row is keyed by its change and fades in where it lands')
 
 // ── Nothing loops but loading: every looping animation in the source is on this list. ──
 const LOADING = [

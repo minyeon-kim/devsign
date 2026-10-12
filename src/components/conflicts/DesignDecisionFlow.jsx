@@ -13,6 +13,7 @@ import { ElementCrop, ElementPreviewDialog, SIDEBAR_PROBE, SampleCrop, hasElemen
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueScale from '@/components/conflicts/ValueScale'
+import { SmoothHeight } from '@/components/ui/SmoothHeight'
 import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutAt } from '@/lib/codeRender'
@@ -216,7 +217,7 @@ function ReasonField({ label, value, onChange, suggestions = [], placeholder, er
 function RequestCard({ conflict, bare = false }) {
   const request = conflict.decisionRequest
   return (
-    <section data-decision-request className={bare ? undefined : CARD}>
+    <section data-decision-request className={bare ? undefined : cn(CARD, 'ds-swap')}>
       {!bare && <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
         <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
@@ -528,7 +529,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h3 className="text-sm font-semibold text-white">해결 방법{!readOnly && <> <span aria-hidden className="text-rose-300">*</span></>}</h3>
         {readOnly
-          ? modeChip && <span data-proposal-state className={cn('inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>
+          ? modeChip && <span key={modeChip[0]} data-proposal-state className={cn('ds-fade inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>
           : <span className="text-xs text-slate-500">{conflict.layouts ? '768px에서 어떻게 바꿀지 골라 주세요' : '어떤 값으로 맞출지 골라 주세요'}</span>}
         {valueChange ? (
           // Held, not toggled: the design for as long as it's pressed (pointer, or Space / Enter).
@@ -585,11 +586,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           )}
         </figure>
         <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
-        <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'relative', chosen && drawable && !peeking && !holding ? 'border-emerald-400' : 'border-transparent')}>
-          {/* (What it shows just changed: its edge lit for a moment.) */}
-          <span key={`flash:${afterKey}`} aria-hidden data-after-flash className="pointer-events-none absolute -inset-0.5 animate-out rounded-xl ring-2 ring-emerald-300 duration-500 fill-mode-forwards fade-out motion-reduce:hidden" />
-          {/* (Re-keyed per state, so one fades into the next — 150ms.) */}
-          <div key={afterKey} className="animate-in fade-in duration-150 motion-reduce:animate-none">
+        <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'ds-tone', chosen && drawable && !peeking && !holding ? 'border-emerald-400' : 'border-transparent')}>
+          {/* (Re-keyed by what it shows, so one fades into the next — opacity alone, --duration-fast. The cell itself never moves or lights up.) */}
+          <div key={afterKey} className="ds-fade">
             <div className="flex justify-center">
               <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
             </div>
@@ -601,7 +600,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         </figure>
       </div>
 
-      {/* The ways forward, as text. */}
+      {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}
+      <SmoothHeight trigger={mode}>
+      <div key={readOnly ? 'read' : 'pick'} className={readOnly ? 'ds-swap' : undefined}>
       {readOnly ? (
         // Not pickable: the ways as a list, the one taken marked — or (done) that one alone.
         <ul data-proposal-ways={mode} aria-label="수정안" className="m-0 mt-6 flex list-none flex-col p-0">
@@ -642,7 +643,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                 onFocus={() => setHovered(option.id)}
                 onBlur={() => setHovered((current) => (current === option.id ? null : current))}
                 className={cn(
-                  'ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
+                  'ds-tone ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
                   on ? 'bg-emerald-400/[0.08]' : 'hover:bg-white/[0.04]',
                 )}
               >
@@ -719,6 +720,8 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           </button>
         )}
       </div>}
+      </div>
+      </SmoothHeight>
     </section>
   )
 }
@@ -867,7 +870,7 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
             : passed ? <ShieldCheck className="size-4 shrink-0 text-emerald-300" />
               : phase === 'deferred' ? <CircleCheck className="size-4 shrink-0 text-sky-300" />
                 : <TriangleAlert className={cn('size-4 shrink-0', wrong ? 'text-destructive' : 'text-amber-300')} />}
-          <span className="min-w-0">{typeof BAR_STATUS[phase] === 'function' ? BAR_STATUS[phase](conflict) : BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
+          <span key={phase} className="ds-swap min-w-0">{typeof BAR_STATUS[phase] === 'function' ? BAR_STATUS[phase](conflict) : BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
         </p>
         {/* (The second way out of a failed check, beside the first — never in its place.) */}
         {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
@@ -1143,9 +1146,16 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     : cardMode === 'done' ? (decision.choice === 'approve' ? [request?.proposal ?? 'original', request?.custom] : ['original', null])
       : [request?.proposal ?? null, request?.custom]
   const failedCheck = Boolean(taken && fix?.failed && !fix?.verified)
+  // (The round a rework began: kept once it's asked again, so asking doesn't make a new card.)
+  const [formRound, setFormRound] = useState(0)
+  const reworkRound = stage === 'rework' ? request?.round ?? 1 : null
+  if (reworkRound != null && reworkRound !== formRound) setFormRound(reworkRound)
   const card = (
     <ProposalSection
-      key={`${conflict.id}:${request?.round ?? 0}:${cardMode}`}
+      // (Keyed by the change — and by how many times it's been sent back, which starts the form
+      // over. A state changing — asked, decided, in — changes what the card shows, not the card:
+      // nothing is mounted again, nothing replays.)
+      key={`${conflict.id}:${formRound}`}
       mode={cardMode}
       chip={cardMode !== 'done' ? null
         : stage === 'resolved' || donePhase === 'resolved' ? ['반영 완료', 'bg-emerald-400/15 text-emerald-200']
@@ -1183,25 +1193,43 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       {!post && stage !== 'resolved' && decisionFlowOf(conflict, viewer).next && (
         <p data-status-block="next" role="status" className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
           <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
-          {decisionFlowOf(conflict, viewer).next}
+          <span key={decisionFlowOf(conflict, viewer).next} className="ds-swap">{decisionFlowOf(conflict, viewer).next}</span>
         </p>
       )}
-      {post ? null : developer && askingNow ? (
+      {/* (Sent back: what the designer said, first — then the ways forward again.) */}
+      {!post && developer && askingNow && stage === 'rework' && <DecisionCard conflict={conflict} viewerId={viewer.id} />}
+      {/* What's needed now — first (once it's decided). */}
+      {post && (
+        <StatusBlock
+          conflict={conflict}
+          onApprove={() => workspace.applyDecisionFix(conflict.id)}
+          onRetry={() => workspace.patchDecisionFix(conflict.id, { failed: null, manual: false, retried: true })}
+          onManual={() => {
+            workspace.patchDecisionFix(conflict.id, { manual: true })
+            toast('직접 수정으로 전환했어요', { description: `${conflict.file}${conflict.line ? ` · ${conflict.line}행` : ''}을 고친 뒤 다시 검증하세요.` })
+          }}
+          onResolve={() => {
+            const checkpoint = workspace.resolveDecision(conflict.id)
+            if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: '히스토리에서 보기', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
+          }}
+        />
+      )}
+      {/* The 해결 방법 card: always here, the same one — whatever the state around it. (Rendered from
+          one place so a state changing never mounts it again.) */}
+      {card}
+      {!post && developer && askingNow && (
         <>
-          {/* (Sent back: what the designer said, first — then the ways forward again.) */}
-          {stage === 'rework' && <DecisionCard conflict={conflict} viewerId={viewer.id} />}
-          {card}
-          {/* How it was found — the record's first step, folded: what detected it, its file, cause and reach. */}
-          <section data-step-record="detect" aria-label="진행 기록" className="mt-2">
-            <h3 className="mb-4 text-sm font-semibold text-white">진행 기록</h3>
-            <ol data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
-              <StepRow data-fold="detect" state="done" title={detectStep.title} who={detectStep.who} summary={detectStep.summary} time={detectStep.time} open={folds.get('detect', false)} onToggle={() => folds.set('detect', !folds.get('detect', false))} last>
-                <DetectionFacts conflict={conflict} cause />
-              </StepRow>
-            </ol>
-          </section>
+        {/* How it was found — the record's first step, folded: what detected it, its file, cause and reach. */}
+        <section data-step-record="detect" aria-label="진행 기록" className="mt-2">
+          <h3 className="mb-4 text-sm font-semibold text-white">진행 기록</h3>
+          <ol data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
+            <StepRow data-fold="detect" state="done" title={detectStep.title} who={detectStep.who} summary={detectStep.summary} time={detectStep.time} open={folds.get('detect', false)} onToggle={() => folds.set('detect', !folds.get('detect', false))} last>
+              <DetectionFacts conflict={conflict} cause />
+            </StepRow>
+          </ol>
+        </section>
         </>
-      ) : card}
+      )}
 
       {request && !post && <RequestCard conflict={conflict} />}
 
@@ -1209,22 +1237,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
         <>
           {post && (
             <>
-              {/* What's needed now — first. */}
-              <StatusBlock
-                conflict={conflict}
-                onApprove={() => workspace.applyDecisionFix(conflict.id)}
-                onRetry={() => workspace.patchDecisionFix(conflict.id, { failed: null, manual: false, retried: true })}
-                onManual={() => {
-                  workspace.patchDecisionFix(conflict.id, { manual: true })
-                  toast('직접 수정으로 전환했어요', { description: `${conflict.file}${conflict.line ? ` · ${conflict.line}행` : ''}을 고친 뒤 다시 검증하세요.` })
-                }}
-                onResolve={() => {
-                  const checkpoint = workspace.resolveDecision(conflict.id)
-                  if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: '히스토리에서 보기', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
-                }}
-              />
-              {/* What was taken, and what it gives — the same card, held. */}
-              {card}
               {/* Then how it got here: the record, light — a line a step. */}
               {/* (40px under the status block; 24px to the first step; 48px from step to step.) */}
               <section data-step-record aria-label="진행 기록" className="mt-7">

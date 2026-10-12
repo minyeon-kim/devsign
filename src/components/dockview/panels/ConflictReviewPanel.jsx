@@ -2037,7 +2037,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                       or a developer's. */}
                   {person.role && <span className="block truncate text-[11px] leading-4 text-slate-500"><LocalizedText text={person.role} /></span>}
                 </span>
-                <span className={cn('order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : quiet && reviewer.status === 'approved' ? 'text-slate-100' : status.className)}>
+                <span key={reviewer.status} className={cn('ds-fade order-last shrink-0 truncate text-right text-xs font-medium', reviewer.id === author ? 'text-slate-200' : quiet && reviewer.status === 'approved' ? 'text-slate-100' : status.className)}>
                   {reviewer.id === author
                     ? 'Author'
                     : reviewer.status === 'pending' && reviewer.dismissedAt

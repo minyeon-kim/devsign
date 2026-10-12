@@ -69,9 +69,7 @@ export function StepDot({ state, moves: animate = false, arrive = false }) {
   }
   if (state === 'current') {
     return (
-      <span aria-hidden data-step-dot="current" className={cn(base, 'border-[1.5px] border-sky-300', arrive && 'ds-step-arrive')}>
-        <span className="ds-step-ring pointer-events-none absolute -inset-px rounded-full border-[1.5px] border-sky-300/60" />
-      </span>
+      <span aria-hidden data-step-dot="current" className={cn(base, 'border-[1.5px] border-sky-300', arrive && 'ds-step-arrive')} />
     )
   }
   if (state === 'problem') {

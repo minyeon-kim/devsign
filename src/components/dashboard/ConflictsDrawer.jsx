@@ -52,7 +52,8 @@ function ConflictCard({ conflict, selected, hovered, onOpen, onHover }) {
   const status = done ? (conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged') : scheduled ? `승인됨 · ${scheduled}` : listStatusOf(conflict).label
   const kind = kindWordOf(conflict)
   return (
-    <li>
+    // (A row arriving — the list opened, or the change moved to another group — fades in; one already there stays put.)
+    <li className="ds-swap">
       <button
         ref={row}
         type="button"
@@ -76,7 +77,8 @@ function ConflictCard({ conflict, selected, hovered, onOpen, onHover }) {
           <span data-row-title className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
           {when && <span data-due={tone} className={cn('shrink-0 text-[11px] leading-5 tabular-nums', DUE_TONE[tone])}>{done && Number.isFinite(conflict.resolvedAtMs) ? <RecentTime at={conflict.resolvedAtMs} fallback={when} /> : <LocalizedText text={when} />}</span>}
         </span>
-        <span data-row-meta className="block min-w-0 truncate text-[11px] leading-4 text-slate-500">
+        {/* (Its state changing in place: the line fades to the new words.) */}
+        <span key={status} data-row-meta className="ds-fade block min-w-0 truncate text-[11px] leading-4 text-slate-500">
           <LocalizedText text={status} />{kind && <> · <LocalizedText text={kind} /></>}
         </span>
       </button>

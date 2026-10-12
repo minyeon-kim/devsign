@@ -69,7 +69,7 @@ function contentRect(element) {
   return { left: left - 3, top: top - 2, right: right + 3, bottom: bottom + 2 }
 }
 
-function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, version, onHover, onSelect, onClear }) {
+function ConflictPins({ container, pins, conflicts, selection, hoverId, version, onHover, onSelect, onClear }) {
   const language = useLanguage()
   const [boxes, setBoxes] = useState(new Map())
   const [openCluster, setOpenCluster] = useState(null)
@@ -263,8 +263,6 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, pulse, v
             // (The tip stays where it points while the pin grows.)
             style={{ left: item.x - head / 2, top: item.y - height, width: head, height, zIndex: picked ? 4 : marker.conflictId === hoverId ? 3 : 1, transformOrigin: '50% 100%' }}
           >
-            {/* Picked from the list: one ring of its own color, once. */}
-            {picked && pulse > 0 && <span key={pulse} aria-hidden data-pin-pulse className="ds-pin-pulse absolute top-0 left-0 rounded-full" style={{ width: head, height: head, background: HEAD_COLOR.selected }} />}
             <PinShape head={head} height={height} color={HEAD_COLOR[state]} />
             {/* (A done one carries a check.) */}
             {marker.resolved && (
