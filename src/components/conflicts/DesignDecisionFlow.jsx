@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
-import { StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { RECORD_ROWS, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
@@ -25,9 +25,6 @@ import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS,
 
 const CARD = 'rounded-xl bg-white/[0.03] p-4 ring-1 ring-white/[0.06] ring-inset'
 const LABEL = 'text-[11px] leading-4 font-medium text-slate-400'
-// The record's label / value rows (on the 8px grid): 12px between rows, a
-// 96px label column in grey 13px, values at 14px with room between lines.
-const RECORD_ROWS = 'grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-3 text-[14px] leading-[1.6] [&>dt]:text-[13px]'
 const CARD_ROWS = 'grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]'
 const PRIMARY = 'ds-intrinsic inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-4 text-[13px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500'
 const SECONDARY = 'ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50'

@@ -53,14 +53,16 @@ import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow from '@/components/conflicts/DesignDecisionFlow'
-import { ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { hasBody, reviewRecordOf } from '@/lib/reviewRecord'
+import { useFoldState } from '@/components/conflicts/Fold'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import { eventsOf, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
-import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps, STEP_DESCRIPTION } from '@/components/conflicts/ConflictInsight'
+import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
@@ -2446,31 +2448,46 @@ const STATUS_NOTE = 'inline-flex h-8 items-center gap-1.5 rounded-full bg-white/
 const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400/[0.12] px-4 text-[13px] font-medium whitespace-nowrap text-sky-100 ring-1 ring-sky-400/35 ring-inset'
 
 // The page's record of a change, under what there is to act on: the same thin
-// timeline a design decision keeps (StepTimeline) — a line a step, the one
-// under way outlined, those to come as empty rings. It takes the place of the
-// side panel's progress card there.
-function ReviewRecord({ conflict }) {
-  const flow = flowOf(conflict)
-  const steps = (flow?.steps ?? []).map((step) => ({ ...step, state: step.state === 'todo' ? 'pending' : step.state }))
+// timeline a design decision keeps (StepTimeline) — a line a step with who,
+// what and when, the one under way outlined, those to come as empty rings;
+// a step that has something to show opens in place (lib/reviewRecord). It
+// takes the place of the side panel's progress card there.
+// `choice` / `choiceLabel` / `reason`: the way picked on the page, and why.
+const ROW_TONE = { accent: 'font-medium text-sky-200', done: 'font-medium text-emerald-200', warn: 'font-medium text-amber-200' }
+function ReviewRecord({ conflict, choice, choiceLabel, reason }) {
+  const steps = reviewRecordOf(conflict, { t: tr, nameOf: personNameOf, choice, choiceLabel, reason })
   const states = steps.map((step) => step.state)
   const { reveal, ref } = useStepReveal(conflict.id, states)
   const [hovered, setHovered] = useState(null)
+  const folds = useFoldState(`record:${conflict.id}`)
   if (!steps.length) return null
+  const foldable = steps.filter(hasBody).map((step) => step.key)
+  const isOpen = (key) => folds.get(key, false)
+  const allOpen = foldable.length > 0 && foldable.every(isOpen)
   return (
     // (40px under what's above it; 24px to the first step; 48px from step to step.)
     <section data-step-record aria-label="진행 기록" className="mt-7 shrink-0 pb-2">
       <div data-step-list-head className="mb-6 flex items-center gap-3">
         <h3 className="text-sm font-semibold text-white"><LocalizedText text="Progress record" /></h3>
         <StepProgressCount states={states} ticks={reveal.live} />
+        {foldable.length > 0 && (
+          <button type="button" data-fold-all onClick={() => folds.setMany(foldable, !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
+            {allOpen ? '모두 접기' : '모두 펼치기'}
+          </button>
+        )}
       </div>
       <ol ref={ref} data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
         {steps.map((step, index) => (
           <StepRow
-            key={step.id}
-            data-step={step.id}
+            key={step.key}
+            data-fold={step.key}
             state={step.state}
-            title={tr(step.label)}
-            summary={tr(step.description ?? STEP_DESCRIPTION[step.id] ?? '')}
+            title={step.title}
+            who={step.who}
+            summary={step.summary}
+            time={step.time}
+            open={isOpen(step.key)}
+            onToggle={() => folds.set(step.key, !isOpen(step.key))}
             last={index === steps.length - 1}
             moves={stepMoves(reveal, index)}
             anim={stepMoves(reveal, index) ? reveal.phase : undefined}
@@ -2478,7 +2495,45 @@ function ReviewRecord({ conflict }) {
             arrive={reveal.live && step.state === 'current' && index === reveal.to}
             strong={hovered != null && index < hovered}
             onHover={(on) => setHovered(on ? index : null)}
-          />
+          >
+            {hasBody(step) && (
+              <>
+                {/* What was found, drawn: what's built beside the reference (24px apart, 12px to their labels). */}
+                {step.preview && (
+                  <div data-record-preview className="grid max-w-[560px] grid-cols-2 gap-6">
+                    {[['before', '현재 구현', 'text-rose-300'], ['after', '기준', 'text-emerald-300']].map(([side, label, tone]) => (
+                      <figure key={side} className="min-w-0">
+                        <ChangePreview preview={conflict.preview} side={side} showLabels={false} />
+                        <figcaption className={cn('mt-3 text-center text-xs font-semibold', tone)}>{label}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
+                {step.rows.length > 0 && (
+                  // (32px under the pictures: 24px between blocks, and 8 more.)
+                  <dl data-record-rows className={cn(RECORD_ROWS, step.preview && 'mt-2')}>
+                    {step.rows.map((row) => (
+                      <Fragment key={row.label}>
+                        <dt className="text-slate-400">{row.label}</dt>
+                        <dd translate={row.mono ? 'no' : undefined} className={cn('min-w-0 break-words', row.mono ? 'font-mono text-slate-200' : ROW_TONE[row.tone] ?? 'text-slate-100')}>{row.value}</dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                )}
+                {step.code && (
+                  <div data-record-code>
+                    <p className="text-[12px] text-slate-300">바뀌는 코드<span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{step.code.file?.split('/').pop()}{step.code.line ? ` · ${step.code.line}행` : ''}</span></p>
+                    {/* (16px inside, 8px under its label — as a design decision's fix shows its code.) */}
+                    <div translate="no" className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
+                      {step.code.before.map((line, at) => <p key={`b${at}`} className="flex bg-red-500/[0.14] px-4 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{line.trim()}</p>)}
+                      {step.code.after.map((line, at) => <p key={`a${at}`} className="flex bg-emerald-500/[0.14] px-4 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{line.trim()}</p>)}
+                    </div>
+                  </div>
+                )}
+                {step.note && <p data-record-note className="text-[12px] leading-[18px] text-slate-300">{step.note}</p>}
+              </>
+            )}
+          </StepRow>
         ))}
       </ol>
     </section>
@@ -3290,6 +3345,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     />
   ) : null
 
+  // The way picked, as the record says it: the way's name and its value.
+  const recordChoiceLabel = (() => {
+    if (!conflict || !cardFlow || !choice) return null
+    const reference = comparisonSources(conflict.branches)?.[1]?.label === 'Design reference'
+    const name = tr(choice === 'A' ? (reference ? 'Change to the design reference' : 'Remote branch') : choice === 'B' ? (reference ? 'Keeps the current value' : 'Local branch') : 'Adjust by hand')
+    const fields = (conflict.comparisonFields ?? []).filter((field) => field.current !== field.expected)
+    const values = choice === 'C' ? [] : fields.map((field) => tr(choice === 'A' ? field.expected : field.current))
+    return [name, values.join(', ')].filter(Boolean).join(' · ')
+  })()
+
   // On the page the action belongs to the 해결 방법 card (its foot), as a
   // design decision's does — not to the header's corner.
   const actionInCard = page && Boolean(conflict) && !conflict.rollback && !conflict.decisionFlow && !(driftItem && draftColumns(driftItem))
@@ -3506,7 +3571,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>
                     </div>
                     {/* Then how far it has come: the record, light — a line a step. */}
-                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} />}
+                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? ''} />}
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1 flex-col gap-3">

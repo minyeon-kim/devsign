@@ -3,6 +3,10 @@ import { cn } from 'cn'
 import { Chevron, FoldBody } from '@/components/conflicts/Fold'
 import { IDLE, STEP_STATE_WORD, countDone, firstView, liveView, metaLines, progressLabel, readSeen, writeSeen } from '@/lib/stepProgress'
 
+// The record's label / value rows (on the 8px grid): 12px between rows, a
+// 96px label column in grey 13px, values at 14px with room between lines.
+export const RECORD_ROWS = 'grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-3 text-[14px] leading-[1.6] [&>dt]:text-[13px]'
+
 const motionOk = () => {
   try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
 }
