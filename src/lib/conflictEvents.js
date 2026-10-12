@@ -49,6 +49,8 @@ function timeFromLabel(label, now) {
   const hours = (Number(match[1]) % 12) + (/pm/i.test(match[3] ?? '') ? 12 : 0)
   at.setHours(hours, Number(match[2]), 0, 0)
   if (/yesterday/i.test(label)) at.setDate(at.getDate() - 1)
+  const daysAgo = /(\d+) days ago/i.exec(label)
+  if (daysAgo) at.setDate(at.getDate() - Number(daysAgo[1]))
   return at
 }
 

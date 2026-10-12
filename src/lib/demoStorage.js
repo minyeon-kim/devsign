@@ -15,7 +15,8 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // 7: a three-draft sample item for mixing drafts per element.
 // 16: Dashboard Redesign (AI drafts, CON-002's design decision) joined.
 // 17: Dashboard Redesign is built from the seed (mocks/seed.js): CON-002 merged, four saved versions.
-export const DEMO_VERSION = 17
+// 18: every project's design changes come from the seed, numbered CON-0xx, each with one merged end to end.
+export const DEMO_VERSION = 18
 
 export function readDemo(key, fallback) {
   try {
@@ -27,7 +28,7 @@ export function readDemo(key, fallback) {
     // Add the manual-adjustment example to existing sessions without
     // resetting their saved decisions, reviews, or history.
     // (Likewise the two precise-adjustment samples.)
-    const addedIds = key === 'conflicts' ? ['cc-touch-adjusted', 'cc-tab-icon-size', 'cc-manual-target']
+    const addedIds = key === 'conflicts' ? ['CON-017', 'CON-018', 'CON-019']
       : key === 'project:checkout-redesign:mergeItems' ? ['merge-checkout-touch-adjusted', 'merge-checkout-tab-icon', 'merge-checkout-manual-target'] : []
     if (addedIds.length && Array.isArray(value) && Array.isArray(fallback)) {
       const examples = addedIds.filter((id) => !value.some((row) => row.id === id)).map((id) => fallback.find((row) => row.id === id)).filter(Boolean)

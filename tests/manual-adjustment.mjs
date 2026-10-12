@@ -29,8 +29,13 @@ try {
     assert.ok(checksFor(item, { resolutions, assemblies: { 'coupon-close': { width: 24, height: 20 } } }).blocking.length, 'both dimensions must pass')
     assert.equal(checksFor(item, { resolutions, assemblies: { 'coupon-close': { width: 24, height: 24 } } }).blocking.length, 0)
   }
-  for (const text of [conflict.token, conflict.message, conflict.suggestion, conflict.riskReason,
-    'Shipping option', 'Icon stroke', 'Matches the rest of the icon set', 'Letter spacing', 'Normal',
+  // The change's own words are written in Korean, as the reference's
+  // (CON-002's) are; its title stays the component / property it names.
+  for (const text of [conflict.message, conflict.suggestion, conflict.riskReason]) {
+    assert.match(text, /[가-힣]/, `written in Korean: ${text}`)
+  }
+  assert.equal(conflict.token, 'CouponNotice / Manual adjustment')
+  for (const text of ['Shipping option', 'Icon stroke', 'Matches the rest of the icon set', 'Letter spacing', 'Normal',
     'Button text contrast 3.2:1', '2 AI edits applied', '1 AI note not applied', 'iconbtn', 'Neo Glow']) {
     assert.notEqual(translateText(text, 'ko'), text, `missing Korean translation: ${text}`)
     assert.equal(translateText(text, 'en'), text, 'English mode preserves its source text')

@@ -23,23 +23,23 @@ try {
   const write = (conflict, label, value, from = conflict.diff.before) => writeFieldValue(conflict, from, conflict.comparisonFields.find((f) => f.label === label), value)
 
   // 2 · Values the element doesn't own are written in the code…
-  const gap = byId('cc-7')
+  const gap = byId('CON-012')
   assert.equal(fieldControlsFor(gap, itemOf(gap))[0].mode, 'code')
   assert.deepEqual(write(gap, 'Field gap', '12px'), ['<form className="flex flex-col gap-3">'])
   assert.deepEqual(write(gap, 'Field gap', '8px'), gap.diff.after, 'the standard is written as the reference writes it')
 
-  const stroke = byId('cc-10')
+  const stroke = byId('CON-013')
   assert.deepEqual(write(stroke, 'Stroke', '1.5'), ['<Truck className="size-4" strokeWidth={1.5} />'])
   assert.deepEqual(write(stroke, 'Stroke', '2'), stroke.diff.after)
 
-  const tracking = byId('cc-9')
+  const tracking = byId('CON-015')
   assert.deepEqual(write(tracking, 'Tracking', 'normal'), tracking.diff.after)
   assert.deepEqual(write(tracking, 'Tracking', '0.05em (tracking-wider)'), ['<label className="text-xs font-medium tracking-wider">'])
 
-  const divider = byId('cc-8')
+  const divider = byId('CON-016')
   assert.deepEqual(write(divider, 'Divider', '#cbd5e1'), ['<hr className="border-[#cbd5e1]" />'])
 
-  const cta = byId('cc-11')
+  const cta = byId('CON-014')
   const cards = fieldControlsFor(cta, itemOf(cta))
   assert.equal(cards[0].mode, 'layer', 'the button height is still set on the element')
   assert.equal(cards[1].type, 'color')
@@ -65,7 +65,7 @@ try {
   assert.deepEqual(withHandLines(stroke, manual, stroke.diff.before), {})
 
   // 5 · What the code can't spell is still set, as text.
-  const icon = byId('cc-4')
+  const icon = byId('CON-020')
   const hitAt = icon.comparisonFields.findIndex((field) => field.label === 'Hit area')
   const hit = fieldControlsFor(icon, itemOf(icon))[hitAt]
   assert.equal(hit.mode, 'text')

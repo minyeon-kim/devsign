@@ -12,7 +12,7 @@ try {
   designMergeVariants[tokenItem.id] = { layerDiffs: { button: [{ id: 'height', label: 'Height', optionA: 'var(--button-height-md)', optionB: '36px' }] } }
   const tokenDecisions = Object.fromEntries(Object.entries(designMergeVariants[tokenItem.id].layerDiffs).flatMap(([layerId, diffs]) => diffs.map((diff) => [`${layerId}:${diff.id}`, 'A'])))
   assert.ok(!checksFor(tokenItem, { resolutions: tokenDecisions }).blocking.some((check) => check.id === 'tokens'), 'named CSS tokens in the design must pass')
-  const shippingItem = mergeListItems.find((candidate) => candidate.conflictId === 'cc-10')
+  const shippingItem = mergeListItems.find((candidate) => candidate.conflictId === 'CON-013')
   const shippingCheck = checksFor(shippingItem).blocking.find((check) => check.id === 'tokens')
   const stroke = shippingCheck.details.find((detail) => detail.property === 'Icon stroke')
   assert.equal(stroke.current, '2.5')
@@ -20,7 +20,7 @@ try {
   assert.equal(stroke.canApply, true)
   assert.ok(!checksFor(shippingItem, { resolutions: { [stroke.key]: 'A' } }).blocking.some((check) => check.id === 'tokens'), 'applying the 2px icon reference must clear the token failure')
   assert.ok(checksFor(shippingItem, { resolutions: { [stroke.key]: { custom: '4' } } }).blocking.some((check) => check.id === 'tokens'), 'a spacing-grid value is not a valid icon stroke')
-  const labelItem = mergeListItems.find((candidate) => candidate.conflictId === 'cc-9')
+  const labelItem = mergeListItems.find((candidate) => candidate.conflictId === 'CON-015')
   const tracking = checksFor(labelItem).blocking.find((check) => check.id === 'tokens').details[0]
   assert.equal(tracking.expected.toLowerCase(), 'normal')
   assert.ok(!checksFor(labelItem, { resolutions: { [tracking.key]: 'A' } }).blocking.some((check) => check.id === 'tokens'), 'normal letter spacing must pass')

@@ -77,7 +77,7 @@ const colorOf = (value) => /#[0-9a-fA-F]{3,8}\b/.exec(value ?? '')?.[0] ?? null
 
 // What a side falls back to when it sets nothing itself — the component's
 // own default, named, instead of a bare "default". (The Button's: the
-// primary color token and its 40px default size — see cc-11 in mockData.)
+// primary color token and its 40px default size — see CON-014 in mockData.)
 const FALLBACK_VALUE = {
   Background: { value: 'color.primary', color: '#6366f1' },
   Height: { value: 'h-10 (40px)' },

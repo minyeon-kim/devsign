@@ -1,5 +1,5 @@
 import { eventsOf, progressOf } from '@/lib/conflictEvents'
-import { allPeople, conflictChecklist, conflictPoints, currentUserFor } from '@/data/mockData'
+import { allPeople, conflictChecklist, currentUserFor } from '@/data/mockData'
 
 // The one conflict model every conflict surface shares — the Dashboard
 // queue, the workspace bottom panel's Conflict Points tab, the project
@@ -70,7 +70,7 @@ export function isOpen(conflict) {
   return conflict.reviewStage !== 'resolved'
 }
 
-// A conflict's id as it's shown: "#cc-4". A revert or rollback is created
+// A conflict's id as it's shown: "#CON-020". A revert or rollback is created
 // under a long unique id, so it's shown as its kind and its place among the
 // project's others of that kind — "rv-4" — like every other item.
 const GENERATED_ID = /^(revert|rollback)-([0-9a-f]{4})[0-9a-f-]{20,}$/i
@@ -390,19 +390,7 @@ export function shortDue(label) {
 
 // Every project's conflicts, as records (the ConflictStore's seed).
 export function allConflictRecords() {
-  return [...conflictChecklist, ...conflictPoints.map((point) => ({
-    ...point,
-    id: point.id === 'conflict-1' ? 'cc-2' : point.id,
-    kind: 'code-conflict',
-    title: 'DesignCanvas / Merge conflict',
-    codeComparison: { localTitle: '프레임 선택 처리', remoteTitle: '프레임 식별 키 추가', local: '프레임 클릭 시 선택 상태를 변경하는 핸들러를 추가합니다.', remote: '각 프레임에 고유한 key를 추가합니다.' },
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    cause: point.message,
-    line: 9,
-    gitFlow: { source: point.branches.local, target: point.branches.remote },
-    comparisonFields: [],
-  }))].map(toConflictRecord)
+  return conflictChecklist.map(toConflictRecord)
 }
 
 // Open items first, then merged ones, each group in its original order.

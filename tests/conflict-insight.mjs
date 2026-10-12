@@ -8,15 +8,15 @@ try {
   const byId = Object.fromEntries(allConflictRecords().map((conflict) => [conflict.id, conflict]))
 
   // Type: a real merge conflict, a drift, a drift against production code, a design request.
-  assert.equal(conflictTypeOf(byId['cc-2']).id, 'code-conflict')
-  assert.equal(conflictTypeOf(byId['cc-tab-icon-size']).id, 'design-drift')
-  assert.equal(conflictTypeOf(byId['cc-11']).id, 'production-priority', 'a drift whose code is on main')
+  assert.equal(conflictTypeOf(byId['CON-025']).id, 'code-conflict')
+  assert.equal(conflictTypeOf(byId['CON-018']).id, 'design-drift')
+  assert.equal(conflictTypeOf(byId['CON-014']).id, 'production-priority', 'a drift whose code is on main')
   assert.equal(conflictTypeOf({ id: 'mr-1', kind: 'design-review' }).id, 'design-decision')
   for (const conflict of Object.values(byId)) assert.ok(CONFLICT_TYPES[conflictTypeOf(conflict).id], `${conflict.id} has a type`)
 
   // Baseline: the branch the current code is on, and whether it's production.
-  assert.deepEqual(baselineOf(byId['cc-11']), { branch: 'main', production: true })
-  assert.deepEqual(baselineOf(byId['cc-tab-icon-size']), { branch: 'develop', production: false })
+  assert.deepEqual(baselineOf(byId['CON-014']), { branch: 'main', production: true })
+  assert.deepEqual(baselineOf(byId['CON-018']), { branch: 'develop', production: false })
   assert.equal(baselineOf({}), null)
 
   // Cause: the kind of value that differs, not "meets the standard or not".
@@ -25,16 +25,16 @@ try {
   assert.equal(fieldKindOf({ label: 'Tracking' }), 'typography')
   assert.equal(fieldKindOf({ label: 'Primary', current: '#5B5BD6', expected: '#5E6AD2' }), 'color')
   assert.equal(fieldKindOf({ label: 'Icon size' }), 'size')
-  assert.deepEqual(mismatchesOf(byId['cc-tab-icon-size']), ['Size mismatch'])
+  assert.deepEqual(mismatchesOf(byId['CON-018']), ['Size mismatch'])
   assert.deepEqual(mismatchesOf(byId['cc-3']), ['Border radius mismatch'])
   assert.deepEqual(mismatchesOf(byId['cc-6']), ['Spacing mismatch'])
-  assert.deepEqual(mismatchesOf(byId['cc-9']), ['Typography mismatch'])
-  assert.deepEqual(mismatchesOf(byId['cc-11']), ['Size mismatch', 'Color mismatch'])
-  assert.deepEqual(mismatchesOf(byId['cc-2']), [], 'a merge conflict is said by its type')
+  assert.deepEqual(mismatchesOf(byId['CON-015']), ['Typography mismatch'])
+  assert.deepEqual(mismatchesOf(byId['CON-014']), ['Size mismatch', 'Color mismatch'])
+  assert.deepEqual(mismatchesOf(byId['CON-025']), [], 'a merge conflict is said by its type')
   assert.equal(conflictTypeOf({ id: 'rollback-1', rollback: { target: 'v2' } }).id, 'revert')
   assert.equal(conflictTypeOf({ id: 'revert-1', title: 'Revert: Card / Radius' }).id, 'revert')
-  assert.deepEqual(mismatchesOf(byId['cc-touch-adjusted']), ['Below the standard on both sides'], 'the same value on both sides isn’t a mismatch between them')
-  assert.deepEqual(differencesOf(byId['cc-tab-icon-size']), [{ label: 'Icon size', current: '20px', expected: '24px', kind: 'size', shared: false }])
+  assert.deepEqual(mismatchesOf(byId['CON-017']), ['Below the standard on both sides'], 'the same value on both sides isn’t a mismatch between them')
+  assert.deepEqual(differencesOf(byId['CON-018']), [{ label: 'Icon size', current: '20px', expected: '24px', kind: 'size', shared: false }])
 
   // Flow: Conflict → Compare → Select → Approve → Merge.
   const base = { id: 'c', reviewStage: 'detected' }

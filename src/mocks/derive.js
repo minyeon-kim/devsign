@@ -1,12 +1,14 @@
-import { SEED } from '@/mocks/seed'
+import { PROJECT_SEEDS, SEED } from '@/mocks/seed'
 
-// Everything a screen shows about Dashboard Redesign, worked out from the
-// seed's facts (mocks/seed.js): the change records the list, the detail and
-// the canvas pins read; the code files; the History's checkpoints. Nothing
-// here is a fact of its own — change the seed and all of it follows.
+// Everything a screen shows about each project's design changes, worked out
+// from the seed's facts (mocks/seed.js): the change records the list, the
+// detail and the canvas pins read; Dashboard Redesign's code files; the
+// History's checkpoints. Nothing here is a fact of its own — change the seed
+// and all of it follows.
 // (No imports from the sample data: that file is built from this one.)
 
 const SYNC = 'Devsign design ↔ code sync'
+const CHECKS = { sync: SYNC, accessibility: 'Accessibility check' }
 
 // ── Time: relative to the day the seed is applied ────────────────────
 export function momentOf({ day = 0, at = '09:00' }, now = Date.now()) {
@@ -23,6 +25,7 @@ export function timeLabelOf({ day = 0, at = '09:00' }) {
   return `${day === 0 ? 'Today' : day === -1 ? 'Yesterday' : `${-day} days ago`}, ${clock}`
 }
 export const dueLabelOf = (days) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomorrow' : `Due in ${days} days`)
+const dueBucketOf = (days) => (days <= 0 ? 'today' : days < 3 ? 'soon' : 'week')
 
 // ── The grid's code ──────────────────────────────────────────────────
 // What a 768px columns value is, in words: how many columns, and how wide.
@@ -99,41 +102,73 @@ export function purchaseButtonLines() {
 }
 
 // ── The change records ───────────────────────────────────────────────
-const layerIdsOf = (change) => (change.layers ?? []).map((layer) => `ai-a--${change.region}--${layer}`)
-const reviewersOf = (change, status = 'pending') => change.reviewers.map((id) => ({ id, status }))
+const layerIdsOf = (change) => (change.layer ? [change.layer] : (change.layers ?? []).map((layer) => `ai-a--${change.region}--${layer}`))
+const lines = (code) => (code == null ? [] : [code].flat())
+// (A sample's built / design values, as the before / after a preview draws.)
+const asBeforeAfter = ({ built, design, ...rest }) => ({ ...rest, before: built, after: design })
+function previewOf(preview) {
+  const { themes, ...rest } = preview
+  return { ...asBeforeAfter(rest), ...(themes && { themes: themes.map(asBeforeAfter) }) }
+}
+// What a change carries as it is, beside what's worked out.
+const KEPT = ['fileId', 'line', 'sample', 'mergeItemId', 'mergeTitle', 'linkedCommentId', 'ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation',
+  'resolution', 'adjustment', 'adjustmentReason', 'references', 'suggestion', 'suggestionReason', 'riskReason', 'uxNote', 'expectedResult', 'previewPrompt', 'branches']
+const PROPOSAL_SIDE = { design: 'A', keep: 'B' }
 
-// A value that differs from the design: one property, the built value, the design's.
-function valueRecord(change, now) {
+// A value that differs from the design: the property (or properties), the
+// built value, the design's — and, as far as it's come, each step of its
+// approval with who and when.
+function valueRecord(project, change, now) {
   const [layerId, ...others] = layerIdsOf(change)
+  const { steps } = change
+  const ms = (step) => momentOf(step, now).getTime()
+  const fields = change.fields ?? [{ label: change.property, design: change.design, built: change.built }]
+  const fileName = change.file.split('/').pop()
+  const kept = Object.fromEntries(KEPT.filter((key) => change[key] !== undefined).map((key) => [key, change[key]]))
+  const merged = change.stage === 'resolved'
+  const asked = steps.requested
   return {
     id: change.id,
     title: change.title,
     token: change.title,
     file: change.file,
-    layerId,
+    ...(layerId && { layerId }),
     ...(others.length && { layerIds: others }),
-    ...(change.fileId && { fileId: change.fileId }),
-    ...(change.line && { line: change.line }),
-    projectId: SEED.project.id,
-    projectName: SEED.project.name,
-    timestamp: timeLabelOf(change.steps.detected),
-    dueLabel: dueLabelOf(change.due),
-    ...(change.due >= 3 && { dueBucket: 'week' }),
-    resolved: false,
+    ...(change.wholeScreen && { designPageId: project.pageId }),
+    projectId: project.id,
+    projectName: project.name,
+    timestamp: timeLabelOf(steps.detected),
+    ...(change.due != null && { dueLabel: dueLabelOf(change.due), dueBucket: dueBucketOf(change.due) }),
+    resolved: merged,
     severity: change.severity,
     reviewStage: change.stage,
-    ...(change.steps.requested && { requestedBy: change.steps.requested.by, requestedAtMs: momentOf(change.steps.requested, now).getTime() }),
-    detectedBy: SYNC,
-    changedBy: { type: 'person', id: change.changedBy, what: 'Changed the code' },
+    ...(asked && { requestedBy: asked.by, requestedAtMs: ms(asked) }),
+    ...(asked?.proposal && { decidedSide: PROPOSAL_SIDE[asked.proposal], decidedBy: asked.by }),
+    detectedBy: CHECKS[change.check ?? 'sync'],
+    ...(change.changedBy && { changedBy: { type: 'person', id: change.changedBy, what: change.changedWhat ?? 'Changed the code' } }),
+    ...(change.frame && { branches: { local: fileName, remote: `${change.frame} (Figma)` } }),
     gitFlow: change.branch,
     cause: change.cause,
     effect: change.effect,
     message: change.says,
-    impact: { screens: [SEED.project.screen], components: change.components, files: [change.file] },
-    reviewers: reviewersOf(change),
-    preview: { kind: change.preview.kind, ...(change.preview.label && { label: change.preview.label }), before: change.preview.built, after: change.preview.design },
-    comparisonFields: [{ label: change.property, expected: change.design, current: change.built }],
-    diff: { before: [change.code.built], after: [change.code.design] },
+    impact: { screens: change.screens ?? [project.screen], components: change.components, files: [change.file] },
+    preview: previewOf(change.preview),
+    comparisonFields: fields.map((field) => ({ label: field.label, expected: field.design, current: field.built })),
+    diff: {
+      ...(change.code.base && { base: lines(change.code.base) }),
+      before: lines(change.code.built),
+      after: lines(change.code.design),
+      ...(change.code.merged && { merged: lines(change.code.merged) }),
+    },
+    ...kept,
+    // Decided: every reviewer's sign-off, with when and why.
+    reviewers: change.reviewers.map((id) => (steps.decided
+      ? { id, status: 'approved', reviewedAt: ms(steps.decided), note: steps.decided.reason }
+      : { id, status: 'pending' })),
+    // Fixed and checked by itself (수정 · 검증).
+    ...(steps.verified && { autoFix: { appliedAtMs: ms(steps.fixed), verified: true, verifiedAtMs: ms(steps.verified) } }),
+    // Merged (병합).
+    ...(merged && { mergedBy: steps.merged.by, resolvedAtLabel: timeLabelOf(steps.merged), resolvedAtMs: ms(steps.merged), diffInspected: true }),
   }
 }
 
@@ -230,10 +265,53 @@ function structuralRecord(change, now) {
   }
 }
 
-// Dashboard Redesign's changes, as the app's change records.
-export function dashboardConflicts(now = Date.now()) {
-  return SEED.changes.map((change) => (change.kind === 'structural' ? structuralRecord(change, now) : valueRecord(change, now)))
+// A merge conflict: two branches, the lines both changed, the suggested
+// merge. Resolved in its own way (Merge Studio), so only found and asked.
+function codeRecord(project, change) {
+  const { local, remote } = change.sides
+  return {
+    id: change.id,
+    ...(change.page && { designPageId: change.page }),
+    codeComparison: { localTitle: local.title, remoteTitle: remote.title, local: local.did, remote: remote.did, conflict: change.overlap, resolution: change.resolution },
+    kind: 'code-conflict',
+    title: change.title,
+    token: change.title,
+    projectId: project.id,
+    projectName: project.name,
+    file: change.file,
+    line: change.line,
+    severity: change.severity,
+    reviewStage: change.stage,
+    resolved: false,
+    timestamp: timeLabelOf(change.steps.detected),
+    detectedBy: 'Git merge check',
+    changedBy: { type: 'person', id: change.changedBy, what: 'Updated overlapping code in two branches' },
+    cause: change.cause,
+    message: change.cause,
+    effect: '같은 코드 구간이 변경되어 자동 병합할 수 없습니다.',
+    branches: { local: change.branch.source, remote: change.branch.target },
+    gitFlow: change.branch,
+    comparisonFields: [],
+    reviewers: change.reviewers.map((id) => ({ id, status: change.approvedBy?.includes(id) ? 'approved' : 'pending' })),
+    assigneeId: change.assignee,
+    impact: { components: change.components, files: [change.file] },
+    suggestion: change.suggestion ?? '두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.',
+    ...(change.previewPrompt && { previewPrompt: change.previewPrompt }),
+    ...(change.linkedCommentId && { linkedCommentId: change.linkedCommentId }),
+    diff: { before: change.code.conflict, after: change.code.merged },
+  }
 }
+
+// A project's changes, as the app's change records.
+const RECORD_OF = { structural: (project, change, now) => structuralRecord(change, now), value: valueRecord, code: codeRecord }
+export function conflictsOf(seed, now = Date.now()) {
+  return seed.changes.map((change) => RECORD_OF[change.kind](seed.project, change, now))
+}
+export const dashboardConflicts = (now = Date.now()) => conflictsOf(SEED, now)
+// Every seeded project's, in the seeds' order.
+export const seededConflicts = (now = Date.now()) => PROJECT_SEEDS.flatMap((seed) => conflictsOf(seed, now))
+// One change's facts, from whichever project it's in.
+export const seededChangeOf = (id) => PROJECT_SEEDS.flatMap((seed) => seed.changes).find((change) => change.id === id)
 
 // ── The History ──────────────────────────────────────────────────────
 const snapshotOf = (lines) => ({ activeFileId: 'app', fileId: 'app', lines, activePageId: SEED.project.pageId, conflicts: [], selectedLayerId: null })

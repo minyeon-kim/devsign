@@ -1,6 +1,29 @@
 import { draftFrame } from './draftScreens'
-import { currentGridLines, dashboardConflicts, dashboardHistory, purchaseButtonLines, stylesheetLines } from '@/mocks/derive'
+import { currentGridLines, dashboardHistory, purchaseButtonLines, seededChangeOf, seededConflicts, stylesheetLines, timeLabelOf } from '@/mocks/derive'
 import { backendReferenceDocs } from './backendDocs'
+
+// A seeded change's title (mocks/seed.js) — what the activity feed, the
+// Inbox and Merge Studio call it.
+const titleOf = (id) => seededChangeOf(id).title
+// When one of its steps happened, as the sample data says times.
+const stepTimeOf = (id, step) => timeLabelOf(seededChangeOf(id).steps[step])
+// A Merge Studio item's state, from its change: where it is, how risky,
+// when it's due and when it last moved.
+const RISK_LEVEL = { low: 'Low', medium: 'Medium', high: 'High' }
+const MERGE_TAG = { detected: 'In Progress', in_review: 'Needs Review', resolved: 'Merged' }
+function mergeStateOf(id) {
+  const change = seededChangeOf(id)
+  const merged = change.stage === 'resolved'
+  const due = merged || change.due == null ? { dueLabel: 'No due date', dueBucket: 'none' }
+    : { dueLabel: change.due <= 0 ? 'Due today' : change.due === 1 ? 'Due tomorrow' : `Due in ${change.due} days`, dueBucket: change.due <= 3 ? 'soon' : 'later' }
+  return {
+    title: change.title,
+    tag: MERGE_TAG[change.stage],
+    updatedLabel: timeLabelOf(Object.values(change.steps).at(-1)),
+    conflictLevel: merged ? 'None' : RISK_LEVEL[change.severity],
+    ...due,
+  }
+}
 
 // Centralized mock data for the IDE layout.
 // Swap the values here (or point these exports at a real API/store later)
@@ -238,9 +261,8 @@ export const projects = [
 // Drives the dashboard's "Active conflicts" checklist — every open
 // design/code conflict across projects, in one place, each with a
 // resolved/unresolved state (the checklist's checkmark). Each also carries
-// the same detail fields as a workspace conflict point (severity, message,
-// branches, diff, comparisonFields, suggestion, reviewers — see
-// conflictPoints below), so the shared ConflictModal shows the full
+// its detail fields (severity, message, branches, diff, comparisonFields,
+// suggestion, reviewers), so the shared ConflictModal shows the full
 // Overview / Diff / AI suggestion view from every entry point.
 // `changedBy` is who made the change the conflict is about — shown in the
 // list's Author · Updated column, and never asked to review it. A conflict
@@ -249,706 +271,18 @@ export const projects = [
 // `cause` / `effect`: the review summary's Cause and Impact — terse, noun-
 // phrase items separated by " · ", not sentences.
 export const conflictChecklist = [
-  // Code-versus-code examples belong to the same queue as design drifts.
-  {
-    "id": "cc-code-payment-submit",
-    // (The screen this code is behind — shown on its detail, nothing marked.)
-    "designPageId": "page-checkout",
-    "codeComparison": {"localTitle": "결제 재시도 처리", "remoteTitle": "중복 결제 방지", "local": "결제 실패 시 재시도하도록 submitPayment를 retry로 감쌉니다.", "remote": "제출 중에는 요청을 차단하고 isSubmitting 상태를 설정합니다.", "conflict": "placeOrder 함수의 같은 요청 처리 구간을 수정했습니다.", "resolution": "중복 제출 방지와 재시도를 함께 유지하고, 완료 시 제출 상태를 해제합니다."},
-    "kind": "code-conflict",
-    "title": "주문 버튼 · 중복 결제 방지 · 겹치는 동작",
-    "token": "주문 버튼 · 중복 결제 방지 · 겹치는 동작",
-    "projectId": "checkout-redesign",
-    "projectName": "Checkout Redesign",
-    "file": "src/components/checkout/PlaceOrderButton.jsx",
-    "line": 18,
-    "severity": "high",
-    "reviewStage": "in_review",
-    "resolved": false,
-    "timestamp": "Just now",
-    "detectedBy": "Git merge check",
-    "changedBy": {
-      "type": "person",
-      "id": "min",
-      "what": "Updated overlapping code in two branches"
-    },
-    "cause": "두 브랜치가 결제 요청 함수를 각각 재시도 처리와 중복 제출 방지 로직으로 수정했습니다.",
-    "message": "두 브랜치가 결제 요청 함수를 각각 재시도 처리와 중복 제출 방지 로직으로 수정했습니다.",
-    "effect": "같은 코드 구간이 변경되어 자동 병합할 수 없습니다.",
-    "branches": {
-      "local": "feature/payment-retry",
-      "remote": "fix/prevent-double-submit"
-    },
-    "gitFlow": {
-      "source": "feature/payment-retry",
-      "target": "fix/prevent-double-submit"
-    },
-    "comparisonFields": [],
-    "reviewers": [
-      {
-        "id": "james",
-        "status": "pending"
-      },
-      {
-        "id": "jane",
-        "status": "pending"
-      }
-    ],
-    "assigneeId": "james",
-    "impact": {
-      "components": [
-        "PlaceOrderButton"
-      ],
-      "files": [
-        "src/components/checkout/PlaceOrderButton.jsx"
-      ]
-    },
-    "suggestion": "두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.",
-    "diff": {
-      "before": [
-        "async function placeOrder() {",
-        "<<<<<<< feature/payment-retry",
-        "  await retry(() => submitPayment(cart));",
-        "=======",
-        "  if (isSubmitting) return;",
-        "  setIsSubmitting(true);",
-        "  await submitPayment(cart);",
-        ">>>>>>> fix/prevent-double-submit",
-        "}"
-      ],
-      "after": [
-        "async function placeOrder() {",
-        "  if (isSubmitting) return;",
-        "  setIsSubmitting(true);",
-        "  try {",
-        "    await retry(() => submitPayment(cart));",
-        "  } finally {",
-        "    setIsSubmitting(false);",
-        "  }",
-        "}"
-      ]
-    }
-  },
-  {
-    "id": "cc-code-coupon-total",
-    // (The screen this code is behind — shown on its detail, nothing marked.)
-    "designPageId": "page-checkout",
-    "codeComparison": {"localTitle": "쿠폰 할인 적용", "remoteTitle": "금액 반올림 적용", "local": "주문 합계에서 쿠폰 할인 금액을 차감합니다.", "remote": "주문 합계를 소수점 둘째 자리로 반올림합니다.", "conflict": "total을 계산하는 같은 한 줄을 수정했습니다.", "resolution": "쿠폰을 먼저 적용한 뒤 최종 합계를 반올림합니다."},
-    "kind": "code-conflict",
-    "title": "주문 요약 · 할인 금액 계산 · 겹치는 계산식",
-    "token": "주문 요약 · 할인 금액 계산 · 겹치는 계산식",
-    "projectId": "checkout-redesign",
-    "projectName": "Checkout Redesign",
-    "file": "src/components/checkout/OrderSummary.jsx",
-    "line": 26,
-    "severity": "medium",
-    "reviewStage": "in_review",
-    "resolved": false,
-    "timestamp": "Just now",
-    "detectedBy": "Git merge check",
-    "changedBy": {
-      "type": "person",
-      "id": "min",
-      "what": "Updated overlapping code in two branches"
-    },
-    "cause": "두 브랜치가 같은 주문 합계 계산식에 쿠폰 할인과 소수점 반올림을 각각 추가했습니다.",
-    "message": "두 브랜치가 같은 주문 합계 계산식에 쿠폰 할인과 소수점 반올림을 각각 추가했습니다.",
-    "effect": "같은 코드 구간이 변경되어 자동 병합할 수 없습니다.",
-    "branches": {
-      "local": "feature/coupon-discount",
-      "remote": "fix/round-order-total"
-    },
-    "gitFlow": {
-      "source": "feature/coupon-discount",
-      "target": "fix/round-order-total"
-    },
-    "comparisonFields": [],
-    "reviewers": [
-      {
-        "id": "james",
-        "status": "pending"
-      },
-      {
-        "id": "jane",
-        "status": "pending"
-      }
-    ],
-    "assigneeId": "james",
-    "impact": {
-      "components": [
-        "OrderSummary"
-      ],
-      "files": [
-        "src/components/checkout/OrderSummary.jsx"
-      ]
-    },
-    "suggestion": "두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.",
-    "diff": {
-      "before": [
-        "<<<<<<< feature/coupon-discount",
-        "const total = subtotal - coupon.discount + shipping;",
-        "=======",
-        "const total = Math.round((subtotal + shipping) * 100) / 100;",
-        ">>>>>>> fix/round-order-total"
-      ],
-      "after": [
-        "const discounted = subtotal - coupon.discount + shipping;",
-        "const total = Math.round(discounted * 100) / 100;"
-      ]
-    }
-  },
-  {
-    "id": "cc-code-nav-handler",
-    // (The screen this code is behind — shown on its detail, nothing marked.)
-    "designPageId": "page-1",
-    "codeComparison": {"localTitle": "탭 클릭 이벤트 기록", "remoteTitle": "탭 경로 이동", "local": "탭 클릭 이벤트를 기록하고 활성 탭 상태를 변경합니다.", "remote": "탭 경로로 이동하도록 navigate를 호출합니다.", "conflict": "onTabClick 핸들러의 같은 실행 구간을 수정했습니다.", "resolution": "이벤트 기록, 활성 탭 변경, 경로 이동을 순서대로 실행합니다."},
-    "kind": "code-conflict",
-    "title": "하단 탭 · 탭 누를 때 동작 · 겹치는 동작",
-    "token": "하단 탭 · 탭 누를 때 동작 · 겹치는 동작",
-    "projectId": "mobile-nav-revamp",
-    "projectName": "Mobile Nav Revamp",
-    "file": "src/components/nav/BottomNav.jsx",
-    "line": 32,
-    "severity": "medium",
-    "reviewStage": "in_review",
-    "resolved": false,
-    "timestamp": "Just now",
-    "detectedBy": "Git merge check",
-    "changedBy": {
-      "type": "person",
-      "id": "min",
-      "what": "Updated overlapping code in two branches"
-    },
-    "cause": "두 브랜치가 탭 클릭 핸들러를 수정하면서 이벤트 수집 코드와 화면 이동 코드가 겹쳤습니다.",
-    "message": "두 브랜치가 탭 클릭 핸들러를 수정하면서 이벤트 수집 코드와 화면 이동 코드가 겹쳤습니다.",
-    "effect": "같은 코드 구간이 변경되어 자동 병합할 수 없습니다.",
-    "branches": {
-      "local": "feature/nav-analytics",
-      "remote": "fix/nav-route-sync"
-    },
-    "gitFlow": {
-      "source": "feature/nav-analytics",
-      "target": "fix/nav-route-sync"
-    },
-    "comparisonFields": [],
-    "reviewers": [
-      {
-        "id": "james",
-        "status": "pending"
-      },
-      {
-        "id": "jane",
-        "status": "pending"
-      }
-    ],
-    "assigneeId": "james",
-    "impact": {
-      "components": [
-        "BottomNav"
-      ],
-      "files": [
-        "src/components/nav/BottomNav.jsx"
-      ]
-    },
-    "suggestion": "두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.",
-    "diff": {
-      "before": [
-        "function onTabClick(tab) {",
-        "<<<<<<< feature/nav-analytics",
-        "  trackEvent(\"nav_click\", { tab: tab.id });",
-        "  setActiveTab(tab.id);",
-        "=======",
-        "  navigate(tab.path);",
-        ">>>>>>> fix/nav-route-sync",
-        "}"
-      ],
-      "after": [
-        "function onTabClick(tab) {",
-        "  trackEvent(\"nav_click\", { tab: tab.id });",
-        "  setActiveTab(tab.id);",
-        "  navigate(tab.path);",
-        "}"
-      ]
-    }
-  },
-  // Two samples for checking a precise (by-hand) adjustment end to end.
-  //
-  // 1 — already adjusted. The close button is 20 × 20px in the code *and*
-  // the design, so no side can be picked to fix it; it was resized to
-  // 24 × 24px in Merge Studio. The original and adjusted sizes are kept
-  // apart (`adjustment.from` / `.to`) and `resolution: 'manual'` says how it
-  // was settled. The adjusted size seeds this item's Merge Studio draft
-  // (lib/sizeAdjustment), which is what the review, its code and the list
-  // read — so undoing it there really undoes it.
-  {
-    id: 'cc-touch-adjusted',
-    preview: { kind: 'button', label: '×', before: { width: 20, height: 20, radius: 4, background: '#475569' }, after: { width: 20, height: 20, radius: 4, background: '#475569' } },
-    cause: 'Coupon close button 20 × 20px in code and design · under the 24px touch area',
-    effect: 'Hard to tap on a touch screen',
-    impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
-    ruleIds: ['touch-target'],
-    gitFlow: { source: 'feature/coupon-touch-area', target: 'develop' },
-    token: 'Coupon close button / Touch area',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    file: 'src/components/checkout/CouponNotice.jsx',
-    fileId: 'coupon-notice',
-    line: 3,
-    mergeItemId: 'merge-checkout-touch-adjusted',
-    layerId: 'coupon-close',
-    timestamp: 'Just now',
-    resolved: false,
-    severity: 'medium',
-    detectedBy: 'Accessibility check',
-    message: 'The close button is 20 × 20px in both the code and the design — under the 24px touch area.',
-    suggestion: 'Resize the close button to at least 24 × 24px in Merge Studio.',
-    riskReason: 'Both versions share the same size, so picking a side cannot fix its touch area.',
-    branches: { local: 'CouponNotice.jsx', remote: 'Coupon notice (Figma)' },
-    comparisonFields: [{ label: 'Touch area', current: '20 × 20px', expected: '20 × 20px' }],
-    reviewers: [{ id: 'min', status: 'pending' }],
-    diff: { before: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'], after: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'] },
-    resolution: 'manual',
-    adjustment: { from: { width: 20, height: 20 }, to: { width: 24, height: 24 } },
-    adjustmentReason: { text: 'Raised to the accessibility minimum', by: 'min', at: 'Just now' },
-  },
-  // 2 — not adjusted yet. 20px in code, 24px in the design, nothing picked
-  // or resized: open it in Merge Studio, change the icon's W / H (or pick
-  // the design), come back, and the card, code and summary follow.
-  {
-    id: 'cc-tab-icon-size',
-    preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 2 } },
-    cause: 'Tab icon 20px in code · 24px in the design',
-    effect: 'Tab icons smaller than the design',
-    impact: { components: ['CheckoutTabs'], files: ['src/components/checkout/CheckoutTabs.jsx'] },
-    changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
-    gitFlow: { source: 'feature/tab-icon-size', target: 'develop' },
-    token: 'Tab icon / Size',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    file: 'src/components/checkout/CheckoutTabs.jsx',
-    fileId: 'checkout-tabs',
-    line: 3,
-    mergeItemId: 'merge-checkout-tab-icon',
-    layerId: 'tab-icon',
-    timestamp: 'Just now',
-    resolved: false,
-    severity: 'low',
-    detectedBy: 'Devsign design ↔ code sync',
-    message: 'The tab icon is 20px in code; the design uses 24px.',
-    suggestion: 'Pick the design size, or set the icon’s W and H in Merge Studio.',
-    riskReason: 'Low: one icon on the checkout tabs.',
-    branches: { local: 'CheckoutTabs.jsx', remote: 'Checkout tabs (Figma)' },
-    comparisonFields: [{ label: 'Icon size', current: '20px', expected: '24px' }],
-    reviewers: [{ id: 'james', status: 'pending' }],
-    diff: { before: ['    <TabIcon className="size-5" />'], after: ['    <TabIcon className="size-6" />'] },
-  },
-  {
-    id: 'cc-manual-target',
-    preview: { kind: 'button', label: '×', before: { width: 20, height: 20, radius: 4, background: '#475569' }, after: { width: 20, height: 20, radius: 8, background: '#475569' } },
-    cause: 'Coupon close button 20 × 20px in both versions · neither side fixes it',
-    effect: 'Hard to tap on a touch screen',
-    impact: { components: ['CouponNotice'], files: ['src/components/checkout/CouponNotice.jsx'] },
-    ruleIds: ['touch-target'],
-    gitFlow: { source: 'feature/coupon-dismiss', target: 'develop' },
-    token: 'Coupon close button / Manual adjustment',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    file: 'src/components/checkout/CouponNotice.jsx',
-    fileId: 'coupon-notice',
-    line: 3,
-    mergeItemId: 'merge-checkout-manual-target',
-    layerId: 'coupon-close',
-    timestamp: 'Just now',
-    resolved: false,
-    severity: 'medium',
-    detectedBy: 'Accessibility check',
-    message: 'Both versions have a 20 × 20px close button. Select it in Merge Studio and set W and H to at least 24px in Properties → Layout.',
-    suggestion: 'Choose either corner style, then resize the close button to at least 24 × 24px.',
-    riskReason: 'The close button is too small in both versions; choosing a card alone cannot fix its touch area.',
-    branches: { local: 'CouponNotice.jsx', remote: 'Coupon notice (Figma)' },
-    comparisonFields: [{ label: 'Radius', current: '4px', expected: '8px' }, { label: 'Touch area', current: '20 × 20px', expected: '20 × 20px' }],
-    reviewers: [{ id: 'min', status: 'pending' }],
-    diff: {
-      before: ['    <button className="w-[20px] h-[20px] rounded-[4px]" aria-label="Close coupon">×</button>'],
-      after: ['    <button className="w-[20px] h-[20px] rounded-[8px]" aria-label="Close coupon">×</button>'],
-    },
-  },
-  {
-    id: 'cc-4',
-    cause: 'Nav icons 20px in code · 24px in the redesigned nav',
-    effect: 'The tab icons look smaller than the new tab bar. The 44px touch area stays the same.',
-    gitFlow: { source: 'feature/nav-badges', target: 'main' },
-    token: 'Nav Icon / Size',
-    file: 'src/components/nav/BottomNav.jsx',
-    projectId: 'mobile-nav-revamp',
-    projectName: 'Mobile Nav Revamp',
-    timestamp: 'Yesterday',
-    resolved: false,
-    reviewStage: 'in_review',
-    dueLabel: 'Due in 2 days',
-    severity: 'medium',
-    riskReason: 'Medium: the tab bar icons appear on every mobile screen.',
-    impact: { components: ['BottomNav'], files: ['src/components/nav/BottomNav.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    changedBy: { type: 'person', id: 'min', what: 'Implemented icon sizing in BottomNav.jsx' },
-    uxNote: 'Tab icons read smaller than the redesigned tab bar; the 44px tap area stays the same.',
-    preview: { kind: 'icon', before: { size: 20, stroke: 2 }, after: { size: 24, stroke: 1.75 } },
-    mergeItemId: 'merge-mobile-nav-icon',
-    layerId: 'tab-bar',
-    fileId: 'app',
-    line: 10,
-    message: 'Both branches changed the tab icon lines: feature/nav-badges added badges, main (the redesign) resized the icon and showed the label.',
-    branches: { local: 'feature/nav-badges · BottomNav.jsx', remote: 'main · Nav tab bar (Figma sync)' },
-    suggestion: 'Keep both: the redesign’s 24px icon, 1.75 stroke and visible label, with the badge and aria-hidden from feature/nav-badges.',
-    previewPrompt: 'Resize the bottom nav icons to 24px',
-    reviewers: [
-      { id: 'jane', status: 'pending' },
-      { id: 'james', status: 'pending' },
-    ],
-    requestedBy: 'jane',
-    comparisonFields: [
-      { label: 'Icon size', expected: '24px', current: '20px' },
-      { label: 'Stroke', expected: '1.75', current: '2' },
-      { label: 'Hit area', expected: '44px', current: '44px' },
-    ],
-    // A real conflict: both branches changed lines 10–11 from the same base.
-    //   base   — what both started from
-    //   before — B, feature/nav-badges (what's in the file now)
-    //   after  — A, main (the redesign, synced from Figma)
-    //   merged — the suggested merge: both changes kept
-    diff: {
-      base: ['<Icon className="size-5" />', '<span className="sr-only">{label}</span>'],
-      before: ['<Icon className="size-5" aria-hidden />', '<span className="sr-only">{label}</span>{badges[label] > 0 && <Badge count={badges[label]} />}'],
-      after: ['<Icon className="size-6" strokeWidth={1.75} />', '<span className="text-[11px] font-medium">{label}</span>'],
-      merged: ['<Icon className="size-6" strokeWidth={1.75} aria-hidden />', '<span className="text-[11px] font-medium">{label}</span>{badges[label] > 0 && <Badge count={badges[label]} />}'],
-    },
-  },
-
-  {
-    id: 'cc-7',
-    preview: { kind: 'spacing', before: { gap: 6 }, after: { gap: 8 } },
-    cause: 'Checkout spacing uses 6px · not on the 4/8 scale',
-    effect: 'Form fields 2px closer than the 8px scale',
-    changedBy: { type: 'person', id: 'jane', what: 'Updated the design' },
-    gitFlow: { source: 'feature/checkout-form', target: 'develop' },
-    token: 'Spacing scale mismatch',
-    file: 'src/components/checkout/CheckoutForm.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: '4 days ago',
-    resolved: true,
-    severity: 'medium',
-    riskReason: 'Medium: form spacing on the checkout — visible, but no behavior change.',
-    impact: { screens: ['Checkout · Payment step'], components: ['CheckoutForm'], files: ['src/components/checkout/CheckoutForm.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'Form fields sit 2px closer together than the 8px spacing scale.',
-    mergeItemId: 'merge-checkout-form-spacing',
-    fileId: 'checkout-form',
-    line: 3,
-    message: 'Checkout spacing uses a 6px step that is not on the 4/8 spacing scale.',
-    branches: { local: 'CheckoutForm.jsx', remote: 'Checkout · Form (Figma)' },
-    suggestion: 'Replace gap-1.5 with gap-2 so the form sits on the 8px scale.',
-    previewPrompt: 'Align checkout spacing to the 8px scale',
-    reviewers: [
-      { id: 'james', status: 'approved' },
-      { id: 'min', status: 'approved' },
-    ],
-    comparisonFields: [
-      { label: 'Field gap', expected: '8px', current: '6px' },
-    ],
-    diff: {
-      before: ['<form className="flex flex-col gap-1.5">'],
-      after: ['<form className="flex flex-col gap-2">'],
-    },
-  },
-  // Open low-risk token drift in Checkout — the kind batch approval is for.
-  {
-    id: 'cc-8',
-    cause: 'Order summary divider uses slate-200 · not the border token',
-    effect: 'Fixed color does not follow theme changes',
-    // The example of a decision that departs from the standard: the current
-    // implementation was kept, which is the one case a reason is asked for.
-    ruleIds: ['divider-color'],
-    decidedSide: 'B',
-    decidedBy: 'james',
-    deviation: { kind: 'keep-current', text: 'Kept temporarily until the design is final', by: 'james', at: '2 hours ago' },
-    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
-    gitFlow: { source: 'hotfix/checkout-divider', target: 'main' },
-    token: 'Divider / Color',
-    file: 'src/components/checkout/OrderSummary.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: '2 hours ago',
-    resolved: false,
-    severity: 'low',
-    riskReason: 'Low: a divider color on the order summary; no layout or behavior change.',
-    impact: { screens: ['Checkout · Payment step'], components: ['OrderSummary'], files: ['src/components/checkout/OrderSummary.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'The fixed color will not follow theme changes.',
-    // The border token's light / dark values come from this project's tokens.json.
-    preview: {
-      kind: 'divider',
-      themes: [
-        { label: 'Light theme', surface: '#ffffff', before: '#e2e8f0', after: '#e4e4e7' },
-        { label: 'Dark theme', surface: '#18181b', before: '#e2e8f0', after: '#27272a' },
-      ],
-    },
-    mergeItemId: 'merge-checkout-divider',
-    layerId: 'order-summary',
-    fileId: 'divider',
-    line: 4,
-    message: 'The order summary divider uses slate-200 instead of the border token.',
-    branches: { local: 'OrderSummary.jsx', remote: 'Checkout · Summary (Figma)' },
-    suggestion: 'Use border-border on the divider so it follows the theme.',
-    previewPrompt: 'Use the border token on the order summary divider',
-    reviewers: [{ id: 'min', status: 'pending' }],
-    comparisonFields: [{ label: 'Divider', expected: 'border (token)', current: 'slate-200' }],
-    diff: {
-      before: ['<hr className="border-slate-200" />'],
-      after: ['<hr className="border-border" />'],
-    },
-  },
-  {
-    id: 'cc-9',
-    cause: 'Field labels use tracking-wide · design system uses normal tracking',
-    effect: 'Labels wider-spaced than the rest of the form',
-    changedBy: { type: 'person', id: 'min', what: 'Updated the design' },
-    gitFlow: { source: 'feature/payment-label', target: 'develop' },
-    token: 'Label / Letter spacing',
-    file: 'src/components/checkout/PaymentForm.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: '3 hours ago',
-    resolved: false,
-    severity: 'low',
-    riskReason: 'Low: letter spacing on payment field labels; no layout or behavior change.',
-    impact: { screens: ['Checkout · Payment step'], components: ['PaymentForm'], files: ['src/components/checkout/PaymentForm.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'Field labels read slightly wider-spaced than the rest of the form.',
-    preview: { kind: 'text', label: 'Card number', before: { letterSpacing: '0.025em' }, after: { letterSpacing: 'normal' } },
-    mergeItemId: 'merge-checkout-payment-label',
-    layerId: 'payment-label',
-    fileId: 'payment-form',
-    line: 4,
-    message: 'Field labels use tracking-wide; the design system label style has normal tracking.',
-    branches: { local: 'PaymentForm.jsx', remote: 'Checkout · Payment (Figma)' },
-    suggestion: 'Drop tracking-wide from the field labels.',
-    previewPrompt: 'Remove the extra letter spacing from payment labels',
-    reviewers: [{ id: 'james', status: 'pending' }],
-    comparisonFields: [{ label: 'Tracking', expected: 'normal', current: '0.025em (tracking-wide)' }],
-    diff: {
-      before: ['<label className="text-xs font-medium tracking-wide">'],
-      after: ['<label className="text-xs font-medium">'],
-    },
-  },
-  {
-    id: 'cc-10',
-    cause: 'Shipping icons at stroke 2.5 · icon set drawn at 2',
-    effect: 'Shipping icons heavier than the rest of the icon set',
-    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
-    gitFlow: { source: 'feature/shipping-icon', target: 'develop' },
-    token: 'Icon / Stroke width',
-    file: 'src/components/checkout/ShippingOptions.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: 'Yesterday',
-    resolved: false,
-    severity: 'low',
-    riskReason: 'Low: icon stroke weight on the shipping options; no layout or behavior change.',
-    impact: { screens: ['Checkout · Shipping step'], components: ['ShippingOptions'], files: ['src/components/checkout/ShippingOptions.jsx'] },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote: 'Shipping icons look heavier than the rest of the icon set.',
-    preview: { kind: 'icon', before: { size: 16, stroke: 2.5 }, after: { size: 16, stroke: 2 } },
-    mergeItemId: 'merge-checkout-shipping-icon',
-    layerId: 'shipping-label',
-    fileId: 'shipping',
-    line: 4,
-    message: 'Shipping option icons render at stroke 2.5; the icon set is drawn at 2.',
-    branches: { local: 'ShippingOptions.jsx', remote: 'Checkout · Shipping (Figma)' },
-    suggestion: 'Use the default stroke width on the shipping icons.',
-    previewPrompt: 'Reset the shipping icon stroke width',
-    reviewers: [],
-    comparisonFields: [{ label: 'Stroke', expected: '2', current: '2.5' }],
-    diff: {
-      before: ['<Truck className="size-4" strokeWidth={2.5} />'],
-      after: ['<Truck className="size-4" />'],
-    },
-  },
-  // The representative end-to-end scenario: the Checkout payment step's
-  // Place order button. Every surface (Dashboard queue, Workspace file +
-  // canvas, Conflict Point, Merge Studio item, AI scenario, History,
-  // activity) points at this one change.
-  {
-    id: 'cc-11',
-    cause: 'Place order button 40px tall with fixed violet (#7c3aed) · design uses the 44px large button and the primary token',
-    effect: 'Button 4px short · fixed color does not follow theme changes',
-    // Its reason, registered ahead of time: the two design system rules it
-    // runs into (lib/rationale), and the purpose the work was started for.
-    // Nobody types these on the conflict — they're linked when it's detected,
-    // along with Jordan's comment on it.
-    ruleIds: ['button-height', 'button-color'],
-    purpose: {
-      text: 'Remove the hard-coded hex (#7c3aed) and match the new checkout design’s primary token and 44px large button',
-      by: 'james',
-      source: 'request',
-    },
-    gitFlow: { source: 'release/checkout-v2', target: 'main' },
-    token: 'Place order button · Height & color',
-    file: 'src/components/checkout/PlaceOrderButton.jsx',
-    projectId: 'checkout-redesign',
-    projectName: 'Checkout Redesign',
-    timestamp: 'Yesterday, 5:20 PM',
-    resolved: false,
-    dueLabel: 'Due tomorrow',
-    severity: 'medium',
-    message:
-      'The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.',
-    riskReason:
-      'Medium: a visible size and color change on the checkout’s main call to action. Styling only — no payment logic or data changes.',
-    impact: {
-      screens: ['Checkout · Payment step'],
-      components: ['PlaceOrderButton'],
-      files: ['src/components/checkout/PlaceOrderButton.jsx'],
-    },
-    // Who made the change under review (the code as it is now) and what
-    // flagged it.
-    changedBy: { type: 'person', id: 'james', what: 'Implemented the button in PlaceOrderButton.jsx' },
-    detectedBy: 'Devsign design ↔ code sync',
-    uxNote:
-      'The button is 4px shorter than the design’s large button, and its fixed violet color won’t follow theme changes.',
-    branches: { local: 'PlaceOrderButton.jsx', remote: 'Checkout · Payment step (Figma)' },
-    suggestion: 'Use the lg button size and remove the fixed background so the button uses the primary color token.',
-    suggestionReason: 'The Checkout design specifies the large primary button; the hard-coded hex bypasses the theme.',
-    // Only references that exist in this project (its tokens.json).
-    references: [
-      { kind: 'token', label: 'button.height.lg = 44', source: 'src/design/tokens.json' },
-      { kind: 'token', label: 'color.primary', source: 'src/design/tokens.json' },
-    ],
-    expectedResult: 'Place order renders 44px tall in the primary color on the payment step.',
-    previewPrompt: 'Make the Place order button match the checkout design',
-    reviewStage: 'in_review',
-    reviewers: [
-      { id: 'jane', status: 'pending' },
-      { id: 'min', status: 'pending' },
-    ],
-    comparisonFields: [
-      { label: 'Height', expected: '44px (button.height.lg)', current: '40px (default size)' },
-      { label: 'Background', expected: 'color.primary (Indigo 500)', current: '#7c3aed (fixed hex)' },
-    ],
-    // What the change looks like, rendered in the Conflict Point Overview.
-    preview: {
-      kind: 'button',
-      label: 'Place order',
-      before: { height: 40, background: '#7c3aed' },
-      after: { height: 44, background: '#6366f1' },
-    },
-    diff: {
-      before: ['    <Button className="w-full bg-[#7c3aed]" disabled={isSubmitting} onClick={placeOrder}>'],
-      after: ['    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>'],
-    },
-    // Where it lives in the project's Workspace and Merge Studio.
-    fileId: 'app',
-    line: 8,
-    layerId: 'place-order',
-    mergeItemId: 'merge-checkout-cta',
-    mergeTitle: 'Merged Place order button size and color',
-    linkedCommentId: 'comment-cc11',
-  },
-  // ── Dashboard Redesign ──────────────────────────────────────────────
-  // Its changes come from the seed (mocks/seed.js → mocks/derive.js): CON-002,
-  // the Structural Drift — found at 768px, asked about by Alex, approved by
-  // Taylor, fixed, checked and merged — and three value drifts on the same
-  // screen, each at a different stage. `decisionFlow` gives CON-002's review
-  // the design-decision flow (DesignDecisionFlow) instead of picking values.
-  ...dashboardConflicts(),
-  {
-    id: 'CON-008',
-    // About the Dashboard screen as a whole — no single element on its canvas
-    // frame — so its screen is linked without one marked.
-    designPageId: 'page-dashboard',
-    // …so its own component is drawn alone (ElementPreview's ComponentSample).
-    sample: 'legend',
-    title: 'Chart legend / Spacing',
-    token: 'Chart legend / Spacing',
-    file: 'src/components/dashboard/RevenueChart.tsx',
-    projectId: 'dashboard-redesign',
-    projectName: 'Dashboard Redesign',
-    timestamp: 'Today, 8:10 AM',
-    dueLabel: 'Due in 3 days',
-    dueBucket: 'week',
-    resolved: false,
-    severity: 'low',
-    reviewStage: 'in_review',
-    requestedBy: 'james',
-    detectedBy: 'Devsign design ↔ code sync',
-    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
-    gitFlow: { source: 'feature/revenue-chart', target: 'develop' },
-    cause: '범례 항목 간격 4px · 디자인은 8px',
-    effect: '범례 항목이 붙어 보임',
-    message: '차트 범례 항목 사이 간격이 4px이에요. 디자인은 8px(space.2)이에요.',
-    impact: { screens: ['Dashboard'], components: ['RevenueChart'], files: ['src/components/dashboard/RevenueChart.tsx'] },
-    reviewers: [{ id: 'jane', status: 'pending' }],
-    preview: { kind: 'spacing', before: { gap: '4px' }, after: { gap: '8px' } },
-    comparisonFields: [{ label: 'Gap', expected: '8px (space.2)', current: '4px' }],
-    diff: { before: ['<ul className="legend flex gap-1">'], after: ['<ul className="legend flex gap-2">'] },
-  },
-  {
-    id: 'CON-009',
-    // About the Dashboard screen as a whole — no single element on its canvas
-    // frame — so its screen is linked without one marked.
-    designPageId: 'page-dashboard',
-    title: 'Sidebar / Breakpoint',
-    token: 'Sidebar / Breakpoint',
-    file: 'src/components/dashboard/Sidebar.tsx',
-    projectId: 'dashboard-redesign',
-    projectName: 'Dashboard Redesign',
-    timestamp: 'Yesterday',
-    dueLabel: 'Due in 7 days',
-    dueBucket: 'week',
-    resolved: false,
-    severity: 'medium',
-    reviewStage: 'detected',
-    detectedBy: 'Devsign design ↔ code sync',
-    changedBy: { type: 'person', id: 'min', what: 'Changed the code' },
-    gitFlow: { source: 'feature/dashboard-responsive', target: 'develop' },
-    cause: '사이드바 접힘 기준 1024px · 디자인은 768px',
-    effect: '태블릿 가로 화면에서 사이드바가 일찍 접힘',
-    message: '사이드바가 1024px부터 접혀요. 디자인은 768px(breakpoint.tablet)에서 접혀요.',
-    impact: { screens: ['Dashboard · tablet'], components: ['Sidebar'], files: ['src/components/dashboard/Sidebar.tsx'] },
-    reviewers: [{ id: 'jane', status: 'pending' }],
-    preview: { kind: 'card', content: { title: 'Sidebar.tsx', detail: 'collapse < 1024px → 768px' }, before: { radius: 12 }, after: { radius: 12 } },
-    comparisonFields: [{ label: 'Collapse at', expected: '768px (breakpoint.tablet)', current: '1024px' }],
-    diff: { before: ['const collapsed = width < 1024'], after: ['const collapsed = width < 768'] },
-  },
-  {
-    id: 'CON-011',
-    // About the Dashboard screen as a whole — no single element on its canvas
-    // frame — so its screen is linked without one marked.
-    designPageId: 'page-dashboard',
-    title: 'Empty state / Illustration size',
-    token: 'Empty state / Illustration size',
-    file: 'src/components/dashboard/EmptyState.tsx',
-    projectId: 'dashboard-redesign',
-    projectName: 'Dashboard Redesign',
-    timestamp: 'Yesterday',
-    dueLabel: 'Due in 7 days',
-    dueBucket: 'week',
-    resolved: false,
-    severity: 'low',
-    reviewStage: 'in_review',
-    requestedBy: 'james',
-    detectedBy: 'Devsign design ↔ code sync',
-    changedBy: { type: 'person', id: 'james', what: 'Changed the code' },
-    gitFlow: { source: 'feature/empty-state', target: 'develop' },
-    cause: '빈 상태 일러스트 96px · 디자인은 120px',
-    effect: '빈 화면이 허전해 보임',
-    message: '빈 상태 일러스트가 96px이에요. 디자인은 120px이에요.',
-    impact: { screens: ['Dashboard · empty'], components: ['EmptyState'], files: ['src/components/dashboard/EmptyState.tsx'] },
-    reviewers: [{ id: 'jane', status: 'pending' }],
-    preview: { kind: 'icon', before: { size: 24, stroke: 2 }, after: { size: 30, stroke: 2 } },
-    comparisonFields: [{ label: 'Size', expected: '120px', current: '96px' }],
-    diff: { before: ['<img className="size-24" src={empty} alt="" />'], after: ['<img className="size-30" src={empty} alt="" />'] },
-  },
+  // ── Every project's changes ─────────────────────────────────────────
+  // Design changes and merge conflicts alike come from the seed
+  // (mocks/seed.js → mocks/derive.js). Dashboard Redesign's CON-002 is the
+  // reference — the Structural Drift found at 768px, asked about by Alex,
+  // approved by Taylor, fixed, checked and merged — and every other design
+  // change follows its steps: Checkout Redesign's CON-012 and Mobile Nav
+  // Revamp's CON-021 are merged the same way, the rest each at their own
+  // stage. The merge conflicts (CON-022 – CON-024) are numbered and timed the
+  // same way but resolved as before, in Merge Studio. `decisionFlow` gives
+  // CON-002's review the design-decision flow (DesignDecisionFlow) instead
+  // of picking values.
+  ...seededConflicts(),
 ]
 
 // A week of conflict-resolution throughput (stacked Resolved / In review /
@@ -983,7 +317,7 @@ export const mergeSchedule = [
 // 'comment' | 'file' | 'mention'. `dateGroup` buckets rows into the
 // page's "Today / Yesterday / <date>" sections.
 export const activities = [
-  // Checkout Redesign — the Place order scenario (Conflict Point cc-11).
+  // Checkout Redesign — the Place order scenario (Conflict Point CON-014).
   {
     id: 'activity-co-3',
     type: 'conflict',
@@ -992,26 +326,26 @@ export const activities = [
     actorInitials: 'JO',
     actorColorClass: 'bg-sky-500',
     action: 'requested your review on',
-    target: 'Place order button · Height & color',
-    conflictId: 'cc-11',
+    target: titleOf('CON-014'),
+    conflictId: 'CON-014',
     projectId: 'checkout-redesign',
-    timestamp: '8m ago',
+    timestamp: stepTimeOf('CON-014', 'requested'),
     dateGroup: 'today',
     thumbnailTypes: ['checkout'],
   },
   {
     id: 'activity-nav-1',
     type: 'conflict',
-    actorId: 'jane',
-    actorName: 'Taylor',
-    actorInitials: 'TA',
-    actorColorClass: 'bg-indigo-500',
+    actorId: 'min',
+    actorName: 'Alex',
+    actorInitials: 'AL',
+    actorColorClass: 'bg-emerald-500',
     action: 'requested your review on',
-    target: 'Nav Icon / Size',
-    conflictId: 'cc-4',
-    historyId: 'history-conflict-cc-4',
+    target: titleOf('CON-020'),
+    conflictId: 'CON-020',
+    historyId: 'history-conflict-con-020',
     projectId: 'mobile-nav-revamp',
-    timestamp: '10m ago',
+    timestamp: stepTimeOf('CON-020', 'requested'),
     dateGroup: 'today',
     thumbnailTypes: ['mobile-nav'],
   },
@@ -1023,8 +357,8 @@ export const activities = [
     actorInitials: 'AL',
     actorColorClass: 'bg-emerald-500',
     action: 'commented on',
-    target: 'Label / Letter spacing',
-    conflictId: 'cc-9',
+    target: titleOf('CON-015'),
+    conflictId: 'CON-015',
     projectId: 'checkout-redesign',
     timestamp: '35m ago',
     dateGroup: 'today',
@@ -1037,10 +371,10 @@ export const activities = [
     actorInitials: 'DV',
     actorColorClass: 'bg-violet-500',
     action: 'flagged a design ↔ code difference on',
-    target: 'Divider / Color',
-    conflictId: 'cc-8',
+    target: titleOf('CON-016'),
+    conflictId: 'CON-016',
     projectId: 'checkout-redesign',
-    timestamp: '2h ago',
+    timestamp: stepTimeOf('CON-016', 'detected'),
     dateGroup: 'today',
     thumbnailTypes: ['checkout'],
   },
@@ -1051,10 +385,10 @@ export const activities = [
     actorInitials: 'DV',
     actorColorClass: 'bg-violet-500',
     action: 'flagged a design ↔ code difference on',
-    target: 'Place order button · Height & color',
-    conflictId: 'cc-11',
+    target: titleOf('CON-014'),
+    conflictId: 'CON-014',
     projectId: 'checkout-redesign',
-    timestamp: 'Yesterday, 5:20 PM',
+    timestamp: stepTimeOf('CON-014', 'detected'),
     dateGroup: 'yesterday',
     thumbnailTypes: ['checkout'],
   },
@@ -1172,44 +506,30 @@ export const mergeDueFilters = ['Any', 'Overdue', 'Due Soon', 'No Due Date']
 export const mergeListItems = [
   // The two precise-adjustment samples (see conflictChecklist).
   {
-    id: 'merge-checkout-touch-adjusted', projectId: 'checkout-redesign', conflictId: 'cc-touch-adjusted',
-    title: 'Coupon close button / Touch area', subtitle: '1 file · Design + Code',
-    tag: 'Needs Review', updatedLabel: 'Just now', fileIds: ['coupon-notice'],
-    hasDesign: true, designPageId: 'page-coupon-notice', category: 'Checkout',
-    conflictLevel: 'Medium', dueLabel: 'No due date', dueBucket: 'none', assigneeId: 'min',
+    id: 'merge-checkout-touch-adjusted', projectId: 'checkout-redesign', conflictId: 'CON-017', ...mergeStateOf('CON-017'), subtitle: '1 file · Design + Code', fileIds: ['coupon-notice'],
+    hasDesign: true, designPageId: 'page-coupon-notice', category: 'Checkout', assigneeId: 'min',
   },
   {
-    id: 'merge-checkout-tab-icon', projectId: 'checkout-redesign', conflictId: 'cc-tab-icon-size',
-    title: 'Tab icon / Size', subtitle: '1 file · Design + Code',
-    tag: 'Needs Review', updatedLabel: 'Just now', fileIds: ['checkout-tabs'],
-    hasDesign: true, designPageId: 'page-checkout-tabs', category: 'Checkout',
-    conflictLevel: 'Low', dueLabel: 'No due date', dueBucket: 'none', assigneeId: 'james',
+    id: 'merge-checkout-tab-icon', projectId: 'checkout-redesign', conflictId: 'CON-018', ...mergeStateOf('CON-018'), subtitle: '1 file · Design + Code', fileIds: ['checkout-tabs'],
+    hasDesign: true, designPageId: 'page-checkout-tabs', category: 'Checkout', assigneeId: 'james',
   },
   {
-    id: 'merge-checkout-manual-target', projectId: 'checkout-redesign', conflictId: 'cc-manual-target',
-    title: 'Coupon close button / Manual adjustment', subtitle: '1 file · Design + Code',
-    tag: 'Needs Review', updatedLabel: 'Just now', fileIds: ['coupon-notice'],
-    hasDesign: true, designPageId: 'page-coupon-notice', category: 'Checkout',
-    conflictLevel: 'Medium', dueLabel: 'No due date', dueBucket: 'none', assigneeId: 'min',
+    id: 'merge-checkout-manual-target', projectId: 'checkout-redesign', conflictId: 'CON-019', ...mergeStateOf('CON-019'), subtitle: '1 file · Design + Code', fileIds: ['coupon-notice'],
+    hasDesign: true, designPageId: 'page-coupon-notice', category: 'Checkout', assigneeId: 'min',
   },
-  // Checkout Redesign's item for Conflict Point cc-11 (Open in Merge Studio
+  // Checkout Redesign's item for Conflict Point CON-014 (Open in Merge Studio
   // lands here). Original Design = the Checkout design (44px, primary);
   // Current Implementation = PlaceOrderButton.jsx (40px, fixed violet).
   {
     id: 'merge-checkout-cta',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-11',
-    title: 'Place order button',
+    conflictId: 'CON-014',
+    ...mergeStateOf('CON-014'),
     subtitle: '2 files · Design + Code',
-    tag: 'Needs Review',
-    updatedLabel: 'Yesterday',
     fileIds: ['app', 'tokens'],
     hasDesign: true,
     designPageId: 'page-checkout',
     category: 'Checkout',
-    conflictLevel: 'Medium',
-    dueLabel: 'Due tomorrow',
-    dueBucket: 'soon',
     assigneeId: 'jane',
   },
   // Dashboard Redesign: two AI drafts of the dashboard, compared in Design
@@ -1315,94 +635,69 @@ export const mergeListItems = [
     ],
   },
   // Checkout Redesign's remaining Conflict Points, same project as
-  // merge-checkout-cta/merge-checkout-designer-pair above — cc-7 is
-  // already resolved; cc-8/cc-9/cc-10 are still open.
+  // merge-checkout-cta/merge-checkout-designer-pair above — CON-012 is
+  // merged (the project's reference); CON-013/CON-015/CON-016 are still open.
   {
     id: 'merge-checkout-form-spacing',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-7',
-    title: 'Spacing scale mismatch',
+    conflictId: 'CON-012',
+    ...mergeStateOf('CON-012'),
     subtitle: '1 file · Code',
-    tag: 'Merged',
-    updatedLabel: '4 days ago',
     fileIds: ['checkout-form'],
     hasDesign: false,
     category: 'Checkout',
-    conflictLevel: 'None',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
     assigneeId: 'james',
   },
   {
     id: 'merge-checkout-divider',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-8',
-    title: 'Divider / Color',
+    conflictId: 'CON-016',
+    ...mergeStateOf('CON-016'),
     subtitle: '1 file · Design + Code',
-    tag: 'Needs Review',
-    updatedLabel: '2 hours ago',
     fileIds: ['divider'],
     hasDesign: true,
     designPageId: 'page-checkout',
     category: 'Checkout',
-    conflictLevel: 'Low',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
     assigneeId: 'min',
   },
   {
     id: 'merge-checkout-payment-label',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-9',
-    title: 'Label / Letter spacing',
+    conflictId: 'CON-015',
+    ...mergeStateOf('CON-015'),
     subtitle: '1 file · Design + Code',
-    tag: 'Needs Review',
-    updatedLabel: '3 hours ago',
     fileIds: ['payment-form'],
     hasDesign: true,
     designPageId: 'page-checkout',
     category: 'Checkout',
-    conflictLevel: 'Low',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
     assigneeId: 'james',
   },
   {
     id: 'merge-checkout-shipping-icon',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-10',
-    title: 'Icon / Stroke width',
+    conflictId: 'CON-013',
+    ...mergeStateOf('CON-013'),
     subtitle: '1 file · Design + Code',
-    tag: 'Needs Review',
-    updatedLabel: 'Yesterday',
     fileIds: ['shipping'],
     hasDesign: true,
     designPageId: 'page-checkout',
     category: 'Checkout',
-    conflictLevel: 'Low',
-    dueLabel: 'No due date',
-    dueBucket: 'none',
     assigneeId: 'min',
   },
-  // Mobile Nav Revamp's own item for Conflict Point cc-4 — reuses page-1
+  // Mobile Nav Revamp's own item for Conflict Point CON-020 — reuses page-1
   // (the shared Mobile App canvas) directly by id for its design side,
   // since this project has no canvasPages entry of its own; `tab-bar`
   // stands in for the redesigned bottom nav.
   {
     id: 'merge-mobile-nav-icon',
     projectId: 'mobile-nav-revamp',
-    conflictId: 'cc-4',
-    title: 'Nav Icon / Size',
+    conflictId: 'CON-020',
+    ...mergeStateOf('CON-020'),
     subtitle: '1 file · Design + Code',
-    tag: 'Needs Review',
-    updatedLabel: 'Yesterday',
     fileIds: ['app'],
     hasDesign: true,
     designPageId: 'page-1',
     category: 'Navigation',
-    conflictLevel: 'Medium',
-    dueLabel: 'Due tomorrow',
-    dueBucket: 'soon',
     assigneeId: 'james',
   },
   {
@@ -1581,7 +876,7 @@ export const designMergeVariants = {
   'merge-mobile-nav-icon': {
     layerDiffs: {
       // Two diffs, not one — driftSeverity (mergeSummary.js) reads 2 diffs
-      // as Medium, matching cc-4's declared severity.
+      // as Medium, matching CON-020's declared severity.
       'tab-bar': [
         {
           id: 'nav-icon-size',
@@ -1735,7 +1030,7 @@ export const codeMergeVariants = {
   'merge-checkout-manual-target': {
     'coupon-notice': [{ id: 'coupon-close-radius', line: 3, incoming: '    <button className="w-[20px] h-[20px] rounded-[8px]" aria-label="Close coupon">×</button>' }],
   },
-  // The design's version of PlaceOrderButton.jsx line 8 (cc-11's fix).
+  // The design's version of PlaceOrderButton.jsx line 8 (CON-014's fix).
   'merge-checkout-cta': {
     app: [{ id: 'place-order-button', line: 8, incoming: '    <Button size="lg" className="w-full" disabled={isSubmitting} onClick={placeOrder}>' }],
   },
@@ -1988,7 +1283,7 @@ export const projectFileSets = {
     },
   ],
   // The Checkout scenario's own files (same four ids as `openFiles`). Line 8
-  // of PlaceOrderButton.jsx is the line Conflict Point cc-11's diff, the
+  // of PlaceOrderButton.jsx is the line Conflict Point CON-014's diff, the
   // Merge Studio item and the AI fix all refer to.
   'checkout-redesign': [
     {
@@ -2046,9 +1341,9 @@ export const projectFileSets = {
       ],
     },
     openFiles[3],
-    // Extra files beyond the 4 standard ids — cc-7, cc-8, cc-9 and cc-10
+    // Extra files beyond the 4 standard ids — CON-012, CON-013, CON-015 and CON-016
     // each name a different checkout file than PlaceOrderButton.jsx (the
-    // 'app' slot, already cc-11's), so they get their own real files
+    // 'app' slot, already CON-014's), so they get their own real files
     // instead of sharing one that doesn't match their own diff.
     {
       id: 'checkout-form',
@@ -2056,7 +1351,7 @@ export const projectFileSets = {
       path: 'src/components/checkout/CheckoutForm.jsx',
       language: 'jsx',
       iconName: 'FileCode',
-      // cc-7's fix, already resolved — gap-2 sits on the 8px spacing scale.
+      // CON-012's fix, merged — gap-2 sits on the 8px spacing scale.
       lines: ['export function CheckoutForm() {', '  return (', '    <form className="flex flex-col gap-2">', '      {/* fields */}', '    </form>', '  )', '}'],
     },
     {
@@ -2065,7 +1360,7 @@ export const projectFileSets = {
       path: 'src/components/checkout/OrderSummary.jsx',
       language: 'jsx',
       iconName: 'FileCode',
-      // cc-8's current state — the divider is still hard-coded slate-200.
+      // CON-016's current state — the divider is still hard-coded slate-200.
       lines: ['export function OrderSummary() {', '  return (', '    <div className="order-summary">', '      <hr className="border-slate-200" />', '    </div>', '  )', '}'],
     },
     {
@@ -2074,7 +1369,7 @@ export const projectFileSets = {
       path: 'src/components/checkout/PaymentForm.jsx',
       language: 'jsx',
       iconName: 'FileCode',
-      // cc-9's current state — the label still carries tracking-wide.
+      // CON-015's current state — the label still carries tracking-wide.
       lines: [
         'export function PaymentForm() {',
         '  return (',
@@ -2092,7 +1387,7 @@ export const projectFileSets = {
       path: 'src/components/checkout/ShippingOptions.jsx',
       language: 'jsx',
       iconName: 'FileCode',
-      // cc-10's current state — the Truck icon still renders at stroke 2.5.
+      // CON-013's current state — the Truck icon still renders at stroke 2.5.
       lines: [
         'export function ShippingOptions() {',
         '  return (',
@@ -2282,60 +1577,6 @@ export const reviewStages = [
   { id: 'resolved', label: 'Resolved' },
 ]
 
-// `severity` drives the color badge in the Conflict Points table
-// ('high' | 'medium' | 'low'); `assigneeId` resolves against `allPeople`;
-// `linkedTo` is a free-text pointer to the related comment/frame.
-// `reviewers` are required approvers (status: 'approved' | 'pending'),
-// `linkedCommentId` resolves against `comments` for the detail modal's
-// comment thread, `comparisonFields` power the Overview tab's Expected
-// (Design System) vs Current (Code) cards, and `previewPrompt` is what
-// "Preview change" sends through the same AI chat pipeline the Ask Devsign
-// widget uses.
-export const conflictPoints = [
-  {
-    id: 'conflict-1',
-    file: 'src/components/DesignCanvas.jsx',
-    message: 'Merge conflict between local and remote branch (lines 9-14).',
-    severity: 'high',
-    assigneeId: 'james',
-    linkedTo: 'Comment #1',
-    linkedCommentId: 'comment-1',
-    detectedAt: '2h ago',
-    branches: { local: 'feature/canvas-frames', remote: 'main' },
-    suggestion:
-      "Both branches edited the frame-mapping block. Keep the remote's key prop change and reapply the local onSelect handler on top of it.",
-    previewPrompt: 'Resolve the merge conflict in DesignCanvas.jsx',
-    reviewStage: 'in_review',
-    reviewers: [
-      { id: 'james', status: 'approved' },
-      { id: 'min', status: 'pending' },
-    ],
-    comparisonFields: [
-      { label: 'key prop', expected: 'frame.id (preserved)', current: 'missing — merge conflict' },
-      { label: 'onSelect handler', expected: 'kept from local branch', current: 'duplicated across branches' },
-    ],
-    diff: {
-      before: [
-        '<<<<<<< HEAD (local)',
-        '{frames.map((frame) => (',
-        '  <Frame data={frame} onSelect={() => setSelected(frame.id)} />',
-        '=======',
-        '{frames.map((frame) => (',
-        '  <Frame key={frame.id} data={frame} />',
-        '>>>>>>> origin/main',
-      ],
-      after: [
-        '{frames.map((frame) => (',
-        '  <Frame',
-        '    key={frame.id}',
-        '    data={frame}',
-        '    onSelect={() => setSelected(frame.id)}',
-        '  />',
-      ],
-    },
-  },
-]
-
 // Surfaced when the "Continue" button shape is selected on the Canvas — the
 // design frame's padding doesn't match the code's current button padding.
 // The `padding-fix` AI chat scenario below resolves this conflict.
@@ -2397,7 +1638,7 @@ export const initialChatMessages = [
 // preview -> terminal sync flow.
 export const aiEditScenarios = [
   // Checkout Redesign (project-scoped, see forProject). The Place order fix
-  // is Conflict Point cc-11's proposed change: applying it here sends cc-11
+  // is Conflict Point CON-014's proposed change: applying it here sends CON-014
   // back to review — it's only merged once its reviewers approve.
   {
     id: 'place-order-fix',
@@ -2430,7 +1671,7 @@ export const aiEditScenarios = [
       '[HMR] PlaceOrderButton.jsx updated',
       '✓ build succeeded in 112ms',
     ],
-    resolvesConflictId: 'cc-11',
+    resolvesConflictId: 'CON-014',
   },
   // A request wider than what's in this workspace: only the part that can
   // be changed is changed, and the result says so (partial).
@@ -2465,7 +1706,7 @@ export const aiEditScenarios = [
       '[HMR] PlaceOrderButton.jsx updated',
       '! 3 other button files not in this workspace — skipped',
     ],
-    resolvesConflictId: 'cc-11',
+    resolvesConflictId: 'CON-014',
   },
   {
     id: 'padding-fix',
@@ -2659,7 +1900,7 @@ export const canvasPages = [
     ],
   },
   // Checkout Redesign's own design page (see pagesForProject): the payment
-  // step with the Place order button (Conflict Point cc-11). The design
+  // step with the Place order button (Conflict Point CON-014). The design
   // uses the 44px large button; the code currently renders 40px.
   {
     id: 'page-checkout',
@@ -3037,6 +2278,26 @@ const checkoutButtonLines = (className) => [
 ]
 
 
+// CheckoutForm.jsx with its field gap, and CON-012's two saved versions:
+// the fix (6px → 8px, checked) and the merge.
+const checkoutFormLines = (gap) => ['export function CheckoutForm() {', '  return (', `    <form className="flex flex-col ${gap}">`, '      {/* fields */}', '    </form>', '  )', '}']
+function checkoutFormCheckpoints() {
+  const change = seededChangeOf('CON-012')
+  const snapshot = { activeFileId: change.fileId, fileId: change.fileId, lines: checkoutFormLines('gap-2'), conflicts: [], selectedLayerId: null }
+  const fileName = change.file.split('/').pop()
+  return [
+    {
+      id: 'history-co-form-fix', kind: 'edit', conflictId: change.id, actorLabel: 'Devsign 자동 수정', target: `${fileName} · line ${change.line}`,
+      label: `${change.id} 수정 · 필드 간격 ${change.built} → ${change.design} (검증 통과)`, summary: `결제 폼 필드 간격: ${change.built} → ${change.design}`,
+      reason: change.steps.decided.reason, timestamp: stepTimeOf(change.id, 'verified'), archived: false, snapshot,
+    },
+    {
+      id: 'history-co-form-merge', kind: 'merge', conflictId: change.id, conflictIds: [change.id], actorId: change.steps.merged.by, target: `${fileName} · ${change.title.split(' / ').pop()}`,
+      label: `${change.id} 병합 · 반영 완료`, reason: '변경 승인 — 검증 완료', timestamp: stepTimeOf(change.id, 'merged'), archived: false, snapshot,
+    },
+  ]
+}
+
 // BottomNav.jsx as it stood at a checkpoint, whole — written from the same
 // values its preview is drawn with, so the code and the preview can't
 // disagree: the icon's size class, the tap area, and the unread badge
@@ -3075,26 +2336,39 @@ export const projectHistorySeeds = {
   // the preview together.
   //
   // It also branches, for the graph: main forks into feature/nav-badge and
-  // hotfix/mobile-nav-icon (Conflict Point cc-4's branch — still in
+  // hotfix/mobile-nav-icon (Conflict Point CON-020's branch — still in
   // progress, like its review); the feature merges back into main while the
-  // hotfix carries on. `branch` puts a checkpoint on its lane; a merge names
+  // hotfix carries on. The feature is CON-021's, the project's reference: its
+  // badge cap is the fix applied and checked by itself, and its merge is
+  // CON-021's merge — at the times its record says. `branch` puts a checkpoint on its lane; a merge names
   // what it brings in with `mergedBranches`. Labels are short enough to
   // read whole in the list. The conflict's own checkpoint isn't a node — it
   // shows as a warning mark on the version it was found on (the one before).
   'mobile-nav-revamp': [
-    navCheckpoint({ id: 'history-nav-1', label: 'Add bottom nav', branch: 'main', actorId: 'james', target: 'BottomNav.jsx', timestamp: 'Yesterday, 9:10 AM', iconSize: 16, hitArea: 36 }),
-    navCheckpoint({ id: 'history-nav-2', label: 'Set icons to 20px', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 9:42 AM', iconSize: 20, hitArea: 44 }),
+    navCheckpoint({ id: 'history-nav-1', label: '하단 내비게이션 추가', branch: 'main', actorId: 'james', target: 'BottomNav.jsx', timestamp: 'Yesterday, 9:10 AM', iconSize: 16, hitArea: 36 }),
+    navCheckpoint({ id: 'history-nav-2', label: '아이콘 20px로 변경', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 9:42 AM', iconSize: 20, hitArea: 44 }),
     {
-      ...navCheckpoint({ id: 'history-conflict-cc-4', label: 'Navigation icon size differs from the 24px design', branch: 'hotfix/mobile-nav-icon', target: 'BottomNav.jsx · Nav Icon / Size', timestamp: 'Yesterday, 10:00 AM', iconSize: 20, hitArea: 44, expectedIconSize: 24 }),
+      ...navCheckpoint({ id: 'history-conflict-con-020', label: '탭 아이콘이 디자인(24px)보다 작아요', branch: 'hotfix/mobile-nav-icon', target: 'BottomNav.jsx · Icon size', timestamp: stepTimeOf('CON-020', 'detected'), iconSize: 20, hitArea: 44, expectedIconSize: 24 }),
       kind: 'conflict',
-      conflictId: 'cc-4',
+      conflictId: 'CON-020',
       actorLabel: 'Devsign design ↔ code sync',
     },
-    navCheckpoint({ id: 'history-nav-feature-1', label: 'Add unread badge', branch: 'feature/nav-badge', actorId: 'min', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 10:25 AM', iconSize: 20, hitArea: 44, badgeCount: 3 }),
-    navCheckpoint({ id: 'history-nav-feature-2', label: 'Cap badge at 99', branch: 'feature/nav-badge', actorId: 'min', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 11:05 AM', iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }),
-    navCheckpoint({ id: 'history-nav-hotfix-2', label: 'Draft 24px icons', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 1:40 PM', iconSize: 24, hitArea: 44 }),
-    { ...navCheckpoint({ id: 'history-nav-merge-badge', label: 'Merge unread badge', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx', timestamp: 'Yesterday, 3:15 PM', iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }), kind: 'merge', mergedBranches: ['feature/nav-badge'] },
-    navCheckpoint({ id: 'history-nav-hotfix-3', label: 'Tap area to 48px', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
+    navCheckpoint({ id: 'history-nav-feature-1', label: '읽지 않음 배지 추가', branch: 'feature/nav-badge', actorId: 'min', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 10:25 AM', iconSize: 20, hitArea: 44, badgeCount: 3 }),
+    {
+      ...navCheckpoint({ id: 'history-conflict-con-021', label: '배지가 알림 수를 제한 없이 보여 줘요', branch: 'feature/nav-badge', target: 'BottomNav.jsx · Badge count', timestamp: stepTimeOf('CON-021', 'detected'), iconSize: 20, hitArea: 44, badgeCount: 3 }),
+      kind: 'conflict',
+      conflictId: 'CON-021',
+      actorLabel: 'Devsign design ↔ code sync',
+    },
+    {
+      ...navCheckpoint({ id: 'history-nav-feature-2', label: 'CON-021 수정 · 99+ 제한', branch: 'feature/nav-badge', target: 'BottomNav.jsx · line 4', timestamp: stepTimeOf('CON-021', 'verified'), iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }),
+      conflictId: 'CON-021',
+      actorLabel: 'Devsign 자동 수정',
+      reason: seededChangeOf('CON-021').steps.decided.reason,
+    },
+    navCheckpoint({ id: 'history-nav-hotfix-2', label: '24px 아이콘 초안', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 1:40 PM', iconSize: 24, hitArea: 44 }),
+    { ...navCheckpoint({ id: 'history-nav-merge-badge', label: 'CON-021 병합 · 반영 완료', branch: 'main', actorId: seededChangeOf('CON-021').steps.merged.by, target: 'BottomNav.jsx', timestamp: stepTimeOf('CON-021', 'merged'), iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }), kind: 'merge', mergedBranches: ['feature/nav-badge'], conflictId: 'CON-021', conflictIds: ['CON-021'], reason: '변경 승인 — 검증 완료' },
+    navCheckpoint({ id: 'history-nav-hotfix-3', label: '터치 영역 48px로 변경', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
   ],
   // Dashboard Redesign — its saved versions, from the seed (mocks/derive):
   // the AI drafts, the responsive grid that brought the overlap in, CON-002's
@@ -3103,11 +2377,11 @@ export const projectHistorySeeds = {
   'checkout-redesign': [
     {
       id: 'history-co-0',
-      label: 'Initial checkout layout',
+      label: '결제 화면 초기 구성',
       kind: 'edit',
       actorId: 'min',
       target: 'Checkout.jsx',
-      timestamp: 'Sat, 4:30 PM',
+      timestamp: timeLabelOf({ day: -6, at: '16:30' }),
       archived: false,
       snapshot: {
         activeFileId: 'app',
@@ -3120,11 +2394,11 @@ export const projectHistorySeeds = {
     },
     {
       id: 'history-co-1',
-      label: 'Added Place order button',
+      label: '주문 버튼 추가',
       kind: 'edit',
       actorId: 'james',
       target: 'PlaceOrderButton.jsx',
-      timestamp: 'Mon, 2:10 PM',
+      timestamp: timeLabelOf({ day: -5, at: '14:10' }),
       archived: false,
       snapshot: {
         activeFileId: 'app',
@@ -3135,13 +2409,16 @@ export const projectHistorySeeds = {
         selectedLayerId: null,
       },
     },
+    // CON-012, the project's reference: its fix, applied and checked by
+    // itself, and its merge — at the times its record says.
+    ...checkoutFormCheckpoints(),
     {
       id: 'history-co-2',
-      label: 'Changed Place order button background to #7c3aed',
+      label: '주문 버튼 배경을 #7c3aed로 변경',
       kind: 'edit',
       // Why this step was made, as it was at the time — not the design
       // standard's reasoning, which belongs to the conflict it led to.
-      reason: 'Applied the brand violet · before the design tokens were final',
+      reason: '디자인 토큰이 확정되기 전이라 브랜드 보라색을 직접 적용',
       actorId: 'james',
       target: 'PlaceOrderButton.jsx · line 8',
       timestamp: 'Yesterday, 5:02 PM',
@@ -3155,22 +2432,22 @@ export const projectHistorySeeds = {
         selectedLayerId: null,
       },
     },
-    // Not a code change — the sync engine flagging cc-11 eighteen minutes
+    // Not a code change — the sync engine flagging CON-014 eighteen minutes
     // after the color edit above, so the timeline shows when design and
     // code actually drifted apart, not only the edits around it. Same
     // snapshot as history-co-2: nothing changed here, something was caught.
     {
-      id: 'history-conflict-cc-11',
-      label: 'The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.',
+      id: 'history-conflict-con-014',
+      label: seededChangeOf('CON-014').says,
       kind: 'conflict',
-      conflictId: 'cc-11',
+      conflictId: 'CON-014',
       actorLabel: 'Devsign design ↔ code sync',
       // The file, not the conflict's own "Place order button · Height &
       // color" token — so the History drawer's target filter/grouping
       // (which reads the text before " · ") puts this under the same
       // PlaceOrderButton.jsx group as the edits around it.
       target: 'PlaceOrderButton.jsx · Height & color',
-      timestamp: 'Yesterday, 5:20 PM',
+      timestamp: stepTimeOf('CON-014', 'detected'),
       archived: false,
       snapshot: {
         activeFileId: 'app',
@@ -3313,11 +2590,11 @@ export const designSystemUpdates = [
   {
     id: 'dsu-spacing-scale',
     projectId: 'checkout-redesign',
-    conflictId: 'cc-7',
-    title: 'Checkout spacing on the 8px scale',
-    summary: 'Form gaps move from 6px to 8px to stay on the 4/8 spacing scale.',
+    conflictId: 'CON-012',
+    title: '결제 폼 간격을 8px 단위로',
+    summary: '폼 필드 간격이 6px에서 8px로 바뀌어 4/8 간격 단위를 지켜요.',
     authorId: 'james',
-    createdAtLabel: '4 days ago',
+    createdAtLabel: stepTimeOf('CON-012', 'merged'),
     stage: 'update',
     changes: [{ label: 'Field gap', from: '6px', to: '8px' }],
   },
@@ -4219,45 +3496,47 @@ export const seedMergeNotifications = [
 // project's Inbox only). Clicking one opens the conflict's review window.
 export const conflictNotifications = [
   {
-    id: 'n-cc-11',
+    id: 'n-con-014',
     projectId: 'checkout-redesign',
     kind: 'approval',
-    authorId: 'james',
-    text: 'requested your review on Place order button · Height & color',
-    timeLabel: '8m ago',
+    authorId: seededChangeOf('CON-014').steps.requested.by,
+    text: `requested your review on ${titleOf('CON-014')}`,
+    timeLabel: stepTimeOf('CON-014', 'requested'),
     unread: true,
-    target: { conflictId: 'cc-11', label: 'Place order button · Height & color' },
+    target: { conflictId: 'CON-014', label: titleOf('CON-014') },
   },
   {
-    id: 'n-cc-4',
+    id: 'n-con-020',
     projectId: 'mobile-nav-revamp',
-    kind: 'approval',
-    authorId: 'jane',
-    text: 'requested your review on Nav Icon / Size',
-    timeLabel: '10m ago',
+    // (Taylor's to decide; on Jordan's Inbox it's Alex asking about the merge.)
+    kind: 'comment',
+    authorId: 'min',
+    text: '아이콘 줄이 main의 배지 줄과 겹쳐요. Taylor가 결정하기 전에 병합안 한번 봐 줄래요?',
+    timeLabel: stepTimeOf('CON-020', 'requested'),
     unread: true,
-    target: { conflictId: 'cc-4', label: 'Nav Icon / Size' },
+    target: { conflictId: 'CON-020', label: titleOf('CON-020') },
+    replies: [],
   },
   {
-    id: 'n-cc-9',
+    id: 'n-con-015',
     projectId: 'checkout-redesign',
     kind: 'comment',
     authorId: 'min',
     text: 'Can you take a look at the payment label spacing before we ship?',
     timeLabel: '35m ago',
     unread: true,
-    target: { conflictId: 'cc-9', label: 'Label / Letter spacing' },
+    target: { conflictId: 'CON-015', label: titleOf('CON-015') },
     replies: [],
   },
   {
-    id: 'n-cc-8',
+    id: 'n-con-016',
     projectId: 'checkout-redesign',
     kind: 'feedback',
     authorId: 'jane',
     text: 'AI: divider color drifts from the border token in OrderSummary.jsx',
-    timeLabel: '2h ago',
+    timeLabel: stepTimeOf('CON-016', 'detected'),
     unread: false,
-    target: { conflictId: 'cc-8', label: 'Divider / Color' },
+    target: { conflictId: 'CON-016', label: titleOf('CON-016') },
   },
 ]
 

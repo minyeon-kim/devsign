@@ -51,7 +51,7 @@ try {
   const sample = foldConflictCheckpoints(withBranches(projectHistorySeeds['mobile-nav-revamp'], []))
   assert.ok(sample.every((entry) => entry.branch), 'every sample checkpoint names its branch')
   assert.ok(sample.every((entry) => entry.label.length <= 20), 'labels are short enough for the list')
-  assert.deepEqual(sample.find((entry) => entry.id === 'history-nav-2').conflictMarks.map((mark) => mark.conflictId), ['cc-4'])
+  assert.deepEqual(sample.find((entry) => entry.id === 'history-nav-2').conflictMarks.map((mark) => mark.conflictId), ['CON-020'])
   const graph = branchGraph(sample)
   const row = (id) => graph.rows[sample.findIndex((entry) => entry.id === id)]
   assert.equal(graph.lanes, 3, 'the trunk and two branches open at once')

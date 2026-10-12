@@ -13,7 +13,7 @@ try {
   const { default: Panel } = await server.ssrLoadModule('/src/components/dockview/panels/ConflictReviewPanel.jsx')
   const { conflictChecklist } = await server.ssrLoadModule('/src/data/mockData.js')
   const wrap = (projectId, child) => createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null, createElement(WorkspaceProvider, { projectId }, child)))
-  for (const id of ['cc-4', 'cc-7', 'cc-8', 'cc-9', 'cc-10', 'cc-11']) {
+  for (const id of ['CON-020', 'CON-012', 'CON-016', 'CON-015', 'CON-013', 'CON-014']) {
     const conflict = { ...conflictChecklist.find((c) => c.id === id), reviewStage: 'detected', customChosen: true }
     const html = renderToStaticMarkup(wrap(conflict.projectId, createElement(Panel, { conflict, onOpenChange() {}, onUpdate() {}, onOpenMergeStudio() {} })))
     const editors = html.match(/data-value-editor="/g)?.length ?? 0

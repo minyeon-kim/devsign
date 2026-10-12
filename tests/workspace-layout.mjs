@@ -41,7 +41,7 @@ try {
   assert.equal(isQueuedConflict(submitted), true)
   assert.equal(conflictCounts([draft]).total, 0)
   assert.equal(conflictCounts([submitted]).notRequested, 1)
-  assert.equal(gitFlowOf({ id: 'cc-4' }).source, 'hotfix/mobile-nav-icon', 'existing saved records also get seeded branch metadata')
+  assert.equal(gitFlowOf({ id: 'CON-020' }).source, 'hotfix/mobile-nav-icon', 'existing saved records also get seeded branch metadata')
   const explorer = render(Explorer)
   assert.ok(explorer.includes('role="tree"'))
   assert.ok(explorer.includes('aria-label="components"'))

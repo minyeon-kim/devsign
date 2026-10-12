@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'vite'
 
-// cc-4 is a real conflict: both branches changed the same lines from one
+// CON-020 is a real conflict: both branches changed the same lines from one
 // base, and the suggested merge keeps both changes — written into the hand
 // code the review's direct adjustment uses, it's found there again.
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
   const { conflictChecklist } = await server.ssrLoadModule('/src/data/mockData.js')
   const { codeChangeOf, handLinesOf, withHandLines } = await server.ssrLoadModule('/src/lib/mergeResult.js')
-  const navIcon = conflictChecklist.find((c) => c.id === 'cc-4')
+  const navIcon = conflictChecklist.find((c) => c.id === 'CON-020')
   const { base, before, after, merged } = navIcon.diff
   assert.equal(base.length, before.length)
   assert.ok(after.some((line, i) => line !== base[i]), 'A changed the base')
@@ -18,5 +18,5 @@ try {
   const typed = withHandLines(navIcon, {}, merged, Array(11).fill('          '))
   assert.deepEqual(handLinesOf(navIcon, typed).map((l) => l.trim()), merged)
   assert.ok(codeChangeOf(before, merged).to.includes('size-6'))
-  console.log('Passed: cc-4 is a two-branch conflict whose suggested merge keeps both changes.')
+  console.log('Passed: CON-020 is a two-branch conflict whose suggested merge keeps both changes.')
 } finally { await server.close() }

@@ -8,7 +8,7 @@ import { ConflictEntryPromptCard, useConflictEntryPrompt } from '@/components/la
 import { Notification } from '@/components/layout/Notification'
 import { LocalizedText } from '@/i18n/runtime'
 import { allPeople, currentUserFor } from '@/data/mockData'
-import { shortDue } from '@/lib/conflicts'
+import { needsReviewFrom, shortDue } from '@/lib/conflicts'
 import { DECISION_LABEL, DEV_STAGE_LABEL } from '@/lib/designDecisions'
 
 // The on-screen Inbox bell (InboxButton tags itself), if any.
@@ -26,8 +26,8 @@ const REQUESTS = {
   // (Dashboard Redesign: the designer gets Alex's request for a design
   // decision; the developer, the drift being detected on their code.)
   'dashboard-redesign': { conflictId: 'CON-002' },
-  'mobile-nav-revamp': { conflictId: 'cc-4' },
-  'checkout-redesign': { conflictId: 'cc-11' },
+  'mobile-nav-revamp': { conflictId: 'CON-020' },
+  'checkout-redesign': { conflictId: 'CON-014' },
 }
 
 // A notification about one conflict, kept to what's needed: who and what in
@@ -97,9 +97,10 @@ export default function HighReviewNotifications() {
     const timer = window.setTimeout(() => setNavDue(true), NAV_REQUEST_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [isNav, onWorkspace])
-  const navResolved = conflicts.find((c) => c.id === 'cc-4')?.reviewStage === 'resolved'
   const request = REQUESTS[projectId] ?? null
   const requestConflict = request ? conflicts.find((c) => c.id === request.conflictId) : null
+  // (Elsewhere a request is only news to the one it's waiting on.)
+  const awaitingYou = Boolean(requestConflict) && needsReviewFrom(requestConflict, currentUserFor(projectId).id)
   const requester = allPeople.find((person) => person.id === (requestConflict?.requestedBy ?? requestConflict?.changedBy?.id))?.name ?? 'A teammate'
   const developer = currentUserFor(projectId).jobRole === 'Developer'
   const requestTitle = projectId === 'dashboard-redesign'
@@ -107,7 +108,7 @@ export default function HighReviewNotifications() {
       ? (requestConflict?.designDecision ? `${allPeople.find((person) => person.id === requestConflict.designDecision.by)?.name}님이 결정했어요: ${DECISION_LABEL[requestConflict.designDecision.choice]}` : `새 변경 확인이 자동 감지됐어요 · ${request?.conflictId}`)
       : `${requester} requested your review`)
     : `${requester} requested your review`
-  const showRequest = onWorkspace && !requestDismissed && (projectId === 'checkout-redesign' || (projectId === 'dashboard-redesign' && requestConflict?.reviewStage !== 'resolved') || (isNav && navDue && !navResolved))
+  const showRequest = onWorkspace && !requestDismissed && ((projectId === 'dashboard-redesign' && requestConflict?.reviewStage !== 'resolved') || (projectId !== 'dashboard-redesign' && awaitingYou && (!isNav || navDue)))
   const seen = useRef(seenNotifications)
   const [visibleIds, setVisibleIds] = useState([])
 

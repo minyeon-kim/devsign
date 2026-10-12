@@ -9,7 +9,7 @@ try {
   const { ConflictStoreProvider } = await server.ssrLoadModule('/src/state/ConflictStore.jsx')
   const { default: Preview } = await server.ssrLoadModule('/src/components/conflicts/ChangePreview.jsx')
   const records = allConflictRecords()
-  const code = records.find((record) => record.id === 'cc-2')
+  const code = records.find((record) => record.id === 'CON-025')
   assert.ok(code)
   assert.equal(conflictTypeOf(code).id, 'code-conflict')
   assert.equal(conflictTypeOf({ title: 'Frame update', diff: code.diff }).id, 'code-conflict')
@@ -41,7 +41,7 @@ try {
   for (const projectId of ['checkout-redesign', 'mobile-nav-revamp']) {
     const listHtml = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
       createElement(WorkspaceProvider, { projectId }, createElement(ListProbe)))))
-    const samples = records.filter((record) => record.id.startsWith('cc-code-') && record.projectId === projectId)
+    const samples = records.filter((record) => record.kind === 'code-conflict' && /^CON-/.test(record.id) && record.projectId === projectId)
     assert.ok(samples.length > 0)
     for (const sample of samples) {
       assert.ok(listHtml.includes(sample.id), `${sample.id} appears in the actual conflict list`)
