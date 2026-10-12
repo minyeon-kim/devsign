@@ -14,7 +14,7 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -60,7 +60,19 @@ import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyl
 // too). Its progress, the checks, and "all from one draft" / "start over"
 // (in ⋯) sit with it. Picks are ordinary decisions, so the Result, the
 // conflict's review, checks and merging all follow.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, onShowRegion }) {
+// Folded or not is kept for the browser (it survives a reload).
+const MIX_FOLD_KEY = 'devsign:mix-panel:folded'
+const readFolded = () => { try { return localStorage.getItem(MIX_FOLD_KEY) === '1' } catch { return false } }
+const writeFolded = (value) => { try { localStorage.setItem(MIX_FOLD_KEY, value ? '1' : '0') } catch { /* not kept */ } }
+// A draft's card is never narrower than this; past the panel's width the
+// row of cards scrolls sideways inside it.
+const MIX_CARD_MIN = 140
+// The panel is at most this share of the canvas's width.
+const MIX_PANEL_SHARE = 0.7
+
+// `paneShare`: how much of the canvas's width the pane this sits in takes
+// (the Result's side) — the panel's own limit is a share of the whole canvas.
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, onShowRegion, paneShare = 1 }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -93,25 +105,91 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     : [])
   const wholeFrom = (key) => rows.length > 0 && rows.every((row) => row.options.find((o) => o.key === key)?.picked)
   const takeAll = (key) => rows.forEach((row) => onDecide(row.key, row.options.find((o) => o.key === key).decision))
-  if (!rows.length) return null
   const ko = language === 'ko'
   const fixCheck = (check) => {
     const index = rows.findIndex((row) => check.regionIds?.includes(row.region?.id))
     if (index >= 0) setStep(index)
     else onFix(check)
   }
-  const focus = (index) => { setStep(index); if (rows[index].region) onShowRegion?.(rows[index].region.id) }
+  // Folded: the row of parts alone — the drafts' cards are put away.
+  const [folded, setFoldedState] = useState(readFolded)
+  const setFolded = (value) => { setFoldedState(value); writeFolded(value) }
+  const stepNow = Math.min(step, rows.length - 1)
+  // A part's tab: picks it and unfolds; the one already picked, pressed again, folds.
+  const focus = (index) => {
+    if (!folded && index === stepNow) { setFolded(true); return }
+    setStep(index)
+    if (folded) setFolded(false)
+    if (rows[index].region) onShowRegion?.(rows[index].region.id)
+  }
+  // P folds and unfolds (not while typing, not with a modifier).
+  const toggleRef = useRef(null)
+  useEffect(() => { toggleRef.current = () => setFolded(!folded) })
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key.toLowerCase() !== 'p' || event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return
+      if (event.target.closest?.('input, textarea, select, [contenteditable="true"]') || document.querySelector('[role="dialog"], [role="menu"]')) return
+      event.preventDefault()
+      toggleRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  // The cards: one row. Whether it runs past either edge (for the fades),
+  // and the picked card kept in view.
+  const cardsRef = useRef(null)
+  const [edges, setEdges] = useState({ left: false, right: false })
+  const pickedKey = rows[stepNow]?.options.find((option) => option.picked)?.key ?? null
+  useEffect(() => {
+    const list = cardsRef.current
+    if (!list) return undefined
+    const measure = () => {
+      const next = { left: list.scrollLeft > 1, right: list.scrollLeft + list.clientWidth < list.scrollWidth - 1 }
+      setEdges((prev) => (prev.left === next.left && prev.right === next.right ? prev : next))
+    }
+    measure()
+    list.addEventListener('scroll', measure, { passive: true })
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    return () => { list.removeEventListener('scroll', measure); observer.disconnect() }
+  }, [stepNow, folded, rows.length])
+  useEffect(() => {
+    if (folded || !pickedKey) return
+    const card = cardsRef.current?.querySelector(`[data-mix-option="${CSS.escape(pickedKey)}"]`)
+    const reduced = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false } })()
+    card?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
+  }, [pickedKey, stepNow, folded])
+  // ← / → move along the cards (and bring the one reached into view).
+  const moveCard = (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    const cards = [...(cardsRef.current?.querySelectorAll('[data-mix-option]') ?? [])]
+    const at = cards.indexOf(document.activeElement)
+    const next = cards[Math.min(cards.length - 1, Math.max(0, (at < 0 ? 0 : at) + (event.key === 'ArrowRight' ? 1 : -1)))]
+    if (!next) return
+    event.preventDefault()
+    next.focus({ preventScroll: true })
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
 
+  // (Nothing to choose between: no panel. After the hooks above.)
+  if (!rows.length) return null
   const screen = draftScreens[item.id]
-  const current = rows[Math.min(step, rows.length - 1)]
+  const current = rows[stepNow]
   const valueOf = (option) => (option.literal ? option.value : translateText(String(option.value), language))
   const letterOf = (row) => row.options.find((option) => option.picked)?.letter
   // A few parts: tabs. More: a menu.
   const tabs = rows.length <= 4
   return (
-    <div data-mix-panel className="pointer-events-auto flex w-[min(600px,100%)] flex-col gap-2 rounded-2xl bg-[#17191d]/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
-      {/* Which part: one at a time — each with the draft it uses. */}
-      <div className="flex min-w-0 items-center gap-1">
+    <div
+      data-mix-panel={folded ? 'folded' : 'open'}
+      className="pointer-events-auto flex flex-col rounded-2xl bg-[#17191d]/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl"
+      // As wide as its cards need (a 600px floor, 196px a card), never past
+      // its pane, and never past 70% of the canvas.
+      style={{ width: `min(100%, calc((100% + 24px) * ${(MIX_PANEL_SHARE / Math.max(paneShare, 0.01)).toFixed(4)}), max(600px, ${current.options.length * 196 + 16}px))` }}
+    >
+      {/* Which part: one at a time — each with the draft it uses. (A
+          double-click on the row's empty room folds and unfolds, too.) */}
+      <div data-mix-head className="flex min-w-0 items-center gap-1" onDoubleClick={(event) => { if (!event.target.closest('button, [role="tab"], [role="menuitem"]')) setFolded(!folded) }}>
         {tabs ? (
           <div role="tablist" aria-label={ko ? '요소' : 'Parts'} className="flex min-w-0 flex-1 items-center gap-0.5 rounded-xl bg-white/[0.04] p-0.5">
             {rows.map((row, index) => (
@@ -121,11 +199,14 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 role="tab"
                 data-mix-region={row.region?.id ?? row.key}
                 aria-selected={index === step}
+                title={partName(row)}
                 onClick={() => focus(index)}
                 className={cn('ds-intrinsic flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[12px] whitespace-nowrap transition-colors', index === step ? 'bg-white/[0.12] font-semibold text-white' : 'text-slate-400 hover:text-slate-200')}
               >
                 <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[9.5px] font-semibold', letterOf(row) ? 'bg-emerald-300 text-slate-950' : 'border border-dashed border-white/25 text-transparent')}>{letterOf(row) ?? '·'}</span>
                 <span className="truncate">{partName(row)}</span>
+                {/* Folded: the draft it uses, said beside its name ("헤더 · B"). */}
+                {folded && letterOf(row) && <span data-mix-picked className="shrink-0 text-[10.5px] font-normal text-slate-400">· {letterOf(row)}</span>}
               </button>
             ))}
           </div>
@@ -133,6 +214,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           <DropdownMenu>
             <DropdownMenuTrigger data-mix-part-menu className="ds-intrinsic flex h-8 min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/[0.06] px-3 text-[12.5px] font-semibold text-white hover:bg-white/[0.09]">
               <span className="truncate">{partName(current)}</span>
+              {folded && letterOf(current) && <span data-mix-picked className="shrink-0 text-[10.5px] font-normal text-slate-400">· {letterOf(current)}</span>}
               <ChevronDown className="ml-auto size-3.5 shrink-0 text-slate-400" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="top" className="max-h-80 min-w-64 overflow-auto">
@@ -147,6 +229,17 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
         )}
         <span className="shrink-0 px-1.5 text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
         <CheckStatus compact checks={checks} onFix={fixCheck} />
+        <button
+          type="button"
+          data-mix-fold
+          aria-expanded={!folded}
+          aria-label={folded ? (ko ? '시안 펴기' : 'Show the drafts') : (ko ? '시안 접기' : 'Hide the drafts')}
+          title={`${folded ? (ko ? '시안 펴기' : 'Show the drafts') : (ko ? '시안 접기' : 'Hide the drafts')} (P)`}
+          onClick={() => setFolded(!folded)}
+          className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+        >
+          {folded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger aria-label={ko ? '더 보기' : 'More'} title={ko ? '더 보기' : 'More'} className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white">
             <Ellipsis className="size-4" />
@@ -168,32 +261,53 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {/* That part as each draft draws it, large: press one to use it. */}
-      <div role="radiogroup" aria-label={partName(current)} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(current.options.length, 3)}, minmax(0, 1fr))` }}>
-        {current.options.map((option) => {
-          const issues = optionIssues(current, option)
-          return (
-            <button
-              key={option.key}
-              type="button"
-              role="radio"
-              data-mix-option={option.key}
-              aria-checked={option.picked}
-              title={`${option.name} · ${valueOf(option)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
-              onClick={() => { if (!option.picked) onDecide(current.key, option.decision) }}
-              className={cn('ds-intrinsic flex min-w-0 flex-col gap-1.5 rounded-xl p-1.5 text-left transition-colors', option.picked ? (issues.length ? 'bg-amber-300/10 ring-2 ring-amber-300' : 'bg-emerald-400/10 ring-2 ring-emerald-300') : 'ring-1 ring-white/10 hover:bg-white/[0.04] hover:ring-sky-400/60')}
-            >
-              {current.region && screen
-                ? <RegionThumb part={screen.drafts[option.key]?.[current.region.id]} width={180} fluid />
-                : <span className="flex h-[84px] w-full items-center justify-center truncate rounded-md bg-white px-2 text-[12px] text-slate-600">{valueOf(option)}</span>}
-              <span className="flex min-w-0 items-center gap-1.5 px-0.5">
-                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? (issues.length ? 'bg-amber-300 text-slate-950' : 'bg-emerald-300 text-slate-950') : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
-                <span className={cn('min-w-0 flex-1 truncate text-[11.5px]', option.picked ? 'text-emerald-100' : 'text-slate-300')}>{valueOf(option)}</span>
-                {option.picked && <span className="shrink-0 text-[10.5px] font-medium text-emerald-300">{ko ? '사용 중' : 'In use'}</span>}
-              </span>
-            </button>
-          )
-        })}
+      {/* That part as each draft draws it: press one to use it. Always one
+          row — the cards share the panel's width evenly, never under 140px;
+          more than fit scroll sideways in here (snapping, edges faded).
+          Folding puts the whole row away: it grows up from the panel's foot
+          and folds back down, 200ms (at once under reduced motion). */}
+      <div data-mix-cards-fold className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', folded ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}>
+        <div inert={folded} aria-hidden={folded} className="min-h-0 overflow-hidden">
+          <div
+            ref={cardsRef}
+            role="radiogroup"
+            aria-label={partName(current)}
+            data-mix-cards
+            data-fade={`${edges.left ? 'left' : ''}${edges.right ? 'right' : ''}` || undefined}
+            onKeyDown={moveCard}
+            className="mt-2 grid snap-x snap-mandatory grid-flow-col gap-2 overflow-x-auto overscroll-x-contain scroll-smooth p-0.5 [scrollbar-width:none] motion-reduce:scroll-auto [&::-webkit-scrollbar]:hidden"
+            style={{
+              gridAutoColumns: `minmax(${MIX_CARD_MIN}px, 1fr)`,
+              // (Faded only at an edge there's more behind.)
+              maskImage: edges.left || edges.right ? `linear-gradient(to right, ${edges.left ? 'transparent, black 28px' : 'black, black'}, ${edges.right ? 'black calc(100% - 28px), transparent' : 'black'})` : undefined,
+            }}
+          >
+            {current.options.map((option) => {
+              const issues = optionIssues(current, option)
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="radio"
+                  data-mix-option={option.key}
+                  aria-checked={option.picked}
+                  title={`${option.name} · ${valueOf(option)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
+                  onClick={() => { if (!option.picked) onDecide(current.key, option.decision) }}
+                  className={cn('ds-intrinsic flex min-w-0 snap-start flex-col gap-1.5 rounded-xl p-1.5 text-left transition-colors', option.picked ? (issues.length ? 'bg-amber-300/10 ring-2 ring-amber-300' : 'bg-emerald-400/10 ring-2 ring-emerald-300') : 'ring-1 ring-white/10 hover:bg-white/[0.04] hover:ring-sky-400/60')}
+                >
+                  {current.region && screen
+                    ? <RegionThumb part={screen.drafts[option.key]?.[current.region.id]} width={180} fluid />
+                    : <span className="flex aspect-[2/1] w-full items-center justify-center truncate rounded-md bg-white px-2 text-[12px] text-slate-600">{valueOf(option)}</span>}
+                  <span className="flex min-w-0 items-center gap-1.5 px-0.5">
+                    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? (issues.length ? 'bg-amber-300 text-slate-950' : 'bg-emerald-300 text-slate-950') : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
+                    <span className={cn('min-w-0 flex-1 truncate text-[11.5px]', option.picked ? 'text-emerald-100' : 'text-slate-300')}>{valueOf(option)}</span>
+                    {option.picked && <span className="shrink-0 text-[10.5px] font-medium text-emerald-300">{ko ? '사용 중' : 'In use'}</span>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -202,12 +316,26 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
 // A draft's version of one part, drawn small (its own layers, fit to the box).
 // (`fluid`: as wide as its box, `width` being what it's drawn for.)
 function RegionThumb({ part, width, fluid = false }) {
-  const height = Math.round(width * 0.5)
-  if (!part?.layers.length) return <span className="block rounded-md bg-white/[0.06]" style={{ width: fluid ? '100%' : width, height }} />
+  // (Fluid: 2:1 at whatever width its card gives it — measured, so its
+  // drawing shrinks with the card and keeps its proportions.)
+  const [box, setBox] = useState(null)
+  const [given, setGiven] = useState(width)
+  useEffect(() => {
+    if (!fluid || !box) return undefined
+    const measure = () => setGiven(box.clientWidth || width)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [fluid, box, width])
+  const drawn = fluid ? given : width
+  const height = Math.round(drawn * 0.5)
+  const frame = fluid ? { width: '100%', aspectRatio: '2 / 1' } : { width, height }
+  if (!part?.layers.length) return <span className="block rounded-md bg-white/[0.06]" style={frame} />
   const h = (part.height ?? 0) + 16
-  const scale = Math.min(width / 280, height / h)
+  const scale = Math.min(drawn / 280, height / h)
   return (
-    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width: fluid ? '100%' : width, height }}>
+    <span ref={setBox} className="relative block overflow-hidden rounded-md bg-white" style={frame}>
       <span className="pointer-events-none absolute top-1/2 left-1/2 block origin-center" style={{ width: 280, height: h, transform: `translate(-50%, -50%) scale(${scale})` }}>
         {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />)}
       </span>
@@ -1332,6 +1460,7 @@ function MergeStudioWorkspace({ item }) {
           // Docked at the Result's foot, centred under it — not floating over it.
           <div className="pointer-events-none absolute bottom-4 z-40 flex justify-center" style={{ left: `calc(${draftShare * 100}% + 12px)`, right: 12 }} data-mix-pane>
           <MixPanel
+            paneShare={1 - draftShare}
             // A part picked from the list is outlined on the Result too.
             onShowRegion={(regionId) => {
               const first = frame0?.layers.find((layer) => layer.regionId === regionId)

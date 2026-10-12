@@ -1,6 +1,6 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
@@ -1354,12 +1354,20 @@ function MergeInfiniteCanvas({
   useEffect(() => {
     viewRef.current = view
   }, [view])
+  const lastFit = useRef(null)
 
   // Zoom/pan so the whole card row sits inside the visible canvas, left of
   // any docked Block Deck, with breathing room.
   // (`only`: just these cards. `byWidth`: as wide as the room allows, however
   // tall that makes it — the rest is a scroll away.)
   function fitView(lay, { only = null, byWidth = false, maxZoom = MAX_FIT_ZOOM } = {}) {
+    const fitted = fitViewNow(lay, { only, byWidth, maxZoom })
+    // (Kept, so the same fit can be worked out again when the parts bar's
+    // height changes — see below.)
+    lastFit.current = { view: fitted, lay, options: { only, byWidth, maxZoom } }
+    return fitted
+  }
+  function fitViewNow(lay, { only = null, byWidth = false, maxZoom = MAX_FIT_ZOOM } = {}) {
     const c = containerRef.current
     if (!c) return DEFAULT_VIEW
     const rect = c.getBoundingClientRect()
@@ -1421,6 +1429,36 @@ function MergeInfiniteCanvas({
       y: top + (byWidth ? 0 : Math.max(0, (availH - worldH * k) / 2)) - minY * k,
     }
   }
+
+  // The parts bar folding or unfolding changes how much of the canvas is
+  // clear: the fit follows it, so the screen in the middle isn't left under
+  // the bar — but only while the view is still that fit. Once the user has
+  // zoomed or moved the canvas themselves, it stays where they put it.
+  const refit = useEffectEvent(() => {
+    const last = lastFit.current
+    const now = viewRef.current
+    if (!last || !now || now.zoom !== last.view.zoom || Math.abs(now.x - last.view.x) > 0.5 || Math.abs(now.y - last.view.y) > 0.5) return
+    const next = fitViewNow(last.lay, last.options)
+    if (next.zoom === now.zoom && Math.abs(next.x - now.x) < 0.5 && Math.abs(next.y - now.y) < 0.5) return
+    lastFit.current = { ...last, view: next }
+    setView(next)
+  })
+  useEffect(() => {
+    let watched = null
+    const sizes = new ResizeObserver(() => refit())
+    const watch = () => {
+      const panel = document.querySelector('[data-mix-panel]')
+      if (panel === watched) return
+      if (watched) sizes.unobserve(watched)
+      watched = panel
+      if (panel) sizes.observe(panel)
+    }
+    watch()
+    // (The bar comes and goes with what's being compared.)
+    const tree = new MutationObserver(watch)
+    tree.observe(document.body, { childList: true, subtree: true })
+    return () => { sizes.disconnect(); tree.disconnect() }
+  }, [])
 
   useEffect(() => {
     const lay = designCompare
