@@ -1297,7 +1297,7 @@ export function WorkspaceProvider({ children, projectId }) {
       decisionRequest: record,
       designDecision: null,
       decisionFix: null,
-      events: appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: request.reason ?? '', reviewerId: designerId } }),
+      events: appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom, c)?.name ?? null, reason: request.reason ?? '', reviewerId: designerId } }),
       reviewStage: 'in_review',
       requestedBy: currentUser.id,
       reviewers: c.reviewers.map((r) => ({ ...r, status: 'pending' })),
@@ -1305,7 +1305,7 @@ export function WorkspaceProvider({ children, projectId }) {
     logEvent({ kind: 'decision_requested', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
     // (It goes to every reviewer on the change — the side panel's list.)
     for (const reviewer of conflict.reviewers) notifyPerson(reviewer.id ?? reviewer, conflict, `승인을 요청했어요 · ${conflict.id} ${conflict.title}`)
-    recordDecisionStep(conflict, { label: `${conflict.id} 승인 요청${round > 1 ? ` (${round}차)` : ''} · ${PROPOSAL_LABEL[request.proposal] ?? '수정안'}`, reason: request.reason })
+    recordDecisionStep(conflict, { label: `${conflict.id} 승인 요청${round > 1 ? ` (${round}차)` : ''} · ${proposalOf(request.proposal, request.custom, conflict)?.name ?? '수정안'}`, reason: request.reason })
   }, [conflicts, currentUser.id, logEvent, notifyPerson, projectId, recordDecisionStep, setConflicts])
 
   // The developer's working choice of a way forward, before anything is sent —
@@ -1330,8 +1330,8 @@ export function WorkspaceProvider({ children, projectId }) {
       decisionFix: null,
       // (Matching the design needs no approval: asked and settled at once.)
       events: (() => {
-        const asked = appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: request.reason ?? '', reviewerId: designerId, direct: true } })
-        return appendEvent({ ...c, events: asked }, { type: 'decided', actorId: currentUser.id, replyTo: asked.at(-1).id, payload: { result: 'approved', proposalName: proposalOf(request.proposal, request.custom)?.name ?? null, reason: decision.reason, direct: true } })
+        const asked = appendEvent(c, { type: 'requested', actorId: currentUser.id, payload: { proposal: request.proposal, proposalName: proposalOf(request.proposal, request.custom, c)?.name ?? null, reason: request.reason ?? '', reviewerId: designerId, direct: true } })
+        return appendEvent({ ...c, events: asked }, { type: 'decided', actorId: currentUser.id, replyTo: asked.at(-1).id, payload: { result: 'approved', proposalName: proposalOf(request.proposal, request.custom, c)?.name ?? null, reason: decision.reason, direct: true } })
       })(),
       reviewStage: 'approved',
     })))
@@ -1355,7 +1355,7 @@ export function WorkspaceProvider({ children, projectId }) {
         const asked = eventsOf(c).findLast((event) => event.type === 'requested')
         const requestedName = asked?.payload?.proposalName ?? null
         // Keeping the design when something else was asked for is a change of proposal.
-        const finalName = decision.choice === 'keep' ? PROPOSAL_LABEL.original : requestedName
+        const finalName = decision.choice === 'keep' ? proposalOf('original', null, c)?.name ?? PROPOSAL_LABEL.original : requestedName
         return appendEvent(c, { type: 'decided', actorId, replyTo: asked?.id, payload: { result: decision.choice === 'rework' ? 'rejected' : decision.choice === 'keep' && requestedName && requestedName !== finalName ? 'changed' : 'approved', choice: decision.choice, proposalName: decision.choice === 'rework' ? null : finalName, previousName: requestedName, reason: decision.reason ?? '', timing: decision.timing ?? null } })
       })(),
       reviewStage: settled ? 'approved' : 'in_review',
@@ -1376,10 +1376,17 @@ export function WorkspaceProvider({ children, projectId }) {
     const conflict = conflicts.find((c) => c.id === conflictId)
     const choice = conflict?.designDecision?.choice
     const fixLine = fixLineOf(conflict)
-    if (!conflict || !fixLine || !conflict.fileId || !conflict.line) return
-    const base = fileOverrides[conflict.fileId] ?? files.find((f) => f.id === conflict.fileId)?.lines ?? []
-    const lines = base.map((line, index) => (index + 1 === conflict.line ? fixLine : line))
-    setFileOverrides((prev) => ({ ...prev, [conflict.fileId]: lines }))
+    if (!conflict || !fixLine) return
+    // (A file the Workspace has open changes there too; one it hasn't is fixed where it is.)
+    const editable = Boolean(conflict.fileId && conflict.line)
+    const base = editable ? fileOverrides[conflict.fileId] ?? files.find((f) => f.id === conflict.fileId)?.lines ?? [] : []
+    // (The lines the change is about, from its line on — each keeping the file's indent.)
+    const fixLines = [fixLine].flat()
+    const span = Math.max(1, conflict.diff?.before?.length ?? 1)
+    const indentOf = (line) => /^\s*/.exec(line ?? '')[0]
+    const placed = fixLines.map((line, index) => (/^\s/.test(line) ? line : `${indentOf(base[conflict.line - 1 + Math.min(index, span - 1)])}${line}`))
+    const lines = editable ? [...base.slice(0, conflict.line - 1), ...placed, ...base.slice(conflict.line - 1 + span)] : null
+    if (editable) setFileOverrides((prev) => ({ ...prev, [conflict.fileId]: lines }))
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
       ...c, decisionFix: { choice, appliedAt: timeLabel(), appliedAtMs: Date.now(), designSynced: choice === 'approve', verified: false },
       events: appendEvent(c, { type: 'fixed', actorId: auto ? null : currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'decided')?.id, payload: { files: 1, file: c.file, line: c.line, choice, auto } }),
@@ -1391,7 +1398,7 @@ export function WorkspaceProvider({ children, projectId }) {
       reason: conflict.designDecision?.reason,
       lines,
     })
-    appendTerminalLines([`$ devsign apply ${conflict.id} --decision ${choice}`, `✓ ${conflict.file} · line ${conflict.line} updated`])
+    appendTerminalLines([`$ devsign apply ${conflict.id} --decision ${choice}`, `✓ ${conflict.file}${conflict.line ? ` · line ${conflict.line}` : ''} updated`])
   }, [appendTerminalLines, conflicts, currentUser.id, fileOverrides, files, logEvent, projectId, recordDecisionStep, setConflicts, setFileOverrides])
 
   // `match: false` (with what differs): the render at 768px doesn't match the
@@ -1404,12 +1411,16 @@ export function WorkspaceProvider({ children, projectId }) {
       decisionFix: match
         ? { ...c.decisionFix, verified: true, failed: null, verifiedAt: timeLabel(), verifiedAtMs: Date.now() }
         : { ...c.decisionFix, verified: false, failed: { reason: difference ?? '결정한 레이아웃과 달라요', at: timeLabel() }, attempts: (c.decisionFix.attempts ?? 0) + 1 },
-      events: appendEvent(c, { type: 'verified', actorId: null, replyTo: eventsOf(c).findLast((event) => event.type === 'fixed')?.id, payload: { match, width: 768, ...(difference && { difference }) } }),
+      // (A structural drift is checked at its breakpoint; a value change, by its value.)
+      events: appendEvent(c, { type: 'verified', actorId: null, replyTo: eventsOf(c).findLast((event) => event.type === 'fixed')?.id, payload: { match, ...(c.layouts && { width: c.breakpoint ?? 768 }), ...(difference && { difference }) } }),
     })))
-    appendTerminalLines(match
-      ? ['$ devsign verify --breakpoint 768', '✓ cards fit 768px · no overlap', '✓ matches the decided layout']
-      : ['$ devsign verify --breakpoint 768', `✗ ${difference ?? 'does not match the decided layout'}`])
-  }, [appendTerminalLines, setConflicts])
+    const layout = Boolean(conflicts.find((c) => c.id === conflictId)?.layouts)
+    appendTerminalLines(layout
+      ? (match
+        ? ['$ devsign verify --breakpoint 768', '✓ cards fit 768px · no overlap', '✓ matches the decided layout']
+        : ['$ devsign verify --breakpoint 768', `✗ ${difference ?? 'does not match the decided layout'}`])
+      : (match ? [`$ devsign verify ${conflictId}`, '✓ matches the decided value'] : [`$ devsign verify ${conflictId}`, `✗ ${difference ?? 'does not match the decided value'}`]))
+  }, [appendTerminalLines, conflicts, setConflicts])
 
   // After a failed verification: run it again (`retry`), or take the fix over
   // by hand (`manual` — nothing runs by itself until it's verified again).
@@ -1465,7 +1476,7 @@ export function WorkspaceProvider({ children, projectId }) {
       ...c, decisionRequest: { ...c.scriptedRequest, round: 1 }, reviewStage: 'in_review', requestedBy: c.scriptedRequest.by,
     })))
     for (const c of waiting) {
-      recordDecisionStep(c, { label: `${c.id} 승인 요청 · ${PROPOSAL_LABEL[c.scriptedRequest.proposal] ?? '수정안'}`, reason: c.scriptedRequest.reason, actorId: c.scriptedRequest.by })
+      recordDecisionStep(c, { label: `${c.id} 승인 요청 · ${proposalOf(c.scriptedRequest.proposal, c.scriptedRequest.custom, c)?.name ?? '수정안'}`, reason: c.scriptedRequest.reason, actorId: c.scriptedRequest.by })
     }
   }, [conflicts, isDeveloperViewer, recordDecisionStep, setConflicts])
   useEffect(() => {

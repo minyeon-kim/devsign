@@ -8,10 +8,14 @@ import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, IMPLEMENTATION_SPEC, PRIMARY_CONTROLS, PROPOSALS, PROPOSAL_LABEL, controlsOf, decisionOutcomeOf, decisionStageOf, fixLineOf, proposalOf, proposalPhraseOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
+import ChangePreview from '@/components/conflicts/ChangePreview'
 
-// A structural drift's review (a `decisionFlow` conflict, e.g. CON-002):
-// not values to pick between, but a decision to ask for and to make.
+// A design change's review (a `decisionFlow` conflict — CON-002, the
+// reference, and every other design change the same way): not values to
+// pick between, but a decision to ask for and to make. A structural drift
+// (CON-002) is drawn as its 768px layouts; a value change, as its element
+// before and after (ChangePreview) — everything else is the same.
 //   · The developer (scenario C) sees what was detected, asks the designer
 //     for a decision — the reason, the screen as built, a proposal, how far
 //     along the work is and when it should land — then, once decided, does
@@ -84,22 +88,41 @@ function TabletPreview({ columns, overlap = false, widthMode = 'fit', gap = null
   )
 }
 
+// One of a change's pictures, by what it is: a structural drift's 768px
+// screen (TabletPreview), or a value change's element on one side of it —
+// as built ('before') or as designed ('after').
+//   which: 'original' | 'implementation' | a proposal's shape (from proposalOf)
+function Picture({ conflict, which, overlap, scale = 1, maxWidth = 200 }) {
+  if (conflict.layouts) {
+    const layout = which === 'original' ? conflict.layouts.original : which === 'implementation' ? conflict.layouts.implementation : which
+    if (!layout) return null
+    return <TabletPreview columns={layout.columns} overlap={overlap ?? layout.overlap} widthMode={layout.widthMode} gap={layout.gap} scale={scale} maxWidth={maxWidth} />
+  }
+  if (!conflict.preview) return null
+  const side = which === 'original' ? 'after' : which === 'implementation' ? 'before' : which?.side
+  if (!side) return null
+  return <div className="mx-auto w-full" style={{ maxWidth: maxWidth * scale }}><ChangePreview preview={conflict.preview} side={side} showLabels={false} /></div>
+}
+// What the check looks at, in a word: the breakpoint's render, or the value.
+const checkWordOf = (conflict) => (conflict.layouts ? `${conflict.breakpoint ?? 768}px 렌더링` : '수정한 값')
+
 // Design reference · as built · the developer's proposal, side by side.
 // (`proposal`: the proposal to draw as the third screen, from proposalOf.)
 function LayoutComparison({ conflict, proposal, bare = false }) {
-  const layouts = conflict.layouts ?? {}
+  // (A value change says its design and build in its own words.)
+  const layouts = conflict.layouts ?? { original: { label: '디자인 원안', note: designSpecOf(conflict) }, implementation: { label: '실제 구현', note: builtSpecOf(conflict) } }
   const entries = [
     ['original', layouts.original, 'text-emerald-300'],
     ['implementation', layouts.implementation, 'text-rose-300'],
-    ...(proposal?.columns ? [['proposal', { label: '개발자 제안', note: `768px · ${proposal.spec}`, columns: proposal.columns, widthMode: proposal.widthMode }, 'text-sky-300']] : []),
+    ...(drawableOf(proposal) ? [['proposal', { ...proposal, label: '개발자 제안', note: conflict.layouts ? `768px · ${proposal.spec}` : proposal.spec }, 'text-sky-300']] : []),
   ].filter(([, layout]) => layout)
   return (
     <section data-decision-compare aria-label="디자인 원안과 구현 비교" className={bare ? undefined : CARD}>
-      {!bare && <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{proposal?.columns ? ' · 개발자 제안' : ''} (768px)</h3>}
+      {!bare && <h3 className="mb-3 text-[13px] font-semibold text-white">디자인 원안 · 실제 구현{drawableOf(proposal) ? ' · 개발자 제안' : ''}{conflict.layouts ? ' (768px)' : ''}</h3>}
       <div className={cn('grid', bare ? 'max-w-[760px] gap-6' : 'gap-3', entries.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
         {entries.map(([key, layout, tone]) => (
           <figure key={key} data-layout={key} className="min-w-0">
-            <TabletPreview columns={layout.columns} overlap={layout.overlap} widthMode={layout.widthMode} />
+            <Picture conflict={conflict} which={key === 'proposal' ? proposal : key} />
             <figcaption className={cn('text-center', bare ? 'mt-3' : 'mt-2')}>
               <span className={cn('block text-xs font-semibold', tone)}>{layout.label}</span>
               <span className="block text-[11px] leading-4 text-slate-400">{layout.note}</span>
@@ -127,7 +150,7 @@ export function decisionFlowOf(conflict, viewer) {
     ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
     : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
   const next = (developer
-    ? { detected: '해결 방법을 골라 주세요', rework: '디자이너의 의견을 보고 해결 방법을 다시 골라 주세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 자동으로 수정하고 있어요', fixed: '768px 렌더링을 검증하고 있어요', verified: '검증을 통과했어요. 병합하면 자동으로 해결돼요', resolved: '해결됐어요' }
+    ? { detected: '해결 방법을 골라 주세요', rework: '디자이너의 의견을 보고 해결 방법을 다시 골라 주세요', requested: `${designer}님의 결정을 기다리고 있어요`, decided: '결정대로 코드를 자동으로 수정하고 있어요', fixed: `${checkWordOf(conflict)}을 검증하고 있어요`, verified: '검증을 통과했어요. 병합하면 자동으로 해결돼요', resolved: '해결됐어요' }
     : { requested: '원안과 구현을 비교해 결정해 주세요', rework: '개발자의 재요청을 확인하세요', decided: '개발자에게 결정이 전달됐어요', resolved: '해결됐어요' })[stage]
   // (A check that failed isn't "being checked": it waits for a choice.)
   const stuck = stage === 'decided' && isDeferred(conflict.designDecision) ? `승인됐어요 · ${scheduleWordOf(conflict.designDecision.timing)} 반영 예정`
@@ -228,13 +251,13 @@ function RequestCard({ conflict, bare = false }) {
         <dd className="text-slate-100">{request.reason}</dd>
         <dt className="text-slate-400">수정안</dt>
         <dd className="font-medium text-sky-200">
-          {PROPOSAL_LABEL[request.proposal] ?? request.proposal}
-          {request.proposal === 'other' && ` · ${proposalOf('other', request.custom).spec}`}
+          {proposalOf(request.proposal, request.custom, conflict)?.name ?? request.proposal}
+          {request.proposal === 'other' && ` · ${proposalOf('other', request.custom, conflict).spec}`}
           {request.proposalNote ? ` · ${request.proposalNote}` : ''}
           {request.proposal === 'other' && request.custom?.note && <span className={cn('mt-0.5 block font-normal text-slate-300', bare ? 'text-[13px]' : 'text-xs')}>{request.custom.note}</span>}
         </dd>
         <dt className="text-slate-400">구현 화면</dt>
-        <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />dashboard-768-구현화면.png</span> : '첨부 없음'}</dd>
+        <dd className="text-slate-200">{request.attachment ? <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5 text-slate-400" />{conflict.attachmentName ?? 'dashboard-768-구현화면.png'}</span> : '첨부 없음'}</dd>
         {/* (Where the project is — read-only context for whoever decides; it comes with the request by itself.) */}
         {!bare && request.devStage && <><dt className="text-slate-400">개발 단계</dt>
         <dd className="text-slate-200">{DEV_STAGE_LABEL[request.devStage] ?? '—'}</dd>
@@ -249,7 +272,7 @@ function RequestCard({ conflict, bare = false }) {
 const DECISION_TONE = { keep: 'text-sky-200', approve: 'text-emerald-200', rework: 'text-amber-200' }
 // What each decision means for the developer — the next thing to do.
 const NEXT_STEP = {
-  keep: '코드를 디자인 원안(768px 카드 2열, 화면 폭에 맞춤)에 맞게 수정해요.',
+  keep: (conflict) => (conflict.layouts ? '코드를 디자인 원안(768px 카드 2열, 화면 폭에 맞춤)에 맞게 수정해요.' : `코드를 디자인 원안(${designSpecOf(conflict)})에 맞게 수정해요.`),
   approve: (name) => `${withEul(name)} 적용하고 디자인 원안에도 동기화해요.`,
   rework: '사유를 보고 다른 수정안으로 다시 요청해요.',
 }
@@ -274,7 +297,7 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
         <dd data-decision-schedule className="font-medium text-slate-100">{scheduleOf(conflict, releaseOf(conflict))}</dd></>}
         {/* (In the record the proposal is the request's line — not said again here.) */}
         {!bare && <><dt className="text-slate-400">다음 할 일</dt>
-        <dd className="text-slate-200">{typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd></>}
+        <dd className="text-slate-200">{decision.choice === 'keep' ? NEXT_STEP.keep(conflict) : typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd></>}
       </dl>
     </section>
   )
@@ -334,6 +357,10 @@ function ControlChips({ label, name, options, value, onChange }) {
 // One control's input, by its kind. `current` is what the code has — what a
 // field falls back to, so it's never empty.
 function ControlInput({ control, values, onEdit }) {
+  // (A value change's own value, as text: "10px", "#2563EB", "120px".)
+  if (control.kind === 'text') {
+    return <input type="text" aria-label={control.label} data-control-input={control.id} value={values[control.id] ?? control.current ?? ''} onChange={(event) => onEdit(control.id, event.target.value)} className={cn(numberField, 'w-44')} />
+  }
   if (control.kind === 'choice') {
     return <ControlChips label={control.label} name={`control-${control.id}`} value={values[control.id] ?? control.current ?? null} onChange={(value) => onEdit(control.id, value)} options={control.options.map((option) => [option, control.id === 'columns' ? `${option}열` : String(option)])} />
   }
@@ -364,8 +391,8 @@ function ControlInput({ control, values, onEdit }) {
 function ProposalControls({ conflict, values, onEdit, note, onNote }) {
   const [details, setDetails] = useState(false)
   const controls = controlsOf(conflict)
-  const primary = controls.filter((control) => PRIMARY_CONTROLS.includes(control.id))
-  const rest = controls.filter((control) => !PRIMARY_CONTROLS.includes(control.id))
+  const primary = controls.filter((control) => PRIMARY_CONTROLS.includes(control.id) || control.primary)
+  const rest = controls.filter((control) => !PRIMARY_CONTROLS.includes(control.id) && !control.primary)
   return (
     <div data-proposal-controls className="mb-1 ml-10 flex flex-col gap-3 py-3 pr-1">
       {/* One row: columns, then card width. */}
@@ -424,7 +451,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // (The project's stage goes along by itself — context for whoever decides.)
   const devStage = previous?.devStage ?? projects.find((candidate) => candidate.id === conflict.projectId)?.devStage ?? null
   const asking = Boolean(proposal) && proposal !== 'original'
-  const undescribed = proposal === 'other' && !proposalOf(proposal, custom)?.described
+  const undescribed = proposal === 'other' && !proposalOf(proposal, custom, conflict)?.described
   const payload = () => ({ reason: reason.trim(), attachment: true, proposal, ...(proposal === 'other' && { custom }), devStage })
   const send = () => {
     setTried(true)
@@ -447,15 +474,15 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     window.setTimeout(() => document.querySelector('[data-review-sidebar] [data-add-reviewer]')?.focus(), 60)
   }
 
-  const layouts = conflict.layouts ?? {}
   const refs = useRef([])
   const [showDesign, setShowDesign] = useState(false)
-  const chosen = proposalOf(proposal, custom)
+  const ways = proposalsOf(conflict)
+  const chosen = proposalOf(proposal, custom, conflict)
   const move = (event, index) => {
     const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0
     if (!step) return
     event.preventDefault()
-    refs.current[(index + step + PROPOSALS.length) % PROPOSALS.length]?.focus()
+    refs.current[(index + step + ways.length) % ways.length]?.focus()
   }
   // A preset is picked as it is: only the picture changes. 다른 수정안 is the
   // one way with values to set — and the first time it's opened it starts
@@ -465,7 +492,6 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     onProposal(id)
   }
   const edit = (id, value) => onCustom({ ...custom, values: { ...custom.values, [id]: value } })
-  const before = showDesign ? layouts.original : layouts.implementation
   // The right-hand screen always shows something to compare with:
   //   · nothing picked — the design itself, so "what's built vs. what was
   //     designed" reads at once;
@@ -474,10 +500,10 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // A way with no layout to draw (다른 수정안 before it has values) keeps the
   // design up and says there's no preview — the box is never empty.
   const [hovered, setHovered] = useState(null)
-  const peeking = hovered && hovered !== proposal ? proposalOf(hovered, custom) : null
+  const peeking = hovered && hovered !== proposal ? proposalOf(hovered, custom, conflict) : null
   const shown = peeking ?? chosen
-  const drawable = Boolean(shown?.columns)
-  const after = !shown ? { title: '디자인 원안', sub: '화면 폭 맞춤 2열' }
+  const drawable = drawableOf(shown)
+  const after = !shown ? { title: '디자인 원안', sub: designSpecOf(conflict) }
     : peeking ? { title: `미리보기 · ${peeking.name}`, sub: drawable ? peeking.spec : '직접 입력한 수정안은 미리보기가 없어요' }
       : !drawable ? { title: '디자인 원안', sub: '직접 입력한 수정안은 미리보기가 없어요' }
         : { title: proposal === 'original' ? '수정 후 · 디자인 원안과 동일' : '수정 후', sub: chosen.spec }
@@ -487,7 +513,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h3 className="text-sm font-semibold text-white">해결 방법 <span aria-hidden className="text-rose-300">*</span></h3>
-        <span className="text-xs text-slate-500">768px에서 어떻게 바꿀지 골라 주세요</span>
+        <span className="text-xs text-slate-500">{conflict.layouts ? '768px에서 어떻게 바꿀지 골라 주세요' : '어떤 값으로 맞출지 골라 주세요'}</span>
         <button
           type="button"
           data-show-design
@@ -503,10 +529,10 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           side by side with an arrow between; stacked (before first) when narrow. */}
       <div data-before-after className="grid grid-cols-1 items-center gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
-          <div className="flex justify-center">{before && <TabletPreview columns={before.columns} overlap={before.overlap} scale={1.5} />}</div>
+          <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
           <figcaption className="mt-3 text-center">
             <span className="block text-[13px] font-medium text-slate-200">{showDesign ? '디자인 원안' : '현재 구현'}</span>
-            <span className="block text-xs text-slate-500">{showDesign ? '화면 폭 맞춤 2열' : `${IMPLEMENTATION_SPEC} → 카드 겹침`}</span>
+            <span className="block text-xs text-slate-500">{showDesign ? designSpecOf(conflict) : conflict.layouts ? `${builtSpecOf(conflict)} → 카드 겹침` : builtSpecOf(conflict)}</span>
           </figcaption>
         </figure>
         <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
@@ -514,9 +540,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           {/* (Re-keyed per state, so one fades into the next — 150ms.) */}
           <div key={afterKey} className="animate-in fade-in duration-150 motion-reduce:animate-none">
             <div className="flex justify-center">
-              {drawable
-                ? <TabletPreview columns={shown.columns} widthMode={shown.widthMode} gap={shown.gap} scale={1.5} />
-                : layouts.original && <TabletPreview columns={layouts.original.columns} overlap={layouts.original.overlap} scale={1.5} />}
+              <Picture conflict={conflict} which={drawable ? shown : 'original'} scale={1.5} />
             </div>
             <figcaption className="mt-3 text-center">
               <span data-after-title className="block text-[13px] font-medium text-slate-200">{after.title}</span>
@@ -528,9 +552,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
 
       {/* The ways forward: text first, a small layout mark at the end. */}
       <div role="radiogroup" aria-label="수정안" className="mt-6 flex flex-col">
-        {PROPOSALS.map((option, index) => {
+        {ways.map((option, index) => {
           const on = proposal === option.id
-          const shape = proposalOf(option.id, custom)
+          const shape = proposalOf(option.id, custom, conflict)
           return (
             <Fragment key={option.id}>
               <button
@@ -582,7 +606,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
             value={reason}
             onChange={setReason}
             placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
-            suggestions={asking ? reasonChipsFor(proposal, custom) : []}
+            suggestions={asking ? reasonChipsFor(proposal, custom, conflict) : []}
             error={tried && !reason.trim() ? '변경 사유를 적어 주세요.' : null}
           />
         </div>
@@ -634,7 +658,7 @@ const PHASE_CHIP = {
   approval: ['수정 전 확인 필요', 'bg-amber-400/15 text-amber-200'],
   applying: ['코드 수정 중', 'bg-sky-400/15 text-sky-200'],
   unfixable: ['자동 수정 불가', 'bg-amber-400/15 text-amber-200'],
-  verifying: ['768px 검증 중', 'bg-sky-400/15 text-sky-200'],
+  verifying: ['검증 중', 'bg-sky-400/15 text-sky-200'],
   failed: ['검증 실패', 'bg-destructive/15 text-destructive'],
   manual: ['직접 수정 중', 'bg-amber-400/15 text-amber-200'],
   verified: ['검증 통과', 'bg-emerald-400/15 text-emerald-200'],
@@ -645,8 +669,8 @@ const PHASE_CHIP = {
 function decidedLayoutOf(conflict) {
   const layouts = conflict.layouts ?? {}
   return conflict.designDecision?.choice === 'approve'
-    ? proposalOf(conflict.decisionRequest?.proposal, conflict.decisionRequest?.custom) ?? layouts.proposal
-    : layouts.original
+    ? proposalOf(conflict.decisionRequest?.proposal, conflict.decisionRequest?.custom, conflict) ?? layouts.proposal
+    : conflict.layouts ? layouts.original : 'original'
 }
 
 // The fix, in the record: the line it changed and what the check found — in
@@ -657,32 +681,34 @@ function FixPanel({ conflict, onPropose, folds }) {
   const fix = conflict.decisionFix
   const phase = fixPhaseOf(conflict)
   const [proposalOpen, setProposalOpen] = useState(false)
-  const [note, setNote] = useState('Breakpoint 768px의 대시보드 카드 그리드를 1열로 — DashboardGrid / StatCard 공통 규칙 업데이트 제안')
+  const [note, setNote] = useState(conflict.dsNote ?? 'Breakpoint 768px의 대시보드 카드 그리드를 1열로 — DashboardGrid / StatCard 공통 규칙 업데이트 제안')
   const fileName = conflict.file?.split('/').pop()
-  const fixLine = fixLineOf(conflict)
-  const beforeLine = conflict.diff?.before?.[0]
+  // (A fix can be several lines: what it replaces is the lines the change is about.)
+  const fixLines = [fixLineOf(conflict) ?? []].flat()
+  const beforeLines = fixLines.length ? (conflict.diff?.before ?? []).slice(0, Math.max(1, fixLines.length)) : []
   const breakpoint = conflict.breakpoint ?? 768
+  const layout = Boolean(conflict.layouts)
   return (
     <section data-decision-fix data-fix-phase={phase} className="flex flex-col gap-4">
       {/* What the fix changes in the code. */}
       <div data-fix-detail="code">
         <p className="text-[12px] text-slate-300">
           {phase === 'approval' ? '수정할 내용' : fix ? '수정한 코드' : phase === 'unfixable' ? '자동으로 수정할 수 없어요' : '수정 중인 코드'}
-          <span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{fileName} · {conflict.line}행</span>
+          <span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{fileName}{conflict.line ? ` · ${conflict.line}행` : ''}</span>
         </p>
-        {fixLine && (
+        {fixLines.length > 0 && (
           <div data-fix-diff className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
-            {beforeLine && <p className="flex bg-red-500/[0.14] px-4 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{beforeLine.trim()}</p>}
-            <p className="flex bg-emerald-500/[0.14] px-4 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{fixLine.trim()}</p>
+            {beforeLines.map((line, index) => <p key={`b${index}`} className="flex bg-red-500/[0.14] px-4 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{line.trim()}</p>)}
+            {fixLines.map((line, index) => <p key={`a${index}`} className="flex bg-emerald-500/[0.14] px-4 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{line.trim()}</p>)}
           </div>
         )}
       </div>
       {/* What the check found. */}
       {fix && (
         <p data-fix-detail="verify" className="text-[12px] leading-[18px] text-slate-300">
-          {fix.verified ? `${breakpoint}px에서 카드가 겹치지 않고, 결정한 레이아웃과 같아요.`
-            : phase === 'verifying' ? `${breakpoint}px 렌더링을 확인하고 있어요.`
-              : `${breakpoint}px 렌더링이 아직 결정과 달라요.`}
+          {fix.verified ? (layout ? `${breakpoint}px에서 카드가 겹치지 않고, 결정한 레이아웃과 같아요.` : '수정한 값이 결정한 값과 같아요.')
+            : phase === 'verifying' ? `${checkWordOf(conflict)}을 확인하고 있어요.`
+              : `${checkWordOf(conflict)}이 아직 결정과 달라요.`}
           <span className="text-slate-500"> 수정 전/후 비교는 위에서 볼 수 있어요.</span>
         </p>
       )}
@@ -733,7 +759,7 @@ const BAR_STATUS = {
   approval: '수정 내용을 확인하고 승인해 주세요',
   applying: '결정대로 코드를 수정하고 있어요',
   unfixable: '자동으로 수정할 수 없어요 · 코드를 직접 수정해 주세요',
-  verifying: '768px 렌더링을 검증하고 있어요',
+  verifying: (conflict) => `${checkWordOf(conflict)}을 검증하고 있어요`,
   failed: '검증에 실패했어요 · 다시 시도하거나 직접 수정하세요',
   manual: '직접 수정 중 · 수정이 끝나면 다시 검증하세요',
   verified: '검증을 통과했어요 · 병합하면 자동으로 해결돼요',
@@ -769,7 +795,7 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
             : passed ? <ShieldCheck className="size-4 shrink-0 text-emerald-300" />
               : phase === 'deferred' ? <CircleCheck className="size-4 shrink-0 text-sky-300" />
                 : <TriangleAlert className={cn('size-4 shrink-0', wrong ? 'text-destructive' : 'text-amber-300')} />}
-          <span className="min-w-0">{BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
+          <span className="min-w-0">{typeof BAR_STATUS[phase] === 'function' ? BAR_STATUS[phase](conflict) : BAR_STATUS[phase]}{phase === 'deferred' && schedule ? ` · ${schedule}` : ''}</span>
         </p>
         {/* (The second way out of a failed check, beside the first — never in its place.) */}
         {phase === 'failed' && <button type="button" data-fix-manual onClick={onManual} className={SECONDARY}>직접 수정</button>}
@@ -786,20 +812,20 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
       {fix && (
         <div data-fix-compare className="mt-4 flex items-start justify-center gap-4">
           <figure data-fix-render="before" className="m-0 w-[200px] min-w-0">
-            <TabletPreview columns={layouts.implementation?.columns ?? 2} overlap={layouts.implementation?.overlap} widthMode={layouts.implementation?.widthMode} />
-            <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300"><span className="font-medium text-slate-100">수정 전</span> · {shortNote(layouts.implementation)}</figcaption>
+            <Picture conflict={conflict} which="implementation" />
+            <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300"><span className="font-medium text-slate-100">수정 전</span> · {conflict.layouts ? shortNote(layouts.implementation) : builtSpecOf(conflict)}</figcaption>
           </figure>
           <ArrowRight aria-hidden className="mt-[72px] size-4 shrink-0 text-slate-500" />
           <figure data-fix-render="after" className="m-0 w-[200px] min-w-0">
             {phase === 'verifying' ? (
-              <div data-fix-rendering className="mx-auto flex w-full max-w-[200px] items-center justify-center rounded-lg border border-dashed border-white/15 text-[11px] text-slate-400" style={{ aspectRatio: '768 / 640' }}>
-                <LoaderCircle className="mr-1.5 size-3.5 animate-spin motion-reduce:animate-none" />렌더링 중
+              <div data-fix-rendering className="mx-auto flex w-full max-w-[200px] items-center justify-center rounded-lg border border-dashed border-white/15 text-[11px] text-slate-400" style={{ aspectRatio: conflict.layouts ? '768 / 640' : '4 / 3' }}>
+                <LoaderCircle className="mr-1.5 size-3.5 animate-spin motion-reduce:animate-none" />{conflict.layouts ? '렌더링 중' : '확인 중'}
               </div>
             ) : (
               // (A failed check: the fix as it actually rendered — still overlapping.)
-              <TabletPreview columns={decided?.columns ?? 2} overlap={!fix.verified} widthMode={decided?.widthMode} gap={decided?.gap} />
+              <Picture conflict={conflict} which={decided} overlap={conflict.layouts ? !fix.verified : undefined} />
             )}
-            <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300"><span className="font-medium text-slate-100">수정 후</span> · {fix.verified ? shortNote(decided) : phase === 'verifying' ? '확인 중' : '아직 결정과 달라요'}</figcaption>
+            <figcaption className="mt-2 text-center text-[11.5px] leading-4 text-slate-300"><span className="font-medium text-slate-100">수정 후</span> · {fix.verified ? (conflict.layouts ? shortNote(decided) : decided === 'original' ? designSpecOf(conflict) : decided?.spec) : phase === 'verifying' ? '확인 중' : '아직 결정과 달라요'}</figcaption>
           </figure>
         </div>
       )}
@@ -813,6 +839,17 @@ const DECISIONS = [
   ['approve', '변경 승인', '개발자 제안(1열)을 승인하고 디자인 원안도 바꿔요.'],
   ['rework', '재검토 요청', '이 제안으로는 어려워요. 다른 수정안을 요청해요.'],
 ]
+// The same three for a value change, in its own values.
+function decisionsFor(conflict) {
+  if (conflict.layouts) return DECISIONS
+  const request = conflict.decisionRequest
+  const asked = proposalOf(request?.proposal, request?.custom, conflict)
+  return [
+    ['keep', '원안 유지', `코드를 디자인 원안(${designSpecOf(conflict)})에 맞춰 고쳐요.`],
+    ['approve', '변경 승인', `개발자 제안(${asked?.spec ?? '수정안'})을 승인하고 디자인 원안도 바꿔요.`],
+    DECISIONS[2],
+  ]
+}
 const REASON_SUGGESTIONS = {
   keep: '2열 배치가 대시보드의 핵심 정보를 한눈에 보여줘요. 카드 폭을 화면에 맞춰 2열을 유지해 주세요.',
   approve: '768px에서는 1열이 더 읽기 쉬워요. 디자인 원안도 1열로 업데이트할게요.',
@@ -842,7 +879,7 @@ function DecisionForm({ conflict, onDecide }) {
         {request?.devStage && <span data-request-stage className="ml-1.5 text-slate-500">· 요청 시점의 개발 단계: <span className="text-slate-300">{DEV_STAGE_LABEL[request.devStage]}</span></span>}
       </p>
       <div role="radiogroup" aria-label="디자인 결정" className="grid gap-2 sm:grid-cols-3">
-        {DECISIONS.map(([id, title, body]) => (
+        {decisionsFor(conflict).map(([id, title, body]) => (
           <button
             key={id}
             type="button"
@@ -870,7 +907,7 @@ function DecisionForm({ conflict, onDecide }) {
           value={reason}
           onChange={setReason}
           placeholder={choice ? `왜 ${DECISION_LABEL[choice]}인가요?` : '결정한 이유를 적어 주세요'}
-          suggestions={choice ? [REASON_SUGGESTIONS[choice]] : []}
+          suggestions={choice ? [(conflict.layouts ? REASON_SUGGESTIONS : conflict.decisionChips ?? {})[choice]].filter(Boolean) : []}
         />
         {/* Putting it off: only on asking, and only when there's something to put off. */}
         {settles && later && (
@@ -914,7 +951,7 @@ function DetectedSummary({ conflict }) {
     <section data-decision-detected className={cn(CARD, 'ring-amber-400/25 !py-3')}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
         <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-100">{conflict.summary ?? conflict.message}</p>
-        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">보통</span>
+        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">{{ high: '높음', medium: '보통', low: '낮음' }[conflict.severity] ?? '보통'}</span>
         <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">디자인 결정 필요</span>
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -926,7 +963,7 @@ function DetectedSummary({ conflict }) {
       {open && (
         <dl className="mt-2 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-xs">
           <dt className="text-slate-400">관련 파일</dt>
-          <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file} · {conflict.line}행</dd>
+          <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file}{conflict.line ? ` · ${conflict.line}행` : ''}</dd>
           <dt className="text-slate-400">원인</dt>
           <dd className="text-slate-200">{conflict.cause}</dd>
           <dt className="text-slate-400">영향 범위</dt>
@@ -953,7 +990,7 @@ function DetectionFacts({ conflict }) {
   return (
     <dl data-detection-facts className={cn(RECORD_ROWS, 'mt-2')}>
       <dt className="text-slate-400">관련 파일</dt>
-      <dd translate="no" className="font-mono text-slate-200">{conflict.file} · {conflict.line}행</dd>
+      <dd translate="no" className="font-mono text-slate-200">{conflict.file}{conflict.line ? ` · ${conflict.line}행` : ''}</dd>
       <dt className="text-slate-400">영향 범위</dt>
       <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
     </dl>
@@ -1031,6 +1068,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const toggle = (key) => folds.set(key, !isOpen(key))
   const breakpoint = conflict.breakpoint ?? 768
   const components = conflict.impact?.components ?? []
+  // (A value change's detection says its value: the first one that differs.)
+  const told = (conflict.comparisonFields ?? []).find((field) => field.current !== field.expected) ?? conflict.comparisonFields?.[0]
   // What was decided, from the one place every screen reads it (designDecisions).
   const outcome = decisionOutcomeOf(conflict)
   const log = post ? eventsOf(conflict) : []
@@ -1045,16 +1084,16 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // "passed" is the fix's alone).
   const steps = post ? [
     { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
-      summary: [`${breakpoint}px`, '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
+      summary: [conflict.layouts ? `${breakpoint}px` : told && `${told.label} ${told.current} → ${told.expected}`, conflict.layouts && '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
     { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.direct ? '바로 수정' : request?.round > 1 ? `${request.round}차 제안` : '제안'}`, time: timeOf('requested'),
-      summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom)) ?? '').replace(/ · /g, ', ') },
+      summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom, conflict)) ?? '').replace(/ · /g, ', ') },
     { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
       // (Put off: when it goes in. At once: nothing more to say.)
       summary: isDeferred(decision) ? `${scheduleWordOf(decision.timing, releaseOf(conflict))} 반영` : '' },
     { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : needsPerson ? 'problem' : 'current',
-      who: fixPhase === 'deferred' ? '반영 예정' : `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? `${breakpoint}px 검증 통과` : PHASE_CHIP[fixPhase][0]}`,
+      who: fixPhase === 'deferred' ? '반영 예정' : `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? (conflict.layouts ? `${breakpoint}px 검증 통과` : '값 검증 통과') : PHASE_CHIP[fixPhase][0]}`,
       time: timeOf('verified', 'fixed'),
-      summary: fixPhase === 'deferred' ? scheduleWordOf(decision.timing, releaseOf(conflict)) : `${fileName} ${conflict.line}행` },
+      summary: fixPhase === 'deferred' ? scheduleWordOf(decision.timing, releaseOf(conflict)) : `${fileName}${conflict.line ? ` ${conflict.line}행` : ''}` },
     // The merge: the last step, once it's in (said by the banner above too).
     ...(fixPhase === 'resolved' ? [{ key: 'resolve', title: '병합', state: 'done', who: nameOf(conflict.mergedBy ?? request?.by), time: timeOf('resolved'), summary: '반영 완료' }] : []),
   ] : []
@@ -1106,7 +1145,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       ) : (
         <LayoutComparison
           conflict={conflict}
-          proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : developer ? null : proposalOf('one-column')}
+          proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom, conflict)) : developer || !conflict.layouts ? null : proposalOf('one-column')}
         />
       )}
 
@@ -1123,7 +1162,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                 onRetry={() => workspace.patchDecisionFix(conflict.id, { failed: null, manual: false, retried: true })}
                 onManual={() => {
                   workspace.patchDecisionFix(conflict.id, { manual: true })
-                  toast('직접 수정으로 전환했어요', { description: `${conflict.file} · ${conflict.line}행을 고친 뒤 다시 검증하세요.` })
+                  toast('직접 수정으로 전환했어요', { description: `${conflict.file}${conflict.line ? ` · ${conflict.line}행` : ''}을 고친 뒤 다시 검증하세요.` })
                 }}
                 onResolve={() => {
                   const checkpoint = workspace.resolveDecision(conflict.id)
@@ -1152,7 +1191,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                     <StepRow key={step.key} data-fold={step.key} state={step.state} moves={stepMoves(reveal, index)} anim={stepMoves(reveal, index) ? reveal.phase : undefined} delay={delayOf(reveal, index)} arrive={reveal.live && step.state === 'current' && index === reveal.to} strong={hovered != null && index < hovered} onHover={(on) => setHovered(on ? index : null)} title={step.title} who={step.who} summary={step.summary} time={step.time} open={isOpen(step.key)} onToggle={() => toggle(step.key)} onReplay={onReplay ? () => onReplay(step.key) : undefined} last={index === steps.length - 1}>
                       {step.key === 'detect' && (
                         <>
-                          <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom)) : null} />
+                          <LayoutComparison bare conflict={conflict} proposal={request ? (request.proposal === 'original' ? null : proposalOf(request.proposal, request.custom, conflict)) : null} />
                           <DetectionFacts conflict={conflict} />
                         </>
                       )}

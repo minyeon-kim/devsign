@@ -36,6 +36,15 @@ const DEFAULT_PROPS = [
   { id: 'cardWidth', label: '카드 폭', kind: 'width', current: { mode: 'fixed', px: 360 }, currentText: '현재 360px 고정' },
 ]
 export const controlsOf = (conflict) => conflict?.driftProps ?? DEFAULT_PROPS
+// A conflict's own ways forward. A structural drift's are the layouts above;
+// a value change carries its own (`conflict.proposals`: 원안대로 맞추기, 현재 값
+// 유지, 다른 값 — each with the side of its preview it draws, `side`).
+export const proposalsOf = (conflict) => conflict?.proposals ?? PROPOSALS
+// Whether a way has something to draw: a layout's columns, or a value's side.
+export const drawableOf = (shape) => Boolean(shape?.columns || shape?.side)
+// What the design and the build are, in a phrase — a value change says its own.
+export const designSpecOf = (conflict) => conflict?.designSpec ?? '화면 폭 맞춤 2열'
+export const builtSpecOf = (conflict) => conflict?.builtSpec ?? IMPLEMENTATION_SPEC
 // 다른 수정안 shows two of them at once — how many columns, how wide a card —
 // and keeps the rest (the gap, where it applies) behind 세부 조정.
 export const PRIMARY_CONTROLS = ['columns', 'cardWidth']
@@ -48,7 +57,7 @@ export const currentValuesOf = (conflict) => Object.fromEntries(controlsOf(confl
 // number (the preset's, else what the code has).
 export function seedValuesFor(conflict, fromProposal) {
   const current = currentValuesOf(conflict)
-  const preset = fromProposal && fromProposal !== 'other' ? PROPOSALS.find((proposal) => proposal.id === fromProposal)?.values ?? {} : {}
+  const preset = fromProposal && fromProposal !== 'other' ? proposalsOf(conflict).find((proposal) => proposal.id === fromProposal)?.values ?? {} : {}
   const values = { ...current, ...preset }
   if (values.cardWidth?.mode === 'fixed' && !values.cardWidth.px) values.cardWidth = { ...values.cardWidth, px: current.cardWidth?.px ?? null }
   return values
@@ -57,6 +66,7 @@ const RANGE_LABEL = { '~768px': '768px 이하', '~1024px': '1024px 이하', 전�
 // The values as one line: "768px 이하 · 카드 3열 · 화면 맞춤 · 간격 12px".
 export function summarizeValues(values = {}) {
   return [
+    values.value != null && values.value !== '' && String(values.value),
     values.range && RANGE_LABEL[values.range],
     values.columns && `카드 ${values.columns}열`,
     values.cardWidth?.mode === 'fit' ? '화면 맞춤' : values.cardWidth?.mode === 'fixed' ? `폭 ${values.cardWidth.px ? `${values.cardWidth.px}px ` : ''}고정` : null,
@@ -64,13 +74,14 @@ export function summarizeValues(values = {}) {
   ].filter(Boolean).join(' · ')
 }
 // The values a proposal stands for — a preset's own, or what 다른 수정안 has set.
-export const valuesOf = (id, custom) => (id === 'other' ? (custom?.values ?? {}) : PROPOSALS.find((proposal) => proposal.id === id)?.values ?? {})
+export const valuesOf = (id, custom, conflict) => (id === 'other' ? (custom?.values ?? {}) : proposalsOf(conflict).find((proposal) => proposal.id === id)?.values ?? {})
 // One proposal, fully described — for previews, summaries and the request.
-// `custom` is what 다른 수정안 holds: { values, note }.
-export function proposalOf(id, custom) {
-  const base = PROPOSALS.find((proposal) => proposal.id === id)
+// `custom` is what 다른 수정안 holds: { values, note }; `conflict`, whose ways
+// they are (a structural drift's when not given).
+export function proposalOf(id, custom, conflict) {
+  const base = proposalsOf(conflict).find((proposal) => proposal.id === id)
   if (!base) return null
-  const values = valuesOf(id, custom)
+  const values = valuesOf(id, custom, conflict)
   const widthMode = values.cardWidth?.mode === 'fixed' ? (id === 'narrow-cards' ? 'narrow' : 'fixed') : values.cardWidth?.mode ?? null
   const shape = { ...base, values, columns: values.columns ?? null, widthMode, gap: values.gap ?? null }
   if (id !== 'other') return shape
@@ -79,7 +90,9 @@ export function proposalOf(id, custom) {
 }
 // Why-it-fits sentences to pick from, made from the way chosen and what was
 // detected. They are offered, never filled in.
-export function reasonChipsFor(id, custom) {
+export function reasonChipsFor(id, custom, conflict) {
+  // (A value change offers its own, by way; a structural drift's are worked out below.)
+  if (conflict?.proposals) return conflict.reasonChips?.[id] ?? []
   const shape = proposalOf(id, custom)
   if (!shape) return []
   const { columns, gap, values } = shape
@@ -110,11 +123,13 @@ export function decisionOutcomeOf(conflict) {
   const decision = conflict?.designDecision
   if (!decision) return null
   const request = conflict.decisionRequest
-  const shape = decision.choice === 'approve' ? proposalOf(request?.proposal, request?.custom) : null
-  const name = decision.choice === 'approve' ? (shape ? (PROPOSAL_RESULT[shape.id] ?? shape.spec) : '수정안') : `디자인 원안(${conflict.layouts?.original?.columns ?? 2}열)`
+  const shape = decision.choice === 'approve' ? proposalOf(request?.proposal, request?.custom, conflict) : null
+  // (The design, in a word: a layout's columns, or a value change's value.)
+  const original = conflict.layouts ? `${conflict.layouts.original?.columns ?? 2}열` : designSpecOf(conflict)
+  const name = decision.choice === 'approve' ? (shape ? (shape.result ?? PROPOSAL_RESULT[shape.id] ?? shape.spec) : '수정안') : `디자인 원안(${original})`
   const label = DECISION_LABEL[decision.choice]
   // The final decision, said whole ("디자인 원안 유지(2열)", "변경 승인 · 1열 레이아웃").
-  const final = decision.choice === 'approve' ? `${label} · ${name}` : decision.choice === 'keep' ? `디자인 원안 유지(${conflict.layouts?.original?.columns ?? 2}열)` : label
+  const final = decision.choice === 'approve' ? `${label} · ${name}` : decision.choice === 'keep' ? `디자인 원안 유지(${original})` : label
   return { choice: decision.choice, label, name, shape, final, line: `${label} · ${name}`, resolvedLine: `${label} · ${withRo(name)} 해결` }
 }
 // The code line the decision lands on: the design as it is, or the way
@@ -144,7 +159,8 @@ export function decisionStageOf(conflict) {
 // A change Devsign doesn't make by itself: the risk is high, so its diff is
 // looked at and approved first.
 export const fixNeedsApproval = (conflict) => conflict.severity === 'high' || conflict.severity === 'critical'
-export const canAutoFix = (conflict) => Boolean(fixLineOf(conflict) && conflict.fileId && conflict.line)
+// (Its file needn't be open in the Workspace: the fix is the decided lines, applied where they are.)
+export const canAutoFix = (conflict) => Boolean(fixLineOf(conflict) && conflict.file)
 export function fixPhaseOf(conflict) {
   const fix = conflict.decisionFix
   if (conflict.reviewStage === 'resolved') return 'resolved'

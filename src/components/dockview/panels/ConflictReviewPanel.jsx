@@ -59,7 +59,7 @@ import { useFoldState } from '@/components/conflicts/Fold'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
-import { eventsOf, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
+import { eventsOf, formatTime, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
 import { ReasonField, RulesDialog } from '@/components/conflicts/Rationale'
 import { ConflictTypeTag, DifferenceSummary, CodeDifferenceSummary, FlowSteps } from '@/components/conflicts/ConflictInsight'
@@ -602,7 +602,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           <dl data-info-problem className={GRID}>
             {designLink && (
               <Row label="Screen" data-summary-row="Screen">
-                {conflict.decisionFlow ? <BreakpointScreen conflict={conflict} /> : (
+                {conflict.decisionFlow && conflict.layouts ? <BreakpointScreen conflict={conflict} /> : (
                   <div className="flex min-w-0 flex-col items-start gap-1.5">
                     <DesignLinkChip conflict={conflict} />
                     <DesignLinkThumb conflict={conflict} size="md" placeholder />
@@ -3426,7 +3426,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               conflict.rollback ? null : mergedWith,
                               approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
                           conflict.mergedBy && !conflict.rollback ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
-                          conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
+                          // (When it merged, as the app writes times — "10월 8일 오전 11:30".)
+                          Number.isFinite(conflict.resolvedAtMs) ? formatTime(conflict.resolvedAtMs) : conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
                         ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
                       </span>
                       {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={() => (activity.entries.length ? openReplay(replayEntryFor('end')) : handleOpenFile())} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}

@@ -85,7 +85,7 @@ function impliedEvents(conflict, now = Date.now()) {
   const fix = conflict.decisionFix
   // (`auto`: applied by Devsign itself once the decision was in — the system's event, not a person's.)
   const fixed = fix && push('fixed', fix.auto ? null : request?.by ?? null, fix.appliedAtMs, { files: 1, file: conflict.file, line: conflict.line, choice: fix.choice, ...(fix.auto && { auto: true }) }, decided?.id)
-  const verified = fix?.verified && push('verified', null, fix.verifiedAtMs, { match: true, width: 768 }, fixed?.id)
+  const verified = fix?.verified && push('verified', null, fix.verifiedAtMs, { match: true, ...(conflict.layouts && { width: conflict.breakpoint ?? 768 }) }, fixed?.id)
   if (conflict.reviewStage === 'resolved') push('resolved', conflict.mergedBy ?? request?.by ?? null, conflict.resolvedAtMs, { how: fix?.choice === 'approve' ? 'design-change' : 'fix' }, verified?.id)
   return events
 }
@@ -221,7 +221,7 @@ export function stepActionOf(event) {
       const { commit, file } = payload.source ?? {}
       return { system: true, text: `자동 감지${commit ? ` · 커밋 ${commit}` : file ? ` · ${file.split('/').at(-1)}` : ''}`, commit }
     }
-    if (type === 'verified') return { system: true, text: `자동 검증 · ${payload.width ?? 768}px ${payload.match === false ? '차이 있음' : '검증 통과'}` }
+    if (type === 'verified') return { system: true, text: `자동 검증 · ${payload.width ? `${payload.width}px ` : '값 '}${payload.match === false ? '차이 있음' : '검증 통과'}` }
     if (type === 'fixed') return { system: true, text: `자동 수정 · 파일 ${payload.files ?? 1}개` }
     return { system: true, text: '자동 처리' }
   }

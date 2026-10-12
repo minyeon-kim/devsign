@@ -109,10 +109,11 @@ function EventContent({ event }) {
     )
   }
   if (type === 'verified') {
-    const width = payload.width ?? 768
+    // (A structural drift is compared at its breakpoint; a value change, by its value.)
+    const what = payload.width ? `${payload.width}px 재비교` : '값 재비교'
     return payload.match === false
-      ? <><p className="text-xs leading-[18px] font-medium text-destructive">{width}px 재비교 결과 아직 차이가 있어요</p>{payload.difference && <p className="mt-0.5 text-[11px] text-slate-400">{payload.difference}</p>}</>
-      : <p className="text-xs leading-[18px] text-slate-200">{width}px 재비교 결과 디자인과 일치해요</p>
+      ? <><p className="text-xs leading-[18px] font-medium text-destructive">{what} 결과 아직 차이가 있어요</p>{payload.difference && <p className="mt-0.5 text-[11px] text-slate-400">{payload.difference}</p>}</>
+      : <p className="text-xs leading-[18px] text-slate-200">{what} 결과 {payload.width ? '디자인과' : '결정과'} 일치해요</p>
   }
   if (type === 'resolved') {
     const how = { fix: '수정 반영', 'design-change': '원안 변경', exception: '예외 처리' }[payload.how] ?? '수정 반영'

@@ -18,7 +18,11 @@
 //   layers + region — the elements on Dashboard's AI-draft canvas; `layer` — one element elsewhere
 //   wholeScreen — about the screen as a whole: its page is linked, nothing marked
 //   check — what found it ('sync' unless said: 'accessibility')
-//   steps.requested.proposal — the way asked for: 'design' (the design's value) or 'keep'
+//   steps.requested — the developer's request: { by, proposal, reason }, the way
+//     asked for being one that differs from the design ('current': keep the
+//     code's value; following the design needs no asking)
+//   steps.decided — the designer's decision: { by, choice: 'keep' | 'approve', reason }
+//   draft — a way picked, not asked about yet
 //
 // A merge conflict (`kind: 'code'`) is two branches changing the same lines:
 // it's numbered and timed like the rest, and resolved its own way (pick a
@@ -28,7 +32,7 @@
 //   approvedBy — the reviewers who've already signed off
 
 export const SEED = {
-  project: { id: 'dashboard-redesign', name: 'Dashboard Redesign', screen: 'Dashboard', pageId: 'page-dashboard' },
+  project: { id: 'dashboard-redesign', name: 'Dashboard Redesign', screen: 'Dashboard', pageId: 'page-dashboard', devStage: 'mid' },
   people: { developer: 'min', designer: 'jane' },
 
   // The grid file's code, by what its 768px columns are (null: no responsive
@@ -118,7 +122,7 @@ export const SEED = {
       reviewers: ['jane'],
       due: 1,
       stage: 'in_review', // waiting for Taylor's approval
-      steps: { detected: { day: 0, at: '08:55' }, requested: { by: 'min', day: 0, at: '09:02' } },
+      steps: { detected: { day: 0, at: '08:55' }, requested: { by: 'min', day: 0, at: '09:02', proposal: 'current', reason: 'color.cta(#2563EB)는 흰 글자와의 대비가 4.5:1에 조금 못 미쳐요. 토큰을 고칠 때까지 지금 색을 유지하고 싶어요.' } },
     },
     {
       id: 'CON-006',
@@ -166,7 +170,7 @@ export const SEED = {
       reviewers: ['jane'],
       due: 3,
       stage: 'in_review',
-      steps: { detected: { day: 0, at: '08:10' }, requested: { by: 'james', day: 0, at: '08:25', proposal: 'design' } },
+      steps: { detected: { day: 0, at: '08:10' }, requested: { by: 'james', day: 0, at: '08:25', proposal: 'current', reason: '범례 항목이 6개라 8px이면 좁은 화면에서 두 줄로 넘어가요.' } },
     },
     {
       id: 'CON-009',
@@ -214,7 +218,7 @@ export const SEED = {
       reviewers: ['jane'],
       due: 7,
       stage: 'in_review',
-      steps: { detected: { day: -1, at: '17:40' }, requested: { by: 'james', day: 0, at: '08:30', proposal: 'design' } },
+      steps: { detected: { day: -1, at: '17:40' }, requested: { by: 'james', day: 0, at: '08:30', proposal: 'current', reason: '작은 화면에서 120px이면 빈 상태의 버튼이 첫 화면 아래로 밀려요.' } },
     },
   ],
 
@@ -233,7 +237,7 @@ export const SEED = {
 // and merged. CON-014 (the Place order button) is in review: asked about
 // by Jordan, Taylor's to decide.
 export const CHECKOUT_SEED = {
-  project: { id: 'checkout-redesign', name: 'Checkout Redesign', screen: 'Checkout · Payment step', pageId: 'page-checkout' },
+  project: { id: 'checkout-redesign', name: 'Checkout Redesign', screen: 'Checkout · Payment step', pageId: 'page-checkout', devStage: 'late' },
   people: { developer: 'james', designer: 'jane' },
 
   changes: [
@@ -268,8 +272,8 @@ export const CHECKOUT_SEED = {
       // What happened, in order. Every step is done: it's merged.
       steps: {
         detected: { day: -4, at: '10:05' },
-        requested: { by: 'james', day: -4, at: '10:20', proposal: 'design' },
-        decided: { by: 'jane', day: -4, at: '11:00', choice: 'approve', reason: '폼 간격은 4/8 단위를 지켜야 해요. 디자인대로 8px로 맞춰요.' },
+        requested: { by: 'james', day: -4, at: '10:20', proposal: 'current', reason: '폼이 길어서 6px로 두면 결제 버튼까지 스크롤이 줄어요.' },
+        decided: { by: 'jane', day: -4, at: '11:00', choice: 'keep', reason: '폼 간격은 4/8 단위를 지켜야 해요. 디자인대로 8px로 맞춰요.' },
         fixed: { auto: true, day: -4, at: '11:01' },
         verified: { day: -4, at: '11:02' },
         merged: { by: 'james', day: -4, at: '11:30' },
@@ -354,7 +358,7 @@ export const CHECKOUT_SEED = {
       reviewers: ['jane'],
       due: 1,
       stage: 'in_review', // waiting for Taylor's decision
-      steps: { detected: { day: -1, at: '17:20' }, requested: { by: 'james', day: 0, at: '09:30', proposal: 'design' } },
+      steps: { detected: { day: -1, at: '17:20' }, requested: { by: 'james', day: 0, at: '09:30', proposal: 'current', reason: '결제 버튼 A/B 테스트가 끝날 때까지 지금 높이와 색을 유지하고 싶어요.' } },
     },
     {
       id: 'CON-015',
@@ -412,9 +416,7 @@ export const CHECKOUT_SEED = {
       ruleIds: ['divider-color'],
       // The example of a way that departs from the standard: the current
       // value kept, which is the one case a reason is asked for.
-      decidedSide: 'B',
-      decidedBy: 'james',
-      deviation: { kind: 'keep-current', text: '디자인이 확정될 때까지 임시로 유지', by: 'james', at: '2 hours ago' },
+      draft: 'current', // a way picked — keeping the code's value — not asked about yet
       // The border token's light / dark values come from this project's tokens.json.
       preview: {
         kind: 'divider',
@@ -727,7 +729,7 @@ export const MOBILE_NAV_SEED = {
       reviewers: ['jane'],
       due: 2,
       stage: 'in_review', // waiting for Taylor's decision
-      steps: { detected: { day: -1, at: '10:00' }, requested: { by: 'min', day: 0, at: '09:50', proposal: 'design' } },
+      steps: { detected: { day: -1, at: '10:00' }, requested: { by: 'min', day: 0, at: '09:50', proposal: 'current', reason: '배지가 붙는 탭이라 아이콘을 20px로 두면 배지와 겹치지 않아요.' } },
     },
     {
       id: 'CON-021',
@@ -759,8 +761,8 @@ export const MOBILE_NAV_SEED = {
       // What happened, in order. Every step is done: it's merged.
       steps: {
         detected: { day: -1, at: '10:30' },
-        requested: { by: 'min', day: -1, at: '10:40', proposal: 'design' },
-        decided: { by: 'jane', day: -1, at: '10:58', choice: 'approve', reason: '알림이 많아도 탭 폭은 그대로여야 해요. 99+로 줄이는 게 맞아요.' },
+        requested: { by: 'min', day: -1, at: '10:40', proposal: 'current', reason: '알림이 몇 개인지 정확한 수를 보여 주고 싶어요.' },
+        decided: { by: 'jane', day: -1, at: '10:58', choice: 'keep', reason: '알림이 많아도 탭 폭은 그대로여야 해요. 99+로 줄이는 게 맞아요.' },
         fixed: { auto: true, day: -1, at: '11:04' },
         verified: { day: -1, at: '11:05' },
         merged: { by: 'min', day: -1, at: '15:15' },

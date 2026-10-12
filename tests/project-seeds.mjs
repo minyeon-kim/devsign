@@ -9,7 +9,6 @@ try {
   const { PROJECT_SEEDS } = await server.ssrLoadModule('/src/mocks/seed.js')
   const derive = await server.ssrLoadModule('/src/mocks/derive.js')
   const { allConflictRecords } = await server.ssrLoadModule('/src/lib/conflicts.js')
-  const { reviewRecordOf } = await server.ssrLoadModule('/src/lib/reviewRecord.js')
   const { projectHistorySeeds, activities, conflictNotifications, mergeListItems, designSystemUpdates } = await server.ssrLoadModule('/src/data/mockData.js')
 
   const records = allConflictRecords()
@@ -31,7 +30,12 @@ try {
     for (const change of seed.changes) {
       const record = byId(change.id)
       assert.equal(record.timestamp, derive.timeLabelOf(change.steps.detected), `${change.id}: found when its seed says`)
-      if (change.steps.requested && change.kind === 'value') assert.equal(record.requestedAtMs, derive.momentOf(change.steps.requested).getTime(), `${change.id}: asked when its seed says`)
+      if (change.steps.requested && change.kind === 'value' && record.decisionFlow) assert.equal(record.decisionRequest.sentAt, derive.momentOf(change.steps.requested).getTime(), `${change.id}: asked when its seed says`)
+      // Every design change is a design decision, as the reference is — but an
+      // accessibility check, where design and code are alike, adjusted by hand.
+      if (change.kind === 'value') assert.equal(Boolean(record.decisionFlow), change.check !== 'accessibility', `${change.id}: reviewed as a design decision`)
+      // A request asks for something other than the design (following it needs no asking).
+      if (change.kind === 'value' && change.steps.requested) assert.notEqual(change.steps.requested.proposal, 'original', `${change.id}: asks for a way that differs`)
       // As the reference's: a developer asks, the designer decides.
       if (change.kind !== 'code') {
         assert.deepEqual(change.reviewers ?? [seed.people.designer], [seed.people.designer], `${change.id}: the designer decides`)
@@ -41,20 +45,22 @@ try {
     }
   }
 
-  // ── The merged ones: all five steps done, each with who and when ──
+  // ── The merged ones: every step done, each with who and when, as CON-002's are ──
+  const { eventsOf, progressOf } = await server.ssrLoadModule('/src/lib/conflictEvents.js')
+  const { fixPhaseOf, decisionOutcomeOf } = await server.ssrLoadModule('/src/lib/designDecisions.js')
   for (const id of ['CON-012', 'CON-021']) {
     const record = byId(id)
     const steps = derive.seededChangeOf(id).steps
-    const nameOf = (person) => ({ jane: 'Taylor', james: 'Jordan', min: 'Alex' })[person]
-    const record5 = reviewRecordOf(record, { nameOf, roleOf: (person) => (person === 'jane' ? 'Designer' : 'Developer'), choice: 'A', choiceLabel: 'Change to the design reference' })
-    assert.deepEqual(record5.map((step) => step.title), ['변경 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '병합'])
-    assert.ok(record5.every((step) => step.state === 'done'), `${id}: every step is done`)
-    assert.ok(record5.every((step) => step.who && step.time), `${id}: every step says who and when`)
-    assert.equal(record5[1].who, `${nameOf(steps.requested.by)} · 제안`)
-    assert.equal(record5[2].who, nameOf(steps.decided.by))
-    assert.equal(record5[4].who, nameOf(steps.merged.by))
+    const events = eventsOf(record)
+    assert.deepEqual(events.map((event) => event.type), ['detected', 'requested', 'decided', 'fixed', 'verified', 'resolved'])
+    assert.equal(progressOf(events).status, 'done')
+    assert.deepEqual(events.map((event) => event.actor.id ?? null), [null, steps.requested.by, steps.decided.by, null, null, steps.merged.by].map((person) => person ?? (events[0].actor.id ?? null)))
+    assert.deepEqual(events.map((event) => new Date(event.createdAt).getTime()), ['detected', 'requested', 'decided', 'fixed', 'verified', 'merged'].map((step) => derive.momentOf(steps[step]).getTime()))
+    assert.equal(fixPhaseOf(record), 'resolved')
+    // Taylor kept the design: the fix is the design's code.
+    assert.equal(decisionOutcomeOf(record).choice, 'keep')
+    assert.deepEqual([record.fixes.keep].flat(), record.diff.after)
     assert.ok(record.reviewers.every((reviewer) => reviewer.status === 'approved' && reviewer.note === steps.decided.reason))
-    assert.deepEqual([record.autoFix.verified, record.resolvedAtLabel], [true, derive.timeLabelOf(steps.merged)])
     // Its History: the fix and the merge, at the record's times, holding its fixed code.
     const history = projectHistorySeeds[record.projectId].filter((entry) => entry.conflictId === id && entry.kind !== 'conflict')
     assert.deepEqual(history.map((entry) => entry.kind), ['edit', 'merge'])

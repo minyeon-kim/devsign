@@ -75,10 +75,11 @@ function MinimizedStrip({ group, panelsById, dockApi, dir }) {
 // Merge Studio's own minimized state for a floating chat/navigator window:
 // its panes sit absolutely positioned over the canvas rather than docked
 // in the split tree MinimizedStrip expects to be a flex sibling of, so
-// restoring it is its own small floating pill instead — bottom-left,
-// clear of the canvas's other floating chrome (zoom controls, help,
-// Merge List), same surface language as the rest of Merge Studio's pills.
-function FloatingRestorePill({ group, panelsById, dockApi }) {
+// restoring it is its own small floating pill instead — same surface
+// language as the rest of Merge Studio's pills. AI Chat folds the same way
+// in the Workspace too (`corner: 'bottom'`): a pill at the work area's
+// bottom-left, clear of the tabs, rather than a full-height strip.
+function FloatingRestorePill({ group, panelsById, dockApi, corner = 'top' }) {
   const panel = panelsById[group.activeId]
   const Icon = PANEL_ICONS[panel?.params?.iconName]
   return (
@@ -93,7 +94,8 @@ function FloatingRestorePill({ group, panelsById, dockApi }) {
           // In the studio's header row, clear of the canvas: AI Chat's (it
           // starts closed) at its left end, the navigator's at
           // the right, over where it folded from.
-          'pointer-events-auto absolute top-2 flex h-8',
+          'pointer-events-auto absolute flex h-8',
+          corner === 'bottom' ? 'bottom-4' : 'top-2',
           group.panelIds.includes(panelById.chat.id) ? 'left-4' : 'right-2',
           'items-center gap-2 px-3.5 text-[12px] font-medium text-slate-300 transition-colors hover:text-white',
           PANEL_RADIUS,
@@ -408,6 +410,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
         // floating restore pill rather than a strip with nowhere in the
         // flex layout to actually sit.
         if (floatingSide) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} />
+        if (group.panelIds.includes(panelById.chat.id)) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} corner="bottom" />
         return <MinimizedStrip group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
       }
       return (

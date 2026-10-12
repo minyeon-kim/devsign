@@ -13,7 +13,9 @@ try {
   const { default: Panel } = await server.ssrLoadModule('/src/components/dockview/panels/ConflictReviewPanel.jsx')
   const { conflictChecklist } = await server.ssrLoadModule('/src/data/mockData.js')
   const wrap = (projectId, child) => createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null, createElement(WorkspaceProvider, { projectId }, child)))
-  for (const id of ['CON-020', 'CON-012', 'CON-016', 'CON-015', 'CON-013', 'CON-014']) {
+  // (Design changes are design decisions now — DesignDecisionFlow's 다른 값. The
+  // value card is the accessibility samples', adjusted by hand.)
+  for (const id of ['CON-017', 'CON-019']) {
     const conflict = { ...conflictChecklist.find((c) => c.id === id), reviewStage: 'detected', customChosen: true }
     const html = renderToStaticMarkup(wrap(conflict.projectId, createElement(Panel, { conflict, onOpenChange() {}, onUpdate() {}, onOpenMergeStudio() {} })))
     const editors = html.match(/data-value-editor="/g)?.length ?? 0

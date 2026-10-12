@@ -113,11 +113,16 @@ function previewOf(preview) {
 // What a change carries as it is, beside what's worked out.
 const KEPT = ['fileId', 'line', 'sample', 'mergeItemId', 'mergeTitle', 'linkedCommentId', 'ruleIds', 'purpose', 'decidedSide', 'decidedBy', 'deviation',
   'resolution', 'adjustment', 'adjustmentReason', 'references', 'suggestion', 'suggestionReason', 'riskReason', 'uxNote', 'expectedResult', 'previewPrompt', 'branches']
-const PROPOSAL_SIDE = { design: 'A', keep: 'B' }
 
 // A value that differs from the design: the property (or properties), the
-// built value, the design's — and, as far as it's come, each step of its
-// approval with who and when.
+// built value, the design's — reviewed the way the reference (CON-002) is: a
+// design decision (`decisionFlow`). The developer follows the design at once
+// (원안대로 맞추기) or asks for something else with a reason; the designer
+// keeps the design, approves, or asks again; the fix is applied and checked
+// by itself; the developer merges. As far as it's come, each of those is on
+// the record with who and when. (An accessibility check, where the design
+// and the code are the same and both short of the standard, is no design
+// decision: it's adjusted by hand in Merge Studio, as before.)
 function valueRecord(project, change, now) {
   const [layerId, ...others] = layerIdsOf(change)
   const { steps } = change
@@ -126,8 +131,7 @@ function valueRecord(project, change, now) {
   const fileName = change.file.split('/').pop()
   const kept = Object.fromEntries(KEPT.filter((key) => change[key] !== undefined).map((key) => [key, change[key]]))
   const merged = change.stage === 'resolved'
-  const asked = steps.requested
-  return {
+  const record = {
     id: change.id,
     title: change.title,
     token: change.title,
@@ -142,8 +146,6 @@ function valueRecord(project, change, now) {
     resolved: merged,
     severity: change.severity,
     reviewStage: change.stage,
-    ...(asked && { requestedBy: asked.by, requestedAtMs: ms(asked) }),
-    ...(asked?.proposal && { decidedSide: PROPOSAL_SIDE[asked.proposal], decidedBy: asked.by }),
     detectedBy: CHECKS[change.check ?? 'sync'],
     ...(change.changedBy && { changedBy: { type: 'person', id: change.changedBy, what: change.changedWhat ?? 'Changed the code' } }),
     ...(change.frame && { branches: { local: fileName, remote: `${change.frame} (Figma)` } }),
@@ -161,14 +163,67 @@ function valueRecord(project, change, now) {
       ...(change.code.merged && { merged: lines(change.code.merged) }),
     },
     ...kept,
-    // Decided: every reviewer's sign-off, with when and why.
-    reviewers: change.reviewers.map((id) => (steps.decided
-      ? { id, status: 'approved', reviewedAt: ms(steps.decided), note: steps.decided.reason }
-      : { id, status: 'pending' })),
-    // Fixed and checked by itself (수정 · 검증).
-    ...(steps.verified && { autoFix: { appliedAtMs: ms(steps.fixed), verified: true, verifiedAtMs: ms(steps.verified) } }),
-    // Merged (병합).
-    ...(merged && { mergedBy: steps.merged.by, resolvedAtLabel: timeLabelOf(steps.merged), resolvedAtMs: ms(steps.merged), diffInspected: true }),
+  }
+  if (change.check === 'accessibility') return withValueReview(record, change, ms)
+  return { ...record, ...designDecisionOf(project, change, fields, ms) }
+}
+
+// An accessibility sample's review, as values picked and signed off (Merge Studio's).
+function withValueReview(record, change, ms) {
+  const { steps } = change
+  return {
+    ...record,
+    reviewers: change.reviewers.map((id) => ({ id, status: 'pending' })),
+    ...(steps.requested && { requestedBy: steps.requested.by, requestedAtMs: ms(steps.requested) }),
+  }
+}
+
+// A value change as a design decision: its ways forward and what each lands
+// on, and — as far as it's come — the request, the decision, the fix and its
+// check, and the merge, each with who and when (CON-002's fields).
+function designDecisionOf(project, change, fields, ms) {
+  const { steps } = change
+  const differing = fields.filter((field) => field.built !== field.design)
+  const told = differing.length ? differing : fields
+  const say = (side) => told.map((field) => (told.length > 1 ? `${field.label} ${field[side]}` : field[side])).join(' · ')
+  const designSpec = say('design')
+  const builtSpec = say('built')
+  const one = (code) => (lines(code).length > 1 ? lines(code) : lines(code)[0])
+  const request = steps.requested && {
+    by: steps.requested.by, reason: steps.requested.reason, proposal: steps.requested.proposal, attachment: true,
+    ...(project.devStage && { devStage: project.devStage }), at: timeLabelOf(steps.requested), sentAt: ms(steps.requested), round: 1,
+  }
+  const decision = steps.decided && { by: steps.decided.by, choice: steps.decided.choice, reason: steps.decided.reason, at: timeLabelOf(steps.decided), decidedAt: ms(steps.decided), timing: 'now' }
+  return {
+    decisionFlow: true,
+    driftType: 'value',
+    summary: change.says,
+    designSpec,
+    builtSpec,
+    attachmentName: `${change.file.split('/').pop().replace(/\.[a-z]+$/i, '')}-구현화면.png`,
+    // The ways forward, each with the side of the preview it draws.
+    proposals: [
+      { id: 'original', name: '원안대로 맞추기', spec: designSpec, side: 'after', result: '디자인 원안' },
+      { id: 'current', name: '현재 값 유지', spec: builtSpec, side: 'before', result: `현재 값 유지(${builtSpec})` },
+      { id: 'other', name: '다른 값', spec: '직접 입력', values: {} },
+    ],
+    // 다른 값's one field: the value, starting from what the code has.
+    driftProps: [{ id: 'value', label: told.length > 1 ? '값' : told[0].label, kind: 'text', primary: true, current: builtSpec, currentText: `현재 ${builtSpec}` }],
+    // The code each outcome lands on: the design's lines, or the code as it is.
+    fixes: { keep: one(change.code.design), original: one(change.code.design), current: one(change.code.built) },
+    ...(change.draft && { decisionDraft: { proposal: change.draft, custom: { values: {}, note: '' } } }),
+    // Asked, and by whom — the walkthrough brings it back if it's started over.
+    ...(request && { decisionRequest: request, scriptedRequest: request, requestedBy: request.by }),
+    ...(decision && { designDecision: decision }),
+    ...(steps.verified && {
+      decisionFix: {
+        choice: decision.choice, auto: Boolean(steps.fixed?.auto), designSynced: decision.choice === 'approve',
+        appliedAt: timeLabelOf(steps.fixed), appliedAtMs: ms(steps.fixed),
+        verified: true, failed: null, verifiedAt: timeLabelOf(steps.verified), verifiedAtMs: ms(steps.verified),
+      },
+    }),
+    ...(change.stage === 'resolved' && { mergedBy: steps.merged.by, resolvedAtLabel: timeLabelOf(steps.merged), resolvedAtMs: ms(steps.merged), diffInspected: true }),
+    reviewers: change.reviewers.map((id) => (decision ? { id, status: 'approved', reviewedAt: decision.decidedAt, note: decision.reason } : { id, status: 'pending' })),
   }
 }
 
