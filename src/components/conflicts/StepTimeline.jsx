@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Children, useEffect, useState } from 'react'
 import { cn } from 'cn'
 import { Chevron, FoldBody } from '@/components/conflicts/Fold'
 import { IDLE, STEP_STATE_WORD, countDone, firstView, liveView, metaLines, progressLabel, readSeen, writeSeen } from '@/lib/stepProgress'
@@ -112,7 +112,8 @@ export function StepLine({ filled, strong = false, moves: animate = false, class
 // `children`) has no fold: its head is all there is.
 export function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
   const pending = state === 'pending'
-  const foldable = Boolean(children)
+  // (Nothing inside — or only conditions that didn't hold: no fold.)
+  const foldable = Children.toArray(children).length > 0
   return (
     <li
       className="group/step relative pl-7"

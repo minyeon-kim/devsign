@@ -81,9 +81,10 @@ function impliedEvents(conflict, now = Date.now()) {
   const decision = conflict.designDecision
   const decided = decision && push('decided', decision.by, decision.decidedAt, { result: RESULT_OF_CHOICE[decision.choice] ?? 'approved', choice: decision.choice, reason: decision.reason ?? '', timing: decision.timing ?? null }, asked?.id)
   const fix = conflict.decisionFix
-  const fixed = fix && push('fixed', request?.by ?? null, fix.appliedAtMs, { files: 1, choice: fix.choice }, decided?.id)
+  // (`auto`: applied by Devsign itself once the decision was in — the system's event, not a person's.)
+  const fixed = fix && push('fixed', fix.auto ? null : request?.by ?? null, fix.appliedAtMs, { files: 1, file: conflict.file, line: conflict.line, choice: fix.choice, ...(fix.auto && { auto: true }) }, decided?.id)
   const verified = fix?.verified && push('verified', null, fix.verifiedAtMs, { match: true, width: 768 }, fixed?.id)
-  if (conflict.reviewStage === 'resolved') push('resolved', conflict.mergedBy ?? request?.by ?? null, undefined, { how: fix?.choice === 'approve' ? 'design-change' : 'fix' }, verified?.id)
+  if (conflict.reviewStage === 'resolved') push('resolved', conflict.mergedBy ?? request?.by ?? null, conflict.resolvedAtMs, { how: fix?.choice === 'approve' ? 'design-change' : 'fix' }, verified?.id)
   return events
 }
 

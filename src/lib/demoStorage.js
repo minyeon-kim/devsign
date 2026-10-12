@@ -14,7 +14,8 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // conflicts from before would keep it code-only.
 // 7: a three-draft sample item for mixing drafts per element.
 // 16: Dashboard Redesign (AI drafts, CON-002's design decision) joined.
-export const DEMO_VERSION = 16
+// 17: Dashboard Redesign is built from the seed (mocks/seed.js): CON-002 merged, four saved versions.
+export const DEMO_VERSION = 17
 
 export function readDemo(key, fallback) {
   try {

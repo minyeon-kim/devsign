@@ -86,7 +86,13 @@ try {
   assert.equal(dayLabelOf('2026-10-09T03:00:00.000Z', now), '10월 9일 (금)')
 
   // A change with no log yet has the events its own state implies — never none.
-  const sample = allConflictRecords().find((conflict) => conflict.id === 'CON-002')
+  // (The sample is merged in the seed: taken back to when it was found.)
+  const { asDetected } = await server.ssrLoadModule('/src/mocks/derive.js')
+  const merged = allConflictRecords().find((conflict) => conflict.id === 'CON-002')
+  const sample = asDetected(merged)
+  // Merged, as seeded: its fields imply the whole story, to the end.
+  assert.deepEqual(eventsOf(merged).map((event) => event.type), ['detected', 'requested', 'decided', 'fixed', 'verified', 'resolved'])
+  assert.equal(decisionStageOf(merged), 'resolved')
   const implied = eventsOf(sample)
   assert.equal(implied[0].type, 'detected')
   assert.ok(implied.length >= 1)

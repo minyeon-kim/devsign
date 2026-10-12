@@ -1054,6 +1054,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       who: fixPhase === 'deferred' ? '반영 예정' : `${fixedEvent?.payload?.auto || !fixedEvent ? '자동 수정' : `${fixedEvent.actor.name} · 수정`} · ${verified ? `${breakpoint}px 검증 통과` : PHASE_CHIP[fixPhase][0]}`,
       time: timeOf('verified', 'fixed'),
       summary: fixPhase === 'deferred' ? scheduleWordOf(decision.timing, releaseOf(conflict)) : `${fileName} ${conflict.line}행` },
+    // The merge: the last step, once it's in (said by the banner above too).
+    ...(fixPhase === 'resolved' ? [{ key: 'resolve', title: '병합', state: 'done', who: nameOf(conflict.mergedBy ?? request?.by), time: timeOf('resolved'), summary: '반영 완료' }] : []),
   ] : []
   const stepStates = steps.map((step) => step.state)
   const { reveal, ref: listRef } = useStepReveal(conflict.id, stepStates)

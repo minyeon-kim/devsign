@@ -2645,8 +2645,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       start: entries[0],
       end: entries.at(-1),
       detect: entries[at] ?? entries[0],
-      request: decisions[0],
-      decision: decisions[1] ?? decisions[0],
+      // (No checkpoint of its own — nothing was saved between asking and
+      // deciding: the code as it was then, where the change was found.)
+      request: decisions[0] ?? entries[at],
+      decision: decisions[1] ?? decisions[0] ?? entries[at],
       fix: entries.filter((entry, index) => index > at && (entry.kind === 'edit' || entry.kind === 'ai-edit')).at(-1),
       resolve: entries.find((entry) => entry.kind === 'merge'),
     }[key]

@@ -27,6 +27,8 @@ function nearestDifferingBefore(active, current, projectId) {
   let fallback = null
   for (let i = index - 1; i >= 0; i--) {
     const entry = active[i]
+    // (A change's detection is a mark on a saved version, not a version to land on.)
+    if (entry.kind === 'conflict') continue
     if (signature(entry.snapshot?.lines) === currentLineSig) continue
     fallback ??= entry.id
     if (canvasSig(projectId, entry) !== currentCanvasSig) return entry.id

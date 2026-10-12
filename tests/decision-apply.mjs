@@ -8,7 +8,9 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 try {
   const { fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } = await server.ssrLoadModule('/src/lib/designDecisions.js')
   const { conflictChecklist } = await server.ssrLoadModule('/src/data/mockData.js')
-  const seed = conflictChecklist.find((conflict) => conflict.id === 'CON-002')
+  // (The sample is merged in the seed: its steps are walked from when it was found.)
+  const { asDetected } = await server.ssrLoadModule('/src/mocks/derive.js')
+  const seed = asDetected(conflictChecklist.find((conflict) => conflict.id === 'CON-002'))
   const release = { name: 'v2.4', date: '10/24' }
   const asked = { ...seed, reviewStage: 'approved', decisionRequest: { by: 'min', proposal: 'narrow-cards', reason: '겹쳐요', devStage: 'mid' } }
   assert.equal(seed.scriptedRequest.timing, undefined, 'the sample request asks for no time')
