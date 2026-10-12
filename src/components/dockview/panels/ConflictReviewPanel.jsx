@@ -55,6 +55,7 @@ import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from
 import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY } from '@/components/conflicts/DesignDecisionFlow'
 import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
+import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
 import { useFoldState } from '@/components/conflicts/Fold'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
@@ -300,7 +301,27 @@ function DraftResultPreview({ result, height, active, onHover, onPick }) {
   )
 }
 
-function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel, decisionsOverride }) {
+// A part as its draft draws it, small — the slice of the screen a row is about.
+function PartThumb({ part, width = 72 }) {
+  const height = Math.round(width * 0.5)
+  if (!part?.layers?.length) return <span aria-hidden className="block shrink-0 rounded-md bg-white/[0.06]" style={{ width, height }} />
+  const tall = (part.height ?? 0) + 16
+  const scale = Math.min(width / 280, height / tall)
+  return (
+    <span aria-hidden className="relative block shrink-0 overflow-hidden rounded-md bg-white" style={{ width, height }}>
+      <span className="pointer-events-none absolute top-1/2 left-1/2 block origin-center" style={{ width: 280, height: tall, transform: `translate(-50%, -50%) scale(${scale})` }}>
+        {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />)}
+      </span>
+    </span>
+  )
+}
+
+// `request`: on a merge request's page — { canEdit, onEdit(regionId?) } — the
+// card reports the mix (the status block above it says where the request
+// stands): a thumbnail, the part, its draft and that draft's name a row; a
+// row and its place on the preview light each other; while it can still be
+// changed, a row goes to that part in Merge Studio.
+function DraftTable({ conflict, workspace, item, editable, onCompare, compareLabel, decisionsOverride, request = null }) {
   const decisions = decisionsOverride ?? workspace.decisionsFor(item.id)
   const rows = draftRows(conflict, item, decisions)
   const decided = rows.filter((row) => row.decided).length
@@ -336,14 +357,22 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
         <div className="min-w-0">
           <p className="flex items-center gap-2">
             <span data-mix-title className="text-[15px] font-semibold text-slate-50"><LocalizedText text={rows[0]?.region ? 'Mix of drafts' : 'Values from drafts'} /></span>
-            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums', decided === rows.length ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/[0.06] text-slate-400')}>
+            {/* (On a merge request's page, how far along is the status block's to say.) */}
+            {!request && <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums', decided === rows.length ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/[0.06] text-slate-400')}>
               <LocalizedText text={decided === rows.length ? 'All picked' : `${decided} of ${rows.length} picked`} />
-            </span>
+            </span>}
           </p>
           {/* What this view is, said up front where it's read. */}
-          {!editable && <p data-mix-note className="mt-1 text-[12.5px] leading-5 text-slate-300"><LocalizedText text="Drafts are compared and mixed in Merge Studio — this shows what’s picked." /></p>}
+          {!editable && !request && <p data-mix-note className="mt-1 text-[12.5px] leading-5 text-slate-300"><LocalizedText text="Drafts are compared and mixed in Merge Studio — this shows what’s picked." /></p>}
         </div>
-        {onCompare && (
+        {request?.canEdit && (
+          // (Neutral: the page's one strong color is its status block's.)
+          <button type="button" data-mix-edit onClick={() => request.onEdit()} className="ds-intrinsic ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white">
+            <Layers3 className="size-3.5" />
+            병합 스튜디오에서 수정
+          </button>
+        )}
+        {onCompare && !request && (
           <button
             type="button"
             onClick={onCompare}
@@ -354,7 +383,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
           </button>
         )}
       </div>
-      <div data-draft-review-split className={cn("grid min-h-0 flex-1 gap-4 overflow-hidden", result ? "grid-cols-2" : "grid-cols-1")}>
+      <div data-draft-review-split className={cn("grid min-h-0 flex-1 gap-4 overflow-hidden", result ? "grid-cols-2" : "grid-cols-1", request && "h-[420px] flex-none items-stretch")}>
       {/* Equal columns keep the composition and its result visible together. */}
       {result && (
         <figure data-mix-result className="order-last flex min-h-0 min-w-0 flex-col overflow-auto border-l border-white/[0.06] pl-4">
@@ -368,7 +397,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
           />
         </figure>
       )}
-      <div ref={choicesRef} data-draft-review-choices className="min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto">
+      <div ref={choicesRef} data-draft-review-choices className={cn("min-h-0 min-w-0 divide-y divide-white/[0.05] overflow-auto", request && "flex flex-col justify-center")}>
         {rows.map((row) => {
           const picked = row.options.find((option) => option.picked)
           const region = result && row.region ? row.region.id : null
@@ -384,14 +413,20 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
                 'aria-pressed': pinned === region,
                 onMouseEnter: () => setHovered(region),
                 onMouseLeave: () => setHovered(null),
-                // (Picking a draft in the row keeps it lit; the row itself toggles.)
-                onClick: (event) => (event.target.closest('button') ? setPinned(region) : pin(region)),
-                onKeyDown: (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); pin(region) } },
+                onFocus: () => setHovered(region),
+                onBlur: () => setHovered(null),
+                // (Picking a draft in the row keeps it lit; the row itself toggles —
+                // on a request that can still be changed, it goes to that part in Merge Studio.)
+                onClick: (event) => (request?.canEdit ? request.onEdit(region) : event.target.closest('button') ? setPinned(region) : pin(region)),
+                onKeyDown: (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); if (request?.canEdit) request.onEdit(region); else pin(region) } },
+                ...(request?.canEdit && { title: '병합 스튜디오에서 이 항목 수정' }),
               })}
-              className={cn('grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-2.5',
+              className={cn('grid items-center gap-3', request ? 'grid-cols-[72px_112px_minmax(0,1fr)] py-3' : 'grid-cols-[120px_minmax(0,1fr)] py-2.5',
                 region && '-mx-2 cursor-pointer rounded-md px-2 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
                 on ? 'bg-emerald-400/[0.08]' : region && 'hover:bg-white/[0.03]')}
             >
+              {/* The part itself, as its draft draws it. */}
+              {request && <PartThumb part={picked && row.region ? draftScreens[item.id]?.drafts[picked.key]?.[row.region.id] : null} />}
               <span className={cn('truncate text-[13px]', on ? 'text-emerald-200' : 'text-slate-300')}>
                 {row.element && <><LocalizedText text={row.element} /> · </>}
                 <LocalizedText text={row.label} />
@@ -419,10 +454,11 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-slate-50">
                   <Letter option={picked} on />
                   <Value option={picked} />
-                  <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11.5px] font-normal text-slate-300"><LocalizedText text={picked.name} /></span>
+                  {/* (Its draft is the letter before it: not said again on a request's page.) */}
+                  {!request && <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11.5px] font-normal text-slate-300"><LocalizedText text={picked.name} /></span>}
                 </span>
               ) : (
-                <span className="text-[11.5px] text-slate-500"><LocalizedText text="Not picked — keeps the code" /></span>
+                <span className="text-[11.5px] text-slate-500">{request ? '아직 고르지 않음' : <LocalizedText text="Not picked — keeps the code" />}</span>
               )}
             </div>
           )
@@ -2479,8 +2515,9 @@ function FixStatusBlock({ phase, text, blocked, onMerge }) {
 // takes the place of the side panel's progress card there.
 // `choice` / `choiceLabel` / `reason`: the way picked on the page, and why.
 const ROW_TONE = { accent: 'font-medium text-sky-200', done: 'font-medium text-emerald-200', warn: 'font-medium text-amber-200' }
-function ReviewRecord({ conflict, choice, choiceLabel, reason }) {
-  const steps = reviewRecordOf(conflict, { t: tr, nameOf: personNameOf, roleOf: (id) => { const person = allPeople.find((entry) => entry.id === id); return person?.jobRole ?? (person?.role === 'You' ? 'Designer' : person?.role) ?? null }, choice, choiceLabel, reason })
+// `given`: the steps to draw, when they aren't a value change's (a merge request's own).
+function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null }) {
+  const steps = given ?? reviewRecordOf(conflict, { t: tr, nameOf: personNameOf, roleOf: (id) => { const person = allPeople.find((entry) => entry.id === id); return person?.jobRole ?? (person?.role === 'You' ? 'Designer' : person?.role) ?? null }, choice, choiceLabel, reason })
   const states = steps.map((step) => step.state)
   const { reveal, ref } = useStepReveal(conflict.id, states)
   const [hovered, setHovered] = useState(null)
@@ -3369,7 +3406,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const approvalState = conflict && !conflict.rollback ? approvalStateOf(conflict, canReview) : null
   // A mix of drafts just sent to merge asks for approval from a bar of its
   // own under the title (below), so the header doesn't say it twice.
-  const approvalNudge = Boolean(conflict && conflict.kind === 'design-review' && stage === 'detected' && conflict.submittedForMergeAt && approvalState?.mode === 'idle' && onUpdate && !cardFlow)
+  // (Not on the page: there the status block says it, once.)
+  const approvalNudge = !page && Boolean(conflict && conflict.kind === 'design-review' && stage === 'detected' && conflict.submittedForMergeAt && approvalState?.mode === 'idle' && onUpdate && !cardFlow)
   const approvalBar = approvalState ? (
     <ApprovalBar
       conflict={conflict}
@@ -3408,6 +3446,19 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     const values = choice === 'C' ? [] : fields.map((field) => tr(choice === 'A' ? field.expected : field.current))
     return [name, values.join(', ')].filter(Boolean).join(' · ')
   })()
+
+  // A merge request's page: one state (lib/mergeRequest), and everything it
+  // says — the status block, the meta, the record — worked out from that.
+  const mergeRequest = page && Boolean(conflict) && isMergeRequest(conflict) && Boolean(driftItem && draftColumns(driftItem))
+  const requestDecisions = mergeRequest ? ((stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {}) : null
+  const requestRows = mergeRequest ? draftRows(conflict, driftItem, requestDecisions) : []
+  const requestState = mergeRequest ? mergeRequestStateOf(conflict, requestRows) : null
+  const requestStatus = mergeRequest ? mergeRequestStatusOf(conflict, requestRows, { nameOf: personNameOf }) : null
+  // Back to Merge Studio, on the drafts (at a part, when one is named).
+  const editInStudio = (regionId) => {
+    workspace.setDesignCompareRequest({ itemId: driftItem.id, keys: driftItem.variants.map((variant) => variant.key), ...(regionId && { regionId }) })
+    if (!inMergeStudio) onOpenMergeStudio?.(conflict)
+  }
 
   // On the page the action belongs to the 해결 방법 card (its foot), as a
   // design decision's does — not to the header's corner.
@@ -3464,14 +3515,16 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   )}
                   {/* (The page's meta line: when it's due and where it stands.) */}
                   {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="ml-1.5 text-xs" />}
-                  {page && !conflict.rollback && stage !== 'resolved' && <ListStatusLabel conflict={conflict} className="ml-1.5 text-xs" />}
+                  {page && !conflict.rollback && stage !== 'resolved' && (mergeRequest
+                    ? <span data-request-state={requestState} className="ml-1.5 inline-flex items-center gap-1.5 text-xs text-slate-300"><span aria-hidden className={cn('size-1.5 rounded-full', requestState === 'approved' ? 'bg-emerald-300' : requestState === 'rejected' ? 'bg-amber-300' : requestState === 'waiting' ? 'bg-sky-300' : 'bg-slate-500')} />{MERGE_REQUEST_LABEL[requestState]}</span>
+                    : <ListStatusLabel conflict={conflict} className="ml-1.5 text-xs" />)}
                   {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
                 </div>
               </div>
               {/* Align the review action with the lower metadata row (on the page: with the title's line). */}
               <div data-review-actions className={cn('flex min-w-0 shrink-0 items-center gap-2', page ? 'self-start' : 'relative top-2 self-end')}>
                 {/* (A design decision's actions are its status block's; its replay opens from its record.) */}
-                {conflict.rollback ? primary : conflict.decisionFlow || actionInCard ? null : approvalBar}
+                {conflict.rollback ? primary : conflict.decisionFlow || actionInCard || mergeRequest ? null : approvalBar}
               </div>
             </div>
             {/* A mix of drafts just sent to merge: its next step — asking the
@@ -3519,7 +3572,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', replayId ? 'max-xl:min-h-[576px]' : 'xl:overflow-hidden')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
-                  {!conflict.decisionFlow && mergedBanner}
+                  {!conflict.decisionFlow && !mergeRequest && mergedBanner}
                   {!replayId && conflict.decisionFlow ? (
                     // A structural drift: a design decision to ask for and
                     // make, not values to pick (DesignDecisionFlow).
@@ -3543,7 +3596,26 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         onMerge={onUpdate ? handleMerge : null}
                       />
                     )}
-                    {page && !fixUnderWay && !conflict.rollback && stage !== 'resolved' && (alignedFlow ? reviewStatusOf(conflict) : flowOf(conflict)?.next) && (
+                    {/* A merge request: its one status block — where it stands and
+                        the one thing to do about it. The page's strong green is
+                        here alone (approved, merged). */}
+                    {mergeRequest && (
+                      <section data-status-block={requestState} data-request-status role="status" className={cn('flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-4 py-3 ring-1 ring-inset',
+                        requestStatus.tone === 'success' ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : requestStatus.tone === 'warning' ? 'bg-amber-400/[0.07] ring-amber-400/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
+                        <span aria-hidden className={cn('size-2 shrink-0 rounded-full', requestStatus.tone === 'success' ? 'bg-emerald-300' : requestStatus.tone === 'warning' ? 'bg-amber-300' : requestStatus.tone === 'waiting' ? 'bg-sky-300' : 'bg-slate-400')} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] leading-5 font-semibold text-white">{requestStatus.text}</p>
+                          {(requestStatus.detail || requestStatus.note) && <p data-request-detail className="mt-0.5 text-xs leading-[18px] text-slate-400">{requestStatus.detail ?? requestStatus.note}</p>}
+                        </div>
+                        {/* The reviewer's own answer, and the author's next step, are the approval bar's (remind, approve, merge). */}
+                        {requestStatus.action === 'continue' || requestStatus.action === 'fix'
+                          ? <button type="button" data-request-action={requestStatus.action} onClick={() => editInStudio()} className={cn(PRIMARY_BUTTON, 'gap-1.5')}><Layers3 className="size-3.5" />{requestStatus.actionLabel}</button>
+                          : requestStatus.action === 'request'
+                            ? <button type="button" data-request-action="request" title={requestStatus.actionTitle} onClick={() => handleRequestReview()} className={cn(PRIMARY_BUTTON, 'gap-1.5')}><Send className="size-3.5" />{requestStatus.actionLabel}</button>
+                            : approvalBar}
+                      </section>
+                    )}
+                    {page && !mergeRequest && !fixUnderWay && !conflict.rollback && stage !== 'resolved' && (alignedFlow ? reviewStatusOf(conflict) : flowOf(conflict)?.next) && (
                       <p data-status-block="next" role="status" className="flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
                         <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
                         {alignedFlow ? reviewStatusOf(conflict, { nameOf: personNameOf, viewerId }) : <LocalizedText text={flowOf(conflict).next} />}
@@ -3604,6 +3676,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               item={driftItem}
                               editable={false}
                               decisionsOverride={stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) ?? {} : undefined}
+                              // (Changed only before it's asked for, or once it's sent back.)
+                              request={mergeRequest ? { canEdit: ['mixing', 'ready', 'rejected'].includes(requestState), onEdit: editInStudio } : null}
                               compareLabel={inMergeStudio ? 'Compare on canvas' : 'Compare in Merge Studio'}
                               onCompare={stage === 'resolved' ? null : () => {
                                 // Merge Studio opens on the item with every draft side by side.
@@ -3636,7 +3710,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       </section>
                     </div>
                     {/* Then how far it has come: the record, light — a line a step. */}
-                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? ''} />}
+                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? ''} 
+                      given={mergeRequest ? mergeRequestRecordOf(conflict, requestRows.map((row) => ({ ...row, label: tr(row.label), options: row.options.map((option) => ({ ...option, value: option.literal ? option.value : tr(String(option.value)) })) })), {
+                        nameOf: personNameOf,
+                        drafts: (requestRows[0]?.options ?? []).map((option) => ({ letter: option.letter, name: tr(option.name) })),
+                        clock: (ms) => (Number.isFinite(ms) ? formatTime(ms) : null),
+                      }) : null} />}
                     </div>
                   ) : (
                     <div className="flex min-h-0 flex-1 flex-col gap-3">

@@ -799,7 +799,8 @@ function MergeStudioWorkspace({ item }) {
       reviewers: reviewerIds.map((id) => ({ id, status: 'pending' })),
       mixRequest: { note: note || null, warnings, at: Date.now() },
     })
-    toast('병합 요청을 보냈어요', { description: item.title, action: { label: '요청 보기', onClick: () => { endComparison(); exitMergeStudio(); openConflictReview(requestId, { view: 'overlay' }) } } })
+    const asked = reviewerIds.map((id) => (otherMembers ?? []).find((member) => member.id === id)?.name).filter(Boolean)
+    toast(`${asked.join(', ') || '검토자'}에게 승인을 요청했어요`, { description: item.title, action: { label: '요청 보기', onClick: () => { endComparison(); exitMergeStudio(); openConflictReview(requestId, { view: 'overlay' }) } } })
   }
   // One whole draft, for every part at once (one edit: ⌘Z takes it back).
   function takeWholeDraft(draftKey) {

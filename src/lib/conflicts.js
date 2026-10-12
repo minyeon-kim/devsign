@@ -78,7 +78,8 @@ export function conflictRef(conflict, conflicts = []) {
   // A merge request made from a mix of drafts is named after its item.
   if (conflict?.id?.startsWith('mr-')) {
     const requests = conflicts.filter((c) => c.projectId === conflict.projectId && c.id.startsWith('mr-'))
-    return `mr-${Math.max(1, requests.findIndex((c) => c.id === conflict.id) + 1)}`
+    // (The same form a change's has: MR-001.)
+    return `MR-${String(Math.max(1, requests.findIndex((c) => c.id === conflict.id) + 1)).padStart(3, '0')}`
   }
   const match = GENERATED_ID.exec(conflict?.id ?? '')
   if (!match) return conflict?.id ?? ''

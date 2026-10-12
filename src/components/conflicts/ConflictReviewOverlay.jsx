@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { conflictListRecord } from '@/lib/conflicts'
+import { projects } from '@/data/mockData'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
@@ -46,7 +47,7 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
           right under it) — with Close at the end of its row: the row's
           right edge is the title's and the side panel's too. */}
       <BreadcrumbBar>
-        <Breadcrumb items={[...projectCrumbs({ id: conflict.projectId, name: conflict.projectName ?? conflict.projectId }), { label: 'Conflicts' }]} />
+        <Breadcrumb items={[...projectCrumbs({ id: conflict.projectId, name: conflict.projectName ?? projects.find((project) => project.id === conflict.projectId)?.name ?? conflict.projectId }), { label: 'Conflicts' }]} />
         <button
           ref={closeRef}
           type="button"

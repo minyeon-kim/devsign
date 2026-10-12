@@ -20,6 +20,8 @@ export const CONFLICT_TYPES = {
   // (Not another kind of conflict: a design drift whose code is already on
   // the production branch — what changing it touches, said as its own tag.)
   'production-priority': { label: 'Deployed', hint: 'This value is already deployed, so changing it shows on the live screens.', tone: 'amber' },
+  // A mix of drafts sent from Merge Studio for approval (lib/mergeRequest).
+  'draft-merge': { label: 'Draft merge', hint: 'A mix of design drafts, sent for approval and merge.', tone: 'sky' },
   'design-decision': { label: 'Design Decision', hint: 'Design drafts to choose between; no code is in conflict.', tone: 'sky' },
   // The layout's structure differs (columns, order, nesting) — not a value
   // to copy over: someone decides which structure is right.
@@ -43,6 +45,7 @@ export function conflictTypeOf(conflict) {
   const text = `${conflict.title ?? ''} ${conflict.cause ?? ''} ${conflict.message ?? ''}`
   const id = conflict.rollback ? 'restore'
     : conflict.revertOf || /^Revert: /.test(conflict.title ?? '') ? 'revert'
+    : conflict.kind === 'design-review' && conflict.id?.startsWith('mr-') ? 'draft-merge'
     : isDesignReview(conflict) ? 'design-decision'
     : conflict.kind === 'code-conflict' || /merge conflict|branches changed/i.test(text) || conflict.diff?.before?.some((line) => /^<{7}|^={7}$|^>{7}/.test(line)) ? 'code-conflict'
       : conflict.driftType === 'structural' ? 'structural-drift'
@@ -89,7 +92,7 @@ export function differencesOf(conflict) {
 // that says it, else the first property that differs. No tag, no color:
 // the detail's header carries the full type.
 const KIND_WORD = { color: 'Color token', spacing: 'Spacing', radius: 'Corner radius', stroke: 'Stroke width', size: 'Size' }
-const TYPE_WORD = { 'structural-drift': 'Structural difference', 'code-conflict': 'Merge conflict', 'design-decision': 'Draft choice', revert: 'Merge cancellation', restore: 'Restore previous version' }
+const TYPE_WORD = { 'structural-drift': 'Structural difference', 'code-conflict': 'Merge conflict', 'design-decision': 'Draft choice', 'draft-merge': 'Draft merge', revert: 'Merge cancellation', restore: 'Restore previous version' }
 export function kindWordOf(conflict) {
   const type = conflictTypeOf(conflict)
   if (!type) return null
@@ -107,7 +110,7 @@ export function mismatchesOf(conflict) {
   const type = conflictTypeOf(conflict)
   // (A merge conflict or a revert is said by its type; nothing finer.)
   if (type?.id === 'code-conflict' || type?.id === 'revert') return []
-  if (type?.id === 'design-decision') return ['Drafts to choose between']
+  if (type?.id === 'design-decision' || type?.id === 'draft-merge') return ['Drafts to choose between']
   const differences = differencesOf(conflict)
   const differing = differences.filter((entry) => !entry.shared)
   const labelOf = (kind) => FIELD_KINDS.find(([id]) => id === kind)?.[2] ?? 'Value mismatch'
@@ -122,7 +125,7 @@ export function mismatchesOf(conflict) {
 // ("Tab icon / Size" → "Size mismatch") is nothing new, so it's null.
 export function differenceNoteOf(conflict) {
   const type = conflictTypeOf(conflict)
-  if (!type || ['code-conflict', 'revert', 'restore', 'design-decision'].includes(type.id)) return null
+  if (!type || ['code-conflict', 'revert', 'restore', 'design-decision', 'draft-merge'].includes(type.id)) return null
   const labels = mismatchesOf(conflict)
   if (labels.includes('Below the standard on both sides')) return { text: 'Below the standard on both sides', detail: [] }
   return labels.length >= 2 ? { text: `${labels.length} differences`, detail: labels } : null
