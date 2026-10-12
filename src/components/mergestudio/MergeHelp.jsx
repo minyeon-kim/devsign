@@ -9,8 +9,8 @@ import { getLanguage } from '@/i18n/language'
 // Any click or Esc closes it. A mark shows only for what's on screen.
 const MARKS = [
   { selector: '[data-draft-board]', ko: ['시안 비교', '요소에 올리고 "이걸로" · 끌어서 이동 · ⌘+스크롤 확대'], en: ['Drafts', 'Point at a part, "Use this" · drag to move · ⌘-scroll to zoom'] },
-  { selector: '[data-mix-panel]', ko: ['요소', '요소마다 쓸 시안(A · B …)을 고르기'], en: ['Parts', 'Pick the draft (A · B …) each part uses'] },
-  { selector: '[data-frame-key="result"] [data-frame-box]', ko: ['결과', '클릭: 영역 선택 · 끌어서 순서 변경 · 더블클릭: 텍스트 수정'], en: ['Result', 'Click a part · drag to reorder · double-click for text'] },
+  { selector: '[data-mix-panel]', ko: ['요소', '항목을 골라 쓸 시안을 누르기'], en: ['Parts', 'Pick a part, then the draft it uses'] },
+  { selector: '[data-frame-key="result"] [data-frame-box]', ko: ['결과', '클릭: 요소 선택 · 끌어서 사이나 안에 넣기 · 더블클릭: 안의 요소 하나'], en: ['Result', 'Click a part · drag between or into parts · double-click for one element'] },
   { selector: '[data-merge-request]', ko: ['병합 요청', '조합을 마치면'], en: ['Request merge', 'When the mix is done'] },
 ]
 

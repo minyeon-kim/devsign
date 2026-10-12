@@ -14,7 +14,7 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { Check, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { Check, ChevronDown, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -34,7 +34,7 @@ import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
 import { DesignComparePanel, designCompareOptions, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
-import { GAP as DRAFT_GAP, LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
+import { GAP as DRAFT_GAP, INNER_GAP, LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
 import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
@@ -103,82 +103,111 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   const focus = (index) => { setStep(index); if (rows[index].region) onShowRegion?.(rows[index].region.id) }
 
   const screen = draftScreens[item.id]
+  const current = rows[Math.min(step, rows.length - 1)]
+  const valueOf = (option) => (option.literal ? option.value : translateText(String(option.value), language))
+  const letterOf = (row) => row.options.find((option) => option.picked)?.letter
+  // A few parts: tabs. More: a menu.
+  const tabs = rows.length <= 4
   return (
-    <div data-mix-panel className="pointer-events-auto flex max-w-full items-stretch gap-1 overflow-x-auto rounded-2xl bg-[#17191d]/95 p-1.5 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
-      <div className="flex shrink-0 flex-col justify-center px-2">
-        <span className="text-[12px] font-semibold text-slate-100">{ko ? '요소' : 'Parts'}</span>
-        <span className="text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
-      </div>
-      {rows.map((row, index) => (
-        <div
-          key={row.key}
-          data-mix-region={row.region?.id ?? row.key}
-          aria-current={index === step || undefined}
-          className={cn('flex shrink-0 flex-col gap-1 rounded-xl px-2 pt-1.5 pb-2 transition-colors', index === step ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}
-        >
-          <button type="button" onClick={() => focus(index)} className={cn('ds-intrinsic text-left text-[11.5px] whitespace-nowrap', index === step ? 'text-white' : 'text-slate-300 hover:text-white')}>{partName(row)}</button>
-          <span role="radiogroup" aria-label={partName(row)} className="flex items-center gap-1.5">
-            {row.options.map((option) => {
-              const issues = optionIssues(row, option)
-              const value = option.literal ? option.value : translateText(String(option.value), language)
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  role="radio"
-                  data-mix-option={option.key}
-                  aria-checked={option.picked}
-                  aria-label={`${partName(row)} · ${option.name}`}
-                  title={`${option.name} · ${value}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
-                  onClick={() => { setStep(index); if (!option.picked) onDecide(row.key, option.decision) }}
-                  className={cn('ds-intrinsic relative block rounded-lg p-0.5 transition-shadow',
-                    option.picked ? (issues.length ? 'ring-2 ring-amber-300' : 'ring-2 ring-emerald-300') : 'ring-1 ring-white/10 hover:ring-sky-400/70')}
-                >
-                  {/* The draft's own version of the part, rendered. */}
-                  {row.region && screen
-                    ? <RegionThumb part={screen.drafts[option.key]?.[row.region.id]} width={72} />
-                    : <span className="flex h-[44px] w-[72px] items-center justify-center truncate rounded-md bg-white px-1 text-[10px] text-slate-600">{value}</span>}
-                  <span className={cn('absolute -top-1 -left-1 flex size-4 items-center justify-center rounded-full text-[9.5px] font-semibold shadow', option.picked ? (issues.length ? 'bg-amber-300 text-slate-950' : 'bg-emerald-300 text-slate-950') : 'bg-slate-700 text-slate-100')}>{option.letter}</span>
-                </button>
-              )
-            })}
-          </span>
-        </div>
-      ))}
-      <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-white/10" />
-      <CheckStatus compact checks={checks} onFix={fixCheck} />
-      <DropdownMenu>
-        <DropdownMenuTrigger aria-label={ko ? '더 보기' : 'More'} title={ko ? '더 보기' : 'More'} className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white">
-          <Ellipsis className="size-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" className="min-w-48">
-          {columns.map((column) => (
-            <DropdownMenuItem key={column.key} data-draft-tab={column.key} onClick={() => (wholeFrom(column.key) ? rows.forEach((row) => onDecide(row.key, null)) : takeAll(column.key))}>
-              {wholeFrom(column.key) ? <Check className="size-3.5 text-emerald-300" /> : <span className="size-3.5" />}
-              {ko ? `모두 시안 ${column.letter}로` : `All from draft ${column.letter}`}
+    <div data-mix-panel className="pointer-events-auto flex w-[min(600px,100%)] flex-col gap-2 rounded-2xl bg-[#17191d]/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl">
+      {/* Which part: one at a time — each with the draft it uses. */}
+      <div className="flex min-w-0 items-center gap-1">
+        {tabs ? (
+          <div role="tablist" aria-label={ko ? '요소' : 'Parts'} className="flex min-w-0 flex-1 items-center gap-0.5 rounded-xl bg-white/[0.04] p-0.5">
+            {rows.map((row, index) => (
+              <button
+                key={row.key}
+                type="button"
+                role="tab"
+                data-mix-region={row.region?.id ?? row.key}
+                aria-selected={index === step}
+                onClick={() => focus(index)}
+                className={cn('ds-intrinsic flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[12px] whitespace-nowrap transition-colors', index === step ? 'bg-white/[0.12] font-semibold text-white' : 'text-slate-400 hover:text-slate-200')}
+              >
+                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[9.5px] font-semibold', letterOf(row) ? 'bg-emerald-300 text-slate-950' : 'border border-dashed border-white/25 text-transparent')}>{letterOf(row) ?? '·'}</span>
+                <span className="truncate">{partName(row)}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger data-mix-part-menu className="ds-intrinsic flex h-8 min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/[0.06] px-3 text-[12.5px] font-semibold text-white hover:bg-white/[0.09]">
+              <span className="truncate">{partName(current)}</span>
+              <ChevronDown className="ml-auto size-3.5 shrink-0 text-slate-400" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className="max-h-80 min-w-64 overflow-auto">
+              {rows.map((row, index) => (
+                <DropdownMenuItem key={row.key} data-mix-region={row.region?.id ?? row.key} onClick={() => focus(index)}>
+                  <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[9.5px] font-semibold', letterOf(row) ? 'bg-emerald-300 text-slate-950' : 'border border-dashed border-white/25')}>{letterOf(row) ?? ''}</span>
+                  <span className={cn('truncate', index === step && 'font-semibold')}>{partName(row)}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        <span className="shrink-0 px-1.5 text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
+        <CheckStatus compact checks={checks} onFix={fixCheck} />
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label={ko ? '더 보기' : 'More'} title={ko ? '더 보기' : 'More'} className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white">
+            <Ellipsis className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" className="min-w-48">
+            {columns.map((column) => (
+              <DropdownMenuItem key={column.key} data-draft-tab={column.key} onClick={() => (wholeFrom(column.key) ? rows.forEach((row) => onDecide(row.key, null)) : takeAll(column.key))}>
+                {wholeFrom(column.key) ? <Check className="size-3.5 text-emerald-300" /> : <span className="size-3.5" />}
+                {ko ? `모두 시안 ${column.letter}로` : `All from draft ${column.letter}`}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem
+              disabled={decided === 0 && !decisions[LAYOUT_KEY]}
+              onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0) }}
+            >
+              <RotateCcw className="size-3.5" />
+              {ko ? '처음부터 다시' : 'Start over'}
             </DropdownMenuItem>
-          ))}
-          <DropdownMenuItem
-            disabled={decided === 0 && !decisions[LAYOUT_KEY]}
-            onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0) }}
-          >
-            <RotateCcw className="size-3.5" />
-            {ko ? '처음부터 다시' : 'Start over'}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {/* That part as each draft draws it, large: press one to use it. */}
+      <div role="radiogroup" aria-label={partName(current)} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(current.options.length, 3)}, minmax(0, 1fr))` }}>
+        {current.options.map((option) => {
+          const issues = optionIssues(current, option)
+          return (
+            <button
+              key={option.key}
+              type="button"
+              role="radio"
+              data-mix-option={option.key}
+              aria-checked={option.picked}
+              title={`${option.name} · ${valueOf(option)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
+              onClick={() => { if (!option.picked) onDecide(current.key, option.decision) }}
+              className={cn('ds-intrinsic flex min-w-0 flex-col gap-1.5 rounded-xl p-1.5 text-left transition-colors', option.picked ? (issues.length ? 'bg-amber-300/10 ring-2 ring-amber-300' : 'bg-emerald-400/10 ring-2 ring-emerald-300') : 'ring-1 ring-white/10 hover:bg-white/[0.04] hover:ring-sky-400/60')}
+            >
+              {current.region && screen
+                ? <RegionThumb part={screen.drafts[option.key]?.[current.region.id]} width={180} fluid />
+                : <span className="flex h-[84px] w-full items-center justify-center truncate rounded-md bg-white px-2 text-[12px] text-slate-600">{valueOf(option)}</span>}
+              <span className="flex min-w-0 items-center gap-1.5 px-0.5">
+                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', option.picked ? (issues.length ? 'bg-amber-300 text-slate-950' : 'bg-emerald-300 text-slate-950') : 'bg-white/[0.1] text-slate-200')}>{option.letter}</span>
+                <span className={cn('min-w-0 flex-1 truncate text-[11.5px]', option.picked ? 'text-emerald-100' : 'text-slate-300')}>{valueOf(option)}</span>
+                {option.picked && <span className="shrink-0 text-[10.5px] font-medium text-emerald-300">{ko ? '사용 중' : 'In use'}</span>}
+              </span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
 // A draft's version of one part, drawn small (its own layers, fit to the box).
-function RegionThumb({ part, width }) {
-  const height = Math.round(width * 0.62)
-  if (!part?.layers.length) return <span className="block rounded-md bg-white/[0.06]" style={{ width, height }} />
+// (`fluid`: as wide as its box, `width` being what it's drawn for.)
+function RegionThumb({ part, width, fluid = false }) {
+  const height = Math.round(width * 0.5)
+  if (!part?.layers.length) return <span className="block rounded-md bg-white/[0.06]" style={{ width: fluid ? '100%' : width, height }} />
   const h = (part.height ?? 0) + 16
   const scale = Math.min(width / 280, height / h)
   return (
-    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width, height }}>
+    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width: fluid ? '100%' : width, height }}>
       <span className="pointer-events-none absolute top-1/2 left-1/2 block origin-center" style={{ width: 280, height: h, transform: `translate(-50%, -50%) scale(${scale})` }}>
         {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, y: layer.y + 8 }} onSelect={() => {}} />)}
       </span>
@@ -527,10 +556,11 @@ function MergeStudioWorkspace({ item }) {
       return
     }
     if (designComparison && regionId) {
-      // A first click takes the whole part (to swap, move or remove it — it
-      // snaps into the stack where it's dropped); a second, inside the part
-      // already taken, takes that element — to move or resize it on its own,
-      // with smart guides and its spacing shown (LayerTransformHandles).
+      // A click takes the whole part (to swap, move or remove it — it snaps
+      // into the stack, or into another part, where it's dropped); going
+      // into it (a double-click on the part taken — RegionTools) takes one
+      // element — to move or resize it on its own, with smart guides and its
+      // spacing shown (LayerTransformHandles).
       if (layerSource(syncSelection?.layerId)?.regionId === regionId && layerId.includes('--')) {
         setSyncSelection({ layerId, element: true })
         return
@@ -798,21 +828,56 @@ function MergeStudioWorkspace({ item }) {
     const id = layerSource(syncSelection?.layerId)?.regionId
     return id && !mixLayout.removed.includes(id) ? id : null
   })() : null
-  const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, { extras: mixLayout.extras, ...next }))
+  const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, { extras: mixLayout.extras, parents: mixLayout.parents, ...next }))
   const shown = (layout) => layout.order.filter((id) => !layout.removed.includes(id))
+  const without = (parents, ...ids) => Object.fromEntries(Object.entries(parents).filter(([child]) => !ids.includes(child)))
+  // A part put among the screen's top-level parts, at `index` among them —
+  // out of whatever it was inside.
   function reorderRegion(id, index) {
-    const rest = shown(mixLayout).filter((entry) => entry !== id)
-    rest.splice(Math.max(0, Math.min(index, rest.length)), 0, id)
-    arrange({ order: [...rest, ...mixLayout.removed], removed: mixLayout.removed })
+    const parents = without(mixLayout.parents, id)
+    const top = shown(mixLayout).filter((entry) => entry !== id && !parents[entry])
+    const before = top[Math.max(0, Math.min(index, top.length))]
+    const rest = mixLayout.order.filter((entry) => entry !== id)
+    rest.splice(before ? rest.indexOf(before) : rest.length, 0, id)
+    arrange({ order: rest, removed: mixLayout.removed, parents })
   }
+  // A part put inside another, last in it (as in an auto layout frame); what
+  // was inside it comes along, into the same one.
+  function nestRegion(id, parentId) {
+    if (id === parentId) return
+    const parents = { ...mixLayout.parents, [id]: parentId }
+    for (const [child, parent] of Object.entries(parents)) if (parent === id) parents[child] = parentId
+    const rest = mixLayout.order.filter((entry) => entry !== id)
+    arrange({ order: [...rest, id], removed: mixLayout.removed, parents })
+  }
+  // ↑ / ↓: one place among the parts beside it — the top level, or the
+  // ones inside the same part.
   function moveRegion(id, by) {
-    const at = shown(mixLayout).indexOf(id)
-    if (at >= 0) reorderRegion(id, at + by)
+    const parent = mixLayout.parents[id]
+    const siblings = shown(mixLayout).filter((entry) => mixLayout.parents[entry] === parent)
+    const at = siblings.indexOf(id)
+    if (at < 0) return
+    if (!parent) { reorderRegion(id, at + by); return }
+    const other = siblings[at + by]
+    if (!other) return
+    const order = [...mixLayout.order]
+    const i = order.indexOf(id), j = order.indexOf(other)
+    ;[order[i], order[j]] = [order[j], order[i]]
+    arrange({ order, removed: mixLayout.removed })
+  }
+  // Out of the part it's in: right after that part, at the top level.
+  function unnestRegion(id) {
+    const parent = mixLayout.parents[id]
+    if (!parent) return
+    const top = shown(mixLayout).filter((entry) => !mixLayout.parents[entry] && entry !== id)
+    reorderRegion(id, top.indexOf(parent) + 1)
   }
   function removeRegion(id) {
+    // (What was inside it stays, at the top level.)
+    const parents = Object.fromEntries(Object.entries(without(mixLayout.parents, id)).filter(([, parent]) => parent !== id))
     // (An added copy goes away; a region of the screen is taken out.)
-    if (mixLayout.extras.some((extra) => extra.id === id)) arrange({ order: mixLayout.order.filter((entry) => entry !== id), removed: mixLayout.removed, extras: mixLayout.extras.filter((extra) => extra.id !== id) })
-    else arrange({ order: mixLayout.order, removed: [...mixLayout.removed, id] })
+    if (mixLayout.extras.some((extra) => extra.id === id)) arrange({ order: mixLayout.order.filter((entry) => entry !== id), removed: mixLayout.removed, extras: mixLayout.extras.filter((extra) => extra.id !== id), parents })
+    else arrange({ order: mixLayout.order, removed: [...mixLayout.removed, id], parents })
     setSyncSelection(null)
   }
   // Another copy of a region — a draft's version of it — right after it
@@ -839,7 +904,7 @@ function MergeStudioWorkspace({ item }) {
     if (!decision || !id || !mixLayout?.removed.includes(id)) { decide(key, decision); return }
     setResolutions((prev) => {
       const next = { ...prev, [key]: decision }
-      const layout = layoutDecision(item.id, { order: mixLayout.order, removed: mixLayout.removed.filter((entry) => entry !== id), extras: mixLayout.extras })
+      const layout = layoutDecision(item.id, { order: mixLayout.order, removed: mixLayout.removed.filter((entry) => entry !== id), extras: mixLayout.extras, parents: mixLayout.parents })
       if (layout) next[LAYOUT_KEY] = layout
       else delete next[LAYOUT_KEY]
       return next
@@ -1349,9 +1414,12 @@ function MergeStudioWorkspace({ item }) {
             onRemove: removeRegion,
             onDuplicate: duplicateRegion,
             onReorder: reorderRegion,
+            onNest: nestRegion,
+            onUnnest: unnestRegion,
             // The stack's spacing, said while a part is dragged: the gap
             // between parts and the screen's side padding.
             gap: DRAFT_GAP,
+            innerGap: INNER_GAP,
             padding: Math.min(...(frame0?.layers ?? []).filter((layer) => layer.regionId).map((layer) => layer.x)),
             onEditText: editResultText,
             letterOf: (key) => { const at = designCompareOptions(item).findIndex((option) => option.key === key); return at < 0 ? null : String.fromCharCode(65 + at) },

@@ -3,7 +3,7 @@ import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -599,9 +599,10 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 // own box on screen, so it's right at any zoom.
 function RegionTools({ frame, scale, boxH, tools, overrides }) {
   // The Result is laid out like an auto layout: its parts stack top to
-  // bottom. Dragging a part moves it to another place in that stack (a line
-  // shows where it'll go) — never to a free position.
-  const [drag, setDrag] = useState(null) // { dy, slot }
+  // bottom, and a part can hold others (stacked inside it, as in Figma).
+  // Dragging a part follows the pointer; dropped, it goes between two parts
+  // (a line shows where) or inside one (that part lights up).
+  const [drag, setDrag] = useState(null) // { dx, dy, slot, into }
   // The actions go under the region — or over it when the bottom panel (or
   // the window's edge) leaves no room below.
   const bandRef = useRef(null)
@@ -623,51 +624,56 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   const regions = frame.regions ?? []
   const region = regions.find((entry) => entry.id === tools.selected)
   if (!region) return null
-  const index = regions.indexOf(region)
+  // Its place among the parts beside it (the top level, or inside the same part).
+  const siblings = regions.filter((entry) => entry.parentId === region.parentId)
+  const index = siblings.indexOf(region)
+  const parent = region.parentId ? regions.find((entry) => entry.id === region.parentId) : null
   const ko = getLanguage() === 'ko'
   const letter = tools.letterOf(region.draftKey)
-  // Where in the stack a point (frame px, from the top) lands: before the
-  // first part whose middle is below it.
-  const slotAt = (y) => {
-    const others = regions.filter((entry) => entry.id !== region.id)
+  // The top-level parts it can go between or into (not itself).
+  const others = regions.filter((entry) => !entry.parentId && entry.id !== region.id)
+  // Where a point (frame px, from the top) lands: inside a part when it's
+  // over that part's middle, else before the first part whose middle is below it.
+  const targetAt = (y) => {
+    const over = others.find((entry) => y > entry.y + entry.height * 0.3 && y < entry.y + entry.height * 0.7)
+    if (over && tools.onNest) return { into: over.id }
     const at = others.findIndex((entry) => y < entry.y + entry.height / 2)
-    return at < 0 ? others.length : at
+    return { slot: at < 0 ? others.length : at }
   }
   // Where the line for a slot is drawn (frame px).
-  const lineAt = (slot) => {
-    const others = regions.filter((entry) => entry.id !== region.id)
-    return slot < others.length ? others[slot].y : (others.at(-1) ? others.at(-1).y + others.at(-1).height : region.y)
-  }
+  const lineAt = (slot) => (slot < others.length ? others[slot].y : (others.at(-1) ? others.at(-1).y + others.at(-1).height : region.y))
+  // (Where it is now, as a slot among the others: dropping there leaves it be.)
+  const ownSlot = region.parentId ? -1 : regions.filter((entry) => !entry.parentId).indexOf(region)
   function startDrag(event) {
     event.stopPropagation()
     event.preventDefault()
     const start = { x: event.clientX, y: event.clientY }
     const k = scale * (tools.zoom || 1)
     let moved = false
-    let slot = index
+    let target = { slot: ownSlot }
     const move = (next) => {
       if (!moved && Math.hypot(next.clientX - start.x, next.clientY - start.y) < 4) return
       moved = true
       const dx = (next.clientX - start.x) / k
       const dy = (next.clientY - start.y) / k
-      slot = slotAt(region.y + region.height / 2 + dy)
-      setDrag({ dx, dy, slot })
+      target = targetAt(region.y + region.height / 2 + dy)
+      setDrag({ dx, dy, ...target })
     }
     const up = (next) => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       setDrag(null)
       if (!moved) {
-        // A click, not a drag: it takes the element under the pointer on its
-        // own (to move or resize it, with guides); a double-click opens its text.
-        const under = document.elementsFromPoint(next.clientX, next.clientY).find((node) => node.matches?.('[data-layer-id]') && !node.closest('[data-region-selected]'))
+        // A click, not a drag, keeps the part. A double-click goes into it,
+        // as in Figma: the element under the pointer is taken on its own —
+        // to move or resize it, with guides (double-click it again for text).
         const double = performance.now() - lastTap.current < 450
         lastTap.current = performance.now()
-        under?.click()
-        if (double) editUnder(next)
+        if (double) document.elementsFromPoint(next.clientX, next.clientY).find((node) => node.matches?.('[data-layer-id]') && !node.closest('[data-region-selected]'))?.click()
         return
       }
-      if (slot !== index) tools.onReorder?.(region.id, slot)
+      if (target.into) { if (target.into !== region.parentId) tools.onNest?.(region.id, target.into) }
+      else if (target.slot !== ownSlot) tools.onReorder?.(region.id, target.slot)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -676,26 +682,30 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   const first = frame.layers.find((layer) => layer.regionId === region.id)
   const offset = { x: overrides?.[first?.id]?.dx ?? 0, y: overrides?.[first?.id]?.dy ?? 0 }
   const stop = (event) => event.stopPropagation()
-  // A double-click goes through to the element underneath: its text opens
-  // for editing in place.
-  function editUnder(event) {
-    const nodes = document.elementsFromPoint(event.clientX, event.clientY).filter((node) => !node.closest('[data-region-selected]'))
-    const target = nodes.find((node) => node.matches?.('[data-slot]')) ?? nodes.find((node) => node.matches?.('[data-layer-id]'))
-    target?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: event.clientX, clientY: event.clientY }))
-  }
   const ACTION = 'ds-intrinsic flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-slate-800 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent'
   const zoom = tools.zoom || 1
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div ref={bandRef} data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? '끌어서 옮기기 · 한 번 더 클릭: 요소 하나 · 더블클릭: 텍스트 수정' : 'Drag to move · click again for one element · double-click for text'} className={cn('pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing', drag && 'bg-sky-400/10 opacity-80 shadow-xl')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translate(${(offset.x + (drag?.dx ?? 0)) * scale}px, ${(drag?.dy ?? 0) * scale}px)` }} />
+      <div ref={bandRef} data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? '끌어서 옮기기 · 다른 요소 위에 놓으면 그 안에 · 더블클릭: 안의 요소 하나' : 'Drag to move · drop on a part to put it inside · double-click for one element'} className={cn('pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing', drag && 'bg-sky-400/10 opacity-80 shadow-xl')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translate(${(offset.x + (drag?.dx ?? 0)) * scale}px, ${(drag?.dy ?? 0) * scale}px)` }} />
       {/* Where it'll land: the line between the parts it snaps into, with the
           spacing it gets there — the layout's gap above and below, and the
           screen's side padding. */}
-      {drag && (
+      {/* Inside a part: that part lights up, and says so. */}
+      {drag?.into && (() => {
+        const into = regions.find((entry) => entry.id === drag.into)
+        return (
+          <div data-region-into={into.id} className="absolute inset-x-0 rounded-md bg-rose-500/[0.07] ring-2 ring-rose-500 ring-inset" style={{ top: into.y * scale, height: into.height * scale }}>
+            <span className="absolute top-1 left-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white shadow" style={{ transform: `translateX(-50%) scale(${1 / zoom})`, transformOrigin: 'top center' }}>
+              {drag.into === region.parentId ? (ko ? '제자리' : 'Stays here') : (ko ? `${translateText(into.label, 'ko')} 안에 넣기 · 간격 ${tools.innerGap ?? 0}px` : `Into ${into.label} · ${tools.innerGap ?? 0}px gap`)}
+            </span>
+          </div>
+        )
+      })()}
+      {drag && !drag.into && (
         <div data-region-drop className="absolute inset-x-0" style={{ top: lineAt(drag.slot) * scale }}>
           <span className="absolute inset-x-1 h-0.5 -translate-y-1/2 rounded-full bg-rose-500" />
           <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white shadow" style={{ transform: `translate(-50%, -50%) scale(${1 / zoom})` }}>
-            {drag.slot === index ? (ko ? '제자리' : 'Stays here') : (ko ? `여기에 넣기 · 간격 ${tools.gap ?? 0}px` : `Goes here · ${tools.gap ?? 0}px gap`)}
+            {drag.slot === ownSlot ? (ko ? '제자리' : 'Stays here') : (ko ? `여기에 넣기 · 간격 ${tools.gap ?? 0}px` : `Goes here · ${tools.gap ?? 0}px gap`)}
           </span>
           {tools.padding != null && (
             <>
@@ -708,15 +718,17 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
       {/* The part's name and what can be done with it, right under it —
           words, not bare icons; one size at any zoom. */}
       {!drag && (
-        <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute flex h-9 items-center gap-0.5 rounded-full bg-white p-1 whitespace-nowrap text-slate-900 shadow-2xl ring-1 ring-black/10" style={{ top: above ? (region.y + offset.y) * scale - 8 / zoom : (region.y + offset.y + region.height) * scale + 8 / zoom, left: offset.x * scale, transform: `scale(${1 / zoom})${above ? ' translateY(-100%)' : ''}`, transformOrigin: 'top left' }}>
+        <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute flex h-9 items-center gap-0.5 rounded-full bg-white p-1 whitespace-nowrap text-slate-900 shadow-2xl ring-1 ring-black/10" style={{ top: above ? (region.y + offset.y) * scale - 8 / zoom : (region.y + offset.y + region.height) * scale + 8 / zoom, left: (frame.width / 2 + offset.x) * scale, transform: `scale(${1 / zoom}) translateX(-50%)${above ? ' translateY(-100%)' : ''}`, transformOrigin: 'top left' }}>
           <span data-region-source className="flex h-7 items-center gap-1.5 rounded-full bg-sky-500 pr-3 pl-1 text-[12px] font-semibold text-white">
             {letter && <span className="flex size-5 items-center justify-center rounded-full bg-white text-[10.5px] text-sky-700">{letter}</span>}
             <LocalizedText text={region.label} />{region.copyOf && (ko ? ' · 복제' : ' · copy')}
+            {parent && <span className="font-medium text-white/80">{ko ? ' · ' : ' · in '}<LocalizedText text={parent.label} />{ko ? ' 안' : ''}</span>}
           </span>
           <span className="flex items-center gap-1 px-2 text-[12px] font-medium text-slate-600"><Move className="size-3.5" />{ko ? '끌어서 옮기기' : 'Drag to move'}</span>
           <span aria-hidden className="mx-0.5 h-4 w-px bg-black/10" />
           <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={ACTION}><ArrowUp className="size-3.5" />{ko ? '위로' : 'Up'}</button>
-          <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === regions.length - 1} onClick={() => tools.onMove(region.id, 1)} className={ACTION}><ArrowDown className="size-3.5" />{ko ? '아래로' : 'Down'}</button>
+          <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === siblings.length - 1} onClick={() => tools.onMove(region.id, 1)} className={ACTION}><ArrowDown className="size-3.5" />{ko ? '아래로' : 'Down'}</button>
+          {parent && tools.onUnnest && <button type="button" data-region-unnest aria-label={ko ? '밖으로 빼기' : 'Take out'} title={ko ? `${translateText(parent.label, 'ko')} 밖으로 (바로 아래에)` : `Out of ${parent.label} (right below it)`} onClick={() => tools.onUnnest(region.id)} className={ACTION}><ArrowUpLeft className="size-3.5" />{ko ? '밖으로' : 'Out'}</button>}
           {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '바로 아래에 하나 더' : 'One more, right below'} onClick={() => tools.onDuplicate(region.id)} className={ACTION}><Copy className="size-3.5" />{ko ? '복제' : 'Duplicate'}</button>}
           <button type="button" data-region-remove aria-label={ko ? '빼기' : 'Remove'} title={ko ? '결과에서 빼기 (Delete)' : 'Take out of the Result (Delete)'} onClick={() => tools.onRemove(region.id)} className={cn(ACTION, 'hover:bg-rose-50 hover:text-rose-600')}><Trash2 className="size-3.5" />{ko ? '빼기' : 'Remove'}</button>
         </div>

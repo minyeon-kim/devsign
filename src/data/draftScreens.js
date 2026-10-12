@@ -253,20 +253,29 @@ export const GAP = 22
 // Arranging is by order, never by position: a region lands wherever the
 // ones before it end.
 export const LAYOUT_KEY = 'layout:regions'
+// Inside a part, what's put in it stacks under its own content, this far apart.
+export const INNER_GAP = 12
 // `extras`: copies of a region added to the screen ({ id, base, draftKey }),
 // each taking its place in `order` like any region.
+// `parents`: parts put inside another part ({ childId: parentId }), as in
+// Figma's auto layout — one level deep: they stack inside it, under its own
+// content, in `order`'s order, and go wherever it goes.
 export function regionLayout(itemId, decisions) {
   const baseIds = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
   const saved = decisions?.[LAYOUT_KEY]?.custom ?? {}
   const extras = (saved.extras ?? []).filter((extra) => baseIds.includes(extra.base))
   const ids = [...baseIds, ...extras.map((extra) => extra.id)]
   const order = [...(saved.order ?? []).filter((id) => ids.includes(id)), ...ids.filter((id) => !(saved.order ?? []).includes(id))]
-  return { order, removed: (saved.removed ?? []).filter((id) => ids.includes(id)), extras }
+  const removed = (saved.removed ?? []).filter((id) => ids.includes(id))
+  // (Only a part that's there can hold one, and nothing holds what holds.)
+  const parents = Object.fromEntries(Object.entries(saved.parents ?? {})
+    .filter(([child, parent]) => child !== parent && ids.includes(child) && ids.includes(parent) && !removed.includes(parent) && !saved.parents?.[parent]))
+  return { order, removed, extras, parents }
 }
 // The decision that records an arrangement (null: the screen's own).
-export function layoutDecision(itemId, { order, removed, extras = [] }) {
+export function layoutDecision(itemId, { order, removed, extras = [], parents = {} }) {
   const ids = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
-  return order.join() === ids.join() && !removed.length && !extras.length ? null : { custom: { order, removed, extras } }
+  return order.join() === ids.join() && !removed.length && !extras.length && !Object.keys(parents).length ? null : { custom: { order, removed, extras, parents } }
 }
 
 // (`layout`: regionLayout's — the screen's own order, all of it, without.)
@@ -287,22 +296,40 @@ export function composeDraftFrame(itemId, base, picks, fallback = null, layout =
     const base = extra && screen.regions.find((region) => region.id === extra.base)
     return base ? { ...base, id: extra.id, base: base.id, draftKey: extra.draftKey } : null
   }
+  const parents = layout?.parents ?? {}
   const arranged = layout ? layout.order.filter((id) => !layout.removed.includes(id)).map(regionOf).filter(Boolean) : screen.regions
-  for (const region of arranged) {
+  // One part's layers, from `top` down: how tall it is.
+  const place = (region, top, extra = {}) => {
     const draftKey = picks[region.id] ?? region.draftKey ?? fallback
     const part = draftKey && screen.drafts[draftKey]?.[region.base ?? region.id]
-    if (!part) continue
+    if (!part) return null
     for (const layer of part.layers) {
-      layers.push({ ...layer, id: `${draftKey}--${region.id}--${layer.id}`, y: y + layer.y, regionId: region.id, draftKey })
+      layers.push({ ...layer, id: `${draftKey}--${region.id}--${layer.id}`, y: top + layer.y, regionId: region.id, draftKey })
     }
-    regions.push({ id: region.id, label: region.label, y: y - GAP / 2, height: Math.max(part.height, 24) + GAP, draftKey, picked: Boolean(picks[region.id] ?? region.base), copyOf: region.base })
-    if (part.height) y += part.height + GAP
-    else y += 24 + GAP
+    const height = Math.max(part.height || 0, 24)
+    return { draftKey, height, entry: { id: region.id, label: region.label, draftKey, picked: Boolean(picks[region.id] ?? region.base), copyOf: region.base, ...extra } }
+  }
+  for (const region of arranged.filter((entry) => !parents[entry.id])) {
+    const own = place(region, y)
+    if (!own) continue
+    // What's inside it: under its own content, each its own band in it.
+    let inner = y + own.height
+    const children = []
+    for (const child of arranged.filter((entry) => parents[entry.id] === region.id)) {
+      const placed = place(child, inner + INNER_GAP, { parentId: region.id })
+      if (!placed) continue
+      children.push({ ...placed.entry, y: inner + INNER_GAP / 2, height: placed.height + INNER_GAP })
+      inner += INNER_GAP + placed.height
+    }
+    const height = inner - y
+    regions.push({ ...own.entry, y: y - GAP / 2, height: height + GAP, ...(children.length && { children: children.map((child) => child.id) }) })
+    regions.push(...children)
+    y += height + GAP
   }
   // The screen grows to hold everything in it — a part added never spills
   // past the artboard's bottom edge.
   const height = Math.max(base.height, y + GAP)
-  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => region.id).join('-')}` : ''}`, height, layers, regions }
+  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => `${region.id}${parents[region.id] ? `>${parents[region.id]}` : ''}`).join('-')}` : ''}`, height, layers, regions }
 }
 
 // A whole draft as a screen.
