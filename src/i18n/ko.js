@@ -481,6 +481,7 @@ Waiting for the reviewers’ approval.|검토자의 승인을 기다리고 있�
 Every approval is in. Merge it to finish.|모든 승인이 끝났어요. 병합하면 완료돼요.
 Merged. Nothing is left to do.|병합됐어요. 남은 일이 없어요.
 Show all|모두 보기
+Showing only the change picked on the canvas|캔버스에서 고른 변경점만 보고 있어요
 Open conflicts|미해결 변경점
 Recently viewed|최근 열람
 No conflicts to review.|검토할 변경점이 없어요

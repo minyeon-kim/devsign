@@ -7,11 +7,13 @@ import { LocalizedText } from '@/i18n/runtime'
 // drawn at the same scale, so a real size difference stays visible.
 // Records without a `preview` simply don't render one.
 
-function Frame({ label, children, showLabel = true, contentClassName = 'h-14' }) {
+// `contentStyle`: a height worked out from the values (an icon's), so the
+// larger side fits and both sides stay the same height.
+function Frame({ label, children, showLabel = true, contentClassName = 'h-14', contentStyle }) {
   return (
     <figure aria-label={label} className="flex min-w-0 flex-col items-center">
       {showLabel && <figcaption className="mb-0.5 text-[10px] font-medium text-slate-500"><LocalizedText text={label} /></figcaption>}
-      <div className={`flex ${contentClassName} w-full shrink-0 items-center justify-center`}>{children}</div>
+      <div className={`flex ${contentStyle ? '' : contentClassName} w-full shrink-0 items-center justify-center`} style={contentStyle}>{children}</div>
     </figure>
   )
 }
@@ -29,14 +31,14 @@ function ButtonSample({ width, height, background, radius, label }) {
   )
 }
 
-function Pair({ before, after, side, showLabel, contentClassName }) {
+function Pair({ before, after, side, showLabel, contentClassName, contentStyle }) {
   if (side) {
-    return <Frame label={side === 'before' ? 'Before' : 'After'} showLabel={showLabel} contentClassName={contentClassName}>{side === 'before' ? before : after}</Frame>
+    return <Frame label={side === 'before' ? 'Before' : 'After'} showLabel={showLabel} contentClassName={contentClassName} contentStyle={contentStyle}>{side === 'before' ? before : after}</Frame>
   }
   return (
     <div className="grid grid-cols-2 items-stretch gap-3">
-      <Frame label="Before" showLabel={showLabel} contentClassName={contentClassName}>{before}</Frame>
-      <Frame label="After" showLabel={showLabel} contentClassName={contentClassName}>
+      <Frame label="Before" showLabel={showLabel} contentClassName={contentClassName} contentStyle={contentStyle}>{before}</Frame>
+      <Frame label="After" showLabel={showLabel} contentClassName={contentClassName} contentStyle={contentStyle}>
         {after}
       </Frame>
     </div>
@@ -127,7 +129,9 @@ function ChangePreview({ preview, side, showLabels = true, override }) {
         <Truck className="text-slate-800" style={{ width: s.size * ZOOM, height: s.size * ZOOM }} strokeWidth={s.stroke} />
       </span>
     )
-    return <Pair side={side} showLabel={showLabels} before={sample(before)} after={sample(after)} />
+    // (As tall as the larger icon and its 8px above and below — at least the usual 56px.)
+    const height = Math.max(56, Math.max(before?.size ?? 0, after?.size ?? 0) * ZOOM + 16)
+    return <Pair side={side} showLabel={showLabels} contentStyle={{ height }} before={sample(before)} after={sample(after)} />
   }
 
   if (kind === 'card') {

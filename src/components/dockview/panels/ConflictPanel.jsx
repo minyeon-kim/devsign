@@ -7,7 +7,7 @@ import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSu
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { ArrowRight, Check, CheckCheck, ChevronDown, CircleCheck, FileCode2, Layers3, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, CheckCheck, ChevronDown, CircleCheck, FileCode2, Layers3, MapPin, MessageSquare, ScanSearch, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -99,11 +99,16 @@ function ConflictPanel({ inMergeStudio }) {
   // bar's sidebar draws (useConflictList). Here a row opens its detail in
   // the full-screen viewer; in Merge Studio it stays in this panel, beside
   // the canvas it points at.
-  const { queued, visible, filter, shownFilters, setFilter, countOf, advancedFilters, setAdvancedFilters, filterItems, markedDueDates, typeFilter, setTypeFilter, typeOptions, open: openRow } = useConflictList({ view: inMergeStudio ? 'panel' : 'overlay' })
+  const { queued, visible, listRecords, filter, shownFilters, setFilter, countOf, advancedFilters, setAdvancedFilters, filterItems, markedDueDates, typeFilter, setTypeFilter, typeOptions, open: openRow } = useConflictList({ view: inMergeStudio ? 'panel' : 'overlay' })
   const [selected, setSelected] = useState([])
   // The confirm step before a batch approval (see BatchApproveDialog).
   const [confirming, setConfirming] = useState(false)
-  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages, conflictPin, hoverConflictPin, focusConflictPin } = useWorkspace()
+  const { comments, conflictChecks, decisionsFor, mergeDrafts, selectedLayerId, projectPages, conflictPin, hoverConflictPin, focusConflictPin, selectConflictPin } = useWorkspace()
+  // A marker pressed on the canvas: the list is that change alone (whatever
+  // the filter), until "Show all" lets go of the marker.
+  const pinnedId = conflictPin?.selected?.conflictId ?? null
+  const pinned = pinnedId ? visible.find((c) => c.id === pinnedId) ?? listRecords.find((c) => c.id === pinnedId) ?? null : null
+  const rows = pinned ? [pinned] : visible
   // The element picked on the canvas: the Conflict Points about it light up
   // and the first scrolls into view (the other half of the canvas markers).
   const listRef = useRef(null)
@@ -194,6 +199,13 @@ function ConflictPanel({ inMergeStudio }) {
           />
         </div>
       )}
+      {pinned && (
+        <div data-pin-only className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 py-1.5 text-xs text-slate-300">
+          <MapPin className="size-3.5 shrink-0 text-amber-300" />
+          <span className="min-w-0 flex-1 truncate"><LocalizedText text="Showing only the change picked on the canvas" /></span>
+          <button type="button" data-pin-show-all onClick={() => selectConflictPin(null)} className="shrink-0 font-medium text-slate-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="Show all" /></button>
+        </div>
+      )}
       {conflicts.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
           <CircleCheck className="size-6 text-emerald-500" />
@@ -225,14 +237,14 @@ function ConflictPanel({ inMergeStudio }) {
               </tr>
             </thead>
             <tbody>
-              {visible.length === 0 && (
+              {rows.length === 0 && (
                 <tr>
                   <td colSpan={10} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
               )}
-              {visible.map((conflict) => {
+              {rows.map((conflict) => {
                 const severity = severityConfig[conflict.severity] ?? severityConfig.medium
                 // You first, so "waiting on you" (the ring) is always the
                 // first avatar.
