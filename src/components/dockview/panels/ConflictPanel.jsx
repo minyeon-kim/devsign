@@ -2,7 +2,7 @@ import './ConflictPanel.css'
 import { PLAIN_BADGE } from '@/components/conflicts/ConflictBadges'
 import { ConflictTypeTag, MismatchLabel } from '@/components/conflicts/ConflictInsight'
 import { conflictIsAbout } from '@/lib/conflictInsight'
-import DesignLinkThumb, { DesignLinkChip } from '@/components/conflicts/DesignLinkThumb'
+import DesignLinkThumb from '@/components/conflicts/DesignLinkThumb'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { conflictListRecord, isDesignReview } from '@/lib/conflicts'
 import { Fragment, useEffect, useRef, useState } from 'react'
@@ -221,6 +221,8 @@ function ConflictPanel({ inMergeStudio }) {
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Status</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Severity</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Type</th>
+                {/* (The screen's column: no title — its thumbnails say what they are.) */}
+                <th aria-label="Screen" className="py-1.5" />
                 <th className="py-1.5 text-left font-medium">Issue</th>
                 <th className="py-1.5 text-left font-medium">Description</th>
                 <th className="py-1.5 text-left font-medium whitespace-nowrap">Checks</th>
@@ -232,7 +234,7 @@ function ConflictPanel({ inMergeStudio }) {
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={11} className="conflict-list-empty px-3 py-8 text-center text-muted-foreground">
                     {filter.id === 'mine' ? 'Nothing needs your review right now.' : 'No conflicts in this view.'}
                   </td>
                 </tr>
@@ -296,8 +298,8 @@ function ConflictPanel({ inMergeStudio }) {
                         onChange={() => toggle(conflict.id)}
                       />
                     </td>
-                    {/* One short status — a dot and a word, the filter's own;
-                        how far along it is shows on hover. */}
+                    {/* One short status — a word, the filter's own; how far
+                        along it is shows on hover. */}
                     <td className="py-3.5 pt-4">
                       <ListStatus conflict={conflict} ready={readyToRequest} note={adjusted ? 'Adjusted manually' : null} />
                     </td>
@@ -313,16 +315,13 @@ function ConflictPanel({ inMergeStudio }) {
                     </td>
                     {/* The branch isn't a column — it's on hover here, and in
                         the review's Details. */}
+                    {/* The screen it's about, in a column of its own; not in
+                        Merge Studio, which already has the canvas beside it. */}
+                    <td className="py-3.5 pt-4">
+                      {!inMergeStudio && <DesignLinkThumb conflict={conflict} size="sm" onOpenReview={() => openRow(conflict.id)} />}
+                    </td>
                     <td className="min-w-0 py-3.5 pt-4" title={flow ? `${flow.source} → ${flow.target}` : undefined}>
-                      <div className="flex min-w-0 items-start gap-2.5">
-                      {/* The screen it's about, beside its name; not in Merge Studio, which already has the canvas beside it. */}
-                      {!inMergeStudio && (
-                        <div className="flex shrink-0 flex-col items-start gap-1">
-                          <DesignLinkThumb conflict={conflict} size="sm" onOpenReview={() => openRow(conflict.id)} />
-                          <DesignLinkChip conflict={conflict} compact />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1 space-y-px">
+                      <div className="min-w-0 space-y-px">
                         <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 font-medium text-white" title={conflict.title}>
                           <span className="min-w-0 break-words"><LocalizedText text={conflict.title} /></span>
                           {/* A mix of design drafts sent from Design Compare —
@@ -340,11 +339,11 @@ function ConflictPanel({ inMergeStudio }) {
                             </span>
                           )}
                         </p>
-                        <p className="flex min-w-0 items-start gap-1 text-[11.5px] leading-4 text-slate-300">
-                          <FileCode2 className="mt-0.5 size-3 shrink-0" />
-                          <span className="font-mono [overflow-wrap:anywhere]">{conflict.file}</span>
+                        {/* The file's name, on one line; its path on hover. */}
+                        <p className="flex min-w-0 items-center gap-1 text-[11.5px] leading-4 text-slate-400" title={conflict.file}>
+                          <FileCode2 className="size-3 shrink-0" />
+                          <span className="min-w-0 truncate font-mono">{conflict.file?.split('/').pop()}</span>
                         </p>
-                      </div>
                       </div>
                     </td>
                     <td className="min-w-0 py-3.5 pt-4">
@@ -627,7 +626,6 @@ function ListStatus({ conflict, ready, note }) {
     <>
     <Tooltip>
       <TooltipTrigger render={<span data-list-status={status.id} className={cn(PLAIN_BADGE, 'leading-5', merged ? 'text-emerald-200' : 'text-slate-200')} />}>
-        {merged ? <CircleCheck aria-hidden className="size-3.5 shrink-0 text-emerald-300" /> : <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />}
         <LocalizedText text={label} />
       </TooltipTrigger>
       <TooltipContent side="bottom" align="start" className="block px-2.5 py-1.5 text-left text-xs leading-5 whitespace-nowrap">{detail}</TooltipContent>
