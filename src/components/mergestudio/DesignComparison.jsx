@@ -2,8 +2,7 @@ import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { isDesignReview } from '@/lib/conflicts'
 import { designReviewStatus, reviewForDesign } from '@/lib/designReview'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Check, CheckCheck, ChevronDown, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Check, CheckCheck, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { diffEffect, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -96,34 +95,34 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-card text-xs">
-      <section className="flex min-h-0 flex-1 flex-col overflow-auto p-3">
-        {/* One row: which set (a menu, when there's more than one), where it
-            is, and the one thing to do next. */}
+    <div className="flex h-full min-h-0 bg-card text-xs">
+      {/* The sets to choose from — only when there's more than one. */}
+      {items.length > 1 && (
+        <nav aria-label="Design sets" data-design-sets className="flex w-[220px] shrink-0 flex-col gap-0.5 overflow-auto border-r border-white/[0.06] p-2">
+          {items.map((candidate) => {
+            const state = designReviewStatus(candidate, reviewForDesign(candidate, conflicts))
+            return (
+              <button
+                key={candidate.id}
+                type="button"
+                onClick={() => pickItem(candidate.id)}
+                aria-pressed={candidate.id === itemId}
+                className={cn('ds-intrinsic flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors', candidate.id === itemId ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200')}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12px] font-medium">{candidate.title}</span>
+                  <span data-design-status={state.id} className={cn('mt-0.5 block text-[10.5px]', state.className)}>{candidate.saveOnFinish && state.id === 'merged' ? '저장 완료' : state.label}</span>
+                </span>
+                <span className="shrink-0 text-[10.5px] text-slate-500 tabular-nums">{designCompareOptions(candidate).length}</span>
+              </button>
+            )
+          })}
+        </nav>
+      )}
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-3">
+        {/* One row: which set, where it is, and the one thing to do next. */}
         <div data-design-compare-head className="mb-3 flex min-w-0 items-center gap-2">
-          {items.length > 1 ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger data-design-set-menu className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-semibold text-slate-100 transition-colors hover:bg-white/[0.06]">
-                <span className="truncate">{item?.title ?? 'Choose a design set'}</span>
-                <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-64">
-                <DropdownMenuRadioGroup value={itemId ?? ''} onValueChange={pickItem}>
-                  {items.map((candidate) => {
-                    const state = designReviewStatus(candidate, reviewForDesign(candidate, conflicts))
-                    return (
-                      <DropdownMenuRadioItem key={candidate.id} value={candidate.id} className="text-xs">
-                        <span className="min-w-0 flex-1 truncate">{candidate.title}</span>
-                        <span data-design-status={state.id} className={cn('ml-3 shrink-0 text-[10.5px]', state.className)}>{candidate.saveOnFinish && state.id === 'merged' ? '저장 완료' : state.label}</span>
-                      </DropdownMenuRadioItem>
-                    )
-                  })}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? 'No design sets are available in this project yet.'}</h2>
-          )}
+          <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
           {item && <span data-design-status={status.id} className={cn('shrink-0 text-[11px]', status.className)}>{statusLabel}</span>}
           {/* (Picking which drafts to compare: only with more than two.) */}
           {item && choosing && onSelectAll && (
