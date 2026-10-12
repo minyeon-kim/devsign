@@ -27,8 +27,8 @@ try {
   const layer = target.frame.layers.find((entry) => entry.id === target.mainId)
   const region = compareRegionOf(target.frame, target.mainId)
   assert.equal(COMPARE_PAD, 24)
-  assert.deepEqual([region.x, region.y], [Math.max(0, layer.x - 24), Math.max(0, layer.y - 24)])
-  assert.ok(region.width <= layer.width + 48 && region.width >= layer.width && region.height <= layer.height + 48)
+  assert.deepEqual([region.x, region.y], [layer.x - 24, layer.y - 24], 'the element in the middle — past the frame’s edge if need be')
+  assert.deepEqual([region.width, region.height], [layer.width + 48, layer.height + 48])
   assert.ok(region.width < target.frame.width, 'never the whole screen for one element')
   assert.equal(compareScaleOf(320, region), 320 / region.width, 'the crop fills the cell’s width')
   assert.equal(compareScaleOf(5000, region), COMPARE_MAX_ZOOM)
@@ -45,7 +45,7 @@ try {
 
   // Where it's shown: in the 해결 방법 card alone (tests/change-adapters.mjs) — the crop is the card's picture.
   const flow = readFileSync(new URL('../src/components/conflicts/DesignDecisionFlow.jsx', import.meta.url), 'utf8')
-  assert.ok(flow.includes('<ElementCrop conflict={conflict} link={link} overrides={drawing.overrides} />'))
+  assert.ok(flow.includes('<ElementCrop conflict={conflict} link={link} overrides={drawing.overrides}'))
   // The viewer is the one there already, opened full screen; the side panel's thumbnail says where and opens it.
   const preview = readFileSync(new URL('../src/components/conflicts/ElementPreview.jsx', import.meta.url), 'utf8')
   assert.ok(preview.includes('startFullscreen = false') && preview.includes("data-element-mode={id}") && preview.includes('data-element-zoom') && preview.includes("'반영 결과'"))

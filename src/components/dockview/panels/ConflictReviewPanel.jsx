@@ -3577,7 +3577,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     // A structural drift: a design decision to ask for and
                     // make, not values to pick (DesignDecisionFlow).
                     <div data-review-scroll="decision" className="min-h-0 min-w-0 flex-1 overflow-auto">
-                      <DesignDecisionFlow conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} onReplay={activity.entries.length ? (key) => openReplay(replayEntryFor(key), { autoplay: key === 'start' }) : undefined} />
+                      {/* (Keyed by the change: what's being picked for one is never carried to the next.) */}
+                      <DesignDecisionFlow key={conflict.id} conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} onReplay={activity.entries.length ? (key) => openReplay(replayEntryFor(key), { autoplay: key === 'start' }) : undefined} />
                     </div>
                   ) : !replayId ? (
                     // (On the page: one column that scrolls as a whole, 12px

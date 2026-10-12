@@ -11,16 +11,17 @@ import { MemoryRouter } from 'react-router-dom'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom', logLevel: 'silent' })
 try {
-  const { CHANGE_TYPES, ADAPTERS, adapterOf, typeOf } = await server.ssrLoadModule('/src/lib/changeAdapters.js')
+  const { CHANGE_TYPES, ADAPTERS, adapterOf, typeOf, scaleOf } = await server.ssrLoadModule('/src/lib/changeAdapters.js')
   const { drawingOf } = await server.ssrLoadModule('/src/lib/elementPreview.js')
   const { allConflictRecords } = await server.ssrLoadModule('/src/lib/conflicts.js')
   const { proposalOf, decisionStageOf } = await server.ssrLoadModule('/src/lib/designDecisions.js')
   const { default: DesignDecisionFlow } = await server.ssrLoadModule('/src/components/conflicts/DesignDecisionFlow.jsx')
 
   // ── The mapping: every kind has an adapter, whole; none is left over. ──
-  const KEYS = ['picture', 'input', 'inputLabel', 'options', 'values', 'measure', 'swatch']
+  const KEYS = ['picture', 'label', 'unit', 'tokens', 'key', 'values']
   assert.deepEqual(Object.keys(ADAPTERS).sort(), [...CHANGE_TYPES].sort(), 'a kind without an adapter (or an adapter without a kind)')
   for (const type of CHANGE_TYPES) for (const key of KEYS) assert.ok(ADAPTERS[type][key] != null, `${type}: adapter has no ${key}`)
+  for (const type of CHANGE_TYPES) assert.ok('custom' in ADAPTERS[type], `${type}: adapter doesn't say how a value off the scale is typed`)
   assert.throws(() => adapterOf({ id: 'X', changeType: 'made-up' }), /No change adapter for "made-up"/, 'an unknown kind is an error, not a blank card')
 
   // ── Every seeded design decision: a known kind, drawn, and re-drawn by a value. ──
@@ -37,9 +38,8 @@ try {
     const sides = ['original', 'current'].map((id) => drawingOf(conflict, null, proposalOf(id, null, conflict)))
     assert.ok(sides[0] && sides[1], `${conflict.id}: its design and its build can be drawn`)
     // What there is to pick is drawn, whenever the kind reads values at all.
-    for (const option of adapter.options(conflict)) {
-      const values = adapter.values(conflict, option)
-      if (values) assert.ok(drawingOf(conflict, null, proposalOf('other', { values: { value: option } }, conflict)), `${conflict.id}: "${option}" is drawn`)
+    for (const step of scaleOf(conflict).steps) {
+      if (adapter.values(conflict, step.value)) assert.ok(drawingOf(conflict, null, proposalOf('other', { values: { value: step.value } }, conflict)), `${conflict.id}: "${step.value}" is drawn`)
     }
   }
   // The Dashboard's changes say their kind, and each draws its two sides differently.
@@ -51,11 +51,13 @@ try {
     if (type === 'layout') continue
     assert.notDeepEqual(conflict.preview.before, conflict.preview.after, `${id}: the build and the design are drawn from different values`)
     const adapter = adapterOf(conflict)
-    assert.ok(adapter.options(conflict).length >= 2, `${id}: values to pick from`)
-    for (const option of adapter.options(conflict)) assert.ok(adapter.values(conflict, option), `${id}: "${option}" changes the picture`)
+    const scale = scaleOf(conflict)
+    assert.ok(scale.steps.length >= 3, `${id}: a scale to pick from`)
+    assert.ok(scale.steps.some((step) => step.key === scale.designKey) && scale.steps.some((step) => step.key === scale.currentKey), `${id}: the design's and the code's values are on its scale`)
+    for (const step of scale.steps) assert.ok(adapter.values(conflict, step.value), `${id}: "${step.value}" changes the picture`)
   }
-  assert.equal(ADAPTERS.color.swatch('color.cta (#2563EB)'), '#2563EB', 'a colour comes with its chip')
-  assert.equal(ADAPTERS.spacing.measure('16px (space.4)'), '16px', 'a spacing comes with its dimension')
+  assert.equal(scaleOf(byId('CON-005')).steps.find((step) => step.token === 'color.cta').swatch, '#2563EB', 'a colour comes with its chip')
+  assert.equal(scaleOf(byId('CON-002')), null, 'a structure has no scale: it is laid out as a screen')
   assert.equal(ADAPTERS.breakpoint.values(byId('CON-009'), '900px').collapseAt, 900)
   assert.equal(ADAPTERS.size.values(byId('CON-011'), '108px').px, 108)
 

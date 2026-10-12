@@ -8,7 +8,7 @@ import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom', logLevel: 'silent' })
 try {
   const { drawingOf, codeOverridesOf } = await server.ssrLoadModule('/src/lib/elementPreview.js')
-  const { adapterOf } = await server.ssrLoadModule('/src/lib/changeAdapters.js')
+  const { adapterOf, scaleOf } = await server.ssrLoadModule('/src/lib/changeAdapters.js')
   const { allConflictRecords } = await server.ssrLoadModule('/src/lib/conflicts.js')
   const { proposalOf, proposalsOf } = await server.ssrLoadModule('/src/lib/designDecisions.js')
   const byId = (id) => allConflictRecords().find((conflict) => conflict.id === id)
@@ -35,7 +35,7 @@ try {
   for (const id of ['CON-003', 'CON-005', 'CON-006']) {
     const conflict = byId(id)
     assert.ok(proposalsOf(conflict).some((way) => way.id === 'original'), `${id}: the recommended way exists (picked to start)`)
-    const options = adapterOf(conflict).options(conflict)
+    const options = scaleOf(conflict).steps.map((step) => step.value)
     assert.ok(options.length >= 3, `${id}: values to pick from`)
     for (const option of options) assert.ok(adapterOf(conflict).values(conflict, option), `${id}: "${option}" can be drawn`)
     assert.ok(drawn(conflict, 'other', { values: { value: options.at(-1) } }), `${id}: its last option draws`)
@@ -49,7 +49,7 @@ const flow = readFileSync(new URL('../src/components/conflicts/DesignDecisionFlo
 assert.ok(!flow.includes('DetectedSummary'), 'the yellow summary card is gone')
 assert.ok(!flow.includes('디자인 결정 필요'), 'its chips are gone')
 assert.equal(flow.match(/<ProposalSection\b/g).length, 1, 'one 해결 방법 card for every change')
-assert.ok(flow.includes('<ElementCrop conflict={conflict} link={link} overrides={drawing.overrides} />'), 'a value change is drawn as its real element')
+assert.ok(flow.includes('<ElementCrop conflict={conflict} link={link} overrides={drawing.overrides}'), 'a value change is drawn as its real element')
 assert.ok(flow.includes('data-show-design="hold"') && flow.includes('data-proposal-fullscreen'), '원안 보기 (held) and 전체 화면으로 보기 are the card\'s own')
 assert.ok(flow.includes("way.id === 'original') ? 'original' : null"), 'the recommended way is picked to start')
 assert.ok(!flow.includes('data-status-compare'), 'no separate 원안 / 현재 구현 card')

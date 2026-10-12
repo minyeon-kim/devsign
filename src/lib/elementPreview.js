@@ -125,7 +125,30 @@ export function codeSidesOf(conflict) {
 // where a small element would turn into a blur of pixels).
 export const COMPARE_PAD = 24
 export const COMPARE_MAX_ZOOM = 6
-export const compareRegionOf = (frame, mainId) => cropOf(frame, [mainId], COMPARE_PAD)
+// (The element in the middle, COMPARE_PAD on every side — past the frame's edge
+// when it sits against one, so it's never pushed off-centre.)
+export function compareRegionOf(frame, mainId) {
+  const layer = frame?.layers.find((candidate) => candidate.id === mainId)
+  return layer ? { x: layer.x - COMPARE_PAD, y: layer.y - COMPARE_PAD, width: layer.width + COMPARE_PAD * 2, height: layer.height + COMPARE_PAD * 2 } : cropOf(frame, [mainId], COMPARE_PAD)
+}
+// The element alone: itself and what's drawn inside it — not its neighbours,
+// whose edges would otherwise show in the room around it.
+export function ownLayerIdsOf(frame, mainId) {
+  const main = frame?.layers.find((candidate) => candidate.id === mainId)
+  if (!main) return []
+  const inside = (layer) => layer.x >= main.x - 0.5 && layer.y >= main.y - 0.5 && layer.x + layer.width <= main.x + main.width + 0.5 && layer.y + layer.height <= main.y + main.height + 0.5
+  return frame.layers.filter((layer) => layer.id === mainId || inside(layer)).map((layer) => layer.id)
+}
+// A spacing drawn on its element with `values`: the inset as a band (frame
+// px) and the dimension it stands for — what the picture tints and says
+// beside the element. Null for anything that isn't an inset on a card.
+export function insetOf(conflict, frame, values) {
+  const layer = frame?.layers.find((candidate) => candidate.id === conflict?.layerId)
+  const design = px(conflict?.preview?.after?.gap)
+  const value = px(values?.gap)
+  if (conflict?.preview?.kind !== 'spacing' || layer?.type !== 'card' || !(design > 0) || !(value >= 0)) return null
+  return { band: CARD_PADDING * (value / design), label: `${value}px` }
+}
 export const compareScaleOf = (cellWidth, region) => (region?.width > 0 && cellWidth > 0 ? Math.min(COMPARE_MAX_ZOOM, cellWidth / region.width) : 1)
 
 // What went in, once a change is fixed or merged — the third pane of the

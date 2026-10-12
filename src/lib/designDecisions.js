@@ -74,7 +74,15 @@ export function summarizeValues(values = {}) {
   ].filter(Boolean).join(' · ')
 }
 // The values a proposal stands for — a preset's own, or what 다른 수정안 has set.
-export const valuesOf = (id, custom, conflict) => (id === 'other' ? (custom?.values ?? {}) : proposalsOf(conflict).find((proposal) => proposal.id === id)?.values ?? {})
+// What 다른 수정안 holds, as this conflict's alone: only the properties it has
+// controls for. (Values kept for another change — a layout's columns on a
+// padding — are never read as this one's.)
+export function ownCustomOf(conflict, custom) {
+  // (A conflict that lists none has the layout's — every layout value is its own.)
+  const ids = conflict?.driftProps ? new Set(conflict.driftProps.map((control) => control.id)) : null
+  return { values: Object.fromEntries(Object.entries(custom?.values ?? {}).filter(([id]) => !ids || ids.has(id))), note: custom?.note ?? '' }
+}
+export const valuesOf = (id, custom, conflict) => (id === 'other' ? ownCustomOf(conflict, custom).values : proposalsOf(conflict).find((proposal) => proposal.id === id)?.values ?? {})
 // One proposal, fully described — for previews, summaries and the request.
 // `custom` is what 다른 수정안 holds: { values, note }; `conflict`, whose ways
 // they are (a structural drift's when not given).

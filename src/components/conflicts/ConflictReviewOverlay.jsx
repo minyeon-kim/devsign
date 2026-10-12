@@ -22,6 +22,11 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   const language = useLanguage()
   const open = Boolean(conflict)
 
+  // (Read when Esc is pressed — not a reason to run the effect again: it would
+  // take the focus back to Close every time the workspace's state changed,
+  // e.g. on picking a way with the keyboard.)
+  const closeReview = useRef(openConflictReview)
+  useEffect(() => { closeReview.current = openConflictReview })
   useEffect(() => {
     if (!open) return
     // Focus comes in with it, and goes back to where it was on closing.
@@ -30,14 +35,14 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
     function onKey(event) {
       // (A dialog or menu opened from inside closes itself first.)
       if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('[data-slot="dialog-content"], [role="menu"], [role="listbox"]')) return
-      openConflictReview(null)
+      closeReview.current(null)
     }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
       if (before instanceof HTMLElement && before.isConnected) before.focus()
     }
-  }, [open, openConflictReview])
+  }, [open])
 
   if (!conflict) return null
   return (

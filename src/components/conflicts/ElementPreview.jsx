@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import { appliedSideOf, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
+import { COMPARE_PAD, appliedSideOf, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, cropOf, insetOf, markOf, ownLayerIdsOf, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, referencePick, screenOf } from '@/lib/devicePresets'
@@ -35,11 +35,12 @@ function ElementMark({ layer, mark, scale, tone }) {
   return <span aria-hidden data-element-mark={mark.kind} className="pointer-events-none absolute z-10" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, borderRadius: 8, boxShadow: `0 0 0 ${line}px rgb(${rgb}), 0 0 0 ${line * 3}px rgb(${rgb} / 22%)` }} />
 }
 
-export function ElementView({ frame, region, scale, overrides = {}, markIds = [], mark = { kind: 'outline' }, tone = 'open', className }) {
+// `only`: the layers drawn (ids) — all of the frame's when not given.
+export function ElementView({ frame, region, scale, overrides = {}, markIds = [], mark = { kind: 'outline' }, tone = 'open', only = null, className }) {
   return (
     <span data-element-view className={cn('relative block shrink-0 overflow-hidden bg-white', className)} style={{ width: region.width * scale, height: region.height * scale }}>
       <span aria-hidden className="pointer-events-none absolute block origin-top-left" style={{ left: -region.x * scale, top: -region.y * scale, width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
-        {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={overrides[layer.id]} onSelect={() => {}} />)}
+        {frame.layers.filter((layer) => !only || only.includes(layer.id)).map((layer) => <StaticLayer key={layer.id} layer={layer} override={overrides[layer.id]} onSelect={() => {}} />)}
         {frame.layers.filter((layer) => markIds.includes(layer.id)).map((layer) => <ElementMark key={`mark-${layer.id}`} layer={layer} mark={mark} scale={scale} tone={tone} />)}
       </span>
     </span>
@@ -152,13 +153,27 @@ function useBox(dependency) {
 // its cell's width — the same crop and scale in every cell, so two of them
 // compare. Nothing is drawn over it (the value is the caption's to say).
 //   overrides: what's put on the element (lib/elementPreview.drawingOf)
-export function ElementCrop({ conflict, link, overrides = {}, className }) {
+//   values: what it's drawn with — a spacing's inset is tinted and its
+//   dimension said beside the element, outside it (`tone`: the tint's).
+export function ElementCrop({ conflict, link, overrides = {}, values = null, tone = 'open', className }) {
   const [ref, box] = useBox(conflict.id)
   const target = targetOf(conflict, link)
   let drawing = null
   if (box.width > 0 && target) {
     const region = compareRegionOf(target.frame, target.mainId)
-    drawing = <ElementView frame={target.frame} region={region} scale={compareScaleOf(box.width, region)} overrides={overrides} className="rounded-lg ring-1 ring-slate-200/80" />
+    const scale = compareScaleOf(box.width, region)
+    const inset = insetOf(conflict, target.frame, values)
+    drawing = (
+      <span className="relative block">
+        <ElementView frame={target.frame} region={region} scale={scale} overrides={overrides} only={ownLayerIdsOf(target.frame, target.mainId)} markIds={inset ? [target.mainId] : []} mark={inset ? { kind: 'inset', band: inset.band } : undefined} tone={tone} className="rounded-lg ring-1 ring-slate-200/80" />
+        {/* (The dimension: in the room over the element's corner — never on it.) */}
+        {inset && (
+          <span data-crop-measure translate="no" className={cn('pointer-events-none absolute rounded px-1.5 font-mono text-[11px] leading-[18px] font-semibold', tone === 'done' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-slate-950')} style={{ left: COMPARE_PAD * scale, bottom: `calc(100% - ${COMPARE_PAD * scale - 4}px)` }}>
+            {inset.label}
+          </span>
+        )}
+      </span>
+    )
   }
   return <div ref={ref} data-element-crop className={cn('flex min-h-[72px] w-full items-center justify-center overflow-hidden', className)}>{drawing}</div>
 }

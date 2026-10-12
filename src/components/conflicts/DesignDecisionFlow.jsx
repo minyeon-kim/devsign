@@ -8,10 +8,11 @@ import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
-import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
+import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 import { ElementCrop, ElementPreviewDialog, SIDEBAR_PROBE, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
-import { adapterOf, typeOf } from '@/lib/changeAdapters'
+import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
+import ValueScale from '@/components/conflicts/ValueScale'
 import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutAt } from '@/lib/codeRender'
@@ -98,7 +99,7 @@ function ValuePicture({ conflict, which, scale = 1, maxWidth = 200 }) {
   const onElement = hasElement(conflict, link) && elementShows(conflict, link.frame)
   return (
     <div className="mx-auto w-full" style={{ maxWidth: maxWidth * scale }}>
-      {onElement ? <ElementCrop conflict={conflict} link={link} overrides={drawing.overrides} /> : <SampleCrop conflict={conflict} values={drawing.values} />}
+      {onElement ? <ElementCrop conflict={conflict} link={link} overrides={drawing.overrides} values={drawing.values} tone={which === 'implementation' ? 'open' : 'done'} /> : <SampleCrop conflict={conflict} values={drawing.values} />}
     </div>
   )
 }
@@ -319,23 +320,6 @@ function ControlChips({ label, name, options, value, onChange }) {
 // One control's input, by its kind. `current` is what the code has — what a
 // field falls back to, so it's never empty.
 function ControlInput({ control, values, onEdit }) {
-  // (A value change's own value, as text: "10px", "#2563EB", "120px".)
-  if (control.kind === 'text') {
-    const value = values[control.id] ?? control.current ?? ''
-    // How the value is entered is its kind of change's (lib/changeAdapters):
-    // what there is to pick from (a scale, tokens — a colour with its chip),
-    // a field for anything else, and the dimension it stands for.
-    const adapter = control.adapter
-    const measure = adapter?.measure(value)
-    const chip = (option) => { const color = adapter?.swatch(option); return color ? <span className="inline-flex items-center gap-1.5"><span aria-hidden data-swatch className="size-3 rounded-full ring-1 ring-white/30" style={{ background: color }} />{option}</span> : option }
-    return (
-      <span data-control-kind={adapter?.input} className="flex min-w-0 flex-wrap items-center gap-2">
-        {control.options?.length > 0 && <ControlChips label={control.label} name={`control-${control.id}`} value={value} onChange={(picked) => onEdit(control.id, picked)} options={control.options.map((option) => [option, chip(option)])} />}
-        <input type="text" aria-label={control.label} data-control-input={control.id} value={value} onChange={(event) => onEdit(control.id, event.target.value)} className={cn(numberField, 'w-36')} />
-        {measure && <span data-control-measure className="font-mono text-[11px] text-slate-400" translate="no">= {measure}</span>}
-      </span>
-    )
-  }
   if (control.kind === 'choice') {
     return <ControlChips label={control.label} name={`control-${control.id}`} value={values[control.id] ?? control.current ?? null} onChange={(value) => onEdit(control.id, value)} options={control.options.map((option) => [option, control.id === 'columns' ? `${option}열` : String(option)])} />
   }
@@ -365,9 +349,8 @@ function ControlInput({ control, values, onEdit }) {
 
 function ProposalControls({ conflict, values, onEdit, note, onNote }) {
   const [details, setDetails] = useState(false)
-  // (A value change's own value is entered its kind's way — lib/changeAdapters.)
-  const adapter = adapterOf(conflict)
-  const controls = controlsOf(conflict).map((control) => (control.kind === 'text' && !control.options ? { ...control, adapter, options: adapter.options(conflict) } : control))
+  // (A layout's alone: a value change picks its value from a scale — ValueScale.)
+  const controls = controlsOf(conflict)
   const primary = controls.filter((control) => PRIMARY_CONTROLS.includes(control.id) || control.primary)
   const rest = controls.filter((control) => !PRIMARY_CONTROLS.includes(control.id) && !control.primary)
   return (
@@ -472,6 +455,30 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const refs = useRef([])
   const [showDesign, setShowDesign] = useState(false)
   const ways = proposalsOf(conflict)
+  // A value change's other value is picked from its kind's scale (lib/changeAdapters) — the one tool for it.
+  const scale = readOnly ? null : scaleOf(conflict)
+  const ownValue = custom.values?.value ?? ''
+  const ownKey = ownValue ? adapterOf(conflict).key(ownValue) : null
+  // (What's typed, kept as typed; a value that isn't on the scale opens the field with it.)
+  const [typed, setTyped] = useState(() => (ownKey && scale && !scale.steps.some((step) => step.key === ownKey) ? String(ownValue).replace(/px$/, '') : ''))
+  const typedValue = scale?.custom ? customValueOf(conflict, typed) : null
+  // The step under the pointer or the focus: tried in the picture until it leaves.
+  const [stepTried, setTriedStep] = useState(null)
+  // A step taken: the design's is 원안대로 맞추기, the code's is 현재 값 유지 — the
+  // radio follows (and the focus with it); any other is 다른 값's.
+  const takeStep = (step) => {
+    const way = wayOfStep(scale, step)
+    setTriedStep(null)
+    if (way === 'other') { setTyped(''); onCustom({ ...custom, values: { value: step.value } }); return }
+    onProposal(way)
+    window.setTimeout(() => refs.current[ways.findIndex((option) => option.id === way)]?.focus(), 0)
+  }
+  const typeValue = (text) => {
+    setTyped(text)
+    const next = customValueOf(conflict, text)
+    // (A typed value that is a step is kept as that step is said: "20" → "20px (space.5)".)
+    onCustom({ ...custom, values: next ? { value: scale.steps.find((step) => step.key === next.key)?.value ?? next.value } : {} })
+  }
   const chosen = proposalOf(proposal, custom, conflict)
   const move = (event, index) => {
     const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0
@@ -483,7 +490,8 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // one way with values to set — and the first time it's opened it starts
   // from the preset picked just before (else from what the code has now).
   const pick = (id) => {
-    if (id === 'other' && !Object.keys(custom.values ?? {}).length) onCustom({ ...custom, values: seedValuesFor(conflict, proposal) })
+    // (A value picked from a scale starts with none: what the code has is 현재 값 유지's.)
+    if (id === 'other' && !scale && !Object.keys(custom.values ?? {}).length) onCustom({ ...custom, values: seedValuesFor(conflict, proposal) })
     onProposal(id)
   }
   const edit = (id, value) => onCustom({ ...custom, values: { ...custom.values, [id]: value } })
@@ -495,7 +503,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // A way with no layout to draw (다른 수정안 before it has values) keeps the
   // design up and says there's no preview — the box is never empty.
   const [hovered, setHovered] = useState(null)
-  const peeking = !readOnly && hovered && hovered !== proposal ? proposalOf(hovered, custom, conflict) : null
+  const peeking = readOnly ? null
+    : stepTried ? (wayOfStep(scale, stepTried) === 'other' ? proposalOf('other', { values: { value: stepTried.value } }, conflict) : proposalOf(wayOfStep(scale, stepTried), custom, conflict))
+      : hovered && hovered !== proposal ? proposalOf(hovered, custom, conflict) : null
   const shown = peeking ?? chosen
   const drawable = canDraw(conflict, shown)
   // A value change: 원안 보기 is held — while it's down the result's cell shows
@@ -505,13 +515,13 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // (A value change says its value in the caption — never over the element.)
   const sameAs = (shape) => (shape?.side === 'before' ? '현재와 같음' : shape?.side === 'after' ? '디자인 원안과 동일' : '')
   const after = valueChange && holding ? { title: `디자인 원안 · ${designSpecOf(conflict)}`, sub: '누르는 동안만 보여요' }
-    : valueChange && shown ? { title: `${peeking ? '미리보기 · ' : ''}${shown.name} · ${drawable || shown.id !== 'other' ? shown.spec : '값을 정해 주세요'}`, sub: !drawable ? '이 값은 미리 그릴 수 없어요' : readOnly ? resultWord : sameAs(shown) }
+    : valueChange && shown ? { title: `${peeking ? '미리보기 · ' : ''}${shown.name} · ${drawable || shown.id !== 'other' ? shown.spec : '값을 골라 주세요'}`, sub: !drawable ? (shown.described ? '이 값은 미리 그릴 수 없어요' : '\u00a0') : readOnly ? resultWord : sameAs(shown) }
     : readOnly && shown && drawable ? { title: resultWord, sub: shown.spec }
     : !shown ? { title: '디자인 원안', sub: designSpecOf(conflict) }
     : peeking ? { title: `미리보기 · ${peeking.name}`, sub: drawable ? peeking.spec : '직접 입력한 수정안은 미리보기가 없어요' }
       : !drawable ? { title: '디자인 원안', sub: '직접 입력한 수정안은 미리보기가 없어요' }
         : { title: proposal === 'original' ? '수정 후 · 디자인 원안과 동일' : '수정 후', sub: chosen.spec }
-  const afterKey = holding ? 'hold' : peeking ? `peek:${hovered}` : chosen ? `pick:${proposal}:${valueChange ? chosen.values?.value ?? '' : ''}` : 'design'
+  const afterKey = holding ? 'hold' : peeking ? `peek:${stepTried?.key ?? hovered}` : chosen ? `pick:${proposal}:${valueChange ? chosen.values?.value ?? '' : ''}` : 'design'
   const PICTURE = 'min-w-0 rounded-xl border-2 bg-black/20 p-4'
   return (
     <section data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
@@ -581,7 +591,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           {/* (Re-keyed per state, so one fades into the next — 150ms.) */}
           <div key={afterKey} className="animate-in fade-in duration-150 motion-reduce:animate-none">
             <div className="flex justify-center">
-              <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : 'original'} overlap={overlap} scale={1.5} />
+              <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
             </div>
             <figcaption className="mt-3 text-center">
               <span data-after-title className="block text-[13px] font-medium text-slate-200">{after.title}</span>
@@ -641,13 +651,26 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                 </span>
                 <span className="min-w-0 flex-1 text-[13px] leading-5">
                   <span className="font-medium text-slate-100">{option.name}</span>
-                  <span className="text-slate-400"> · {option.id === 'other' ? (shape.described ? shape.spec : '직접 입력') : option.spec}</span>
+                  <span className="text-slate-400"> · {option.id === 'other' ? (shape.described ? shape.spec : valueChange ? '직접 고르기' : '직접 입력') : option.spec}</span>
                   {/* Suggested, not chosen for you: nothing is picked by default. */}
                   {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-white/[0.07] px-1.5 align-middle text-[10.5px] font-medium text-slate-300">추천</span>}
                 </span>
               </button>
               {/* Controls belong to 다른 수정안 alone, right under its row. */}
-              {on && option.id === 'other' && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
+              {on && option.id === 'other' && (scale ? (
+                // (On the label's own line: 12px + the dot's 16px + 12px in.)
+                <div data-proposal-scale className="mt-2 ml-10 pr-3">
+                  <ValueScale
+                    scale={scale}
+                    selectedKey={ownKey}
+                    onTry={setTriedStep}
+                    onPick={takeStep}
+                    customText={typed}
+                    onCustom={typeValue}
+                    customNote={typedValue && !typedValue.onScale && scale.steps.some((step) => step.token) ? '디자인 토큰에 없는 값이에요' : null}
+                  />
+                </div>
+              ) : <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />)}
             </Fragment>
           )
         })}
@@ -657,15 +680,15 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {/* What a way that differs from the design needs: asked for, with why.
           24px under the list, on the list's own inset. */}
       {!readOnly && <FoldBody open={asking}>
-        <div data-request-area className="flex flex-col gap-6 px-3 pt-6">
+        <div data-request-area className="flex flex-col gap-6 pt-6 pr-3 pl-10">
           <p data-request-note className="text-xs text-slate-500">원안과 다른 수정안이라 승인이 필요해요 · 승인되면 바로 반영돼요</p>
-          {tried && undescribed && <p data-proposal-error role="alert" className="text-xs text-destructive">다른 수정안의 내용을 위에서 정해 주세요.</p>}
+          {tried && undescribed && <p data-proposal-error role="alert" className="text-xs text-destructive">{valueChange ? '위 눈금에서 값을 골라 주세요.' : '다른 수정안의 내용을 위에서 정해 주세요.'}</p>}
           <ReasonField
             id={`reason-${conflict.id}`}
             label="변경 사유"
             value={reason}
             onChange={setReason}
-            placeholder="왜 디자인 원안과 다르게 바꿔야 하나요?"
+            placeholder={valueChange ? '이 값을 고른 이유를 적어 주세요. 값만으로 설명하기 어려운 내용도 여기에.' : '왜 디자인 원안과 다르게 바꿔야 하나요?'}
             suggestions={asking ? reasonChipsFor(proposal, custom, conflict) : []}
             error={tried && !reason.trim() ? '변경 사유를 적어 주세요.' : null}
           />
@@ -1029,7 +1052,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // (Nothing picked before: the recommended way — matching the design — is, so
   // the comparison shows at once and the button is ready. It's applied only when pressed.)
   const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? conflict.decisionDraft?.proposal ?? (proposalsOf(conflict).some((way) => way.id === 'original') ? 'original' : null)))
-  const [custom, setCustom] = useState(() => ({ ...EMPTY_CUSTOM, ...(request?.custom ?? conflict.decisionDraft?.custom ?? {}) }))
+  const [custom, setCustom] = useState(() => ownCustomOf(conflict, request?.custom ?? conflict.decisionDraft?.custom))
   useEffect(() => { if (stage === 'rework') { setProposal(null); setCustom(EMPTY_CUSTOM) } }, [stage])
   // Kept on the conflict while it is being decided, so the side panel can show it too.
   const draftKey = JSON.stringify([proposal, custom])
