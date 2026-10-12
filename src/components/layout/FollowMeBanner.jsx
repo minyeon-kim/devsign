@@ -9,7 +9,7 @@ function PulsingDot({ className }) {
     <span className="relative flex size-2">
       <span
         className={cn(
-          'absolute inline-flex h-full w-full animate-ping rounded-full opacity-60',
+          'absolute inline-flex h-full w-full scale-[1.8] rounded-full opacity-25',
           className
         )}
       />

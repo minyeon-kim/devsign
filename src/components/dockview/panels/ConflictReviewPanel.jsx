@@ -1,4 +1,5 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
+import { RecentBox, RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
@@ -1910,15 +1911,6 @@ const REVIEWER_TEXT_ACTION = 'ds-intrinsic inline-flex h-7 items-center gap-1 te
 const iconActionClass =
   'ds-intrinsic flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/[0.08] hover:text-white'
 
-// When a sign-off was given, said the way the rest of the app says times.
-function agoLabel(at) {
-  const minutes = Math.floor((Date.now() - at) / 60000)
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${minutes}m ago`
-  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`
-  return `${Math.floor(minutes / 1440)}d ago`
-}
-
 // Reviewers sign off here. Assigning is open until the conflict is
 // resolved — a new reviewer on an Approved conflict sends it back to In
 // Review, since everyone has to sign off; removing is open before review
@@ -2031,7 +2023,8 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                   the same height. The role sits under the name, so names of
                   any length line up; the status is flush with the panel's
                   right edge (the hover actions sit just before it). */}
-              <div className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
+              {/* (A sign-off just given: the row lit once — ui/RecentTime.) */}
+              <RecentBox id={`review:${conflict.id}:${reviewer.id}:${reviewer.reviewedAt ?? ''}`} at={reviewer.status !== 'pending' ? reviewer.reviewedAt : null} className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
                 <PersonAvatar person={person} />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-1.5 leading-[18px]">
@@ -2053,7 +2046,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                       // Nobody's been asked yet: not "waiting" — that starts
                       // once the review is requested.
                       : reviewer.status === 'pending' && reviewStage === 'detected' && !conflict.rollback ? 'Not requested yet'
-                        : <><LocalizedText text={statusLabels[reviewer.status] ?? status.label} />{reviewer.reviewedAt && reviewer.status !== 'pending' && <span className="font-normal text-slate-400"> · <LocalizedText text={agoLabel(reviewer.reviewedAt)} /></span>}</>}
+                        : <><LocalizedText text={statusLabels[reviewer.status] ?? status.label} />{reviewer.reviewedAt && reviewer.status !== 'pending' && <span className="font-normal text-slate-400"> · <RecentTime at={reviewer.reviewedAt} /></span>}</>}
                 </span>
                 {/* Row actions, on hover, before the status (which stays at
                     the right edge either way). */}
@@ -2094,7 +2087,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                     </button>
                   )}
                 </div>
-              </div>
+              </RecentBox>
               {/* What they said with it, in a line. */}
               {reviewer.note && reviewer.status !== 'pending' && (
                 <p data-review-note className="-mt-1 mb-1.5 truncate pl-[34px] text-xs leading-[18px] text-slate-400" title={reviewer.note}>“<LocalizedText text={reviewer.note} />”</p>
@@ -3478,8 +3471,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                               approvers.length ? `Sign-off from ${approvers.join(', ')}` : null,
                           conflict.mergedBy && !conflict.rollback ? `Merged by ${personNameOf(conflict.mergedBy)}` : null,
                           // (When it merged, as the app writes times — "10월 8일 오전 11:30".)
-                          Number.isFinite(conflict.resolvedAtMs) ? formatTime(conflict.resolvedAtMs) : conflict.resolvedAtLabel ?? conflict.timestamp ?? null,
                         ].filter(Boolean).map((part) => <Fragment key={part}><span className="text-emerald-100/50"> · </span><LocalizedText text={part} /></Fragment>)}
+                        {/* (When it merged: 방금 for a minute, then "N분 전"; older, as the app writes times — "10월 8일 오전 11:30".) */}
+                        {(Number.isFinite(conflict.resolvedAtMs) || conflict.resolvedAtLabel || conflict.timestamp) && <><span className="text-emerald-100/50"> · </span><RecentTime at={conflict.resolvedAtMs} fallback={Number.isFinite(conflict.resolvedAtMs) ? formatTime(conflict.resolvedAtMs) : conflict.resolvedAtLabel ?? conflict.timestamp} /></>}
                       </span>
                       {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={() => (activity.entries.length ? openReplay(replayEntryFor('end')) : handleOpenFile())} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
                     </div>

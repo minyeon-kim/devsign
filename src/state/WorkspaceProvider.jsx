@@ -1150,7 +1150,7 @@ export function WorkspaceProvider({ children, projectId }) {
     // Merged: told to everyone the change involved.
     for (const merged of related) for (const id of involvedIn(merged)) notifyPerson(id, merged, `병합했어요 · ${merged.title}`, 'update', currentUser.id, 'merged')
     const nextConflicts = conflicts.map((c) => mergedIds.has(c.id)
-      ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
+      ? { ...c, reviewStage: 'resolved', resolvedAtLabel: 'Just now', resolvedAtMs: Date.now(), mergedBy: currentUser.id,
         // (The decisions the merge shipped with — the review of a merged
         // change reads them back as `mergedDecisions`.)
         mergedDecisions: mergedResolutions, mergedFileLines: c.fileId ? finalFiles[c.fileId] : undefined,
@@ -1480,7 +1480,7 @@ export function WorkspaceProvider({ children, projectId }) {
     const conflict = conflicts.find((c) => c.id === conflictId)
     if (!conflict?.decisionFix?.verified) return null
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : {
-      ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', mergedBy: currentUser.id,
+      ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', resolvedAtMs: Date.now(), mergedBy: currentUser.id,
       events: appendEvent(c, { type: 'resolved', actorId: currentUser.id, replyTo: eventsOf(c).findLast((event) => event.type === 'verified')?.id, payload: { how: c.decisionFix?.choice === 'approve' ? 'design-change' : 'fix' } }),
     })))
     logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
@@ -1872,7 +1872,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!conflict?.rollback || conflict.reviewStage !== 'approved') return null
     const restoredId = rollbackTo(conflict.rollback.entryId, conflict.rollback.options)
     if (!restoredId) return null
-    setConflicts((prev) => prev.map((c) => c.id === conflictId ? { ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', mergedBy: currentUser.id } : c))
+    setConflicts((prev) => prev.map((c) => c.id === conflictId ? { ...c, reviewStage: 'resolved', resolved: true, resolvedAtLabel: 'Just now', resolvedAtMs: Date.now(), mergedBy: currentUser.id } : c))
     logEvent({ kind: 'merge', projectId, conflictId, actorId: currentUser.id, title: conflict.title })
     return restoredId
   }, [conflicts, rollbackTo, setConflicts, logEvent, projectId, currentUser.id])

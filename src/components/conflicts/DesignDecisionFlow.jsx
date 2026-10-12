@@ -1182,7 +1182,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           forward, the request, the decision) is right under it. */}
       {!post && stage !== 'resolved' && decisionFlowOf(conflict, viewer).next && (
         <p data-status-block="next" role="status" className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
-          <span aria-hidden className={cn('size-2 shrink-0 rounded-full bg-sky-300', stage === 'requested' && developer && 'animate-pulse motion-reduce:animate-none')} />
+          <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
           {decisionFlowOf(conflict, viewer).next}
         </p>
       )}

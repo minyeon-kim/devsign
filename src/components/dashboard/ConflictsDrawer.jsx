@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { RecentTime, useRecentHighlight } from '@/components/ui/RecentTime'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, CircleCheck } from 'lucide-react'
 import { cn } from 'cn'
@@ -42,6 +43,8 @@ function ConflictCard({ conflict, selected, hovered, onOpen, onHover }) {
   // Picked (here or by its pin on the canvas): brought into view in the list.
   useEffect(() => { if (selected) row.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [selected])
   const done = conflict.reviewStage === 'resolved'
+  // (Just merged: lit once as it shows — then still, saying 방금 until it's a minute old.)
+  const recent = useRecentHighlight(`merged:${conflict.id}`, done ? conflict.resolvedAtMs : null)
   const when = done ? conflict.resolvedAtLabel ?? conflict.timestamp ?? null : shortDue(conflict.dueLabel)
   const tone = done ? 'later' : dueToneOf(conflict)
   // (Approved and put off: when it goes in — instead of "in review".)
@@ -65,12 +68,13 @@ function ConflictCard({ conflict, selected, hovered, onOpen, onHover }) {
         onBlur={() => onHover(null)}
         className={cn(
           'flex w-full min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300 data-[pin-hover]:bg-white/[0.04] aria-[current=true]:border-orange-500 aria-[current=true]:bg-white/[0.07]',
-          done && 'opacity-60'
+          done && 'opacity-60',
+          recent
         )}
       >
         <span className="flex min-w-0 items-baseline gap-3">
           <span data-row-title className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-slate-100"><LocalizedText text={conflict.title} /></span>
-          {when && <span data-due={tone} className={cn('shrink-0 text-[11px] leading-5 tabular-nums', DUE_TONE[tone])}><LocalizedText text={when} /></span>}
+          {when && <span data-due={tone} className={cn('shrink-0 text-[11px] leading-5 tabular-nums', DUE_TONE[tone])}>{done && Number.isFinite(conflict.resolvedAtMs) ? <RecentTime at={conflict.resolvedAtMs} fallback={when} /> : <LocalizedText text={when} />}</span>}
         </span>
         <span data-row-meta className="block min-w-0 truncate text-[11px] leading-4 text-slate-500">
           <LocalizedText text={status} />{kind && <> · <LocalizedText text={kind} /></>}

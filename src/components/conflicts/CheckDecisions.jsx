@@ -172,8 +172,7 @@ export function CheckGuideHighlight({ layerId }) {
   const selector = `[data-layer-id="${CSS.escape(layerId)}"]`
   return (
     <style>{`
-      @keyframes check-guide-pulse { 50% { outline-color: rgb(252 211 77 / 35%); } }
-      ${selector} { outline: 2px solid rgb(252 211 77); outline-offset: 4px; animation: check-guide-pulse 1.6s ease-in-out infinite; }
+      ${selector} { outline: 2px solid rgb(252 211 77); outline-offset: 4px; }
     `}</style>
   )
 }
