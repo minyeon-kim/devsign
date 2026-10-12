@@ -34,10 +34,19 @@ export function cropOf(frame, ids, pad = 10) {
 // code currently renders. Empty when the conflict's values can't be put on
 // the element (the preview then shows the design on both sides, said so).
 export function codeOverridesOf(conflict, frame) {
+  return valueOverridesOf(conflict, frame, conflict?.preview?.before)
+}
+
+// `{ [layerId]: override }` that draws the designed element with `values` on
+// it instead — the code's (`preview.before`), or any value being tried
+// (`previewValuesFor`). Empty when they're the design's own, or can't be put
+// on the element.
+export function valueOverridesOf(conflict, frame, values) {
   const preview = conflict?.preview
   const layer = frame?.layers.find((candidate) => candidate.id === conflict?.layerId)
-  if (!preview || !layer) return {}
-  const { before = {}, after = {} } = preview
+  if (!preview || !layer || !values) return {}
+  const before = values
+  const { after = {} } = preview
   let override = null
   let ids = [layer.id]
   if (preview.kind === 'button') {
@@ -47,16 +56,51 @@ export function codeOverridesOf(conflict, frame) {
       ...(before.radius !== undefined && before.radius !== after.radius && { radius: before.radius }),
     }
   } else if (preview.kind === 'text') {
-    override = { ...(before.fontWeight !== undefined && { fontWeight: before.fontWeight }) }
+    override = { ...(before.fontWeight !== undefined && before.fontWeight !== after.fontWeight && { fontWeight: before.fontWeight }) }
   } else if (preview.kind === 'spacing' && layer.type === 'card' && px(after.gap) > 0) {
     // The frame is drawn smaller than the product: the inset keeps its
     // proportion (12 of 16 → 7.5 of 10).
     const inset = CARD_PADDING * (px(before.gap) / px(after.gap))
-    override = { padding: { x: inset, y: inset } }
+    if (Number.isFinite(inset) && px(before.gap) !== px(after.gap)) override = { padding: { x: inset, y: inset } }
     // (A spacing rule is about every card it applies to.)
     ids = layerIdsOf(conflict).filter((id) => frame.layers.some((candidate) => candidate.id === id))
   }
   return override && Object.keys(override).length ? Object.fromEntries(ids.map((id) => [id, override])) : {}
+}
+
+// A value as typed or picked ("500", "20px", "color.ctaDark (#0F172A)") as
+// the values the element is drawn with — by what kind of change it is. Null
+// when it can't be read as one (then there's nothing new to draw).
+export function previewValuesFor(conflict, text) {
+  const kind = conflict?.preview?.kind
+  const value = String(text ?? '').trim()
+  if (!kind || !value) return null
+  if (kind === 'text') { const weight = Number.parseInt(value, 10); return weight >= 100 && weight <= 900 ? { fontWeight: weight } : null }
+  if (kind === 'spacing') { const size = Number.parseFloat(value); return Number.isFinite(size) && size >= 0 ? { gap: `${size}px` } : null }
+  if (kind === 'button') { const hex = /#[0-9a-fA-F]{3,8}\b/.exec(value)?.[0]; return hex ? { ...conflict.preview.after, background: hex } : null }
+  return null
+}
+
+// The values 다른 값 offers to pick from — the scale or the tokens the kind of
+// change has (typing another is still possible). Null: nothing to offer.
+export function valueOptionsOf(conflict) {
+  const kind = conflict?.preview?.kind
+  if (kind === 'text') return ['400', '500', '600', '700', '800']
+  if (kind === 'spacing') return ['8px (space.2)', '12px', '16px (space.4)', '20px (space.5)', '24px']
+  if (kind === 'button') return ['color.cta (#2563EB)', 'color.ctaDark (#0F172A)', '#1D4ED8']
+  return null
+}
+
+// How one way forward is drawn on the element: the design as it is ('after'),
+// the code as built ('before'), or a value of one's own.
+//   shape: a proposal (lib/designDecisions.proposalOf) — { side } or { values: { value } }
+// out: { overrides } — or null when the way has nothing that can be drawn.
+export function drawingOf(conflict, frame, shape) {
+  if (!shape) return null
+  if (shape.side === 'after') return { overrides: {} }
+  if (shape.side === 'before') return { overrides: codeOverridesOf(conflict, frame) }
+  const values = previewValuesFor(conflict, shape.values?.value)
+  return values ? { overrides: valueOverridesOf(conflict, frame, values) } : null
 }
 
 // Where on the element the difference is, for the mark drawn over it:

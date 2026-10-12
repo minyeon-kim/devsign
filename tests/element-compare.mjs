@@ -54,7 +54,7 @@ try {
   // Where it's shown: with the status in every state for a value change; a layout keeps its screens.
   const flow = readFileSync(new URL('../src/components/conflicts/DesignDecisionFlow.jsx', import.meta.url), 'utf8')
   assert.match(flow, /const compare = conflict\.layouts \? null : <ElementCompare /)
-  assert.match(flow, /\{compare && !compareInStatus && <section data-status-compare/)
+  assert.match(flow, /\{compare && !compareInStatus && !\(developer && askingNow\) && <section data-status-compare/)
   assert.match(flow, /compare=\{compareInStatus \? compare : null\}/)
   assert.match(flow, /\{fix && !compare && \(/, 'the small before / after gives way to it — for a value change only')
   // The viewer is the one there already, opened full screen; the side panel's thumbnail says where and opens it.

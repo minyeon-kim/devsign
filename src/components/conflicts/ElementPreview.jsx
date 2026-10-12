@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import { COMPARE_MIN_CELL, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, compareSidesOf, cropOf, markOf, shortValue, targetOf } from '@/lib/elementPreview'
+import { COMPARE_MIN_CELL, codeOverridesOf, codeSidesOf, compareRegionOf, compareScaleOf, compareSidesOf, cropOf, markOf, targetOf } from '@/lib/elementPreview'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, referencePick, screenOf } from '@/lib/devicePresets'
@@ -97,15 +97,23 @@ function useBox(dependency) {
   return [ref, box]
 }
 
-// The changed value, said on the element: a small label at its corner (the
-// mark around it shows where — an inset band for a padding, an outline else).
-function ValueLabel({ layer, region, scale, value, tone }) {
-  return (
-    <span data-compare-value className={cn('pointer-events-none absolute z-20 rounded px-1.5 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap tabular-nums shadow', tone === 'problem' ? 'bg-rose-500 text-white' : 'bg-emerald-400 text-slate-950')} style={{ left: Math.max(4, (layer.x - region.x) * scale + 4), top: Math.max(4, (layer.y - region.y) * scale + 4) }} translate="no">
-      {shortValue(value)}
-    </span>
-  )
+// One picture of the change's element as a way forward draws it: the real
+// element from the design screen, cut out with 24px around it and enlarged to
+// its cell's width — the same crop and scale in every cell, so two of them
+// compare. Nothing is drawn over it (the value is the caption's to say).
+//   overrides: what's put on the element (lib/elementPreview.drawingOf)
+export function ElementCrop({ conflict, link, overrides = {}, className }) {
+  const [ref, box] = useBox(conflict.id)
+  const target = targetOf(conflict, link)
+  let drawing = null
+  if (box.width > 0 && target) {
+    const region = compareRegionOf(target.frame, target.mainId)
+    drawing = <ElementView frame={target.frame} region={region} scale={compareScaleOf(box.width, region)} overrides={overrides} className="rounded-lg ring-1 ring-slate-200/80" />
+  }
+  return <div ref={ref} data-element-crop className={cn('flex min-h-[72px] w-full items-center justify-center overflow-hidden', className)}>{drawing}</div>
 }
+// Whether a change has an element on the design screen to draw that way.
+export const hasElement = (conflict, link) => Boolean(targetOf(conflict, link))
 
 function CompareCell({ conflict, target, entry, resolved }) {
   const [ref, box] = useBox(entry.key)
@@ -114,7 +122,6 @@ function CompareCell({ conflict, target, entry, resolved }) {
   if (box.width > 0 && target) {
     const region = compareRegionOf(target.frame, target.mainId)
     const scale = compareScaleOf(box.width, region)
-    const layer = target.frame.layers.find((candidate) => candidate.id === target.mainId)
     const mark = markOf(conflict, target.frame, entry.side)
     drawing = (
       <span className="relative block">
@@ -128,7 +135,6 @@ function CompareCell({ conflict, target, entry, resolved }) {
           tone={problem && !resolved ? 'open' : 'done'}
           className="rounded-lg ring-1 ring-slate-200/80"
         />
-        <ValueLabel layer={layer} region={region} scale={scale} value={entry.value} tone={problem ? 'problem' : 'ok'} />
       </span>
     )
   } else if (box.width > 0) {

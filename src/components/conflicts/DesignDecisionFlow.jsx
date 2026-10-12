@@ -10,7 +10,8 @@ import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import { ElementCompare, ElementPreviewDialog } from '@/components/conflicts/ElementPreview'
+import { ElementCompare, ElementCrop, ElementPreviewDialog, hasElement } from '@/components/conflicts/ElementPreview'
+import { drawingOf, valueOptionsOf } from '@/lib/elementPreview'
 import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutAt } from '@/lib/codeRender'
@@ -83,10 +84,29 @@ function Picture({ conflict, which, overlap, scale = 1, maxWidth = 200 }) {
     const failed = overlap === true && !layout.overlap
     return <TabletPreview columns={layout.columns} overlap={failed || (overlap ?? layout.overlap)} widthMode={layout.widthMode} cardPx={layout.values?.cardWidth?.px} template={failed ? conflict.layouts.implementation?.template : overlap === false ? null : layout.template} scale={scale} maxWidth={maxWidth} />
   }
+  return <ValuePicture conflict={conflict} which={which} scale={scale} maxWidth={maxWidth} />
+}
+// A value change's picture: its own element on the design screen, drawn with
+// the way's value on it (lib/elementPreview.drawingOf) — the design's, the
+// code's, or one typed in. A change with no element there falls back to its
+// sample drawing.
+function ValuePicture({ conflict, which, scale = 1, maxWidth = 200 }) {
+  const { link } = useDesignLink(conflict)
   if (!conflict.preview) return null
-  const side = which === 'original' ? 'after' : which === 'implementation' ? 'before' : which?.side
-  if (!side) return null
-  return <div className="mx-auto w-full" style={{ maxWidth: maxWidth * scale }}><ChangePreview preview={conflict.preview} side={side} showLabels={false} /></div>
+  const shape = which === 'original' ? { side: 'after' } : which === 'implementation' ? { side: 'before' } : which
+  if (hasElement(conflict, link)) {
+    const drawing = drawingOf(conflict, link.frame, shape)
+    if (!drawing) return null
+    return <div className="mx-auto w-full" style={{ maxWidth: maxWidth * scale }}><ElementCrop conflict={conflict} link={link} overrides={drawing.overrides} /></div>
+  }
+  if (!shape?.side) return null
+  return <div className="mx-auto w-full" style={{ maxWidth: maxWidth * scale }}><ChangePreview preview={conflict.preview} side={shape.side} showLabels={false} /></div>
+}
+// Whether a way can be drawn: a layout's columns, a value's side — or, for a
+// value change with an element, a value of one's own that reads as one.
+function useDrawable(conflict) {
+  const { link } = useDesignLink(conflict)
+  return (shape) => drawableOf(shape) || Boolean(!conflict.layouts && shape && hasElement(conflict, link) && drawingOf(conflict, link.frame, shape))
 }
 // What the check looks at, in a word: the breakpoint's render, or the value.
 const checkWordOf = (conflict) => (conflict.layouts ? `${conflict.breakpoint ?? 768}px 렌더링` : '수정한 값')
@@ -332,7 +352,14 @@ function ControlChips({ label, name, options, value, onChange }) {
 function ControlInput({ control, values, onEdit }) {
   // (A value change's own value, as text: "10px", "#2563EB", "120px".)
   if (control.kind === 'text') {
-    return <input type="text" aria-label={control.label} data-control-input={control.id} value={values[control.id] ?? control.current ?? ''} onChange={(event) => onEdit(control.id, event.target.value)} className={cn(numberField, 'w-44')} />
+    const value = values[control.id] ?? control.current ?? ''
+    return (
+      <span className="flex min-w-0 flex-wrap items-center gap-2">
+        {/* What there is to pick from (the scale, the tokens) — and a field for anything else. Either shows at once. */}
+        {control.options?.length > 0 && <ControlChips label={control.label} name={`control-${control.id}`} value={value} onChange={(picked) => onEdit(control.id, picked)} options={control.options.map((option) => [option, option])} />}
+        <input type="text" aria-label={control.label} data-control-input={control.id} value={value} onChange={(event) => onEdit(control.id, event.target.value)} className={cn(numberField, 'w-36')} />
+      </span>
+    )
   }
   if (control.kind === 'choice') {
     return <ControlChips label={control.label} name={`control-${control.id}`} value={values[control.id] ?? control.current ?? null} onChange={(value) => onEdit(control.id, value)} options={control.options.map((option) => [option, control.id === 'columns' ? `${option}열` : String(option)])} />
@@ -363,7 +390,8 @@ function ControlInput({ control, values, onEdit }) {
 
 function ProposalControls({ conflict, values, onEdit, note, onNote }) {
   const [details, setDetails] = useState(false)
-  const controls = controlsOf(conflict)
+  // (A value change's own value comes with what there is to pick from.)
+  const controls = controlsOf(conflict).map((control) => (control.kind === 'text' && !control.options ? { ...control, options: valueOptionsOf(conflict) } : control))
   const primary = controls.filter((control) => PRIMARY_CONTROLS.includes(control.id) || control.primary)
   const rest = controls.filter((control) => !PRIMARY_CONTROLS.includes(control.id) && !control.primary)
   return (
@@ -415,7 +443,7 @@ function ProposalControls({ conflict, values, onEdit, note, onNote }) {
 // place they're named besides the button: one by name, several by count
 // (their names on hover); with none there's nothing to press but the way to
 // add one.
-function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect }) {
+function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, onFullscreen }) {
   const previous = conflict.decisionRequest
   const rework = conflict.designDecision?.choice === 'rework'
   const [reason, setReason] = useState(rework ? '' : previous?.reason ?? '')
@@ -475,18 +503,45 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const [hovered, setHovered] = useState(null)
   const peeking = hovered && hovered !== proposal ? proposalOf(hovered, custom, conflict) : null
   const shown = peeking ?? chosen
-  const drawable = drawableOf(shown)
-  const after = !shown ? { title: '디자인 원안', sub: designSpecOf(conflict) }
+  const canDraw = useDrawable(conflict)
+  const drawable = canDraw(shown)
+  // A value change: 원안 보기 is held — while it's down the result's cell shows
+  // the design itself, then goes back to what's picked.
+  const valueChange = !conflict.layouts
+  const [holding, setHolding] = useState(false)
+  // (A value change says its value in the caption — never over the element.)
+  const sameAs = (shape) => (shape?.side === 'before' ? '현재와 같음' : shape?.side === 'after' ? '디자인 원안과 동일' : '')
+  const after = valueChange && holding ? { title: `디자인 원안 · ${designSpecOf(conflict)}`, sub: '누르는 동안만 보여요' }
+    : valueChange && shown ? { title: `${peeking ? '미리보기 · ' : ''}${shown.name} · ${drawable || shown.id !== 'other' ? shown.spec : '값을 정해 주세요'}`, sub: drawable ? sameAs(shown) : '이 값은 미리 그릴 수 없어요' }
+    : !shown ? { title: '디자인 원안', sub: designSpecOf(conflict) }
     : peeking ? { title: `미리보기 · ${peeking.name}`, sub: drawable ? peeking.spec : '직접 입력한 수정안은 미리보기가 없어요' }
       : !drawable ? { title: '디자인 원안', sub: '직접 입력한 수정안은 미리보기가 없어요' }
         : { title: proposal === 'original' ? '수정 후 · 디자인 원안과 동일' : '수정 후', sub: chosen.spec }
-  const afterKey = peeking ? `peek:${hovered}` : chosen ? `pick:${proposal}` : 'design'
+  const afterKey = holding ? 'hold' : peeking ? `peek:${hovered}` : chosen ? `pick:${proposal}:${valueChange ? chosen.values?.value ?? '' : ''}` : 'design'
   const PICTURE = 'min-w-0 rounded-xl border-2 bg-black/20 p-4'
   return (
     <section data-proposal-section aria-label="수정안 선택" className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h3 className="text-sm font-semibold text-white">해결 방법 <span aria-hidden className="text-rose-300">*</span></h3>
         <span className="text-xs text-slate-500">{conflict.layouts ? '768px에서 어떻게 바꿀지 골라 주세요' : '어떤 값으로 맞출지 골라 주세요'}</span>
+        {valueChange ? (
+          // Held, not toggled: the design for as long as it's pressed (pointer, or Space / Enter).
+          <button
+            type="button"
+            data-show-design="hold"
+            aria-pressed={holding}
+            title="누르고 있는 동안 원안을 보여 줘요"
+            onPointerDown={() => setHolding(true)}
+            onPointerUp={() => setHolding(false)}
+            onPointerLeave={() => setHolding(false)}
+            onBlur={() => setHolding(false)}
+            onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); setHolding(true) } }}
+            onKeyUp={() => setHolding(false)}
+            className={cn('ds-intrinsic ml-auto rounded-md px-2 py-1 text-[11px] transition-colors select-none hover:text-white', holding ? 'bg-white/[0.08] text-white' : 'text-slate-400')}
+          >
+            원안 보기
+          </button>
+        ) : (
         <button
           type="button"
           data-show-design
@@ -496,24 +551,41 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         >
           원안 보기
         </button>
+        )}
+        {onFullscreen && (
+          <button type="button" data-proposal-fullscreen onClick={onFullscreen} className="ds-intrinsic rounded-md px-2 py-1 text-[11px] text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+            전체 화면으로 보기
+          </button>
+        )}
       </div>
+      {/* What was found, in a line — under the title, where it's read first. */}
+      {(conflict.summary ?? conflict.message) && <p data-proposal-about className="-mt-1 mb-4 text-[13px] leading-5 text-slate-300">{conflict.summary ?? conflict.message}</p>}
 
       {/* Before → After: the section's picture. Two cards of the same kind,
           side by side with an arrow between; stacked (before first) when narrow. */}
       <div data-before-after className="grid grid-cols-1 items-center gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
           <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
+          {valueChange ? (
+            <figcaption className="mt-3 text-center">
+              <span data-before-title className="block text-[13px] font-medium text-slate-200">현재 구현 · {builtSpecOf(conflict)}</span>
+              <span className="block text-xs text-slate-500">&nbsp;</span>
+            </figcaption>
+          ) : (
           <figcaption className="mt-3 text-center">
             <span className="block text-[13px] font-medium text-slate-200">{showDesign ? '디자인 원안' : '현재 구현'}</span>
             <span className="block text-xs text-slate-500">{showDesign ? designSpecOf(conflict) : conflict.layouts ? `${builtSpecOf(conflict)} → 카드 겹침` : builtSpecOf(conflict)}</span>
           </figcaption>
+          )}
         </figure>
         <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 text-slate-500 min-[769px]:rotate-0" />
-        <figure data-layout="proposal" data-after={peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, chosen && drawable && !peeking ? 'border-emerald-400' : 'border-transparent')}>
+        <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'relative', chosen && drawable && !peeking && !holding ? 'border-emerald-400' : 'border-transparent')}>
+          {/* (What it shows just changed: its edge lit for a moment.) */}
+          <span key={`flash:${afterKey}`} aria-hidden data-after-flash className="pointer-events-none absolute -inset-0.5 animate-out rounded-xl ring-2 ring-emerald-300 duration-500 fill-mode-forwards fade-out motion-reduce:hidden" />
           {/* (Re-keyed per state, so one fades into the next — 150ms.) */}
           <div key={afterKey} className="animate-in fade-in duration-150 motion-reduce:animate-none">
             <div className="flex justify-center">
-              <Picture conflict={conflict} which={drawable ? shown : 'original'} scale={1.5} />
+              <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : 'original'} scale={1.5} />
             </div>
             <figcaption className="mt-3 text-center">
               <span data-after-title className="block text-[13px] font-medium text-slate-200">{after.title}</span>
@@ -918,37 +990,6 @@ function DecisionForm({ conflict, onDecide }) {
   )
 }
 
-// Compact detection card: one sentence + chips; the file/cause/impact table
-// stays folded until asked for.
-function DetectedSummary({ conflict }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <section data-decision-detected className={cn(CARD, 'ring-amber-400/25 !py-3')}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-        <p className="min-w-0 flex-1 text-[13px] leading-5 text-slate-100">{conflict.summary ?? conflict.message}</p>
-        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">{{ high: '높음', medium: '보통', low: '낮음' }[conflict.severity] ?? '보통'}</span>
-        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200">디자인 결정 필요</span>
-      </div>
-      <div className="mt-1.5 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-slate-500">자동 감지 · {conflict.detectedBy} · {formatTimeLabel(conflict.detectedAt ?? conflict.timestamp)}</p>
-        <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="text-[11px] font-medium text-slate-400 hover:text-slate-200">
-          {open ? '접기' : '자세히 보기'}
-        </button>
-      </div>
-      {open && (
-        <dl className="mt-2 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-xs">
-          <dt className="text-slate-400">관련 파일</dt>
-          <dd translate="no" className="font-mono text-[11.5px] text-slate-200">{conflict.file}{conflict.line ? ` · ${conflict.line}행` : ''}</dd>
-          <dt className="text-slate-400">원인</dt>
-          <dd className="text-slate-200">{conflict.cause}</dd>
-          <dt className="text-slate-400">영향 범위</dt>
-          <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
-        </dl>
-      )}
-    </section>
-  )
-}
-
 // The way to the History's replay of this change (the committed steps).
 function useReplayNavigation(conflict, workspace) {
   const navigate = useNavigate()
@@ -961,11 +1002,15 @@ const FOLD_STEPS = ['detect', 'request', 'decision', 'fix']
 const FOLD_ALL = FOLD_STEPS
 
 // What the detection touched: its file and what's affected — said once, here.
-function DetectionFacts({ conflict }) {
+function DetectionFacts({ conflict, cause = false }) {
   return (
     <dl data-detection-facts className={cn(RECORD_ROWS, 'mt-2')}>
+      {conflict.detectedBy && <><dt className="text-slate-400">감지</dt>
+      <dd className="text-slate-200">자동 감지 · {conflict.detectedBy} · {formatTimeLabel(conflict.detectedAt ?? conflict.timestamp)}</dd></>}
       <dt className="text-slate-400">관련 파일</dt>
       <dd translate="no" className="font-mono text-slate-200">{conflict.file}{conflict.line ? ` · ${conflict.line}행` : ''}</dd>
+      {cause && conflict.cause && <><dt className="text-slate-400">원인</dt>
+      <dd className="text-slate-200">{conflict.cause}</dd></>}
       <dt className="text-slate-400">영향 범위</dt>
       <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd>
     </dl>
@@ -1000,7 +1045,9 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // round after a rework starts without one.
   const askingNow = stage === 'detected' || stage === 'rework'
   const EMPTY_CUSTOM = { values: {}, note: '' }
-  const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? conflict.decisionDraft?.proposal ?? null))
+  // (Nothing picked before: the recommended way — matching the design — is, so
+  // the comparison shows at once and the button is ready. It's applied only when pressed.)
+  const [proposal, setProposal] = useState(() => (conflict.designDecision?.choice === 'rework' ? null : request?.proposal ?? conflict.decisionDraft?.proposal ?? (proposalsOf(conflict).some((way) => way.id === 'original') ? 'original' : null)))
   const [custom, setCustom] = useState(() => ({ ...EMPTY_CUSTOM, ...(request?.custom ?? conflict.decisionDraft?.custom ?? {}) }))
   useEffect(() => { if (stage === 'rework') { setProposal(null); setCustom(EMPTY_CUSTOM) } }, [stage])
   // Kept on the conflict while it is being decided, so the side panel can show it too.
@@ -1059,9 +1106,10 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // One line a step: who, and the one thing worth knowing — each said once
   // (what was proposed is the request's; the decision doesn't repeat it, and
   // "passed" is the fix's alone).
+  const detectStep = { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
+    summary: [conflict.layouts ? `${breakpoint}px` : told && `${told.label} ${told.current} → ${told.expected}`, conflict.layouts && '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') }
   const steps = post ? [
-    { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
-      summary: [conflict.layouts ? `${breakpoint}px` : told && `${told.label} ${told.current} → ${told.expected}`, conflict.layouts && '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') },
+    detectStep,
     { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.direct ? '바로 수정' : request?.round > 1 ? `${request.round}차 제안` : '제안'}`, time: timeOf('requested'),
       summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom, conflict)) ?? '').replace(/ · /g, ', ') },
     { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
@@ -1099,13 +1147,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           {decisionFlowOf(conflict, viewer).next}
         </p>
       )}
-      {compare && !compareInStatus && <section data-status-compare className={CARD}>{compare}</section>}
-
-      {/* What was detected — said first on the developer's side, before
-          anything has been asked. */}
-      {developer && stage === 'detected' && (
-        <DetectedSummary conflict={conflict} />
-      )}
+      {/* (While a way is being picked, the comparison is the 해결 방법 card's own — not said twice.) */}
+      {compare && !compareInStatus && !(developer && askingNow) && <section data-status-compare className={CARD}>{compare}</section>}
 
       {post ? null : developer && askingNow ? (
         <>
@@ -1116,6 +1159,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
             conflict={conflict}
             proposal={proposal}
             onProposal={setProposal}
+            onFullscreen={() => setViewerOpen(true)}
             custom={custom}
             onCustom={setCustom}
             onDirect={(next) => {
@@ -1127,6 +1171,15 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               toast('승인 요청을 보냈어요', { description: `${conflict.id} · 승인되면 바로 반영돼요` })
             }}
           />
+          {/* How it was found — the record's first step, folded: what detected it, its file, cause and reach. */}
+          <section data-step-record="detect" aria-label="진행 기록" className="mt-2">
+            <h3 className="mb-4 text-sm font-semibold text-white">진행 기록</h3>
+            <ol data-step-list className="m-0 flex list-none flex-col gap-6 p-0">
+              <StepRow data-fold="detect" state="done" title={detectStep.title} who={detectStep.who} summary={detectStep.summary} time={detectStep.time} open={folds.get('detect', false)} onToggle={() => folds.set('detect', !folds.get('detect', false))} last>
+                <DetectionFacts conflict={conflict} cause />
+              </StepRow>
+            </ol>
+          </section>
         </>
       ) : (
         <LayoutComparison
