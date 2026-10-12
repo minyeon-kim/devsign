@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, dragging = false }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, onTakeAll, dragging = false }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -54,12 +54,18 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
     if (region !== hoverRegion) setHoverRegion(region)
   }
   return (
-    <figure data-draft-cell={option.key} className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] ring-1 ring-white/[0.08]">
+    <figure data-draft-cell={option.key} className="group/draft flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-white/[0.03] ring-1 ring-white/[0.08]">
       <figcaption className="flex shrink-0 items-center gap-1.5 px-2.5 text-[11px]" style={{ height: CAPTION }}>
         <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', usedParts ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{letter}</span>
         <span className="min-w-0 truncate font-medium text-slate-200">{option.label.replace(/^시안 [A-Z] · /, '')}</span>
+        {/* The whole draft at once, on the title's hover or focus (not when it's all used already). */}
+        {onTakeAll && !whole && (
+          <button type="button" data-draft-take-all={option.key} onClick={(event) => { event.stopPropagation(); onTakeAll(option.key) }} className="ds-intrinsic ml-auto hidden h-5 shrink-0 items-center rounded px-1.5 text-[10.5px] font-medium text-slate-200 ring-1 ring-white/20 ring-inset transition-colors group-hover/draft:inline-flex hover:bg-white/[0.1] hover:text-white focus-visible:inline-flex focus-visible:outline-2 focus-visible:outline-emerald-300">
+            {ko ? '이 시안으로 모두 선택' : 'Use this draft for all'}
+          </button>
+        )}
         {usedParts > 0 && (
-          <span data-draft-used className="ml-auto shrink-0 rounded bg-emerald-300/15 px-1.5 text-[10px] leading-4 text-emerald-200">
+          <span data-draft-used className={cn('shrink-0 rounded bg-emerald-300/15 px-1.5 text-[10px] leading-4 text-emerald-200', onTakeAll && !whole ? 'ml-auto group-hover/draft:ml-1.5 group-focus-within/draft:ml-1.5' : 'ml-auto')}>
             {whole ? (ko ? '전체 사용' : 'All used') : ko ? `요소 ${usedParts}개 사용` : `${usedParts} used`}
           </span>
         )}
@@ -160,7 +166,8 @@ const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ??
 
 // `onPick(regionId, draftKey | null)`: use a draft's version of a part in the
 // Result (null takes it back).
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick }) {
+// `onTakeAll(draftKey)`: one whole draft for every part (offered on each draft's title).
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onTakeAll }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -349,6 +356,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             picks={picks}
             dragging={dragging}
             onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}
+            onTakeAll={onTakeAll}
             onSelect={(id, { probe = false } = {}) => {
               // (A drag that ended here isn't a click.)
               if (draggedRef.current) { draggedRef.current = false; return false }

@@ -14,12 +14,13 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, ChevronUp, Ellipsis, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronUp, Clock, Ellipsis, Send, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
@@ -69,10 +70,19 @@ const writeFolded = (value) => { try { localStorage.setItem(MIX_FOLD_KEY, value 
 const MIX_CARD_MIN = 140
 // The panel is at most this share of the canvas's width.
 const MIX_PANEL_SHARE = 0.7
+// Moving on to the next part after a pick: on unless turned off (⋯ menu).
+const MIX_ADVANCE_KEY = 'devsign:mix-panel:auto-advance'
+const readAdvance = () => { try { return localStorage.getItem(MIX_ADVANCE_KEY) !== '0' } catch { return true } }
+const writeAdvance = (value) => { try { localStorage.setItem(MIX_ADVANCE_KEY, value ? '1' : '0') } catch { /* not kept */ } }
+// How long a pick shows before the panel moves on.
+const MIX_ADVANCE_MS = 300
 
 // `paneShare`: how much of the canvas's width the pane this sits in takes
 // (the Result's side) — the panel's own limit is a share of the whole canvas.
-function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, onShowRegion, paneShare = 1 }) {
+// `finish`: the last step, here where the picking is done —
+//   { kind: 'request' | 'save', requested, done, reviewers: [{ id, name }], defaultReviewerIds, onSend({ reviewerIds, note, warnings }), onSave() }
+// `nudge`: a nonce from the title's status — unfold and go to the next part to pick.
+function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks, onFix, requestedRegion, onShowRegion, paneShare = 1, finish = null, nudge = 0 }) {
   const language = useLanguage()
   const keys = new Set(options.map((o) => o.key))
   const rows = draftRows({}, item, decisions).map((row) => ({ ...row, options: row.options.filter((o) => keys.has(o.key)) }))
@@ -135,6 +145,99 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+  // ── The next thing to do, at the row's end ──
+  // Parts still to pick → the next one; all picked with checks off → look at
+  // them (once: seen, they don't hold the request back); then the request.
+  const nextUndecided = (from) => {
+    for (let offset = 1; offset <= rows.length; offset += 1) {
+      const index = (from + offset) % rows.length
+      if (!rows[index].decided) return index
+    }
+    return -1
+  }
+  const pending = rows.filter((row) => !row.decided).length
+  const failing = checks?.failing ?? []
+  const warningKey = failing.map((check) => check.id).join(',')
+  const [seenWarnings, setSeenWarnings] = useState(null)
+  const [warningShown, setWarningShown] = useState(null)
+  const stage = finish?.requested ? 'requested' : finish?.done ? 'done'
+    : pending > 0 ? 'next' : failing.length > 0 && seenWarnings !== warningKey ? 'warn' : 'ready'
+  const nextIndex = pending > 0 ? (rows[stepNow]?.decided ? nextUndecided(stepNow) : stepNow === step && !rows[stepNow]?.decided && pending === 1 ? stepNow : nextUndecided(stepNow) >= 0 ? nextUndecided(stepNow) : stepNow) : -1
+  const goTo = (index) => {
+    if (index < 0) return
+    setStep(index)
+    if (folded) setFolded(false)
+    if (rows[index].region) onShowRegion?.(rows[index].region.id)
+  }
+  const [asking, setAsking] = useState(false)
+  const act = () => {
+    if (stage === 'next') { goTo(nextIndex); return }
+    if (stage === 'warn') {
+      // The first one: its part, and what it says, shown here.
+      const first = failing[0]
+      const index = rows.findIndex((row) => first.regionIds?.includes(row.region?.id))
+      if (index >= 0) goTo(index)
+      else if (folded) setFolded(false)
+      setWarningShown(first.id)
+      setSeenWarnings(warningKey)
+      return
+    }
+    if (stage === 'ready') { if (finish?.kind === 'save') finish.onSave(); else setAsking(true) }
+  }
+  // The title's status was pressed: unfolded, on the next part to pick.
+  useEffect(() => {
+    if (!nudge) return
+    if (folded) setFolded(false)
+    if (nextIndex >= 0) goTo(nextIndex)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nudge])
+  // A pick moves on to the next part still to pick, once it's been seen —
+  // unless every part was already picked (changing one's mind stays put).
+  const [advance, setAdvanceState] = useState(readAdvance)
+  const setAdvance = (value) => { setAdvanceState(value); writeAdvance(value) }
+  const advanceTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(advanceTimer.current), [])
+  const pick = (row, option) => {
+    if (option.picked) return
+    const index = rows.indexOf(row)
+    const others = rows.some((entry, at) => at !== index && !entry.decided)
+    onDecide(row.key, option.decision)
+    window.clearTimeout(advanceTimer.current)
+    if (!advance || !others) return
+    const target = (() => { for (let offset = 1; offset < rows.length; offset += 1) { const at = (index + offset) % rows.length; if (!rows[at].decided) return at } return -1 })()
+    if (target >= 0) advanceTimer.current = window.setTimeout(() => goTo(target), MIX_ADVANCE_MS)
+  }
+  // The request, asked for right here: who reviews it and a note.
+  const [reviewerIds, setReviewerIds] = useState(() => finish?.defaultReviewerIds ?? [])
+  const [note, setNote] = useState('')
+  const send = () => {
+    if (!reviewerIds.length) return
+    finish.onSend({ reviewerIds, note: note.trim(), warnings: failing.length })
+    setAsking(false)
+  }
+  // With the panel in focus: 1–9 or the draft's letter picks for this part,
+  // ← / → move between parts, ⌘/Ctrl+Enter does the step button's thing.
+  const panelKeys = (event) => {
+    if (event.target.closest?.('input, textarea, select, [contenteditable="true"], [data-mix-request]')) return
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); act(); return }
+    if (event.metaKey || event.ctrlKey || event.altKey) return
+    const row = rows[stepNow]
+    if (!row) return
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      // (On a card the arrows walk the cards — see moveCard.)
+      if (event.target.closest?.('[data-mix-option]')) return
+      event.preventDefault()
+      goTo(Math.min(rows.length - 1, Math.max(0, stepNow + (event.key === 'ArrowRight' ? 1 : -1))))
+      return
+    }
+    const byNumber = /^[1-9]$/.test(event.key) ? row.options[Number(event.key) - 1] : null
+    const byLetter = event.key.length === 1 ? row.options.find((option) => String(option.letter).toLowerCase() === event.key.toLowerCase()) : null
+    const option = byNumber ?? byLetter
+    if (!option || finish?.requested) return
+    event.preventDefault()
+    pick(row, option)
+  }
+
   // The cards: one row. Whether it runs past either edge (for the fades),
   // and the picked card kept in view.
   const cardsRef = useRef(null)
@@ -182,6 +285,8 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
   return (
     <div
       data-mix-panel={folded ? 'folded' : 'open'}
+      data-mix-stage={stage}
+      onKeyDown={panelKeys}
       className="pointer-events-auto flex flex-col rounded-2xl bg-[#17191d]/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl"
       // As wide as its cards need (a 600px floor, 196px a card), never past
       // its pane, and never past 70% of the canvas.
@@ -227,8 +332,98 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <span className="shrink-0 px-1.5 text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
         <CheckStatus compact checks={checks} onFix={fixCheck} />
+        {/* How far along, small — beside what to do next. */}
+        <span data-mix-count className="shrink-0 px-1 text-[11px] text-slate-500 tabular-nums">{`${decided}/${rows.length}`}</span>
+        {/* The one next step, changing with where the mix is: the next part
+            to pick → the checks to look at → the request (the screen's only
+            primary button). Folded, it stays on the row. */}
+        {stage === 'requested' || stage === 'done' ? (
+          <span key={stage} data-mix-step={stage} role="status" className="inline-flex h-8 shrink-0 animate-in items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-[12px] font-medium whitespace-nowrap text-slate-200 duration-150 fade-in motion-reduce:animate-none">
+            {stage === 'requested' ? <Clock className="size-3.5 text-sky-300" /> : <Check className="size-3.5 text-emerald-300" />}
+            {stage === 'requested' ? (finish.requested === 'approved' ? (ko ? '병합 요청됨 · 승인됨' : 'Requested · approved') : (ko ? '병합 요청됨 · 검토 대기' : 'Requested · in review')) : (ko ? '저장됨' : 'Saved')}
+          </span>
+        ) : (
+          <Popover open={asking} onOpenChange={(open) => { if (!open) setAsking(false) }}>
+            <PopoverTrigger
+              key={stage}
+              data-mix-step={stage}
+              data-merge-request={stage === 'ready' ? '' : undefined}
+              nativeButton
+              render={<button type="button" />}
+              aria-expanded={stage === 'ready' && finish?.kind !== 'save' ? asking : undefined}
+              title={`${stage === 'next' ? (ko ? `다음 · ${partName(rows[nextIndex])}` : `Next · ${partName(rows[nextIndex])}`) : stage === 'warn' ? (ko ? `경고 ${failing.length}개 확인` : `Look at ${failing.length} warnings`) : finish?.kind === 'save' ? (ko ? '확정하고 저장' : 'Confirm and save') : (ko ? '병합 요청' : 'Request merge')} (${/Mac/.test(typeof navigator === 'undefined' ? '' : navigator.platform) ? '⌘' : 'Ctrl'}+Enter)`}
+              onClick={(event) => { event.preventDefault(); act() }}
+              className={cn(
+                'ds-intrinsic inline-flex h-8 max-w-[220px] shrink-0 animate-in items-center gap-1.5 rounded-full px-3 text-[12px] whitespace-nowrap transition-colors duration-150 fade-in motion-reduce:animate-none motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
+                stage === 'next' ? 'bg-white/[0.08] font-medium text-slate-100 hover:bg-white/[0.12]'
+                  : stage === 'warn' ? 'bg-amber-400/15 font-semibold text-amber-200 ring-1 ring-amber-300/50 ring-inset hover:bg-amber-400/20'
+                    // (Open, its popover holds the emphasis: 요청 보내기.)
+                    : asking ? 'bg-white/[0.1] font-semibold text-white' : 'bg-emerald-400 font-semibold text-slate-950 hover:bg-emerald-300',
+              )}
+            >
+              {stage === 'next' && <><span className="shrink-0 text-slate-400">{ko ? '다음' : 'Next'} ·</span><span className="min-w-0 truncate">{partName(rows[nextIndex])}</span><ArrowRight className="size-3.5 shrink-0" /></>}
+              {stage === 'warn' && <><TriangleAlert className="size-3.5 shrink-0" />{ko ? `경고 ${failing.length}개 확인` : `Look at ${failing.length} warnings`}</>}
+              {stage === 'ready' && <><Check className="size-3.5 shrink-0" strokeWidth={2.5} />{finish?.kind === 'save' ? (ko ? '확정하고 저장' : 'Confirm and save') : (ko ? '병합 요청' : 'Request merge')}</>}
+            </PopoverTrigger>
+            {/* Asked for right here, over the button — not somewhere else on the screen. */}
+            <PopoverContent data-mix-request side="top" align="end" sideOffset={10} className="w-[340px] max-w-(--available-width) gap-0 rounded-xl p-0">
+              <div className="space-y-3 px-4 pt-4 pb-3">
+                <p className="text-sm font-semibold text-white">{ko ? '병합 요청' : 'Request merge'}</p>
+                {/* What's being sent: each part and the draft it uses. */}
+                <ul data-mix-summary className="space-y-1.5">
+                  {rows.map((row) => {
+                    const picked = row.options.find((option) => option.picked)
+                    return (
+                      <li key={row.key} data-mix-summary-row={picked?.letter ?? ''} className="flex min-w-0 items-center gap-2 text-[12px]">
+                        <span className="w-14 shrink-0">{row.region && screen && picked ? <RegionThumb part={screen.drafts[picked.key]?.[row.region.id]} width={56} /> : <span className="block h-7 w-14 rounded-md bg-white/[0.06]" />}</span>
+                        <span className="min-w-0 flex-1 truncate text-slate-200">{partName(row)}</span>
+                        <span className="flex size-4 shrink-0 items-center justify-center rounded bg-emerald-300 text-[9.5px] font-semibold text-slate-950">{picked?.letter ?? '·'}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {failing.length > 0 && (
+                  <p data-mix-warnings className="flex items-center gap-1.5 rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-[11.5px] text-amber-200">
+                    <TriangleAlert className="size-3.5 shrink-0" />
+                    {ko ? `경고 ${failing.length}개 포함` : `With ${failing.length} warnings`}
+                  </p>
+                )}
+                <fieldset className="min-w-0">
+                  <legend className="mb-1.5 text-[11px] font-medium text-slate-400">{ko ? '검토자' : 'Reviewers'}</legend>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(finish?.reviewers ?? []).map((person) => {
+                      const on = reviewerIds.includes(person.id)
+                      return (
+                        <button key={person.id} type="button" role="checkbox" aria-checked={on} data-mix-reviewer={person.id} onClick={() => setReviewerIds(on ? reviewerIds.filter((id) => id !== person.id) : [...reviewerIds, person.id])} className={cn('ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors', on ? 'bg-white/[0.12] font-medium text-white ring-1 ring-white/30 ring-inset' : 'text-slate-400 ring-1 ring-white/10 ring-inset hover:text-slate-200')}>
+                          {on && <Check className="size-3 text-emerald-300" strokeWidth={3} />}
+                          {person.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {reviewerIds.length === 0 && <p role="alert" className="mt-1.5 text-[11px] text-amber-200">{ko ? '검토자를 한 명 이상 골라 주세요' : 'Pick at least one reviewer'}</p>}
+                </fieldset>
+                <textarea
+                  rows={2}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); send() } }}
+                  aria-label={ko ? '메모 (선택)' : 'Note (optional)'}
+                  placeholder={ko ? '메모 (선택)' : 'Note (optional)'}
+                  className="block w-full resize-none rounded-xl border border-white/15 bg-white/[0.02] px-3 py-2 text-xs leading-[18px] text-white outline-none transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-emerald-300/60"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-4 py-3">
+                <button type="button" onClick={() => setAsking(false)} className="ds-intrinsic inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">{ko ? '취소' : 'Cancel'}</button>
+                <button type="button" data-mix-send disabled={reviewerIds.length === 0} onClick={send} className="ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
+                  <Send className="size-3.5" />
+                  {ko ? '요청 보내기' : 'Send request'}
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
         <button
           type="button"
           data-mix-fold
@@ -251,6 +446,10 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                 {ko ? `모두 시안 ${column.letter}로` : `All from draft ${column.letter}`}
               </DropdownMenuItem>
             ))}
+            <DropdownMenuItem data-mix-advance aria-checked={advance} role="menuitemcheckbox" onClick={() => setAdvance(!advance)}>
+              {advance ? <Check className="size-3.5 text-emerald-300" /> : <span className="size-3.5" />}
+              {ko ? '선택 후 다음 항목으로 이동' : 'Move on after a pick'}
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={decided === 0 && !decisions[LAYOUT_KEY]}
               onClick={() => { rows.forEach((row) => row.decided && onDecide(row.key, null)); onDecide(LAYOUT_KEY, null); setStep(0) }}
@@ -268,6 +467,14 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
           and folds back down, 200ms (at once under reduced motion). */}
       <div data-mix-cards-fold className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', folded ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}>
         <div inert={folded} aria-hidden={folded} className="min-h-0 overflow-hidden">
+          {/* The warning being looked at, said where the picking is. */}
+          {warningShown && failing.some((check) => check.id === warningShown) && (
+            <p data-mix-warning role="status" className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-[11.5px] text-amber-200">
+              <TriangleAlert className="size-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{translateText(failing.find((check) => check.id === warningShown).title, language)}</span>
+              {failing.length > 1 && <span className="shrink-0 text-amber-200/70 tabular-nums">{`${failing.findIndex((check) => check.id === warningShown) + 1}/${failing.length}`}</span>}
+            </p>
+          )}
           <div
             ref={cardsRef}
             role="radiogroup"
@@ -292,7 +499,7 @@ function MixPanel({ item, options, decisions, selectedLayerId, onDecide, checks,
                   data-mix-option={option.key}
                   aria-checked={option.picked}
                   title={`${option.name} · ${valueOf(option)}${issues.length ? ` · ${issues.map((check) => translateText(check.title, language)).join(' · ')}` : ''}`}
-                  onClick={() => { if (!option.picked) onDecide(current.key, option.decision) }}
+                  onClick={() => pick(current, option)}
                   className={cn('ds-intrinsic flex min-w-0 snap-start flex-col gap-1.5 rounded-xl p-1.5 text-left transition-colors', option.picked ? (issues.length ? 'bg-amber-300/10 ring-2 ring-amber-300' : 'bg-emerald-400/10 ring-2 ring-emerald-300') : 'ring-1 ring-white/10 hover:bg-white/[0.04] hover:ring-sky-400/60')}
                 >
                   {current.region && screen
@@ -416,6 +623,7 @@ function MergeStudioWorkspace({ item }) {
     createMergeRequest,
     completeMerge,
     currentUser,
+    otherMembers,
     mergeItems,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
@@ -579,6 +787,31 @@ function MergeStudioWorkspace({ item }) {
     openConflictReview(requestId, { view: 'overlay' })
   }
 
+  // Asked for from the parts bar, without leaving the canvas: the same
+  // request `finishMix` makes (its record and review), sent to the reviewers
+  // picked there, with the note.
+  function sendMixRequest({ reviewerIds, note, warnings }) {
+    if (item.tag === 'Merged') return
+    const conflict = conflicts.find(c => c.mergeItemId === item.id || c.id === item.conflictId)
+    const requestId = conflict?.id ?? createMergeRequest(item).id
+    updateConflict(requestId, {
+      submittedForMergeAt: Date.now(), reviewStage: 'in_review', requestedBy: currentUser?.id ?? null,
+      reviewers: reviewerIds.map((id) => ({ id, status: 'pending' })),
+      mixRequest: { note: note || null, warnings, at: Date.now() },
+    })
+    toast('병합 요청을 보냈어요', { description: item.title, action: { label: '요청 보기', onClick: () => { endComparison(); exitMergeStudio(); openConflictReview(requestId, { view: 'overlay' }) } } })
+  }
+  // One whole draft, for every part at once (one edit: ⌘Z takes it back).
+  function takeWholeDraft(draftKey) {
+    if (item.tag === 'Merged') return
+    const rows = draftRows({}, item, resolutions)
+    setResolutions((prev) => {
+      const next = { ...prev }
+      for (const row of rows) { const option = row.options.find((entry) => entry.key === draftKey); if (option) next[row.key] = option.decision }
+      return next
+    })
+  }
+
   // A screen the designer owns (`saveOnFinish`) is saved as mixed — the
   // composed result replaces the page's design and a History checkpoint
   // records it — with no approval round.
@@ -605,7 +838,14 @@ function MergeStudioWorkspace({ item }) {
     ? conflicts.find((c) => c.reviewStage !== 'resolved' && !c.rollback && (c.mergeItemId === item.id || c.id === item.conflictId)) ?? null
     : null
   const adjustmentCount = studioAdjustmentsOf(item, { [item?.id]: { assemblies } }).reduce((sum, entry) => sum + entry.changes.length, 0)
-  const mixPicked = designComparison && item ? draftRows({}, item, resolutions).filter((row) => row.decided).length : 0
+  const mixRows = designComparison && item ? draftRows({}, item, resolutions).filter((row) => row.options.some((option) => designComparison.options.some((entry) => entry.key === option.key))) : []
+  const mixPicked = mixRows.filter((row) => row.decided).length
+  // Its request, once asked for: waiting on the reviewers.
+  const mixConflict = item ? conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId) ?? null : null
+  // ('in_review' until the reviewers have all signed off, then 'approved'.)
+  const mixRequested = mixConflict?.mixRequest && ['in_review', 'approved'].includes(mixConflict.reviewStage) ? mixConflict.reviewStage : null
+  // (The title's status pressed: the parts bar unfolds on the next part to pick.)
+  const [mixNudge, setMixNudge] = useState(0)
   // Design Compare's selected drafts, reshaped as frames for
   // MergeInfiniteCanvas's own pan/zoom space — the same "one shared frame
   // + per-option overrides" shape Option A/B already use there, so the
@@ -1384,18 +1624,17 @@ function MergeStudioWorkspace({ item }) {
             <span className="flex items-baseline gap-2 pr-2 pl-0.5 whitespace-nowrap">
               <span className="text-[13px] font-semibold text-white"><LocalizedText text={designComparison.item.title} /></span>
             </span>
-            {/* The primary action: done mixing — enabled once anything's
-                been picked from a draft. */}
+            {/* Where it stands — said, not a button to finish from: that's the
+                parts bar's, where the picking is. Pressing it goes there. */}
             <button
               type="button"
-              disabled={mixPicked === 0 || item.tag === 'Merged'}
-              data-merge-request
-              title={mixPicked === 0 ? 'Pick values from the drafts first' : undefined}
-              onClick={item.saveOnFinish ? saveMix : finishMix}
-              className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-default disabled:bg-white/[0.06] disabled:font-medium disabled:text-slate-500"
+              data-mix-status={mixRequested ? 'requested' : item.tag === 'Merged' ? 'done' : 'picking'}
+              title={mixRequested || item.tag === 'Merged' ? undefined : '다음 항목 고르기'}
+              onClick={() => setMixNudge((count) => count + 1)}
+              className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium whitespace-nowrap text-slate-300 tabular-nums transition-colors hover:bg-white/[0.08] hover:text-white"
             >
-              <Check className="size-3.5" strokeWidth={2.5} />
-              <LocalizedText text={item.saveOnFinish ? (item.tag === 'Merged' ? '저장됨' : '확정하고 저장') : '병합 요청'} />
+              <span aria-hidden className="text-slate-600">·</span>
+              {mixRequested === 'approved' ? '승인됨' : mixRequested ? '검토 대기' : item.tag === 'Merged' ? '저장됨' : `${mixPicked}/${mixRows.length} 선택`}
             </button>
           </div>
         )}
@@ -1461,6 +1700,16 @@ function MergeStudioWorkspace({ item }) {
           <div className="pointer-events-none absolute bottom-4 z-40 flex justify-center" style={{ left: `calc(${draftShare * 100}% + 12px)`, right: 12 }} data-mix-pane>
           <MixPanel
             paneShare={1 - draftShare}
+            nudge={mixNudge}
+            finish={{
+              kind: item.saveOnFinish ? 'save' : 'request',
+              requested: mixRequested,
+              done: item.tag === 'Merged',
+              reviewers: (otherMembers ?? []).map((member) => ({ id: member.id, name: member.name })),
+              defaultReviewerIds: (mixConflict?.reviewers?.length ? mixConflict.reviewers.map((reviewer) => reviewer.id) : (otherMembers ?? []).slice(0, 1).map((member) => member.id)).filter((id) => (otherMembers ?? []).some((member) => member.id === id)),
+              onSend: sendMixRequest,
+              onSave: saveMix,
+            }}
             // A part picked from the list is outlined on the Result too.
             onShowRegion={(regionId) => {
               const first = frame0?.layers.find((layer) => layer.regionId === regionId)
@@ -1497,6 +1746,7 @@ function MergeStudioWorkspace({ item }) {
               frame={designCompare.frame}
               decisions={resolutions}
               share={draftShare}
+              onTakeAll={item.tag === 'Merged' || mixRequested ? undefined : takeWholeDraft}
               // Picked right in a draft's cell: that draft's version of the
               // part goes into the Result.
               onPick={(regionId, draftKey) => {

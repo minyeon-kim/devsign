@@ -29,6 +29,30 @@ assert.match(panel, /motion-reduce:transition-none/)
 // Kept across a reload, and safe when storage isn't there.
 assert.match(source, /const readFolded = \(\) => \{ try \{ return localStorage\.getItem\(MIX_FOLD_KEY\) === '1' \} catch \{ return false \} \}/)
 
+// ── The next step, at the row's end ──
+// One button that changes with where the mix is: next part → warnings to look at → the request.
+assert.match(panel, /pending > 0 \? 'next' : failing\.length > 0 && seenWarnings !== warningKey \? 'warn' : 'ready'/)
+assert.ok(panel.includes('data-mix-step={stage}') && panel.includes("data-merge-request={stage === 'ready' ? '' : undefined}"))
+assert.ok(panel.includes('`경고 ${failing.length}개 확인`') && panel.includes("'병합 요청됨 · 검토 대기'"))
+// A pick moves on after 300ms — not once every part is picked — and it can be turned off.
+assert.match(source, /const MIX_ADVANCE_MS = 300/)
+assert.match(panel, /if \(!advance \|\| !others\) return/)
+assert.match(panel, /data-mix-advance aria-checked=\{advance\}/)
+// The request is asked for over the button: the mix, warnings left in, reviewers, a note.
+assert.ok(panel.includes('<PopoverContent data-mix-request side="top"') && panel.includes('data-mix-summary') && panel.includes('`경고 ${failing.length}개 포함`') && panel.includes('data-mix-reviewer') && panel.includes('data-mix-send'))
+assert.match(panel, /finish\.onSend\(\{ reviewerIds, note: note\.trim\(\), warnings: failing\.length \}\)/)
+// Keyboard, with the panel in focus.
+assert.match(panel, /\(event\.metaKey \|\| event\.ctrlKey\) && event\.key === 'Enter'\) \{ event\.preventDefault\(\); act\(\); return \}/)
+assert.ok(panel.includes("/^[1-9]$/.test(event.key)") && panel.includes('String(option.letter).toLowerCase() === event.key.toLowerCase()'))
+// The title says where it stands and has no button to finish from; the request reuses the existing record.
+const title = source.slice(source.indexOf('{item && designComparison && ('), source.indexOf('{/* The header row\'s right side'))
+assert.ok(title.includes('data-mix-status') && !title.includes('data-merge-request'), 'the merge request is the parts bar’s alone')
+assert.match(source, /const requestId = conflict\?\.id \?\? createMergeRequest\(item\)\.id\n    updateConflict\(requestId, \{/)
+// A whole draft in one edit (so one ⌘Z takes it back), offered on each draft's title.
+assert.match(source, /function takeWholeDraft\(draftKey\) \{[\s\S]{0,260}setResolutions\(\(prev\) => \{/)
+const board = readFileSync(new URL('../src/components/mergestudio/DraftCompareBoard.jsx', import.meta.url), 'utf8')
+assert.ok(board.includes('data-draft-take-all={option.key}') && board.includes("'이 시안으로 모두 선택'") && board.includes('group-hover/draft:inline-flex'))
+
 // The canvas's fit follows the bar's height — while the view is still that fit.
 const canvas = readFileSync(new URL('../src/components/mergestudio/MergeInfiniteCanvas.jsx', import.meta.url), 'utf8')
 assert.ok(canvas.includes('lastFit.current = { view: fitted, lay, options:') && canvas.includes("new ResizeObserver(() => refit())"))
