@@ -187,7 +187,9 @@ export function useFloatingDockApi() {
           if (!g) return
           g.activeId = panelId
           g.open = true
-          g.minimized = false
+          // (Folded by its own button: it stays folded — raising one of its
+          // tabs doesn't open it; only the person does.)
+          if (!g.userFolded) g.minimized = false
           bringGroupToFront(p.groupId)
           notify()
         },
@@ -388,10 +390,12 @@ export function useFloatingDockApi() {
 
   // The split-pane layout's minimize: the window folds down to a slim
   // strip (and back), keeping its place and its tabs.
-  function minimizeGroup(groupId, minimized) {
+  // (`byUser`: folded on purpose — it then stays folded until unfolded on purpose.)
+  function minimizeGroup(groupId, minimized, { byUser = false } = {}) {
     const g = store.groups[groupId]
     if (!g) return
     g.minimized = minimized
+    g.userFolded = minimized && byUser
     if (minimized) g.maximized = false
     notify()
   }

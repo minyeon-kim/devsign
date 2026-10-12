@@ -1,11 +1,8 @@
-import { RAIL_ACTIVE, RAIL_WIDTH, RailButton } from '@/components/dashboard/Sidebar'
-import { translateText } from '@/i18n/translate'
-import { getLanguage } from '@/i18n/language'
 import { codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { cn } from 'cn'
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
 import LayersPanel from '@/components/dockview/panels/LayersPanel'
@@ -45,54 +42,21 @@ const components = {
 const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
 // The navigator's default width, in px.
-// (Its own 240px, and the rail beside it: 48px and the 8px between.)
-const NAVIGATOR_W = 240 + 56
+const NAVIGATOR_W = 240
+// The right panel (Files · Layers · Assets · Properties) folded away by its
+// toggle on the canvas's tab row: kept for the browser.
+const SIDE_FOLD_KEY = 'devsign:right-panel:folded'
+const readSideFolded = () => { try { return localStorage.getItem(SIDE_FOLD_KEY) === '1' } catch { return false } }
+const writeSideFolded = (value) => { try { localStorage.setItem(SIDE_FOLD_KEY, value ? '1' : '0') } catch { /* not kept */ } }
+const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
 const DRAG_THRESHOLD = 5
 // How close to a pane's edge (as a share of its size) a drop docks beside
 // it rather than into it as a tab.
 const EDGE = 0.2
 
-// A window's place on the rail at the work area's right edge: the same icon
-// button the left navigation uses (RailButton) — the icon alone, named by its
-// tooltip, lit while its window is open; pressing it opens the window and
-// folds it again. The rail is as wide as the left one and starts level with
-// the work area; anything added to it stacks under, by the same rule (an
-// icon and a tooltip — never a label, so nothing in it can wrap).
-// (`dir` 'col': folded inside a stack, it's a row across instead.)
-function PanelRail({ group, panelsById, dockApi, dir, open = false }) {
-  const panel = panelsById[group.activeId]
-  const Icon = PANEL_ICONS[panel?.params?.iconName] ?? PANEL_ICONS.Folder
-  const label = translateText(panel?.title ?? 'Window', getLanguage())
-  return (
-    <div
-      data-panel-rail={open ? 'open' : 'folded'}
-      role="toolbar"
-      aria-orientation={dir === 'col' ? 'horizontal' : 'vertical'}
-      aria-label={label}
-      className={cn(
-        'flex shrink-0 gap-1 whitespace-nowrap',
-        dir === 'col' ? 'h-[var(--ds-chrome-size)] w-full flex-row items-center px-2' : cn('h-full flex-col items-center pt-2', RAIL_WIDTH),
-        PANEL_RADIUS,
-        FLOATING_PANEL
-      )}
-    >
-      <RailButton
-        label={label}
-        icon={Icon}
-        side={dir === 'col' ? 'top' : 'left'}
-        aria-expanded={open}
-        data-panel-toggle={group.activeId}
-        onClick={() => dockApi.minimizeGroup(group.id, open)}
-        // (`ds-intrinsic`: the workspace's 32px control height isn't forced on it — 36px, as the left rail's.)
-        className={cn('ds-intrinsic mx-0', open && RAIL_ACTIVE)}
-      />
-    </div>
-  )
-}
-
 // Merge Studio's own minimized state for a floating chat/navigator window:
 // its panes sit absolutely positioned over the canvas rather than docked
-// in the split tree MinimizedStrip expects to be a flex sibling of, so
+// in the split tree (nothing there to keep a place in), so
 // restoring it is its own small floating pill instead — same surface
 // language as the rest of Merge Studio's pills. AI Chat folds the same way
 // in the Workspace too (`corner: 'bottom'`): a pill at the work area's
@@ -415,6 +379,35 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     setChatTargetOverride(documentTarget(doc))
   }
 
+  // The right panel (the navigator's window) and its fold: toggled from the
+  // canvas's tab row or ⌘/Ctrl+B, never opened by anything else, and kept
+  // across reloads.
+  const sideGroup = Object.values(store.groups).find((group) => group.open && group.panelIds.includes(panelById.navigator.id)) ?? null
+  const sideGroupId = sideGroup?.id ?? null
+  const toggleSide = () => {
+    if (!sideGroup) return
+    const fold = !sideGroup.minimized
+    dockApi.minimizeGroup(sideGroup.id, fold, { byUser: true })
+    writeSideFolded(fold)
+  }
+  // (The shortcut reads the latest of it.)
+  const toggleSideFromKey = useEffectEvent(toggleSide)
+  useEffect(() => {
+    if (mergeStudio || !sideGroupId || !readSideFolded()) return
+    dockApi.minimizeGroup(sideGroupId, true, { byUser: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sideGroupId, mergeStudio])
+  useEffect(() => {
+    if (mergeStudio) return undefined
+    const onKey = (event) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'b' || event.defaultPrevented) return
+      event.preventDefault()
+      toggleSideFromKey()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mergeStudio])
+
   function renderNode(node, parentDir) {
     if (node.type === 'leaf') {
       const group = store.groups[node.id]
@@ -422,19 +415,18 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       const showStudio = mergeStudio && group.id === studioGroup?.id
       const floatingSide = mergeStudio && group.panelIds.some((id) => [panelById.chat.id, panelById.navigator.id].includes(id))
       if (group.minimized && !showStudio) {
-        // MinimizedStrip is a flex sibling meant for the normal docked
+        // A folded window has no place of its own in the normal docked
         // split tree — Merge Studio's chat/navigator panes are absolutely
         // positioned over the canvas instead, so they get their own small
         // floating restore pill rather than a strip with nowhere in the
         // flex layout to actually sit.
         if (floatingSide) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} />
         if (group.panelIds.includes(panelById.chat.id)) return <FloatingRestorePill key={group.id} group={group} panelsById={store.panels} dockApi={dockApi} corner="bottom" />
-        return <PanelRail group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} />
+        // Nothing is left in a folded window's place — no strip, no rail. The
+        // right panel stays mounted at no width (SplitNode), so it comes
+        // back as it was; it's folded and unfolded from the canvas's tab row.
+        if (!group.panelIds.includes(panelById.navigator.id)) return null
       }
-      // The navigator (Files · Layers · Assets · Properties) keeps its rail
-      // beside it while open too, its button lit — the one place it's opened
-      // and folded from.
-      const railed = !mergeStudio && parentDir === 'row' && group.panelIds.includes(panelById.navigator.id)
       const leaf = (
         <div data-leaf={group.id} className={cn(
           'min-h-0 min-w-0',
@@ -453,12 +445,14 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             components={components}
             docked={!mergeStudio}
             onDockDragStart={startDockDrag}
+            // The canvas's tab row carries the right panel's toggle.
+            sideToggle={!mergeStudio && sideGroup && group.panelIds.includes(panelById.canvas.id) ? { open: !sideGroup.minimized, onToggle: toggleSide, hint: SIDE_SHORTCUT } : null}
           />
           </div>
           {showStudio && <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden">{children}</div>}
         </div>
       )
-      return railed ? <div className="flex size-full min-h-0 min-w-0 gap-2"><div className="flex min-h-0 min-w-0 flex-1">{leaf}</div><PanelRail open group={group} panelsById={store.panels} dockApi={dockApi} dir={parentDir} /></div> : leaf
+      return leaf
     }
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} floating={mergeStudio} />
   }
@@ -523,12 +517,24 @@ function EmptyFrame({ dockApi }) {
 function SplitNode({ node, dockApi, store, renderNode, floating = false }) {
   const ref = useRef(null)
   const drag = useRef(null)
+  // (While a splitter is dragged, widths follow the pointer — no easing.)
+  const [resizing, setResizing] = useState(false)
   const row = node.dir === 'row'
   const isMinimized = (child) => child.type === 'leaf' && store.groups[child.id]?.minimized
   const visible = node.children.filter((child) => child.type === 'split' || (store.groups[child.id]?.open && store.groups[child.id]?.panelIds.length))
   // Weights as shares of the row / column (flex-grow values that sum
   // below 1 would leave part of it empty).
-  const total = visible.reduce((sum, child) => sum + (isMinimized(child) ? 0 : (node.sizes[node.children.indexOf(child)] ?? 1)), 0) || 1
+  const sizeOf = (child) => node.sizes[node.children.indexOf(child)] ?? 1
+  const foldsAway = (child) => isMinimized(child) && !floating && store.groups[child.id]?.panelIds.includes(panelById.navigator.id)
+  // A folded right panel's share goes to the pane beside it (the canvas) —
+  // the others keep theirs, so nothing else moves when it folds.
+  const absorbed = new Map()
+  visible.forEach((child, i) => {
+    if (!foldsAway(child)) return
+    const beside = visible.slice(0, i).findLast((other) => !isMinimized(other)) ?? visible.slice(i + 1).find((other) => !isMinimized(other))
+    if (beside) absorbed.set(beside.id, (absorbed.get(beside.id) ?? 0) + sizeOf(child))
+  })
+  const total = visible.reduce((sum, child) => sum + (isMinimized(child) && !foldsAway(child) ? 0 : sizeOf(child)), 0) || 1
 
   // Start of a splitter drag: every child's measured size becomes its
   // weight (so nothing else jumps), then the pair on either side trades.
@@ -553,23 +559,29 @@ function SplitNode({ node, dockApi, store, renderNode, floating = false }) {
     dockApi.setSplitSizes(node.id, sizes)
   }
 
+  // Folded: the right panel keeps its place in the row at no width (so its
+  // width eases in and out, 200ms — at once under reduced motion, and never
+  // while a splitter is being dragged); anything else folded takes no room.
+  const collapses = foldsAway
+  const takesRoom = (child) => !isMinimized(child) || collapses(child)
   return (
     <div ref={ref} className={floating ? 'contents' : cn('flex size-full min-h-0 min-w-0', row ? 'flex-row' : 'flex-col')}>
       {visible.map((child, i) => {
         const index = node.children.indexOf(child)
-        const prev = visible[i - 1]
+        const prev = visible.slice(0, i).findLast(takesRoom)
         const resizable = prev && !isMinimized(prev) && !isMinimized(child)
+        const folded = collapses(child)
         return (
           <div key={child.id} className="contents">
-            {prev && !floating &&
+            {prev && !floating && takesRoom(child) &&
               (resizable ? (
                 <SplitHandle
                   label="Resize panes"
                   orientation={row ? 'vertical' : 'horizontal'}
                   className={row ? 'w-2' : 'h-2'}
-                  onResizeStart={() => startResize(node.children.indexOf(prev), index)}
+                  onResizeStart={() => { setResizing(true); startResize(node.children.indexOf(prev), index) }}
                   onResize={resize}
-                  onResizeEnd={() => (drag.current = null)}
+                  onResizeEnd={() => { drag.current = null; setResizing(false) }}
                   onStep={(delta) => {
                     startResize(node.children.indexOf(prev), index)
                     resize(delta)
@@ -577,15 +589,21 @@ function SplitNode({ node, dockApi, store, renderNode, floating = false }) {
                   }}
                 />
               ) : (
-                <span className={row ? 'w-2 shrink-0' : 'h-2 shrink-0'} />
+                // (The gap goes with a folded panel.)
+                <span className={cn('shrink-0 transition-[width,height] duration-200 ease-out motion-reduce:transition-none', folded ? 'size-0' : row ? 'w-2' : 'h-2')} />
               ))}
-            {isMinimized(child) ? (
+            {isMinimized(child) && !folded ? (
               renderNode(child, node.dir)
             ) : (
               <div
                 data-split-child={index}
-                className={floating ? "contents" : "flex min-h-0 min-w-0"}
-                style={floating ? undefined : { flex: `${((node.sizes[index] ?? 1) / total) * 100} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
+                data-folded={folded ? '' : undefined}
+                inert={folded || undefined}
+                aria-hidden={folded || undefined}
+                className={floating ? "contents" : cn("flex min-h-0 min-w-0", !resizing && "transition-[flex-grow,min-width,opacity] duration-200 ease-out motion-reduce:transition-none", folded && "overflow-hidden opacity-0")}
+                style={floating ? undefined : folded
+                  ? { flex: '0 1 0px', minWidth: 0, minHeight: 0 }
+                  : { flex: `${(((node.sizes[index] ?? 1) + (absorbed.get(child.id) ?? 0)) / total) * 100} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
               >
                 {renderNode(child, node.dir)}
               </div>

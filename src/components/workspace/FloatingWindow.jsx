@@ -1,3 +1,4 @@
+import { PanelToggleButton } from '@/components/dashboard/Sidebar'
 import { useRef, useState } from 'react'
 import { ChevronsRight, Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -33,7 +34,9 @@ const DRAG_THRESHOLD = 4
 // dragging one of its tabs (just that tab moves) — and its header holds
 // only its tabs (each closes itself) and the `+` view menu: no window
 // controls.
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart }) {
+// `sideToggle`: on the canvas's window — { open, onToggle, hint } — the button
+// at its tab row's right end that folds the right panel away and back.
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -233,6 +236,19 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
                 <X className="size-3.5" />
               </button>
             </div>
+          )}
+          {/* The right panel's toggle: always at the row's right end — the tabs
+              before it are what scrolls when there are many. */}
+          {sideToggle && !isMaximized && (
+            <PanelToggleButton
+              mirrored
+              data-side-toggle={sideToggle.open ? 'open' : 'folded'}
+              label={sideToggle.open ? '오른쪽 패널 접기' : '오른쪽 패널 펼치기'}
+              hint={sideToggle.hint}
+              expanded={sideToggle.open}
+              onClick={sideToggle.onToggle}
+              className="ds-intrinsic ml-auto"
+            />
           )}
         </div>
       )}

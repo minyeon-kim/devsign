@@ -197,19 +197,30 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
   )
 }
 
-function CloseButton({ onClose }) {
+// The button that folds a side panel away (and brings it back): the sidebar
+// icon — mirrored for a panel on the right — named by its tooltip. The left
+// list's Close and the canvas's right-panel toggle are this one button.
+//   label: what it does, for the tooltip and the screen reader;  hint: its shortcut, said after it
+//   expanded: whether the panel it folds is showing (omit for a plain close)
+export function PanelToggleButton({ label, tip = label, hint = null, onClick, mirrored = false, expanded, side = 'bottom', className, ...rest }) {
   return (
     <Tooltip>
       <TooltipTrigger
-        onClick={onClose}
-        aria-label="Close drawer"
-        className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        onClick={onClick}
+        aria-label={label}
+        aria-expanded={expanded}
+        className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground', className)}
+        {...rest}
       >
-        <PanelLeftClose className="size-[18px]" />
+        <PanelLeftClose className={cn('size-[18px]', mirrored && '-scale-x-100')} />
       </TooltipTrigger>
-      <TooltipContent side="bottom">Close</TooltipContent>
+      <TooltipContent side={side}>{tip}{hint && <span className="ml-1.5 opacity-60">{hint}</span>}</TooltipContent>
     </Tooltip>
   )
+}
+
+function CloseButton({ onClose }) {
+  return <PanelToggleButton label="Close drawer" tip="Close" onClick={onClose} />
 }
 
 // Claude-style back / forward icons in the drawer header — through the
