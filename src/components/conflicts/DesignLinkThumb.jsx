@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -184,6 +184,72 @@ export function BreakpointScreen({ conflict }) {
         </span>
       </button>
       {previewOpen && <ElementPreviewDialog conflict={conflict} link={link} open startFullscreen onOpenChange={setPreviewOpen} />}
+    </div>
+  )
+}
+
+// ── Where the change is, as a block of its own (the full-page detail's side panel) ──
+// The label in a line — "화면 위치 · 프레임 1" — then the screen across the
+// panel's full width: drawn whole, to scale, no taller than 240px, centred on
+// a dark surface with a hairline border. The element the change is about is
+// boxed in the app's accent (1.5px). Pressed, it goes to that frame on the canvas.
+// Nothing is shown when there's no screen to show.
+export const SCREEN_MAX_HEIGHT = 240
+export function ScreenLocation({ conflict, className }) {
+  const { workspace, link } = useDesignLink(conflict)
+  const box = useRef(null)
+  const [width, setWidth] = useState(0)
+  useLayoutEffect(() => {
+    const node = box.current
+    if (!node) return undefined
+    setWidth(node.clientWidth)
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+  // A layout change is about a screen at its breakpoint; any other, its design frame.
+  const device = conflict.decisionFlow && conflict.layouts ? ALL_DEVICES.find((entry) => entry.width === Number(conflict.breakpoint)) ?? null : null
+  if (!workspace || (!link && !device)) return null
+  const size = device ?? link.frame
+  // (16px of surface around it; never enlarged past its own size.)
+  const scale = width > 0 ? Math.min(1, (width - 32) / size.width, (SCREEN_MAX_HEIGHT - 32) / size.height) : 0
+  const layer = device ? null : link.layer
+  const frameNumber = link?.frameNumber ?? 1
+  const where = device ? `${device.width}px ${BREAKPOINT_KO[breakpointOf(device.width)] ?? BREAKPOINT_LABEL[breakpointOf(device.width)]}` : layer?.name ?? null
+  const template = conflict.layouts?.original?.template ?? `repeat(${conflict.layouts?.original?.columns ?? 2}, minmax(0, 1fr))`
+  return (
+    <div data-screen-location className={cn('flex min-w-0 flex-col gap-1.5', className)}>
+      <p data-screen-location-label className="flex min-w-0 items-baseline gap-1 text-[11px] leading-4 text-slate-400">
+        <span className="shrink-0"><LocalizedText text="Where on the screen" /> · <LocalizedText text="Frame" /> {frameNumber}</span>
+        {where && <span translate="no" className="min-w-0 truncate text-slate-500">· {where}</span>}
+      </p>
+      <button
+        ref={box}
+        type="button"
+        data-screen-location-thumb
+        aria-label="캔버스에서 이 프레임 보기"
+        title="캔버스에서 이 프레임 보기"
+        // (To the canvas, on that frame: the detail it's pressed from steps aside.)
+        onClick={() => { if (workspace.revealConflictOnCanvas(conflict) !== false) workspace.openConflictReview?.(null) }}
+        className="ds-intrinsic relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-[8px] border border-white/[0.08] bg-[var(--ds-surface-overlay-hover)] transition-colors hover:border-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+        style={{ height: scale > 0 ? Math.round(size.height * scale) + 32 : SCREEN_MAX_HEIGHT, maxHeight: SCREEN_MAX_HEIGHT }}
+      >
+        {scale > 0 && (
+          <span aria-hidden className="pointer-events-none relative block shrink-0 overflow-hidden rounded-[3px] bg-white" style={{ width: size.width * scale, height: size.height * scale }}>
+            {device ? (
+              <span className="absolute top-0 left-0 block">
+                <CodeRender spec={{ component: 'dashboard-grid', tablet: template, base: template }} screen={device} scale={scale} labels={false} className="!rounded-none !shadow-none !ring-0" />
+              </span>
+            ) : (
+              <span className="absolute top-0 left-0 block origin-top-left" style={{ width: size.width, height: size.height, transform: `scale(${scale})` }}>
+                {link.frame.layers.map((item) => <StaticLayer key={item.id} layer={item} />)}
+              </span>
+            )}
+            {/* The area that changed: boxed in the accent — a line around it, nothing over it. */}
+            {layer && <span data-screen-location-mark className="absolute rounded-[2px] border-[1.5px] border-emerald-400" style={{ left: layer.x * scale - 2, top: layer.y * scale - 2, width: Math.max(layer.width * scale + 4, 8), height: Math.max(layer.height * scale + 4, 8) }} />}
+          </span>
+        )}
+      </button>
     </div>
   )
 }

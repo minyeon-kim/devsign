@@ -53,7 +53,7 @@ import { toast } from '@/i18n/toast'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
-import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
+import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, ScreenLocation, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY } from '@/components/conflicts/DesignDecisionFlow'
 import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
@@ -558,7 +558,9 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
   )
 }
 
-function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null, hideTodo }) {
+// `page`: the full-page detail's order — where it is on the screen first (a block of
+// its own, across the panel), then what it is, then `reviewers`, then the details.
+function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null, hideTodo, page = false, reviewers = null }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
   // that the arrow turned and nothing seemed to happen.
@@ -635,10 +637,12 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
 
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
-      {!mix && !conflict.rollback && (cause_text || cause || why || standard || designLink) && (
+      {/* (The page: the screen it's on comes first, the first thing under the tabs.) */}
+      {page && !mix && !conflict.rollback && designLink && <section data-info-section="Screen" className={INFO_SECTION}><ScreenLocation conflict={conflict} /></section>}
+      {!mix && !conflict.rollback && (cause_text || cause || why || standard || (designLink && !page)) && (
         <InfoSection title="Conflict information" className="border-t-0 pt-1">
           <dl data-info-problem className={GRID}>
-            {designLink && (
+            {designLink && !page && (
               <Row label="Where on the screen" data-summary-row="Screen">
                 {conflict.decisionFlow && conflict.layouts ? <BreakpointScreen conflict={conflict} /> : (
                   <div className="flex min-w-0 flex-col items-start gap-1.5">
@@ -703,6 +707,8 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
         </InfoSection>
       )}
 
+      {/* (The page: who reviews it, after what it is — before the details.) */}
+      {reviewers}
       {/* Details: folded; its rows share the same label column. */}
       <InfoSection sectionRef={detailsRef} title="Developer details" open={showDetails} onToggle={() => setShowDetails((value) => !value)} toggleProps={{ 'data-details-toggle': '' }}>
         {showDetails && (
@@ -3479,11 +3485,24 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {!conflict.rollback && conflict.fileId && <button type="button" data-merged-code-link onClick={() => (activity.entries.length ? openReplay(replayEntryFor('end')) : handleOpenFile())} className="ml-auto text-xs font-medium text-emerald-200 underline-offset-2 hover:text-white hover:underline"><LocalizedText text="View merged code" /></button>}
                     </div>
                   )
+  // Who reviews it: before the rest in the panel; on the page, after what the change is.
+  const reviewersSection = conflict && !conflict.rollback ? (
+    <InfoSection title="Reviewers" className="mb-5">
+      <ReviewersSection
+        conflict={conflict}
+        onUpdate={onUpdate ? update : undefined}
+        onDismiss={workspace?.dismissChangeRequest}
+        onReviewerAssigned={focusNextAction}
+        quiet={page && Boolean(conflict.decisionFlow)}
+      />
+      <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
+    </InfoSection>
+  ) : null
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
+            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5 xl:pr-[380px]') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
               <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
                 <div className={cn('flex min-w-0 items-center gap-2.5', !page && 'flex-wrap')}>
                   {!page && <button
@@ -3729,7 +3748,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     impact, evidence, approvals, reviewers, details) and
                     Comments (the thread and its composer), as two tabs. The
                     comparison beside it takes all the rest. */}
-                <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD)}>
+                {/* (On the page, wide: it starts on the title's row — not under the header — and stays
+                    there while the main view scrolls. Its column in the grid is kept by the spacer after it.) */}
+                <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD, page && 'xl:absolute xl:top-2 xl:right-[calc(max((100%-1180px)/2,0px)+40px)] xl:bottom-6 xl:h-auto xl:w-[320px] xl:!pt-3')}>
                   <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
                     {/* A design decision keeps one record — its History — in
                         place of separate Comments and Activity. */}
@@ -3758,24 +3779,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     ))}
                   </div>
                   {sideTab === 'info' ? (
-                    <div data-review-scroll="info" role="tabpanel" className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:mt-8 [&>[data-info-section]+[data-review-info]]:mt-8')}>
+                    <div data-review-scroll="info" role="tabpanel" className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3')}>
                       {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
                       {/* (On the page the steps are the record in the main view.) */}
                       {!page && !conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
-                      {!conflict.rollback && (
-                        <InfoSection title="Reviewers" className="mb-5">
-                          <ReviewersSection
-                            conflict={conflict}
-                            onUpdate={onUpdate ? update : undefined}
-                            onDismiss={workspace?.dismissChangeRequest}
-                            onReviewerAssigned={focusNextAction}
-                            quiet={page && Boolean(conflict.decisionFlow)}
-                          />
-                          <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
-                        </InfoSection>
-                      )}
+                      {!page && reviewersSection}
                       <OverviewTab
                         key={`overview:${conflict.id}`}
+                        page={page}
+                        reviewers={page ? reviewersSection : null}
                         rationale={rationale}
                         onOpenEvidence={openEvidence}
                         checks={checks}
@@ -3819,6 +3831,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   )}
                 </aside>
+                {page && <div aria-hidden data-review-sidebar-space className="hidden xl:block" />}
               </div>
             </div>
           </>
