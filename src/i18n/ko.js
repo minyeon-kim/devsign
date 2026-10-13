@@ -2521,3 +2521,22 @@ Object.assign(ko, {
   'Field labels use tracking-wide; the design system label style has normal tracking.': '필드 레이블의 코드 값은 tracking-wide이고 디자인 값은 normal 자간이에요.',
   'The Place order button is 40px tall with a fixed violet background (#7c3aed). The Checkout design uses the 44px large button and the primary color token.': '주문 버튼 코드 값은 높이 40px와 고정 보라색(#7c3aed)이에요. 디자인 값은 높이 44px와 primary 색상 토큰이에요.',
 })
+
+// History layer — one header, a Screen | Code tab, a quiet toolbar.
+Object.assign(ko, {
+  'Restore this version': '이 버전 복원',
+  'Copy link': '링크 복사',
+  'Link copied': '링크를 복사했어요',
+  'Couldn’t copy the link': '링크를 복사하지 못했어요',
+  'Open in Workspace': '워크스페이스에서 열기',
+  'Open change': '열기',
+  'Check change': '변경 확인',
+  'Change needs checking': '변경 확인 필요',
+  'Details': '자세히',
+  'Every other checkpoint is filtered out of this playback.': '필터에 걸리지 않은 체크포인트는 재생에서 빠져요.',
+})
+Object.assign(ko, {
+  'Previous version': '이전 버전',
+  'More view options': '보기 옵션 더 보기',
+  'Ring the changed elements': '바뀐 요소에 링 표시',
+})

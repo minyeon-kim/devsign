@@ -12,7 +12,7 @@ import SwitchUserItems from '@/components/dashboard/SwitchUserItems'
 import { LocalizedText } from '@/i18n/runtime'
 import { currentUser, currentUserFor } from '@/data/mockData'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
-import HistoryDrawer from '@/components/dashboard/HistoryDrawer'
+import HistoryDrawer, { HistoryCount } from '@/components/dashboard/HistoryDrawer'
 import ImportDrawer from '@/components/dashboard/ImportDrawer'
 import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
@@ -355,6 +355,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
           <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
+              {panel === 'history' && project && <HistoryCount />}
             </p>
             <HistoryNavButtons />
             <CloseButton onClose={onCloseDrawer} />

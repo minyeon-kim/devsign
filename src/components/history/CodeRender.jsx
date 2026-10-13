@@ -27,8 +27,8 @@ const CARDS = [
 // own danger / warning / info colors — the content under it stays readable.
 export const INSPECT_TONE = {
   danger: { line: 'var(--destructive)', fill: 'color-mix(in oklab, var(--destructive) 16%, transparent)' },
-  warning: { line: '#fcd34d', fill: 'color-mix(in oklab, #fcd34d 14%, transparent)' },
-  info: { line: '#7dd3fc', fill: 'transparent' },
+  warning: { line: '#cbd5e1', fill: 'color-mix(in oklab, #cbd5e1 12%, transparent)' },
+  info: { line: '#6ee7b7', fill: 'transparent' },
 }
 
 const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(251 191 36 / 22%)' }
@@ -42,9 +42,9 @@ const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow
 // screen is shown — the frame is the region's size and the screen is moved under it —
 // so what's marked or inspected stays exactly on its element (History's "바뀐 요소").
 // Every part carries `data-render-part` (grid, cards, title, subtitle, cta): where it is can be read off the DOM.
-export default function CodeRender({ spec, screen, scale = 1, marked = false, markStyle = null, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true, region = null }) {
+export default function CodeRender({ spec, screen, scale = 1, marked = false, markStyle = null, markTitle = undefined, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true, region = null }) {
   const partMark = markStyle ?? MARK
-  const mark = (part) => ({ 'data-render-part': part, ...(parts.includes(part) ? { 'data-render-mark': part, style: partMark } : {}) })
+  const mark = (part) => ({ 'data-render-part': part, ...(parts.includes(part) ? { 'data-render-mark': part, style: partMark, title: markTitle } : {}) })
   const layout = layoutAt(spec, screen)
   const viewport = crop ? { ...screen, height: Math.min(screen.height, typeof crop === 'number' ? crop : layout.contentHeight) } : screen
   const { columns, padding, gap, cardWidth, overlap, squeezed } = layout
@@ -60,6 +60,7 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, ma
           data-render-grid
           data-render-part="grid"
           data-render-mark={marked ? 'grid' : undefined}
+          title={marked ? markTitle : undefined}
           className="relative mt-6 grid"
           style={{
             // (Fixed-width cards that don't fit: the grid stays the screen's
@@ -78,6 +79,7 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, ma
               data-render-card
               data-render-part="cards"
               data-render-mark={parts.includes('cards') ? 'cards' : undefined}
+              title={parts.includes('cards') ? markTitle : undefined}
               className="relative flex h-[132px] flex-col gap-2 rounded-2xl border bg-white p-4 shadow-sm"
               style={{
                 ...(overflowing && { width: cardWidth, zIndex: index + 1, background: 'rgb(255 255 255 / 86%)', justifySelf: index % columns === 0 ? 'start' : index % columns === columns - 1 ? 'end' : 'center' }),

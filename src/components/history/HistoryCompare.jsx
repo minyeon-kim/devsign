@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { changeHref, sourceKeyOf } from '@/lib/changeLink'
-import { Archive, ArchiveRestore, ChevronRight, MoreHorizontal, Code2, MessageSquareText, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, ChevronDown, ChevronRight, Code2, Link2, MessageSquareText, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -19,8 +18,10 @@ import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
 import { categoryFor, layoutDelta, layoutDeltaCode, problemsAt, renderOf } from '@/lib/codeRender'
 import { referencePick, screenOf } from '@/lib/devicePresets'
-import { useNavigate } from 'react-router-dom'
-import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { EvidenceLinks, ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
+import { historyHref, readHistoryView, withHistoryView } from '@/lib/historyLink'
+import { toast } from '@/i18n/toast'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { checkpointRationale } from '@/lib/rationale'
 
@@ -68,8 +69,9 @@ function snapshotLines(snapshot) {
 // (back, which step, the way out to History). Everything under it is this
 // component's, as on the History page.
 function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position, embedded = false, header = null, codeOpenByDefault = false }) {
-  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages } = useWorkspace()
+  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages, closeHistory } = useWorkspace()
   const navigate = useNavigate()
+  const location = useLocation()
   const language = useLanguage()
   const [ruleFocus, setRuleFocus] = useState(null)
   // The diff: stacked or side by side, and the changed hunks or the whole file.
@@ -83,6 +85,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   // unfolded (`codeOpenByDefault`); the History page starts on one line.
   const [codeOpen, setCodeOpen] = useState(codeOpenByDefault)
   const [reasonOpen, setReasonOpen] = useState(false)
+  // The Screen tab was picked by hand (it isn't in the address: it's the default).
+  const [screenPicked, setScreenPicked] = useState(false)
   // The problem line is under the pointer: its area on the render is drawn stronger.
   const [problemHover, setProblemHover] = useState(false)
   const entry = historyEntries.find((h) => h.id === entryId)
@@ -117,7 +121,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   const comparison = useMemo(() => {
     if (!entry || !baseEntryOf || sameAsBase) return null
     return base === 'previous'
-      ? { left: previousEntry, right: entry, leftTitle: number ? `Checkpoint #${number - 1}` : 'Previous checkpoint', rightTitle: mineTitle, thisSide: 'other' }
+      ? { left: previousEntry, right: entry, leftTitle: number ? `Previous · #${number - 1}` : 'Previous version', rightTitle: mineTitle, thisSide: 'other' }
       : { left: entry, right: current, leftTitle: mineTitle, rightTitle: 'Current version', thisSide: 'mine' }
   }, [entry, baseEntryOf, sameAsBase, base, previousEntry, number, mineTitle, current])
   const pair = playing ? null : comparison
@@ -135,7 +139,6 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     return wholeFile ? numberRows(rows) : foldRows(rows)
   }, [showDiff, rows, entry, wholeFile])
   const changedLines = useMemo(() => changedLineCount(rows), [rows])
-  const codeView = codeViewOf({ open: codeOpen, playing, comparing: Boolean(comparison), changedLines, wholeFile })
   // Playing: the checkpoint before this one until its code is typed in,
   // then this one. Otherwise the latest (comparing) or this version.
   const shownSnapshot = playing ? (baseEntry && !typed ? baseEntry : entry) : pair ? pair.right : entry
@@ -207,6 +210,17 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     }
   }, [entry, baseEntry, typed, playing, pair, comparison, previousEntry, current, projectId, mineTitle, base])
 
+  // The page's tab: the one the address names (&view=code), else the one picked
+  // — kept through checkpoints and playback — else what the checkpoint changed:
+  // the screen, unless it only changed code.
+  const screenChanged = codeRender ? !codeRender.unchanged : changedIds.length > 0
+  const view = embedded ? null : readHistoryView(location.search) ?? (screenPicked || screenChanged || changedLines === 0 ? 'screen' : 'code')
+  const setView = (next) => {
+    setScreenPicked(next === 'screen')
+    navigate({ pathname: location.pathname, search: withHistoryView(location.search, next) }, { replace: true, state: location.state })
+  }
+  const codeView = codeViewOf({ open: embedded ? codeOpen : view === 'code', playing, comparing: Boolean(comparison), changedLines, wholeFile })
+
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
   const playTo = useMemo(() => snapshotLines(entry?.snapshot), [entry])
   const handleTyped = useCallback(() => setTypedId(entryId), [entryId])
@@ -251,6 +265,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   const problemBeganHere = problem ? !codeRender.previousProblems.some((item) => item.id === problem.id) : false
   const problemRemains = problem ? codeRender.currentProblems.some((item) => item.id === problem.id) : false
   const problemConflict = why.evidence.find((item) => item.kind === 'conflict') ?? null
+  // The problem as one sentence — the header chip's tooltip.
+  const problemSentence = problem ? `${problemBeganHere ? '이 버전부터 ' : ''}${codeRender.referenceWidth}px에서 ${problem.id === 'overlap' ? `카드가 ${problem.label.replace(/^카드 겹침 /, '')} 겹쳐요` : problem.label}${isCurrent ? '' : problemRemains ? ' · 현재 버전에도 남아 있음' : ' · 현재 버전에서는 해결됨'}` : null
   // (The change itself is on the meta line; the rest backs the reason.)
   const reasonEvidence = why.evidence.filter((item) => item.kind !== 'conflict')
   // Who made it (and who approved) — without its kind or file, said elsewhere.
@@ -265,6 +281,10 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     // (The source goes by id — this checkpoint's, and which of its sources — and is found again there.)
     if (conflictId) navigate(changeHref(projectId, conflictId, item.kind === 'conflict' ? {} : { evidence: entry.id, source: sourceKeyOf(item) }))
   }
+  function copyLink() {
+    const url = new URL(historyHref(projectId, entry.id), window.location.origin).href
+    Promise.resolve(navigator.clipboard?.writeText(url)).then(() => toast('Link copied')).catch(() => toast('Couldn’t copy the link'))
+  }
   const propChanges = diffBase
     ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
         (key) => diffBase.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
@@ -275,65 +295,83 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   return (
     // A Merge Studio floating panel: the same surface as the Version
     // History drawer, borderless inside, the mint accent for Restore.
-    <div data-history-compare={embedded ? 'embedded' : 'page'} className={cn('flex h-full min-h-0 flex-col overflow-hidden', embedded ? 'rounded-xl bg-white/[0.03]' : cn(PANEL_RADIUS, FLOATING_PANEL))}>
-      {embedded ? header : <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-3 pb-2">
-        {/* One line: the title first (it takes the room; the meta gives way
-            before it does, and only then does it truncate — its full text on
-            hover), its kind, then when · where · who. */}
-        <div data-checkpoint-header className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
-          {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
-          <span data-checkpoint-title title={entry.label} className="min-w-0 shrink truncate text-lg leading-7 font-semibold text-white">{entry.label}</span>
-          {KIND_LABEL[entry.kind] && <span data-checkpoint-kind className={CHIP}><LocalizedText text={KIND_LABEL[entry.kind]} /></span>}
-          {isCurrent && !playing && <span data-checkpoint-current className={cn(CHIP, 'bg-emerald-400/15 text-emerald-200')}><LocalizedText text="Current" /></span>}
-          <span data-checkpoint-meta className="flex min-w-0 shrink-[1000] items-center gap-1.5 overflow-hidden text-[11px] whitespace-nowrap text-slate-400">
-            <span className="shrink-0 tabular-nums">{entry.timestamp}</span>
-            {/* The branch this checkpoint is on, in its graph color. */}
-            {branch && (
-              <>
-                <span aria-hidden className="text-slate-600">·</span>
-                <span translate="no" className="inline-flex min-w-0 items-center gap-1 font-mono text-[10.5px] font-medium" style={{ color: branch.color }}>
-                  <span className="size-1.5 shrink-0 rounded-full" style={{ background: branch.color }} />
-                  <span className="truncate">{branch.name}</span>
+    <div data-history-compare={embedded ? 'embedded' : 'page'} className={cn('flex h-full min-h-0 flex-col overflow-hidden', embedded && 'rounded-xl bg-white/[0.03]')}>
+      {embedded ? header : (
+        // The one header, straight on the layer (no card): the title and its
+        // actions; who · when · where · kind, with the one thing to check;
+        // then why, as a plain line.
+        <header data-checkpoint-header className="flex shrink-0 flex-col gap-1 pb-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <h2 data-checkpoint-title title={entry.label} className="min-w-0 truncate text-lg leading-7 font-semibold text-white">{entry.label}</h2>
+            {isCurrent && !playing && <span data-checkpoint-current className={CHIP}><LocalizedText text="Current" /></span>}
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              {!hideRestore && (
+                // A quiet button (the screen's one strong action isn't going back
+                // in time), and nothing to restore when this is the current code.
+                <span title={sameAsCurrent ? translateText('It’s the same as the current version', language) : undefined} className="flex shrink-0">
+                  <button
+                    type="button"
+                    data-restore-version
+                    onClick={() => onRollback?.(entry.id)}
+                    disabled={sameAsCurrent || !onRollback}
+                    className="ds-pill inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:bg-white/[0.05] disabled:text-slate-500"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <LocalizedText text="Restore this version" />
+                  </button>
                 </span>
-              </>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger aria-label={translateText('Version actions', language)} title={translateText('Version actions', language)} className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white">
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {(onArchive || onUnarchive) && (entry.archived
+                    ? <DropdownMenuItem onClick={() => onUnarchive?.(entry)}><ArchiveRestore /><LocalizedText text="Restore to History" /></DropdownMenuItem>
+                    : <DropdownMenuItem disabled={isCurrent} onClick={() => onArchive?.(entry)}><Archive /><LocalizedText text="Archive checkpoint" /></DropdownMenuItem>)}
+                  <DropdownMenuItem data-copy-link onClick={copyLink}><Link2 /><LocalizedText text="Copy link" /></DropdownMenuItem>
+                  <DropdownMenuItem data-open-in-workspace onClick={closeHistory}><SquareArrowOutUpRight /><LocalizedText text="Open in Workspace" /></DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <div className="flex min-w-0 items-center gap-x-1.5 text-xs text-slate-400">
+            <span data-checkpoint-meta className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
+              {who && <><span className="truncate"><LocalizedText text={who} /></span><span aria-hidden className="text-slate-600">·</span></>}
+              <span className="shrink-0 tabular-nums"><LocalizedText text={entry.timestamp} /></span>
+              {branch && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="truncate font-mono text-[11px]">{branch.name}</span></>}
+              {KIND_LABEL[entry.kind] && <><span aria-hidden className="text-slate-600">·</span><span data-checkpoint-kind className="shrink-0"><LocalizedText text={KIND_LABEL[entry.kind]} /></span></>}
+            </span>
+            {/* The one thing to check — the whole sentence on hover, and the
+                canvas marks where. Narrow: "⚠ 변경 확인". */}
+            {problemConflict && (
+              <button type="button" data-checkpoint-alert title={problemSentence ?? problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic ml-1 inline-flex shrink-0 items-center gap-1 rounded text-amber-300 transition-colors hover:text-amber-200">
+                <TriangleAlert aria-hidden className="size-3" />
+                <span className="min-[1440px]:hidden"><LocalizedText text="Check change" /></span>
+                <span className="hidden min-[1440px]:inline"><LocalizedText text="Change needs checking" /> · <LocalizedText text="Open change" /> →</span>
+              </button>
             )}
-            {who && <><span aria-hidden className="text-slate-600">·</span><span className="truncate"><LocalizedText text={who} /></span></>}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {!hideRestore && (
-          // A quiet button (the screen's one strong action isn't going back
-          // in time), and nothing to restore when this is the current code —
-          // whatever it's being compared with.
-          <span title={sameAsCurrent ? translateText('It’s the same as the current version', language) : undefined} className="flex shrink-0">
-            <button
-              type="button"
-              data-restore-version
-              onClick={() => onRollback?.(entry.id)}
-              disabled={sameAsCurrent || !onRollback}
-              className="ds-pill inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.07] px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/[0.12] hover:text-white disabled:pointer-events-none disabled:bg-white/[0.04] disabled:text-slate-500"
-            >
-              <RotateCcw className="size-3.5" />
-              Restore this state
-            </button>
-          </span>
+          </div>
+          {(why.text || hasReason) && (
+            <div data-checkpoint-why className="min-w-0 text-[13px] leading-5 text-slate-300">
+              <p className="flex min-w-0 items-baseline gap-1.5">
+                {why.text && <span data-checkpoint-reason title={why.text} className="min-w-0 truncate"><LocalizedText text={why.text} /></span>}
+                {hasReason && (
+                  <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((open) => !open)} className="ds-intrinsic shrink-0 rounded text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
+                    <LocalizedText text="Details" />
+                  </button>
+                )}
+              </p>
+              {reasonOpen && hasReason && <EvidenceLinks items={reasonEvidence} onOpen={openEvidence} className="mt-1.5" />}
+            </div>
           )}
-          {(onArchive || onUnarchive) && <DropdownMenu>
-            <DropdownMenuTrigger aria-label="Version actions" title="Version actions" className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white">
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {entry.archived ? <DropdownMenuItem onClick={() => onUnarchive?.(entry)}><ArchiveRestore />Restore to History</DropdownMenuItem>
-                : <DropdownMenuItem disabled={isCurrent} onClick={() => onArchive?.(entry)}><Archive />Archive checkpoint</DropdownMenuItem>}
-            </DropdownMenuContent>
-          </DropdownMenu>}
-        </div>
-      </div>}
+        </header>
+      )}
 
       {/* The change line: what this version differs by from what it's
           compared with — in a person's words, then, fainter and in code, the
           values. Why it was made opens under it. */}
-      {summary && (
+      {embedded && summary && (
         <div data-change-summary className="mx-3 mb-2 shrink-0 rounded-lg bg-white/[0.04] px-3 py-1.5 text-[12.5px] leading-5 text-slate-100">
           <p className="flex items-baseline gap-2">
             <MessageSquareText aria-hidden className="size-3.5 shrink-0 translate-y-[2px] text-emerald-300" />
@@ -351,7 +389,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
       )}
       {/* The problem line: something wrong with how this version renders —
           apart from the change, in a warning tone, with the way to its change. */}
-      {problem && (
+      {embedded && problem && (
         <p data-problem-line role="status" onMouseEnter={() => setProblemHover(true)} onMouseLeave={() => setProblemHover(false)} className="mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg bg-amber-400/[0.08] px-3 py-1.5 text-[12.5px] leading-5 text-amber-100 ring-1 ring-amber-300/20 ring-inset">
           <TriangleAlert aria-hidden className="size-3.5 shrink-0 text-amber-300" />
           <span data-problem-text>{problemBeganHere ? '이 버전부터 ' : ''}{codeRender.referenceWidth}px에서 {problem.id === 'overlap' ? `카드가 ${problem.label.replace(/^카드 겹침 /, '')} 겹쳐요` : problem.label}</span>
@@ -359,64 +397,130 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           {problemConflict && (
             <>
               <span aria-hidden className="text-amber-200/50">·</span>
-              <button type="button" data-checkpoint-conflict={problemConflict.id} title={problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic rounded text-amber-50 underline underline-offset-4 transition-colors hover:text-white">변경 확인 열기</button>
+              <button type="button" data-problem-open={problemConflict.id} title={problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic rounded text-amber-50 underline underline-offset-4 transition-colors hover:text-white">변경 확인 열기</button>
             </>
           )}
         </p>
       )}
 
+      {/* The page: a Screen | Code tab under the header, and the tab taking
+          all the height that's left. The replay (embedded) keeps its stack —
+          the renders, the code folded or open under them. */}
+      {!embedded && (
+        <div role="tablist" aria-label={translateText('View', language)} data-history-tabs className="flex h-10 shrink-0 items-end gap-5 border-b border-white/[0.08]">
+          {[['screen', 'Screen', null], ['code', 'Code', comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} in code` : null]].map(([id, label, count]) => (
+            <button key={id} type="button" role="tab" data-history-tab={id} aria-selected={view === id} onClick={() => setView(id)}
+              className={cn('ds-intrinsic -mb-px inline-flex h-9 items-center gap-1.5 border-b-2 text-[13px] font-medium whitespace-nowrap transition-colors', view === id ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200')}>
+              <LocalizedText text={label} />
+              {count && <span className="font-normal text-slate-500 tabular-nums"><LocalizedText text={count} /></span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* What it looks like — the main thing: the whole width, this version
           on the left and the current one on the right. */}
-      <div data-compare-render className="relative mx-3 flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden rounded-xl bg-black/35">
+      {(embedded || view === 'screen') && (
+      <div data-compare-render role={embedded ? undefined : 'tabpanel'} className={cn('relative flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden', embedded && 'mx-3 rounded-xl bg-black/35')}>
         <PreviewPanelContent
-          // A new key fades the preview over — on each checkpoint, and
-          // during playback each time the typed code changes the design.
-          // While playing the preview stays mounted and changes in
-          // place (no fade between steps — two per step left it faint
-          // half the time); the ring on what changed marks the moment.
-          snapshotKey={playing ? 'playing' : shownSnapshot.id}
-          highlightLayerId={highlightLayerId}
-          highlightKey={entryId}
-          previewProps={shownProps}
-          prototypeEdits={shownEdits}
-          activePageId={shownSnapshot.snapshot.activePageId ?? null}
-          frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
-          historical
-          embedded
-          viewControls
-          focusLayerIds={changedIds}
-          codeRender={codeRender}
-          variant="compare"
-          emphasizeMark={problemHover && problem ? problem.id : null}
+            // A new key fades the preview over — on each checkpoint, and
+            // during playback each time the typed code changes the design.
+            // While playing the preview stays mounted and changes in
+            // place (no fade between steps — two per step left it faint
+            // half the time); the ring on what changed marks the moment.
+            snapshotKey={playing ? 'playing' : shownSnapshot.id}
+            highlightLayerId={highlightLayerId}
+            highlightKey={entryId}
+            previewProps={shownProps}
+            prototypeEdits={shownEdits}
+            activePageId={shownSnapshot.snapshot.activePageId ?? null}
+            frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
+            historical
+            embedded
+            viewControls
+            focusLayerIds={changedIds}
+            codeRender={codeRender}
+            variant="compare"
+            emphasizeMark={problemHover && problem ? problem.id : null}
+            flush={!embedded}
           toolbarExtra={(
-            // What it's compared with — the one control for it.
-            <div role="tablist" aria-label={translateText('Compared with', language)} data-baseline={base} className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
-              {[['previous', 'Previous checkpoint'], ['current', 'Current version']].map(([id, label]) => {
-                const unavailable = id === 'previous' && !previousEntry
-                return (
-                  <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="flex">
-                    <button type="button" role="tab" data-baseline-option={id} aria-selected={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)}
-                      className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40', base === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
-                      <LocalizedText text={label} />
-                    </button>
-                  </span>
-                )
-              })}
-            </div>
+            // What it's compared with — the one control for it: "비교: 이전 버전 ▾".
+            <DropdownMenu>
+              <DropdownMenuTrigger data-baseline={base} data-toolbar-control aria-label={translateText('Compared with', language)} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium whitespace-nowrap text-slate-100 transition-colors hover:bg-white/[0.08] hover:text-white">
+                <span className="font-normal text-slate-400"><LocalizedText text="Compare" />:</span>
+                <LocalizedText text={base === 'previous' ? 'Previous version' : 'Current version'} />
+                <ChevronDown className="size-3 shrink-0 text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                {[['previous', 'Previous version'], ['current', 'Current version']].map(([id, label]) => {
+                  const unavailable = id === 'previous' && !previousEntry
+                  return (
+                    <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="block">
+                      <DropdownMenuItem data-baseline-option={id} aria-checked={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)} className="gap-2 text-xs">
+                        <Check className={cn('size-3.5 shrink-0', base === id ? 'opacity-100' : 'opacity-0')} />
+                        <LocalizedText text={label} />
+                      </DropdownMenuItem>
+                    </span>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           caption={
-            <span className="shrink-0 text-emerald-300">
-              {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
-              {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
-            </span>
-          }
-        />
+              <span className="shrink-0 text-slate-300">
+                {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
+                {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
+              </span>
+            }
+          />
       </div>
+      )}
+
+      {/* The code, in its own tab: what changed (the rest folded) until the
+          whole file is asked for — read the same way round, this version
+          first. Playing on the Screen tab, it still types itself out, unseen. */}
+      {!embedded && view === 'screen' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
+      {!embedded && view === 'code' && (
+        <section data-compare-code="open" data-code-view={codeView} role="tabpanel" aria-label="Code" className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center gap-2 py-2 text-[11px] text-slate-500">
+            <Code2 className="size-3 shrink-0" />
+            <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
+            <span data-code-changed className="shrink-0 text-slate-300"><LocalizedText text={comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} changed` : 'No difference'} /></span>
+            <span className="ml-auto flex shrink-0 items-center gap-2">
+              {!playing && (
+                <button type="button" data-code-whole-file aria-pressed={wholeFile} onClick={() => setWholeFile((current) => !current)} className={cn('ds-intrinsic inline-flex h-6 items-center rounded-md px-2 font-sans text-[10.5px] font-medium transition-colors', wholeFile ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-slate-300 hover:text-white')}>
+                  <LocalizedText text="Show the whole file" />
+                </button>
+              )}
+              <DiffLayoutTabs layout={diffLayout} onLayout={setDiffLayout} />
+            </span>
+          </div>
+        <div className="min-h-0 flex-1 overflow-auto pb-2 text-[12px] leading-5">
+          {codeView === 'typing' ? (
+            // Keyed to the checkpoint: each step starts from the one
+            // before it, exactly, and ends on this one, exactly.
+            <div className="font-mono"><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>
+          ) : codeView === 'hunks' || codeView === 'whole' ? (
+            <DiffView rows={codeRows} layout={diffLayout} wrap={false} className="text-[12px]" labels={[pair.leftTitle, pair.rightTitle]} />
+          ) : codeView === 'none' ? (
+            // Nothing changed at this step: said, in the area's own place.
+            <p data-code-none className="px-3 py-2 font-sans text-xs text-slate-400"><LocalizedText text="No code change" /></p>
+          ) : codeRows.map((row, index) => (
+            // (No difference: the file itself, as it is in both.)
+            // (A line stays a line: the block scrolls sideways, the code doesn't wrap.)
+            <div key={index} className="flex w-max min-w-full py-px pr-3 font-mono whitespace-pre text-slate-300">
+              <span className={GUTTER}>{row.to ?? ''}</span>
+              <span className="whitespace-pre">{row.text || ' '}</span>
+            </div>
+          ))}
+        </div>
+        </section>
+      )}
 
       {/* The code behind it, under it: just what changed (the rest folded)
           until the whole file is asked for — read the same way round, this
           version first. */}
-      {codeView === 'folded' ? (
+      {embedded && codeView === 'folded' ? (
         // One line: the file and how much of it differs (from what it's
         // compared with) — the code itself on asking. Folded stays folded
         // through playback (which goes on behind it).
@@ -429,8 +533,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
         </button>
       ) : null}
       {/* (Playing with the code folded: the step still types itself out, unseen, and moves on.) */}
-      {codeView === 'folded' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
-      {codeView === 'folded' ? null : (
+      {embedded && codeView === 'folded' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
+      {embedded && codeView !== 'folded' && (
       // Unfolded: one height whether it plays or stands still, so nothing
       // around it moves when playback starts, pauses or ends.
       <section data-compare-code="open" data-code-view={codeView} aria-label="Code" className="mx-3 mt-2 mb-3 flex min-h-[132px] shrink flex-col overflow-hidden rounded-xl bg-black/20" style={{ height: wholeFile ? '44%' : '36%' }}>

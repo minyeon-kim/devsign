@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ChevronDown, MonitorSmartphone, RectangleHorizontal, RectangleVertical } from 'lucide-react'
+import { Check, ChevronDown, MonitorSmartphone, RectangleHorizontal, RectangleVertical, RotateCw } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -13,8 +13,9 @@ import { BREAKPOINT_LABEL, CATEGORIES, CUSTOM_DEVICE, DEVICE_PRESETS } from '@/l
 // and the width field while it's a custom one.
 const BUTTON = 'ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white'
 
-// `compact` (a toolbar's one line): the name gives way, the orientation is
-// an icon, and the breakpoint note is left to whoever draws the screen.
+// `compact` (a toolbar's one line): the name gives way — at 1024px and under
+// it's the icon alone — the orientation turns inside the menu, and the
+// breakpoint note is left to whoever draws the screen.
 export default function DevicePicker({ category, pick, onPick, screen, compact = false }) {
   const [others, setOthers] = useState(false)
   const row = (device, own) => (
@@ -30,11 +31,18 @@ export default function DevicePicker({ category, pick, onPick, screen, compact =
       <DropdownMenu>
         <DropdownMenuTrigger data-preview-device={screen.id} className={cn(BUTTON, 'min-w-0')}>
           <MonitorSmartphone className="size-3.5 shrink-0 text-slate-400" />
-          <span translate="no" className={cn('truncate', compact ? 'min-w-0' : 'max-w-[120px]')}>{screen.custom ? <LocalizedText text="Custom width" /> : screen.label}</span>
-          <span className="shrink-0 text-slate-500 tabular-nums">{compact ? `· ${screen.width}` : `${screen.width}px`}</span>
+          <span translate="no" className={cn('truncate', compact ? 'min-w-0 max-[1025px]:hidden' : 'max-w-[120px]')}>{screen.custom ? <LocalizedText text="Custom width" /> : screen.label}</span>
+          <span className={cn('shrink-0 text-slate-500 tabular-nums', compact && 'max-[1025px]:hidden')}>{compact ? `· ${screen.width}` : `${screen.width}px`}</span>
           <ChevronDown className="size-3 shrink-0 text-slate-400" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align={compact ? 'start' : 'end'} className="max-h-[70vh] min-w-64">
+          {compact && !screen.custom && (
+            // (Upright or on its side: a device on its side can leave its kind's breakpoint.)
+            <DropdownMenuItem data-device-orientation={screen.orientation} onClick={() => onPick({ ...pick, orientation: screen.orientation === 'landscape' ? 'portrait' : 'landscape' })} className="mb-1 gap-2 border-b border-white/[0.07] pb-1.5 text-xs">
+              <RotateCw className="size-3.5 shrink-0 text-slate-400" />
+              <LocalizedText text={screen.orientation === 'landscape' ? 'Landscape — switch to portrait' : 'Portrait — switch to landscape'} />
+            </DropdownMenuItem>
+          )}
           <p className="px-2 pt-1 pb-0.5 text-[10px] font-medium text-slate-500"><LocalizedText text={DEVICE_PRESETS[category].label} /></p>
           {DEVICE_PRESETS[category].devices.map((device) => row(device, true))}
           <DropdownMenuItem data-device-option={CUSTOM_DEVICE} onClick={() => onPick({ ...pick, deviceId: CUSTOM_DEVICE, orientation: 'portrait', customWidth: pick.customWidth ?? screen.width })} className="gap-2 text-xs">
@@ -64,8 +72,8 @@ export default function DevicePicker({ category, pick, onPick, screen, compact =
           px
         </label>
       ) : (
-        <button type="button" data-device-orientation={screen.orientation} aria-label={screen.orientation === 'landscape' ? 'Landscape — switch to portrait' : 'Portrait — switch to landscape'} title={screen.orientation === 'landscape' ? 'Landscape — switch to portrait' : 'Portrait — switch to landscape'}
-          onClick={() => onPick({ ...pick, orientation: screen.orientation === 'landscape' ? 'portrait' : 'landscape' })} className={cn(BUTTON, 'shrink-0', compact && 'w-7 justify-center px-0')}>
+        !compact && <button type="button" data-device-orientation={screen.orientation} aria-label={screen.orientation === 'landscape' ? 'Landscape — switch to portrait' : 'Portrait — switch to landscape'} title={screen.orientation === 'landscape' ? 'Landscape — switch to portrait' : 'Portrait — switch to landscape'}
+          onClick={() => onPick({ ...pick, orientation: screen.orientation === 'landscape' ? 'portrait' : 'landscape' })} className={cn(BUTTON, 'shrink-0')}>
           {screen.orientation === 'landscape' ? <RectangleHorizontal className="size-3.5 shrink-0" /> : <RectangleVertical className="size-3.5 shrink-0" />}
           {!compact && <LocalizedText text={screen.orientation === 'landscape' ? 'Landscape' : 'Portrait'} />}
         </button>

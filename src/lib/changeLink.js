@@ -34,6 +34,7 @@ export function withChange(search, id, { evidence = null, source = null } = {}) 
   if (id) {
     // (One layer at a time: a change's detail takes History off the address — lib/historyLink.)
     params.delete('history')
+    params.delete('view')
     params.set('change', id)
     if (evidence) params.set('evidence', evidence)
     if (evidence && source) params.set('source', source)

@@ -38,7 +38,7 @@ export function withoutDoc(search) {
 // The same address with the docs layer opened on `target` — { doc: id } or
 // { docs: 'index' | 'updates' } — or closed (null). Whatever else the address
 // says is kept, except a change's detail: the two are never open together.
-const CHANGE_KEYS = ['change', 'evidence', 'source', 'history'] // (…nor History: lib/historyLink)
+const CHANGE_KEYS = ['change', 'evidence', 'source', 'history', 'view'] // (…nor History: lib/historyLink)
 export function withDoc(search, target) {
   const params = new URLSearchParams(withoutDoc(search))
   if (target?.doc || target?.docs) for (const key of CHANGE_KEYS) params.delete(key)
