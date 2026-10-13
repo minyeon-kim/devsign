@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { changeHref, sourceKeyOf } from '@/lib/changeLink'
-import { Archive, ArchiveRestore, ChevronRight, MoreHorizontal, Code2, MessageSquareText, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, Code2, Link2, MessageSquareText, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { FLOATING_PANEL, PANEL_RADIUS } from '@/components/mergestudio/floatingStyles'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import PlaybackCode, { GUTTER } from '@/components/history/PlaybackCode'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -20,7 +19,9 @@ import { changedLayerIds } from '@/lib/devicePreview'
 import { categoryFor, layoutDelta, layoutDeltaCode, problemsAt, renderOf } from '@/lib/codeRender'
 import { referencePick, screenOf } from '@/lib/devicePresets'
 import { useNavigate } from 'react-router-dom'
-import { ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
+import { EvidenceLinks, ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
+import { historyHref } from '@/lib/historyLink'
+import { toast } from '@/i18n/toast'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { checkpointRationale } from '@/lib/rationale'
 
@@ -68,7 +69,7 @@ function snapshotLines(snapshot) {
 // (back, which step, the way out to History). Everything under it is this
 // component's, as on the History page.
 function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position, embedded = false, header = null, codeOpenByDefault = false }) {
-  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages } = useWorkspace()
+  const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages, closeHistory } = useWorkspace()
   const navigate = useNavigate()
   const language = useLanguage()
   const [ruleFocus, setRuleFocus] = useState(null)
@@ -251,6 +252,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   const problemBeganHere = problem ? !codeRender.previousProblems.some((item) => item.id === problem.id) : false
   const problemRemains = problem ? codeRender.currentProblems.some((item) => item.id === problem.id) : false
   const problemConflict = why.evidence.find((item) => item.kind === 'conflict') ?? null
+  // The problem as one sentence — the header chip's tooltip.
+  const problemSentence = problem ? `${problemBeganHere ? '이 버전부터 ' : ''}${codeRender.referenceWidth}px에서 ${problem.id === 'overlap' ? `카드가 ${problem.label.replace(/^카드 겹침 /, '')} 겹쳐요` : problem.label}${isCurrent ? '' : problemRemains ? ' · 현재 버전에도 남아 있음' : ' · 현재 버전에서는 해결됨'}` : null
   // (The change itself is on the meta line; the rest backs the reason.)
   const reasonEvidence = why.evidence.filter((item) => item.kind !== 'conflict')
   // Who made it (and who approved) — without its kind or file, said elsewhere.
@@ -265,6 +268,10 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     // (The source goes by id — this checkpoint's, and which of its sources — and is found again there.)
     if (conflictId) navigate(changeHref(projectId, conflictId, item.kind === 'conflict' ? {} : { evidence: entry.id, source: sourceKeyOf(item) }))
   }
+  function copyLink() {
+    const url = new URL(historyHref(projectId, entry.id), window.location.origin).href
+    Promise.resolve(navigator.clipboard?.writeText(url)).then(() => toast('Link copied')).catch(() => toast('Couldn’t copy the link'))
+  }
   const propChanges = diffBase
     ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
         (key) => diffBase.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
@@ -275,65 +282,83 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   return (
     // A Merge Studio floating panel: the same surface as the Version
     // History drawer, borderless inside, the mint accent for Restore.
-    <div data-history-compare={embedded ? 'embedded' : 'page'} className={cn('flex h-full min-h-0 flex-col overflow-hidden', embedded ? 'rounded-xl bg-white/[0.03]' : cn(PANEL_RADIUS, FLOATING_PANEL))}>
-      {embedded ? header : <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-3 pb-2">
-        {/* One line: the title first (it takes the room; the meta gives way
-            before it does, and only then does it truncate — its full text on
-            hover), its kind, then when · where · who. */}
-        <div data-checkpoint-header className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
-          {entry.prompt && <Sparkles className="size-3.5 shrink-0 text-emerald-300" />}
-          <span data-checkpoint-title title={entry.label} className="min-w-0 shrink truncate text-lg leading-7 font-semibold text-white">{entry.label}</span>
-          {KIND_LABEL[entry.kind] && <span data-checkpoint-kind className={CHIP}><LocalizedText text={KIND_LABEL[entry.kind]} /></span>}
-          {isCurrent && !playing && <span data-checkpoint-current className={cn(CHIP, 'bg-emerald-400/15 text-emerald-200')}><LocalizedText text="Current" /></span>}
-          <span data-checkpoint-meta className="flex min-w-0 shrink-[1000] items-center gap-1.5 overflow-hidden text-[11px] whitespace-nowrap text-slate-400">
-            <span className="shrink-0 tabular-nums">{entry.timestamp}</span>
-            {/* The branch this checkpoint is on, in its graph color. */}
-            {branch && (
-              <>
-                <span aria-hidden className="text-slate-600">·</span>
-                <span translate="no" className="inline-flex min-w-0 items-center gap-1 font-mono text-[10.5px] font-medium" style={{ color: branch.color }}>
-                  <span className="size-1.5 shrink-0 rounded-full" style={{ background: branch.color }} />
-                  <span className="truncate">{branch.name}</span>
+    <div data-history-compare={embedded ? 'embedded' : 'page'} className={cn('flex h-full min-h-0 flex-col overflow-hidden', embedded && 'rounded-xl bg-white/[0.03]')}>
+      {embedded ? header : (
+        // The one header, straight on the layer (no card): the title and its
+        // actions; who · when · where · kind, with the one thing to check;
+        // then why, as a plain line.
+        <header data-checkpoint-header className="flex shrink-0 flex-col gap-1 pb-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <h2 data-checkpoint-title title={entry.label} className="min-w-0 truncate text-lg leading-7 font-semibold text-white">{entry.label}</h2>
+            {isCurrent && !playing && <span data-checkpoint-current className={CHIP}><LocalizedText text="Current" /></span>}
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              {!hideRestore && (
+                // A quiet button (the screen's one strong action isn't going back
+                // in time), and nothing to restore when this is the current code.
+                <span title={sameAsCurrent ? translateText('It’s the same as the current version', language) : undefined} className="flex shrink-0">
+                  <button
+                    type="button"
+                    data-restore-version
+                    onClick={() => onRollback?.(entry.id)}
+                    disabled={sameAsCurrent || !onRollback}
+                    className="ds-pill inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:bg-white/[0.05] disabled:text-slate-500"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <LocalizedText text="Restore this version" />
+                  </button>
                 </span>
-              </>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger aria-label={translateText('Version actions', language)} title={translateText('Version actions', language)} className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white">
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {(onArchive || onUnarchive) && (entry.archived
+                    ? <DropdownMenuItem onClick={() => onUnarchive?.(entry)}><ArchiveRestore /><LocalizedText text="Restore to History" /></DropdownMenuItem>
+                    : <DropdownMenuItem disabled={isCurrent} onClick={() => onArchive?.(entry)}><Archive /><LocalizedText text="Archive checkpoint" /></DropdownMenuItem>)}
+                  <DropdownMenuItem data-copy-link onClick={copyLink}><Link2 /><LocalizedText text="Copy link" /></DropdownMenuItem>
+                  <DropdownMenuItem data-open-in-workspace onClick={closeHistory}><SquareArrowOutUpRight /><LocalizedText text="Open in Workspace" /></DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <div className="flex min-w-0 items-center gap-x-1.5 text-xs text-slate-400">
+            <span data-checkpoint-meta className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
+              {who && <><span className="truncate"><LocalizedText text={who} /></span><span aria-hidden className="text-slate-600">·</span></>}
+              <span className="shrink-0 tabular-nums"><LocalizedText text={entry.timestamp} /></span>
+              {branch && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="truncate font-mono text-[11px]">{branch.name}</span></>}
+              {KIND_LABEL[entry.kind] && <><span aria-hidden className="text-slate-600">·</span><span data-checkpoint-kind className="shrink-0"><LocalizedText text={KIND_LABEL[entry.kind]} /></span></>}
+            </span>
+            {/* The one thing to check — the whole sentence on hover, and the
+                canvas marks where. Narrow: "⚠ 변경 확인". */}
+            {problemConflict && (
+              <button type="button" data-checkpoint-alert title={problemSentence ?? problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic ml-1 inline-flex shrink-0 items-center gap-1 rounded text-amber-300 transition-colors hover:text-amber-200">
+                <TriangleAlert aria-hidden className="size-3" />
+                <span className="min-[1440px]:hidden"><LocalizedText text="Check change" /></span>
+                <span className="hidden min-[1440px]:inline"><LocalizedText text="Change needs checking" /> · <LocalizedText text="Open change" /> →</span>
+              </button>
             )}
-            {who && <><span aria-hidden className="text-slate-600">·</span><span className="truncate"><LocalizedText text={who} /></span></>}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {!hideRestore && (
-          // A quiet button (the screen's one strong action isn't going back
-          // in time), and nothing to restore when this is the current code —
-          // whatever it's being compared with.
-          <span title={sameAsCurrent ? translateText('It’s the same as the current version', language) : undefined} className="flex shrink-0">
-            <button
-              type="button"
-              data-restore-version
-              onClick={() => onRollback?.(entry.id)}
-              disabled={sameAsCurrent || !onRollback}
-              className="ds-pill inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.07] px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/[0.12] hover:text-white disabled:pointer-events-none disabled:bg-white/[0.04] disabled:text-slate-500"
-            >
-              <RotateCcw className="size-3.5" />
-              Restore this state
-            </button>
-          </span>
+          </div>
+          {(why.text || hasReason) && (
+            <div data-checkpoint-why className="min-w-0 text-[13px] leading-5 text-slate-300">
+              <p className="flex min-w-0 items-baseline gap-1.5">
+                {why.text && <span data-checkpoint-reason title={why.text} className="min-w-0 truncate"><LocalizedText text={why.text} /></span>}
+                {hasReason && (
+                  <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((open) => !open)} className="ds-intrinsic shrink-0 rounded text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
+                    <LocalizedText text="Details" />
+                  </button>
+                )}
+              </p>
+              {reasonOpen && hasReason && <EvidenceLinks items={reasonEvidence} onOpen={openEvidence} className="mt-1.5" />}
+            </div>
           )}
-          {(onArchive || onUnarchive) && <DropdownMenu>
-            <DropdownMenuTrigger aria-label="Version actions" title="Version actions" className="flex size-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white">
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {entry.archived ? <DropdownMenuItem onClick={() => onUnarchive?.(entry)}><ArchiveRestore />Restore to History</DropdownMenuItem>
-                : <DropdownMenuItem disabled={isCurrent} onClick={() => onArchive?.(entry)}><Archive />Archive checkpoint</DropdownMenuItem>}
-            </DropdownMenuContent>
-          </DropdownMenu>}
-        </div>
-      </div>}
+        </header>
+      )}
 
       {/* The change line: what this version differs by from what it's
           compared with — in a person's words, then, fainter and in code, the
           values. Why it was made opens under it. */}
-      {summary && (
+      {embedded && summary && (
         <div data-change-summary className="mx-3 mb-2 shrink-0 rounded-lg bg-white/[0.04] px-3 py-1.5 text-[12.5px] leading-5 text-slate-100">
           <p className="flex items-baseline gap-2">
             <MessageSquareText aria-hidden className="size-3.5 shrink-0 translate-y-[2px] text-emerald-300" />
@@ -351,7 +376,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
       )}
       {/* The problem line: something wrong with how this version renders —
           apart from the change, in a warning tone, with the way to its change. */}
-      {problem && (
+      {embedded && problem && (
         <p data-problem-line role="status" onMouseEnter={() => setProblemHover(true)} onMouseLeave={() => setProblemHover(false)} className="mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg bg-amber-400/[0.08] px-3 py-1.5 text-[12.5px] leading-5 text-amber-100 ring-1 ring-amber-300/20 ring-inset">
           <TriangleAlert aria-hidden className="size-3.5 shrink-0 text-amber-300" />
           <span data-problem-text>{problemBeganHere ? '이 버전부터 ' : ''}{codeRender.referenceWidth}px에서 {problem.id === 'overlap' ? `카드가 ${problem.label.replace(/^카드 겹침 /, '')} 겹쳐요` : problem.label}</span>
@@ -359,7 +384,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           {problemConflict && (
             <>
               <span aria-hidden className="text-amber-200/50">·</span>
-              <button type="button" data-checkpoint-conflict={problemConflict.id} title={problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic rounded text-amber-50 underline underline-offset-4 transition-colors hover:text-white">변경 확인 열기</button>
+              <button type="button" data-problem-open={problemConflict.id} title={problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic rounded text-amber-50 underline underline-offset-4 transition-colors hover:text-white">변경 확인 열기</button>
             </>
           )}
         </p>

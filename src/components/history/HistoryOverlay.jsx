@@ -1,7 +1,7 @@
 import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Info, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { cn } from 'cn'
 import Breadcrumb, { BREADCRUMB_COLUMN, BreadcrumbBar } from '@/components/layout/Breadcrumb'
 import { translateText } from '@/i18n/translate'
@@ -11,7 +11,7 @@ import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { KIND_LABEL, filterHistoryEntries } from '@/lib/historyMeta'
+import { filterHistoryEntries } from '@/lib/historyMeta'
 import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 
 // History — the project's version control as checkpoints (Replit style) —
@@ -54,13 +54,6 @@ function HistoryLayer() {
     () => filterHistoryEntries(branched.filter((e) => !e.archived), historyFilter),
     [branched, historyFilter]
   )
-  const scopeLabel = historyFilter.target !== 'all' && historyFilter.kind !== 'all'
-    ? `${KIND_LABEL[historyFilter.kind]} · ${historyFilter.target}`
-    : historyFilter.target !== 'all'
-      ? historyFilter.target
-      : historyFilter.kind !== 'all'
-        ? KIND_LABEL[historyFilter.kind]
-        : null
   const timelineIndex = timeline.findIndex((e) => e.id === selectedId)
 
   const { playing, pause, toggle, advance } = useHistoryPlayback(timeline, selectedId, select)
@@ -115,24 +108,11 @@ function HistoryLayer() {
           64px place, Close at its right. The path says where this is —
           워크스페이스 › 히스토리 — its first item going where Close goes; "히스토리"
           is where you are, and pressing it brings the drawer up when it's been
-          closed. After the path: how many versions; what the layer is sits
-          behind the ⓘ; a filter narrowing the playback says so here. */}
+          closed. Nothing after the path: how many versions there are, and the
+          filter narrowing the playback, are the drawer's to say. */}
       <BreadcrumbBar data-history-title className="h-16 pt-0" rowClassName="h-12">
         <Breadcrumb
           items={[{ label: 'Workspace', onClick: closeHistory }, { label: 'History', onClick: requestHistoryDrawer }]}
-          meta={(
-            <>
-              <span>{`${timeline.length} checkpoints`}</span>
-              <span data-history-info tabIndex={0} role="img" aria-label="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." title="Every checkpoint across every file in this project, oldest to newest. Filter by kind or file from the History drawer." className="flex size-4 shrink-0 cursor-help items-center justify-center rounded-full hover:text-white">
-                <Info className="size-3" />
-              </span>
-              {scopeLabel && (
-                <span data-history-scope title="Every other checkpoint is filtered out of this playback." className="inline-flex h-4 items-center rounded-full bg-amber-400/15 px-1.5 text-amber-200">
-                  {scopeLabel}
-                </span>
-              )}
-            </>
-          )}
         />
         <button
           ref={closeRef}

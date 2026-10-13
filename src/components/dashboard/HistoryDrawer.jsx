@@ -127,6 +127,15 @@ function HistoryEntryMenu({ children, entry, isCurrent, onOpen, onRestore, onArc
   </ContextMenu.Root>
 }
 
+// How many saved versions the project has — beside the drawer's title (the
+// path over the viewer doesn't count them). Conflict detections are marks,
+// not versions; archived ones are in the Archive view.
+export function HistoryCount() {
+  const { historyEntries, conflicts } = useWorkspace()
+  const count = foldConflictCheckpoints(withBranches(historyEntries, conflicts)).filter((entry) => !entry.archived).length
+  return <span data-history-count className="ml-1.5 font-normal text-slate-500 tabular-nums">{count}</span>
+}
+
 // History opens this compact list beside the current page first, with the
 // project's checkpoints newest first. Clicking one shows it in
 // History's main viewer — the same selection the timeline slider and
@@ -173,6 +182,13 @@ function HistoryDrawer() {
   // The graph is laid out oldest → newest; the list shows it newest first.
   const graph = branchGraph([...active].reverse())
   const archived = [...matches].filter((e) => e.archived).reverse()
+  const scopeLabel = kindFilter !== 'all' && historyFilter.target !== 'all'
+    ? `${KIND_LABEL[kindFilter]} · ${historyFilter.target}`
+    : historyFilter.target !== 'all'
+      ? historyFilter.target
+      : kindFilter !== 'all'
+        ? KIND_LABEL[kindFilter]
+        : null
   const filtersActive = kindFilter !== 'all' || historyFilter.target !== 'all' || (historyFilter.branch ?? 'all') !== 'all'
 
   const open = (id) => {
@@ -277,11 +293,11 @@ function HistoryDrawer() {
                 historyFilter.target !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
               )}
             >
-              <span className="max-w-24 truncate font-mono">{historyFilter.target === 'all' ? 'All files' : historyFilter.target}</span>
+              <span className={cn('max-w-24 truncate', historyFilter.target !== 'all' && 'font-mono')}>{historyFilter.target === 'all' ? <LocalizedText text="All files" /> : historyFilter.target}</span>
               <ChevronDown className="size-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={() => setHistoryFilter({ target: 'all' })}>All files</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setHistoryFilter({ target: 'all' })}><LocalizedText text="All files" /></DropdownMenuItem>
               {targets.map((target) => (
                 <DropdownMenuItem key={target} onClick={() => setHistoryFilter({ target })} className="font-mono">
                   {target}
@@ -312,6 +328,13 @@ function HistoryDrawer() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        )}
+        {/* The filter also narrows the History layer's playback — said here,
+            where it's set (not up in the path). */}
+        {onHistoryPage && scopeLabel && (
+          <span data-history-scope title={translateText('Every other checkpoint is filtered out of this playback.', language)} className="inline-flex h-5 min-w-0 items-center rounded-full bg-white/[0.07] px-2 text-[10.5px] font-medium text-slate-300">
+            <span className="truncate"><LocalizedText text={scopeLabel} /></span>
+          </span>
         )}
         {/* Archived is a view of the same list, not a second tab row. */}
         {(archived.length > 0 || tab === 'archived') && (

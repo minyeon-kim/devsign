@@ -100,7 +100,11 @@ console.log('history-link: ok')
   assert.ok(overlay.includes("title={`${translateText('Close', language)} · Esc`}"))
   assert.ok(overlay.includes("items={[{ label: 'Workspace', onClick: closeHistory }, { label: 'History', onClick: requestHistoryDrawer }]}") && overlay.includes('onClick={closeHistory}') && !overlay.includes('projectCrumbs'))
   // The count, the ⓘ and the filter's badge stay after the path.
-  assert.ok(overlay.includes('{`${timeline.length} checkpoints`}') && overlay.includes('data-history-info') && overlay.includes('data-history-scope'))
+  // (The path says nothing after it: the count is the drawer's title's, the filter's scope is its filter line's.)
+  assert.ok(!overlay.includes('checkpoints`}') && !overlay.includes('data-history-info') && !overlay.includes('data-history-scope') && !overlay.includes('meta={'))
+  const drawerSource = read('src/components/dashboard/HistoryDrawer.jsx')
+  assert.ok(drawerSource.includes('data-history-count') && drawerSource.includes('data-history-scope') && read('src/components/dashboard/Sidebar.jsx').includes('<HistoryCount />'))
+  assert.ok(drawerSource.includes('<LocalizedText text="All files" />') && !drawerSource.includes('>All files<'), 'the file filter reads 모든 파일')
   // Esc: a dialog (the rollback's), a menu or a listbox first; else it closes — playing or not. Focus in on Close, back out after.
   assert.ok(overlay.includes(`document.querySelector('[data-slot="dialog-content"], [role="menu"], [role="listbox"]')`) && overlay.includes('closeRef.current?.focus()') && overlay.includes('if (before instanceof HTMLElement && before.isConnected) before.focus()'))
   const esc = overlay.slice(overlay.indexOf('function onKey(event) {\n      if (event.key !== \'Escape\''), overlay.indexOf('window.addEventListener(\'keydown\', onKey)\n    return () => {\n      window.removeEventListener(\'keydown\', onKey)\n      if (before'))
