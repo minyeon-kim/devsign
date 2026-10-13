@@ -6,7 +6,8 @@ import { cn } from 'cn'
 // since the drag started into a size), or focus it and use the arrow keys
 // to nudge. Invisible at rest — a hairline shows on hover/drag, in keeping
 // with the borderless panels around it.
-function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, className, orientation = 'vertical' }) {
+// (`onReset`: a double click — back to the size it starts at.)
+function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, onReset, className, orientation = 'vertical' }) {
   const vertical = orientation === 'vertical'
   const [dragging, setDragging] = useState(false)
 
@@ -49,6 +50,7 @@ function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, clas
       title={label}
       tabIndex={0}
       onPointerDown={handlePointerDown}
+      onDoubleClick={onReset}
       onKeyDown={handleKeyDown}
       className={cn(
         'group relative shrink-0 touch-none outline-none',

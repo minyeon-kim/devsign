@@ -6,8 +6,10 @@ import {
   Files,
   GitMerge,
   Layers,
+  Layers3,
   LayoutGrid,
-  PanelBottom,
+  PanelLeft,
+  PanelRight,
   ScanEye,
   ScrollText,
   Sparkles,
@@ -26,10 +28,10 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // Every command the palette offers, by section. Windows open as a tab of
 // their window (or focus it) — Preview isn't one: it only opens from a
 // pane's `+`; Files / Layers /
-// Assets open the navigator pane; Terminal / Console / Conflict Points the
-// docked bottom panel.
+// Assets, Terminal and Console open the side panel on that view; Conflict
+// Points its drawer, Design Compare a tab beside the canvas.
 function useCommands() {
-  const { dockApi, setFilesWindow, bottomPanel, setBottomPanel, openMergeStudio } = useWorkspace()
+  const { dockApi, openSideView, setBottomPanel, openMergeStudio, sidePanel, setSidePanel, aiChat, setAiChat } = useWorkspace()
   const showTerminal = () => setBottomPanel({ tab: 'terminal', open: true })
 
   const windowViews = [
@@ -46,7 +48,8 @@ function useCommands() {
   const bottomViews = [
     { tab: 'terminal', label: 'Terminal', icon: SquareTerminal },
     { tab: 'console', label: 'Console', icon: ScrollText, keywords: 'logs' },
-    { tab: 'conflict', label: 'Conflict Points', icon: TriangleAlert, keywords: 'problems diagnostics' },
+    { tab: 'conflict', label: 'Conflict Points', icon: TriangleAlert, keywords: 'problems diagnostics', hint: 'Drawer' },
+    { tab: 'design-compare', label: 'Design Compare', icon: Layers3, keywords: 'design sets drafts', hint: 'Tab' },
   ]
 
   return [
@@ -66,23 +69,30 @@ function useCommands() {
       hint: 'Pane',
       icon,
       keywords,
-      run: () => setFilesWindow({ open: true, tab }),
+      run: () => openSideView(tab),
     })),
-    ...bottomViews.map(({ tab, label, icon, keywords }) => ({
+    ...bottomViews.map(({ tab, label, icon, keywords, hint = 'Pane' }) => ({
       id: `bottom-${tab}`,
       section: 'Views',
       label,
-      hint: 'Bottom panel',
+      hint,
       icon,
       keywords,
       run: () => setBottomPanel({ tab, open: true }),
     })),
     {
-      id: 'toggle-bottom',
+      id: 'toggle-side',
       section: 'Layout',
-      label: bottomPanel.open ? 'Collapse bottom panel' : 'Expand bottom panel',
-      icon: PanelBottom,
-      run: () => setBottomPanel({ open: !bottomPanel.open }),
+      label: sidePanel.open ? 'Collapse panel' : 'Expand panel',
+      icon: PanelLeft,
+      run: () => setSidePanel({ open: !sidePanel.open }),
+    },
+    {
+      id: 'toggle-chat',
+      section: 'Layout',
+      label: aiChat.open ? 'Collapse AI Chat' : 'Expand AI Chat',
+      icon: PanelRight,
+      run: () => setAiChat({ open: !aiChat.open }),
     },
     ...layoutPresets.filter((preset) => preset.id !== 'split-preview').map((preset) => ({
       id: `layout-${preset.id}`,

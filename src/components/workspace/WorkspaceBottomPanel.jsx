@@ -1,28 +1,13 @@
-import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { moveTab } from '@/lib/tabOrder'
 import { STRIP_HEIGHT, panelSizeStyle } from '@/lib/bottomPanelSize'
 import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Layers3, Maximize2, Minimize2, ScrollText, SquareTerminal, TriangleAlert, X } from 'lucide-react'
+import { Maximize2, Minimize2, X } from 'lucide-react'
 import { cn } from 'cn'
 import { WorkspaceBottomPanelPortalContext } from '@/components/workspace/WorkspaceBottomPanelContext'
-import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
-import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
-import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
 import { CATEGORY_TAB, CATEGORY_TAB_ACTIVE, CATEGORY_TAB_IDLE } from '@/components/mergestudio/floatingStyles'
 import { CONFLICT_DOT, conflictCounts, reviewTabFor } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-
-const DEFAULT_TABS = [
-  { id: 'conflict', label: 'Conflict Points', icon: TriangleAlert, Panel: ConflictPanel },
-  { id: 'design-compare', label: 'Design Compare', icon: Layers3, Panel: WorkspaceDesignCompare },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, Panel: TerminalPanel },
-  { id: 'console', label: 'Console', icon: ScrollText, Panel: ConsolePanel },
-]
-
-// Terminal and Console are developer details: still one press away, but they
-// sit back from the change list and design tabs.
-const DEV_TABS = new Set(['terminal', 'console'])
 
 const MIN_HEIGHT = 120
 // Leave the work area above at least this much room (maximizing the panel
@@ -41,7 +26,9 @@ const MIN_CANVAS = 140
 // the panel's state) and is what it opens to from then on — or use the
 // button at the strip's right to maximize it to the full height and back.
 // Content scrolls inside each panel rather than resizing this dock to fit.
-function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }) {
+// (Merge Studio's only, now — `tabs` are its own. The Workspace's views that
+// used to be here are on the activity bar: see Sidebar's WorkspaceViews.)
+function WorkspaceBottomPanel({ tabs, className, portal = false }) {
   const portalTarget = useContext(WorkspaceBottomPanelPortalContext)
   const { bottomPanel, setBottomPanel, conflicts, mergeItems, reviewConflictId, reviewView, checkGuide } = useWorkspace()
   const { tab, open, userHeight, maximized } = bottomPanel
@@ -232,8 +219,7 @@ function WorkspaceBottomPanel({ tabs = DEFAULT_TABS, className, portal = false }
                 setTabOrder((prev) => moveTab(prev, id, target, direction > 0))
               }}
               onClick={() => pickTab(id)}
-              title={DEV_TABS.has(id) ? 'Developer details' : undefined}
-              className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE, DEV_TABS.has(id) && !(id === tab && open) && 'opacity-60 hover:opacity-100')}
+              className={cn(CATEGORY_TAB, 'h-7 gap-1.5 px-2.5 text-[11px]', id === tab && open ? CATEGORY_TAB_ACTIVE : CATEGORY_TAB_IDLE)}
             >
               <Icon className="size-3" />
               {label}

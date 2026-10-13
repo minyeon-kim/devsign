@@ -1,7 +1,7 @@
 import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WORKSPACE_TAB_RADIUS } from '@/components/mergestudio/floatingStyles'
 import { orderedTabs } from '@/lib/tabOrder'
-import { Component, FileImage, Files, Layers, ScanEye, X } from 'lucide-react'
+import { Component, FileImage, Files, Layers, ScanEye, ScrollText, SquareTerminal, X } from 'lucide-react'
 import { cn } from 'cn'
 import { getFileIconMeta } from '@/lib/fileIcons'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
@@ -12,6 +12,12 @@ const NAVIGATOR_TABS = [
   { id: 'layers', label: 'Layers', icon: Layers },
   { id: 'assets', label: 'Assets', icon: Component },
   { id: 'inspect', label: 'Inspect', icon: ScanEye },
+]
+// The side panel's other views (from the activity bar): while one is up it's
+// the row's one tab — its name — in place of the navigator's four.
+const TOOL_TABS = [
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal },
+  { id: 'console', label: 'Console', icon: ScrollText },
 ]
 
 // One panel's tabs in a docked window's header — the real things open in
@@ -60,10 +66,12 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
       }
     })
   } else if (panel.component === 'navigator') {
-    items = NAVIGATOR_TABS.map(({ id, label, icon: Icon }) => ({
+    const tool = TOOL_TABS.find((entry) => entry.id === workspace.filesWindow.tab)
+    items = (tool ? [tool] : NAVIGATOR_TABS).map(({ id, label, icon: Icon }) => ({
       key: id,
       label,
       icon: <Icon className="size-3.5 shrink-0" />,
+      picked: workspace.filesWindow.tab === id || (id === 'inspect' && workspace.filesWindow.tab === 'blockDeck'),
       active: panelActive && (workspace.filesWindow.tab === id || (id === 'inspect' && workspace.filesWindow.tab === 'blockDeck')),
       select: () => workspace.setFilesWindow({ tab: id }),
       close: null,
@@ -77,7 +85,8 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: Icon && <Icon className="size-3.5 shrink-0" />,
         active: panelActive,
         select: () => {},
-        close: ['assets', 'layers', 'explorer'].includes(panel.component) ? null : closeView,
+        // (AI Chat folds — from its row's button — rather than closes.)
+        close: ['assets', 'layers', 'explorer', 'chat'].includes(panel.component) ? null : closeView,
       },
     ]
   }
@@ -101,6 +110,10 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         type="button"
         title={`${item.label} · Drag to reorder or move`}
         aria-label={item.label}
+        // (The navigator's are tabs of one panel: ← / → move between them.)
+        role={panel.component === 'navigator' ? 'tab' : undefined}
+        aria-selected={panel.component === 'navigator' ? Boolean(item.picked) : undefined}
+        tabIndex={panel.component === 'navigator' && !item.picked ? -1 : undefined}
         onPointerDown={(event) => {
           if (event.button !== 0) return
           event.stopPropagation()
@@ -109,10 +122,18 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
           onDragStart?.({ groupId: group.id, panelId: pid, tabId: item.key, reorder }, event)
         }}
         onKeyDown={(event) => {
-          if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+          if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
           const direction = event.key === 'ArrowRight' ? 1 : -1
           const target = items[items.indexOf(item) + direction]
           if (!target) return
+          if (!event.altKey) {
+            if (panel.component !== 'navigator' || event.metaKey || event.ctrlKey || event.shiftKey) return
+            event.preventDefault()
+            target.select()
+            const row = event.currentTarget.closest('[role="tablist"]')
+            requestAnimationFrame(() => row?.querySelector(`[data-tab-id="${target.key}"] [role="tab"]`)?.focus())
+            return
+          }
           event.preventDefault()
           reorder(item.key, target.key, direction > 0)
         }}

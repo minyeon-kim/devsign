@@ -69,6 +69,8 @@ import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUp
 import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from '@/lib/documentChanges'
 import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCategories'
 import { importKind } from '@/lib/importFiles'
+import { AI_CHAT, SIDE_PANEL, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
+import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import {
   PROTOTYPE_FILES,
   deriveComponentOverride,
@@ -239,7 +241,23 @@ export function WorkspaceProvider({ children, projectId }) {
   const bottomPanelKey = `project:${projectId}:bottomPanel`
   const [bottomPanel, setBottomPanelState] = useState(() => ({ ...readDemo(bottomPanelKey, { tab: 'conflict' }), open: false, maximized: false }))
   useEffect(() => { writeDemo(bottomPanelKey, bottomPanel) }, [bottomPanelKey, bottomPanel])
-  const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
+  // In the Workspace there is no bottom panel any more: what used to open
+  // it opens that view where it lives now — the change list in the left
+  // drawer, Terminal and Console in the side panel, Design Compare as a tab
+  // beside the canvas (`openWorkspaceView`, below). Merge Studio keeps its
+  // own panel, so there `open` still means what it says. The rest of this
+  // state (the list's filter, the evidence in view, …) is shared as before.
+  const activeViewNow = useRef('workspace')
+  const bottomPanelNow = useRef(bottomPanel)
+  bottomPanelNow.current = bottomPanel
+  const workspaceViewOpener = useRef(null)
+  const setBottomPanel = useCallback((patch) => {
+    if (patch.open === true && activeViewNow.current !== 'mergeStudio') {
+      workspaceViewOpener.current?.(patch.tab ?? bottomPanelNow.current.tab)
+      patch = { ...patch, open: false }
+    }
+    setBottomPanelState((prev) => ({ ...prev, ...patch }))
+  }, [])
   // The full-screen detail is the address's: /projects/:id/workspace?change=<id>
   // (lib/changeLink). Opening one goes there and closing one leaves — so it
   // survives a reload, can be shared, and Back closes it. What's shown follows
@@ -341,8 +359,46 @@ export function WorkspaceProvider({ children, projectId }) {
   // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
   // not, and which tab it shows. Open from the start, at the left: the
   // file tree is where files are opened.
-  const [filesWindow, setFilesWindowState] = useState({ open: true, tab: 'files' })
+  const [filesWindow, setFilesWindowState] = useState(() => ({ open: true, tab: readSidePanel().tab }))
   const setFilesWindow = useCallback((patch) => setFilesWindowState((prev) => ({ ...prev, ...patch })), [])
+  // The side panel in the Workspace (lib/panelPrefs): folded or not, and how
+  // wide — kept for the browser with the view it's on, and read before the
+  // first render so nothing opens and then folds. It's opened by the
+  // person only: an activity bar icon (`pressSideView`: the view that's
+  // showing folds it), its toggle, its shortcut.
+  const [sidePanel, setSidePanelState] = useState(() => { const { open, width } = readSidePanel(); return { open, width } })
+  useEffect(() => { writeSidePanel({ ...sidePanel, tab: filesWindow.tab }) }, [sidePanel, filesWindow.tab])
+  const setSidePanel = useCallback((patch) => setSidePanelState((prev) => {
+    const next = { ...prev, ...patch }
+    if ('width' in patch) next.width = clampWidth(SIDE_PANEL, patch.width, typeof window !== 'undefined' ? window.innerWidth : null)
+    return next
+  }), [])
+  const sideViewNow = useRef(null)
+  sideViewNow.current = { open: sidePanel.open, tab: filesWindow.tab }
+  const toggleSideView = useCallback((view) => {
+    const next = pressSideView(sideViewNow.current, view)
+    setSidePanelState((prev) => ({ ...prev, open: next.open }))
+    setFilesWindowState((prev) => ({ ...prev, tab: next.tab }))
+  }, [])
+  const openSideView = useCallback((view) => {
+    if (!SIDE_VIEWS.includes(view)) return
+    setSidePanelState((prev) => ({ ...prev, open: true }))
+    setFilesWindowState((prev) => ({ ...prev, tab: view }))
+  }, [])
+  // AI Chat in the Workspace, the same way: folded until asked for, at the
+  // right. Folding it doesn't stop an answer being written (the conversation
+  // is this provider's); one that finishes while it's folded leaves a mark
+  // on its button (`chatUnread`) until it's opened.
+  const [aiChat, setAiChatState] = useState(readAiChat)
+  useEffect(() => { writeAiChat(aiChat) }, [aiChat])
+  const setAiChat = useCallback((patch) => setAiChatState((prev) => {
+    const next = { ...prev, ...patch }
+    if ('width' in patch) next.width = clampWidth(AI_CHAT, patch.width, typeof window !== 'undefined' ? window.innerWidth : null)
+    return next
+  }), [])
+  const toggleAiChat = useCallback(() => setAiChatState((prev) => ({ ...prev, open: !prev.open })), [])
+  const [chatUnread, setChatUnread] = useState(false)
+  if (aiChat.open && chatUnread) setChatUnread(false)
   // History's kind/target filter — shared by the sidebar drawer (which sets
   // it) and the History page's playback timeline (which reads it too), so
   // narrowing to one file's checkpoints does the same thing in both.
@@ -367,6 +423,11 @@ export function WorkspaceProvider({ children, projectId }) {
   const [workspaceChat, setWorkspaceChat] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
   const [mergeChats, setMergeChats] = useDemoState(`project:${projectId}:mergeChats`, {})
   const [isAiTyping, setIsAiTyping] = useState(false)
+  const wasAiTyping = useRef(false)
+  useEffect(() => {
+    if (wasAiTyping.current && !isAiTyping && !aiChat.open && activeViewNow.current !== 'mergeStudio') setChatUnread(true)
+    wasAiTyping.current = isAiTyping
+  }, [isAiTyping, aiChat.open])
   const chatGeneration = useRef(null)
   const stopChatGeneration = useCallback(() => {
     if (chatGeneration.current) window.clearTimeout(chatGeneration.current.timer)
@@ -403,7 +464,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // Switches the whole app body below TopBar, rather than living inside
   // dockview — Merge Studio's "Merge List" sidebar + workspace is its own
   // screen, not another dockable panel.
-  const [activeView, setActiveView] = useState('workspace')
+  const [activeView, setActiveViewState] = useState('workspace')
+  // (Said at once, too: what's opened in the same step as the view changes goes by the view it's going to.)
+  const setActiveView = useCallback((view) => { activeViewNow.current = view; setActiveViewState(view) }, [])
   const [mergeItems, setMergeItems] = useDemoState(`project:${projectId}:mergeItems`, () => forProject(seedMergeListItems, projectId))
   // Recreate only dynamically registered demo variants after reload.
   useMemo(() => {
@@ -786,6 +849,12 @@ export function WorkspaceProvider({ children, projectId }) {
   const requestConflictDrawer = useCallback((id) => {
     setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
   }, [])
+  // Where each of the bottom panel's views went (see `setBottomPanel`).
+  workspaceViewOpener.current = (tab) => {
+    if (tab === 'terminal' || tab === 'console') openSideView(tab)
+    else if (tab === 'design-compare') openOrFocusPanel(dockApi, panelById.designCompare)
+    else requestConflictDrawer()
+  }
   // (A notification's way in is the one way in: kept under its name for those that call it.)
   const requestDocsDrawer = useCallback(() => {
     setDocsDrawerRequest({ nonce: nextId('docs-drawer') })
@@ -2681,6 +2750,14 @@ export function WorkspaceProvider({ children, projectId }) {
     setBottomPanel,
     filesWindow,
     setFilesWindow,
+    sidePanel,
+    setSidePanel,
+    toggleSideView,
+    openSideView,
+    aiChat,
+    setAiChat,
+    toggleAiChat,
+    chatUnread,
     historyFilter,
     setHistoryFilter,
     assetAssemblies,

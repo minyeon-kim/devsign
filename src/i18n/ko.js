@@ -793,6 +793,15 @@ After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
 Whole screen|화면 전체
+Collapse AI Chat|AI 채팅 접기
+Expand AI Chat|AI 채팅 펼치기
+Expand AI Chat · New reply|AI 채팅 펼치기 · 새 응답
+New reply in AI Chat|AI 채팅에 새 응답이 있어요
+Resize side panel|사이드 패널 크기 조절
+Resize AI Chat|AI 채팅 크기 조절
+Side panel views|사이드 패널 보기
+Workspace views|워크스페이스 보기
+Drawer|서랍
 Preview view|미리보기 보기 방식
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기

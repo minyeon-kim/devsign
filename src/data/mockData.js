@@ -2118,6 +2118,7 @@ export const panelDefinitions = [
   { id: 'editor', title: 'Code Editor', component: 'editor', iconName: 'FileCode', group: 'main' },
   { id: 'preview', title: 'Preview', component: 'preview', iconName: 'Monitor', group: 'main' },
   { id: 'chat', title: 'AI Chat', component: 'chat', iconName: 'Sparkles', group: 'main' },
+  { id: 'designCompare', title: 'Design Compare', component: 'designCompare', iconName: 'Layers3', group: 'main', dockWith: 'canvas' },
   { id: 'terminal', title: 'Terminal', component: 'terminal', iconName: 'SquareTerminal', group: 'bottom' },
   { id: 'console', title: 'Console', component: 'console', iconName: 'ScrollText', group: 'bottom' },
   { id: 'conflict', title: 'Conflict Points', component: 'conflict', iconName: 'TriangleAlert', group: 'bottom' },

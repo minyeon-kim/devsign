@@ -26,20 +26,22 @@ export function openOrFocusPanel(dockApi, def) {
     return
   }
 
-  const sibling = dockApi.panels.find((p) => panelById[p.id]?.group === def.group)
+  // (`dockWith`: the view it belongs beside, when that's open — Design Compare
+  // with the canvas. AI Chat's window is its own: nothing else opens into it.)
+  const sibling = (def.dockWith && dockApi.getPanel(def.dockWith)) || dockApi.panels.find((p) => panelById[p.id]?.group === def.group && p.id !== panelById.chat.id)
   if (sibling) {
-    addDockPanel(dockApi, def, { position: { direction: 'within', referencePanel: sibling.id } })
+    addDockPanel(dockApi, def, { position: { direction: 'within', referencePanel: sibling.id } })?.api.setActive()
     return
   }
 
   // That whole family is closed — fall back to a sensible spot relative to
   // whatever's still open, roughly matching buildInitialLayout's shape.
   // The navigator isn't an anchor: a view opened beside it goes on its
-  // left, keeping the navigator at the far right.
+  // right, keeping the navigator at the far left.
   const navigator = dockApi.getPanel(panelById.navigator.id)
   const anchor = dockApi.getPanel(panelById.editor.id) ?? dockApi.panels.find((p) => p.id !== panelById.navigator.id)
   if (!anchor && navigator && def.group !== 'sidebar') {
-    addDockPanel(dockApi, def, { position: { direction: 'left', referencePanel: navigator.id }, share: 0.75 })
+    addDockPanel(dockApi, def, { position: { direction: 'right', referencePanel: navigator.id }, share: 0.75 })
     return
   }
   const direction = def.group === 'bottom' ? 'below' : def.group === 'sidebar' ? 'left' : 'above'
@@ -54,27 +56,27 @@ export function buildInitialLayout(api) {
   // Terminal, Console and Conflict Points aren't floating windows anymore —
   // they live in the workspace's docked bottom panel (WorkspaceBottomPanel).
   // No Explorer/Layers windows here either: both are tabs of the navigator
-  // pane (NavigatorPanel), which WorkspaceSplitLayout docks at the far right.
+  // pane (NavigatorPanel), which WorkspaceSplitLayout docks at the far left.
   //
   // Every view is an independent tab (close, drag, split, reopen from a
-  // `+`). The default split: AI Chat up front on the left with the code
-  // file beside it as an inactive tab; the Canvas up front in the center
-  // with Preview beside it.
+  // `+`). The default split: the code file on the left, the Canvas up front
+  // in the center with Preview beside it, and AI Chat in a window of its
+  // own at the far right (folded until asked for — see WorkspaceSplitLayout).
   // Split shares determine the workspace pane widths; give Canvas a little
-  // more than half so AI Chat starts narrower and the main work area dominates.
-  addDockPanel(api, panelById.chat, { initialWidth: 380 })
-  addDockPanel(api, panelById.editor, {
-    position: { direction: 'within', referencePanel: panelById.chat.id },
-  })
+  // more than half so the main work area dominates.
+  addDockPanel(api, panelById.editor, { initialWidth: 380 })
   addDockPanel(api, panelById.canvas, {
-    position: { direction: 'right', referencePanel: panelById.chat.id },
+    position: { direction: 'right', referencePanel: panelById.editor.id },
     share: 0.68,
   })
   addDockPanel(api, panelById.preview, {
     position: { direction: 'within', referencePanel: panelById.canvas.id },
   })
+  addDockPanel(api, panelById.chat, {
+    position: { direction: 'right', referencePanel: panelById.canvas.id },
+    share: 0.3,
+  })
 
-  api.getPanel(panelById.chat.id)?.api.setActive()
   api.getPanel(panelById.canvas.id)?.api.setActive()
 }
 

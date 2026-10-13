@@ -12,7 +12,6 @@ import FollowMeBanner from '@/components/layout/FollowMeBanner'
 import CommandPalette from '@/components/layout/CommandPalette'
 import MergeStudioView from '@/components/mergestudio/MergeStudioView'
 import WorkspaceSplitLayout from '@/components/workspace/WorkspaceSplitLayout'
-import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
 import { WorkspaceBottomPanelPortalContext } from '@/components/workspace/WorkspaceBottomPanelContext'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -172,7 +171,6 @@ function WorkspacePage() {
         {!inMergeStudio && <FollowMeBanner />}
         {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
       </div>
-      {!inMergeStudio && <WorkspaceBottomPanel />}
       {/* A conflict's detail, full-screen over all of the above. */}
       <ConflictReviewOverlay inMergeStudio={inMergeStudio} />
       {/* (Docs: the same kind of layer, at ?doc / ?docs.) */}

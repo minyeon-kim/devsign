@@ -12,7 +12,7 @@ function AutoScrollList({ entries, className }) {
   return (
     <div ref={ref} className={className}>
       {entries.map((entry) => (
-        <div key={entry.id} className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+        <div key={entry.id} className="break-words whitespace-pre-wrap animate-in fade-in slide-in-from-bottom-1 duration-200">
           {entry.text}
         </div>
       ))}

@@ -58,7 +58,8 @@ function replaceChild(root, parent, oldNode, newNode) {
 // default; e.g. a sidebar asks for less). With no reference the new cell
 // goes at the far right of the top-level row; a `share` there is its part
 // of the whole row.
-function insertLeaf(root, id, refId, direction, share) {
+// (`atStart`, with no reference: at the row's left end instead — the side panel's place.)
+function insertLeaf(root, id, refId, direction, share, atStart = false) {
   const leaf = { type: 'leaf', id }
   if (!root) return leaf
   const dir = direction === 'above' || direction === 'below' ? 'col' : 'row'
@@ -68,12 +69,12 @@ function insertLeaf(root, id, refId, direction, share) {
     // No reference: along the top-level row.
     if (root.type === 'split' && root.dir === 'row') {
       const sum = root.sizes.reduce((a, b) => a + b, 0)
-      root.children.push(leaf)
-      root.sizes.push(share != null ? (sum * share) / (1 - share) : Math.max(...root.sizes, 1) / 2)
+      const size = share != null ? (sum * share) / (1 - share) : Math.max(...root.sizes, 1) / 2
+      if (atStart) { root.children.unshift(leaf); root.sizes.unshift(size) } else { root.children.push(leaf); root.sizes.push(size) }
       return root
     }
     const sizes = share != null ? [1 - share, share] : [2, 1]
-    return { type: 'split', id: `split-${++splitSeq}`, dir: 'row', children: [root, leaf], sizes }
+    return { type: 'split', id: `split-${++splitSeq}`, dir: 'row', children: atStart ? [leaf, root] : [root, leaf], sizes: atStart ? [...sizes].reverse() : sizes }
   }
   share ??= 0.5
   const { parent, node } = hit
@@ -313,7 +314,7 @@ export function useFloatingDockApi() {
       }
     }
 
-    store.layout = insertLeaf(store.layout, id, ref?.id, ref ? options.direction ?? 'below' : undefined, options.share)
+    store.layout = insertLeaf(store.layout, id, ref?.id, ref ? options.direction ?? 'below' : undefined, options.share, options.atStart)
     store.groups[id] = {
       id,
       x,
@@ -332,7 +333,7 @@ export function useFloatingDockApi() {
     return makeGroupHandle(id)
   }
 
-  function addPanel({ id, component, title, params, position = {}, initialWidth, initialHeight, share }) {
+  function addPanel({ id, component, title, params, position = {}, initialWidth, initialHeight, share, atStart }) {
     let groupId
     if (position.referenceGroup) {
       groupId = position.referenceGroup.id ?? position.referenceGroup
@@ -347,6 +348,7 @@ export function useFloatingDockApi() {
         initialWidth,
         initialHeight,
         share,
+        atStart,
       })
       groupId = group.id
     }

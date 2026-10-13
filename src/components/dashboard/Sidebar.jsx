@@ -1,12 +1,13 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, TriangleAlert, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Component, Ellipsis, Files, History, House, Import, Layers, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, ScanEye, ScrollText, SquareTerminal, TriangleAlert, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import SwitchUserItems from '@/components/dashboard/SwitchUserItems'
 import { LocalizedText } from '@/i18n/runtime'
@@ -29,6 +30,11 @@ const globalItems = [
   { id: 'team', label: 'Team', icon: Users, path: '/team' },
 ]
 
+// What the bar's fixed parts take of its height: the top padding and the
+// project switcher (48), the six project views (240), the two hairlines
+// (26) and the foot — the viewer's badge and Settings (96).
+const RAIL_TAKEN = 48 + 240 + 26 + 96
+
 const iconButtonClass =
   'mx-auto flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full p-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
 
@@ -41,15 +47,98 @@ export const RAIL_WIDTH = 'w-[var(--ds-chrome-size)]'
 
 // An icon-only activity bar button, named by its tooltip.
 // (`side`: where the tooltip goes — away from the edge the rail is on.)
-export function RailButton({ label, icon: Icon, className, iconClassName, side = 'right', ...triggerProps }) {
+// (`hint`: its shortcut, said after the name.)
+export function RailButton({ label, icon: Icon, className, iconClassName, side = 'right', hint = null, ...triggerProps }) {
   return (
     <Tooltip>
       <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
         <Icon className={cn('size-[18px]', iconClassName)} />
       </TooltipTrigger>
-      <TooltipContent side={side}>{label}</TooltipContent>
+      <TooltipContent side={side}>{label}{hint && <span className="ml-1.5 opacity-60">{hint}</span>}</TooltipContent>
     </Tooltip>
   )
+}
+
+// The Workspace's own views, on the activity bar under the project's: the
+// side panel's — Files · Layers · Assets · Inspect — then, past a hairline,
+// what used to be the bottom panel's: Design Compare (a tab beside the
+// canvas: it needs the width), Terminal and Console (in the side panel).
+// A side panel icon opens the panel on its view, swaps the view, or — the
+// one that's showing — folds it. What doesn't fit the bar's height goes to
+// "More" at the end, so the bar itself never scrolls.
+const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
+const WORKSPACE_VIEWS = [
+  { id: 'files', label: 'Files', icon: Files, side: true },
+  { id: 'layers', label: 'Layers', icon: Layers, side: true },
+  { id: 'assets', label: 'Assets', icon: Component, side: true },
+  { id: 'inspect', label: 'Inspect', icon: ScanEye, side: true },
+  { id: 'design-compare', label: 'Design Compare', icon: Layers3, rule: true },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, side: true },
+  { id: 'console', label: 'Console', icon: ScrollText, side: true },
+]
+function WorkspaceViews({ workspace, slots }) {
+  const { sidePanel, filesWindow, toggleSideView, setBottomPanel, mergeItems } = workspace
+  const designSets = mergeItems.filter((item) => item.hasDesign).length
+  const showing = (view) => view.side && sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck'))
+  const press = (view) => (view.side ? toggleSideView(view.id) : setBottomPanel({ tab: view.id, open: true }))
+  const { shown, more } = railSplit(WORKSPACE_VIEWS, slots)
+  return (
+    <div data-workspace-views role="group" aria-label="Workspace views" className="flex flex-col gap-1">
+      <span aria-hidden className="mx-auto my-1 h-px w-5 shrink-0 bg-white/10" />
+      {shown.map((view) => (
+        <div key={view.id} className="relative flex flex-col gap-1">
+          {view.rule && <span aria-hidden className="mx-auto my-1 h-px w-5 shrink-0 bg-white/10" />}
+          <div className="relative">
+            <RailButton
+              label={view.label}
+              icon={view.icon}
+              hint={view.side ? SIDE_SHORTCUT : null}
+              data-side-view={view.side ? view.id : undefined}
+              data-workspace-view={view.id}
+              aria-expanded={view.side ? showing(view) : undefined}
+              aria-controls={view.side ? 'workspace-side-panel' : undefined}
+              onClick={() => press(view)}
+              className={cn(showing(view) && activeClass)}
+            />
+            {view.id === 'design-compare' && designSets > 0 && (
+              <span data-view-badge title={`${designSets} design sets`} className="pointer-events-none absolute top-0.5 right-1 inline-flex size-3.5 items-center justify-center rounded-full bg-[#5CE0AE] text-[9px] leading-none font-bold text-[#050505] tabular-nums ring-2 ring-background">
+                {designSets}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+      {more.length > 0 && (
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger render={<DropdownMenuTrigger data-views-more aria-label="More" className={cn(iconButtonClass, more.some(showing) && activeClass, 'data-[popup-open]:bg-muted')}><Ellipsis className="size-[18px]" /></DropdownMenuTrigger>} />
+            <TooltipContent side="right">More</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent side="right" align="end" className="min-w-44">
+            {more.map((view) => (
+              <DropdownMenuItem key={view.id} data-workspace-view={view.id} onClick={() => press(view)} className="gap-2 text-xs">
+                <view.icon className="size-3.5" />
+                <LocalizedText text={view.label} />
+                {view.id === 'design-compare' && designSets > 0 && <span className="ml-auto tabular-nums text-muted-foreground">{designSets}</span>}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  )
+}
+
+// Up / Down move along the bar's buttons (Tab still walks them one by one).
+function railArrowKeys(event) {
+  if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') || event.altKey || event.metaKey || event.ctrlKey) return
+  const items = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href]')]
+  const at = items.indexOf(document.activeElement)
+  if (at === -1) return
+  const next = items[at + (event.key === 'ArrowDown' ? 1 : -1)]
+  if (!next) return
+  event.preventDefault()
+  next.focus()
 }
 
 // The Projects button's face: a grid icon on global pages, or — inside
@@ -83,7 +172,20 @@ function ProjectsMark({ project }) {
 //     Conflict Points opens the conflict list in the drawer — the same
 //     list as the Workspace's bottom panel, as a second way in.
 // Settings is pinned to the bottom.
-function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
+function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, workspace = null }) {
+  // How many of the Workspace's icons fit under the main ones (each a 36px
+  // button and a 4px gap; the rest of the bar's height is spoken for).
+  const barRef = useRef(null)
+  const [slots, setSlots] = useState(WORKSPACE_VIEWS.length)
+  useLayoutEffect(() => {
+    const bar = barRef.current
+    if (!bar || !workspace) return undefined
+    const measure = () => setSlots(Math.max(0, Math.floor((bar.clientHeight - RAIL_TAKEN) / 40)))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [Boolean(workspace)])
   const { pathname, search } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const base = project ? `/projects/${project.id}` : null
@@ -95,6 +197,9 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
 
   return (
     <div
+      ref={barRef}
+      data-activity-bar
+      onKeyDown={railArrowKeys}
       className={cn(
         'flex h-full w-[var(--ds-chrome-size)] shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
         // The chrome's color (--ds-bg-base, with the top and bottom bars),
@@ -191,7 +296,9 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
         )}
       </nav>
 
-      {/* Match the 48px bottom tab strip so the icon centers align. */}
+      {workspace && <WorkspaceViews workspace={workspace} slots={slots} />}
+
+      {/* (48px tall, as the top bar is.) */}
       <div className="mt-auto flex shrink-0 flex-col items-center gap-1">
         <UserBadge projectId={project?.id} />
         <div className="flex h-12 items-center">
@@ -311,7 +418,7 @@ function UserBadge({ projectId }) {
   )
 }
 
-function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts }) {
+function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts, workspace = null }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
   if (drawer && drawer !== shown) setShown(drawer)
@@ -325,7 +432,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
 
   return (
     <div className="z-10 flex h-full shrink-0">
-      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} />
+      <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} workspace={workspace} />
 
       <div
         inert={!drawer}

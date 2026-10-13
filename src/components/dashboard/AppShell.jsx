@@ -20,10 +20,13 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 // addresses: lib/docLink, lib/historyLink, lib/changeLink); each asks for its
 // drawer when it opens — handled here the same way for all three. A drawer's
 // icon only opens and closes the drawer; the layer is closed by its own Close.
+// What the address says when a layer is over the Workspace (lib/changeLink, docLink, historyLink).
+const LAYER_PARAMS = ['change', 'doc', 'docs', 'history']
+
 function AppShell({ topBar, project, children }) {
   // null | 'docs' | 'history' | 'import' | 'conflicts'
   const [drawer, setDrawer] = useState(null)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
 
   // The History drawer is opened the way the Docs and change-list drawers are: asked for
   // (WorkspaceProvider's `requestHistoryDrawer` — by the History layer when it opens, and by
@@ -92,6 +95,8 @@ function AppShell({ topBar, project, children }) {
         onToggleDrawer={toggleDrawer}
         openConflicts={openConflicts}
         onCloseDrawer={() => setDrawer(null)}
+        // (The Workspace's own views sit on the bar while it's the Workspace that's showing — not a layer over it.)
+        workspace={workspace && workspace.activeView === 'workspace' && pathname.replace(/\/$/, '').endsWith('/workspace') && !LAYER_PARAMS.some((key) => new URLSearchParams(search).has(key)) ? workspace : null}
       />
 
       <div className={`flex min-w-0 flex-1 flex-col overflow-hidden ${drawer ? 'pl-2' : ''}`}>

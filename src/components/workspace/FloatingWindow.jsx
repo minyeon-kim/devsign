@@ -34,7 +34,7 @@ const DRAG_THRESHOLD = 4
 // dragging one of its tabs (just that tab moves) — and its header holds
 // only its tabs (each closes itself) and the `+` view menu: no window
 // controls.
-// `sideToggle`: on the canvas's window — { open, onToggle, hint } — the button
+// `sideToggle`: on a side panel's window — { label, hint, controls, mirrored, onToggle } — the button
 // at its tab row's right end that folds the right panel away and back.
 function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null }) {
   const dragRef = useRef(null)
@@ -128,7 +128,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             // the last one. The navigator's tabs (Files/Layers/Assets) are
             // fixed navigation, not addable views, so it gets no `+`.
             <>
-              <div className={cn("flex min-w-0 items-center gap-1", isNavigatorGroup ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
+              <div role={isNavigatorGroup ? 'tablist' : undefined} aria-label={isNavigatorGroup ? 'Side panel views' : undefined} className={cn("flex min-w-0 items-center gap-1", isNavigatorGroup ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
                 {group.panelIds.map((pid) =>
                   panelsById[pid] ? (
                     <PanelTabs
@@ -237,17 +237,18 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
               </button>
             </div>
           )}
-          {/* The right panel's toggle: always at the row's right end — the tabs
-              before it are what scrolls when there are many. */}
+          {/* A side panel's fold button (the side panel, AI Chat): always at the
+              row's end — the tabs before it are what gives when it's narrow. */}
           {sideToggle && !isMaximized && (
             <PanelToggleButton
-              mirrored
-              data-side-toggle={sideToggle.open ? 'open' : 'folded'}
-              label={sideToggle.open ? '오른쪽 패널 접기' : '오른쪽 패널 펼치기'}
+              mirrored={sideToggle.mirrored}
+              data-side-toggle
+              label={sideToggle.label}
               hint={sideToggle.hint}
-              expanded={sideToggle.open}
+              expanded
+              aria-controls={sideToggle.controls}
               onClick={sideToggle.onToggle}
-              className="ds-intrinsic ml-auto"
+              className="ds-intrinsic ml-auto size-7"
             />
           )}
         </div>
