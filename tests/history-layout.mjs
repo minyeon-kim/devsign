@@ -26,7 +26,7 @@ try {
   assert.equal(h.readHistoryView('?history=h-2&view=code'), 'code')
   assert.equal(h.readHistoryView('?history=h-2'), null)
   assert.equal(h.readHistoryView('?history=h-2&view=nonsense'), null)
-  for (const view of ['code', 'screen']) {
+  for (const view of ['code', 'split', 'screen']) {
     const address = h.withHistoryView('?history=h-2', view)
     assert.equal(h.readHistoryView(address) ?? 'screen', view, `${view}: address → tab`)
     assert.deepEqual(h.readHistoryParams(address), { open: true, checkpoint: 'h-2' }, `${view}: the checkpoint is still read`)
@@ -56,13 +56,22 @@ try {
 
   // Screen | Code, as tabs; the screen one when the screen changed.
   const tabs = [...page.matchAll(/<button[^>]*data-history-tab="(\w+)"[^>]*>/g)].map(([tag, id]) => ({ id, selected: /aria-selected="true"/.test(tag) }))
-  assert.deepEqual(tabs, [{ id: 'screen', selected: true }, { id: 'code', selected: false }])
+  assert.deepEqual(tabs, [{ id: 'screen', selected: true }, { id: 'code', selected: false }, { id: 'split', selected: false }])
   assert.match(page, /data-compare-render/, 'the screen tab shows the canvas')
   assert.doesNotMatch(page, /data-compare-code/, '…and not the code')
   const code = render({}, '?history=history-db-2&view=code')
-  assert.deepEqual([...code.matchAll(/<button[^>]*data-history-tab="(\w+)"[^>]*>/g)].map(([tag, id]) => ({ id, selected: /aria-selected="true"/.test(tag) })), [{ id: 'screen', selected: false }, { id: 'code', selected: true }], 'view=code opens on the code tab')
+  assert.deepEqual([...code.matchAll(/<button[^>]*data-history-tab="(\w+)"[^>]*>/g)].map(([tag, id]) => ({ id, selected: /aria-selected="true"/.test(tag) })), [{ id: 'screen', selected: false }, { id: 'code', selected: true }, { id: 'split', selected: false }], 'view=code opens on the code tab')
   assert.match(code, /data-compare-code="open"/)
   assert.doesNotMatch(code, /data-compare-render/, 'the code tab has the height to itself')
+  // Screen and code together: both in one body, side by side.
+  assert.equal(h.withHistoryView('?history=h-2', 'split'), '?history=h-2&view=split')
+  assert.equal(h.readHistoryView('?history=h-2&view=split'), 'split')
+  assert.equal(h.withHistory('?history=h-2&view=split', 'h-3'), '?history=h-3&view=split', 'stepping keeps it')
+  const both = render({}, '?history=history-db-2&view=split')
+  assert.match(both, /data-history-tab="split"[^>]*aria-selected="true"|aria-selected="true"[^>]*data-history-tab="split"/)
+  assert.match(both, /data-compare-body="split"[^>]*flex-row/)
+  assert.match(both, /data-compare-render/, 'the screen…')
+  assert.match(both, /data-compare-code="open"/, '…and the code')
   assert.match(code, /data-code-whole-file/, 'file · N lines · whole file · layout')
   // Playing on the Screen tab: the typing goes on, unseen.
   assert.match(render({ playing: true }), /hidden=""[^>]*>[\s\S]*data-playback-code|hidden=""/, 'playback goes on behind the screen tab')

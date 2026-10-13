@@ -2540,3 +2540,4 @@ Object.assign(ko, {
   'More view options': '보기 옵션 더 보기',
   'Ring the changed elements': '바뀐 요소에 링 표시',
 })
+Object.assign(ko, { 'Screen and code': '화면 + 코드' })

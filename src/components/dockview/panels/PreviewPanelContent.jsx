@@ -152,7 +152,7 @@ const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen
 const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null, flush = false } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null, flush = false, narrowPane = false } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -271,7 +271,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   // Two renders compared: how (side by side unless the window's too narrow
   // for two to read — then the slider), and whether they differ on this screen.
   const comparing = Boolean(rendering?.compare) && !overview
-  const narrow = typeof window !== 'undefined' && window.innerWidth <= NARROW_WINDOW && !fullscreen
+  const narrow = typeof window !== 'undefined' && (window.innerWidth <= NARROW_WINDOW || narrowPane) && !fullscreen
   const compareMode = !comparing ? null : comparePick === 'side' && narrow ? 'slider' : COMPARE_MODES.some(([id]) => id === comparePick) ? comparePick : 'side'
   const versionsDiffer = comparing ? layoutChanged(rendering.spec, rendering.compare.spec, viewport) : false
 
