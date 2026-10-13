@@ -25,6 +25,18 @@ const TOOLTIP_DELAY = 150
 const HEAD_COLOR = { default: 'var(--color-amber-400)', selected: 'var(--color-orange-500)', resolved: 'var(--color-slate-500)' }
 
 // A head with a tail under it, tip at the bottom center.
+// The same pin, standing for a count rather than one change — on a screen's
+// card on the Screens board: its head, and the dark badge a pin carries for
+// "more than one", here with the number of open changes ("99+" past 99).
+export function ConflictCountPin({ label }) {
+  return (
+    <span data-count-pin className="relative block" style={{ width: PIN.head, height: PIN.height }}>
+      <PinShape head={PIN.head} height={PIN.height} color={HEAD_COLOR.default} />
+      <span data-pin-badge className="absolute flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-slate-900 px-1 text-[9px] leading-none font-semibold text-white tabular-nums ring-1 ring-white" style={{ top: -6, left: PIN.head - 5 }}>{label}</span>
+    </span>
+  )
+}
+
 function PinShape({ head, height, color }) {
   const r = head / 2
   // The tail leaves the head's lower sides and meets at the tip.

@@ -55,7 +55,8 @@ function statusOf(conflict) {
   return done ? (conflict.rollback ? 'Previous version restored' : conflict.revertOf ? 'Merge canceled' : 'Merged') : scheduled ? `승인됨 · ${scheduled}` : listStatusOf(conflict).label
 }
 
-function ConflictRow({ conflict, selected, hovered, onOpen, onHover }) {
+// (Also the row of a screen's change list on the Screens board.)
+export function ConflictRow({ conflict, selected = false, hovered = false, onOpen, onHover = () => {} }) {
   const row = useRef(null)
   // Picked (here or by its pin on the canvas): brought into view in the list.
   useEffect(() => { if (selected) row.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [selected])
