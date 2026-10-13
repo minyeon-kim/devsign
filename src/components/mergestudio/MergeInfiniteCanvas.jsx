@@ -417,6 +417,17 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
         </div>
       </div>
     )
+  } else if (type === 'image' && mock.role === 'photo') {
+    // A picture's place (a product photo, an illustration): a soft block with the picture glyph — no chart.
+    content = (
+      <div style={contentStyle} className={cn('flex h-full w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200', fill ?? 'bg-gradient-to-br from-amber-50 via-rose-50 to-indigo-50', extra)}>
+        <svg viewBox="0 0 48 36" className="h-1/3 max-h-12 w-auto text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2" width="44" height="32" rx="4" />
+          <circle cx="15" cy="13" r="4" />
+          <path d="M2 28l12-10 9 7 8-6 15 11" />
+        </svg>
+      </div>
+    )
   } else if (type === 'image') {
     content = (
       <div

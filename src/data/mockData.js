@@ -1,3 +1,4 @@
+import { LANDING_PROJECT_ID, landingPages, shopScreenPages } from '@/data/screenPages'
 import { draftFrame } from './draftScreens'
 import { currentGridLines, dashboardHistory, purchaseButtonLines, seededChangeOf, seededConflicts, stylesheetLines, timeLabelOf } from '@/mocks/derive'
 import { backendReferenceDocs } from './backendDocs'
@@ -193,9 +194,11 @@ export const allPeople = teamMembers
 // project's id, the project uses those only (its own consistent scenario);
 // otherwise it falls back to the untagged, shared entries. Used for canvas
 // pages, Merge Studio items and AI edit scenarios.
+// (A project in OWN_ONLY has nothing but what's its own: no shared samples stand in when it has none of something.)
+const OWN_ONLY = new Set([LANDING_PROJECT_ID])
 export function forProject(list, projectId) {
   const own = list.filter((x) => x.projectId === projectId)
-  return own.length ? own : list.filter((x) => !x.projectId)
+  return own.length || OWN_ONLY.has(projectId) ? own : list.filter((x) => !x.projectId)
 }
 
 // Backs the Team page's "Teams" column — which team(s) each person belongs
@@ -251,6 +254,18 @@ export const projects = [
     filesCount: 4,
     thumbnailType: 'mobile-nav',
     activityCount: 4,
+  },
+  // One long page (data/screenPages): the single-page project.
+  {
+    id: LANDING_PROJECT_ID,
+    name: 'Fennel Landing Page',
+    description: 'Landing page for Fennel, a bookkeeping tool — hero, features, how it works, pricing, testimonials and FAQ on one page.',
+    ownerId: currentUser.id,
+    memberIds: [currentUser.id, 'min'],
+    updatedAtLabel: '3d ago',
+    filesCount: 1,
+    thumbnailType: 'checkout',
+    activityCount: 0,
   },
 ]
 
@@ -1974,6 +1989,9 @@ export const canvasPages = [
       ],
     }],
   },
+  // The rest of Checkout Redesign's screens, and the landing page (data/screenPages).
+  ...shopScreenPages,
+  ...landingPages,
 ]
 
 // Flattened across all pages — used by id-based lookups (the Inspector
@@ -2117,6 +2135,7 @@ export const panelDefinitions = [
   { id: 'canvas', title: 'Canvas', component: 'canvas', iconName: 'AppWindow', group: 'main' },
   { id: 'editor', title: 'Code Editor', component: 'editor', iconName: 'FileCode', group: 'main' },
   { id: 'preview', title: 'Preview', component: 'preview', iconName: 'Monitor', group: 'main' },
+  { id: 'screens', title: 'Screens', component: 'screens', iconName: 'AppWindow', group: 'main' },
   { id: 'chat', title: 'AI Chat', component: 'chat', iconName: 'Sparkles', group: 'main' },
   { id: 'designCompare', title: 'Design Compare', component: 'designCompare', iconName: 'Layers3', group: 'main', dockWith: 'canvas' },
   { id: 'terminal', title: 'Terminal', component: 'terminal', iconName: 'SquareTerminal', group: 'bottom' },
@@ -3618,6 +3637,10 @@ export function registerMergeVariants(itemId, pageId) {
 }
 
 registerMergeVariants('merge-authmodal', 'page-1')
+
+// The landing page project starts with its one page's code file and nothing recorded yet.
+projectFileSets[LANDING_PROJECT_ID] = []
+projectHistorySeeds[LANDING_PROJECT_ID] = []
 
 // Keep the UT dataset scoped to the two supported projects, including global feeds.
 const utProjectIds = new Set(projects.map((project) => project.id))
