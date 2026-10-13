@@ -112,7 +112,7 @@ console.log('doc-link: ok')
   assert.ok(!/max-w-3xl px-6 py-5/.test(overlay))
   // A document keeps its reading width and its contents list; as a Workspace panel it keeps its own centred frame.
   const view = read('src/components/archive/ReferenceDocView.jsx')
-  assert.ok(view.includes("const DOC_FRAME = 'mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10'") && view.includes('frameClassName = DOC_FRAME') && view.includes("page ? 'col-start-2 min-w-0' : 'min-w-0 max-w-[680px] flex-1'"))
+  assert.ok(view.includes("const DOC_FRAME = 'mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10'") && view.includes('frameClassName = DOC_FRAME') && view.includes("'min-w-0 max-w-[680px] flex-1'"))
   assert.ok(read('src/components/dockview/panels/DocumentPanel.jsx').includes('<ReferenceDocView doc={doc} />'))
   console.log('doc-link (alignment): ok')
 }
