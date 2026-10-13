@@ -154,9 +154,9 @@ try {
   assert.ok(board.includes('<div aria-hidden className="pointer-events-none absolute inset-0">'))
   assert.ok(board.includes('{drawn.has(card.id) && <ScreenDrawing frame={screen.frame} />}'), 'only the cards in view are drawn')
   assert.ok(board.includes('onDoubleClick={() => play(card.id)}') && board.includes("event.key === 'Enter' && activePageId") && board.includes("{ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }"))
-  assert.ok(board.includes('aria-label={`Screen ${card.n}, ${screen.name}, goes to ${out} ${out === 1 ? \'screen\' : \'screens\'}`}'))
-  assert.ok(board.includes("event.key !== 'Escape'") && board.includes('onStop(current)') && board.includes('console.warn(`[prototype]'))
-  assert.ok(board.includes("how === 'slide' && 'animate-in fade-in slide-in-from-right-8 duration-200'") && board.includes('motion-reduce:animate-none'))
+  assert.ok(board.includes("aria-label={`Screen ${card.n}, ${screen.name}, goes to ${out} ${out === 1 ? 'screen' : 'screens'}${open.length ? `, ${openLabel(open.length)}` : ''}`}"), 'a card is named with where it goes and its open changes')
+  // (Nothing plays on the board: a screen is shown in Preview, where the prototype is — tests/prototype-preview.)
+  assert.ok(!/PrototypePlayer|data-prototype-player|data-board-play\b/.test(board) && board.includes("showScreenIn('preview', id)"))
   assert.ok(board.includes('data-single-page') && board.includes('This project is a single page.') && board.includes('data-empty'))
   console.log('Passed: Preview · Screens · Code in the address; the board placed by its flows, linked and culled; every project’s prototype data sound.')
 } finally { await server.close() }

@@ -70,9 +70,9 @@ import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from
 import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCategories'
 import { importKind } from '@/lib/importFiles'
 import { AI_CHAT, SIDE_PANEL, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
-import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import { prototypeOf } from '@/lib/screens'
-import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
+import { defaultViewOf, readLastView, readMode, readViewParams, withView, writeLastView } from '@/lib/viewLink'
+import { follow, restart as restartSession, sessionAt, startSession, stepBack } from '@/lib/prototypeEngine'
 import {
   PROTOTYPE_FILES,
   deriveComponentOverride,
@@ -473,15 +473,48 @@ export function WorkspaceProvider({ children, projectId }) {
     const search = withView(at.search, patch)
     if (search !== at.search) navigate({ pathname: at.pathname, search }, { replace: true, state: at.state })
   }, [navigate])
+  // (Picking a view leaves Design Compare: the view is what's wanted now.)
   const setWorkspaceView = useCallback((view) => {
     setLastView(view)
     writeLastView(projectId, view)
-    sayView({ view })
+    sayView({ view, mode: null })
   }, [projectId, sayView])
   const setActivePageId = useCallback((id) => {
     setActivePageIdState(id)
     if (id) sayView({ screen: id })
   }, [sayView])
+  // A screen shown in a view, in one step (one address change, not two that overwrite each other).
+  const showScreenIn = useCallback((view, id) => {
+    setActivePageIdState(id)
+    setLastView(view)
+    writeLastView(projectId, view)
+    sayView({ view, screen: id, mode: null })
+  }, [projectId, sayView])
+  // Design Compare is a mode of the main window (?mode=compare): on, it takes
+  // the window over; off, the window is back on the view and the screen it
+  // was on — neither is touched while it's up.
+  const compareMode = onWorkspace && readMode(location.search) === 'compare'
+  const setCompareMode = useCallback((on) => sayView({ mode: on ? 'compare' : null }), [sayView])
+  // The prototype being played (lib/prototypeEngine): the screens passed
+  // through, ending on the screen in view. A screen picked anywhere else
+  // starts it over from there.
+  const [playedSession, setPlayedSession] = useState(() => startSession(null))
+  const prototypeSession = sessionAt(playedSession, activePageId)
+  const prototypeNow = useRef(null)
+  prototypeNow.current = { prototype, session: prototypeSession }
+  const moveSession = useCallback((session) => {
+    setPlayedSession(session)
+    const id = session.history[session.history.length - 1]
+    if (id) setActivePageId(id)
+  }, [setActivePageId])
+  const prototypeFollow = useCallback((transition) => {
+    const { prototype: now, session } = prototypeNow.current
+    const result = follow(now, session, transition)
+    if (result.moved) moveSession(result.session)
+    return result
+  }, [moveSession])
+  const prototypeBack = useCallback(() => moveSession(stepBack(prototypeNow.current.session)), [moveSession])
+  const prototypeRestart = useCallback((flowId = null) => moveSession(restartSession(prototypeNow.current.prototype, prototypeNow.current.session, flowId)), [moveSession])
   useEffect(() => {
     if (viewSaid.screen) setActivePageIdState(viewSaid.screen)
   }, [viewSaid.screen])
@@ -899,7 +932,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // Where each of the bottom panel's views went (see `setBottomPanel`).
   workspaceViewOpener.current = (tab) => {
     if (tab === 'terminal' || tab === 'console') openSideView(tab)
-    else if (tab === 'design-compare') openOrFocusPanel(dockApi, panelById.designCompare)
+    else if (tab === 'design-compare') setCompareMode(true)
     else requestConflictDrawer()
   }
   // (A notification's way in is the one way in: kept under its name for those that call it.)
@@ -2847,6 +2880,13 @@ export function WorkspaceProvider({ children, projectId }) {
     prototype,
     workspaceView,
     setWorkspaceView,
+    showScreenIn,
+    compareMode,
+    setCompareMode,
+    prototypeSession,
+    prototypeFollow,
+    prototypeBack,
+    prototypeRestart,
     boardView,
     dockApi,
     setDockApi,

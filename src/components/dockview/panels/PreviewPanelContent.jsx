@@ -152,7 +152,7 @@ const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen
 const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null, flush = false, narrowPane = false } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, frameOverlay = null, frameMotion = null, canvasExtra = null, emphasizeMark = null, flush = false, narrowPane = false } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -412,10 +412,16 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         </div>
       ) : (
         <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded ? 'pt-0' : 'pt-3')}>
-          <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>
+          {/* (A prototype's own controls lead the row; then full screen is offered too.) */}
+          {toolbarExtra ?? <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>}
           <div className="flex shrink-0 items-center gap-2">
             {caption}
             <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
+            {toolbarExtra && (
+              <button type="button" data-preview-fullscreen aria-pressed={fullscreen} aria-label={fullscreen ? 'Exit full screen' : 'View full screen'} title={fullscreen ? 'Exit full screen · Esc' : 'View full screen'} onClick={() => setFullscreen(!fullscreen)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                {fullscreen ? <X className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -707,10 +713,12 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             )
           })() : shownFrames.map((frame) => {
             const scale = fitScale * (zoom / 100)
+            // (`frameMotion`: { key, className } — how this frame arrives, when it's a prototype's screen changing.)
             return (
               <div
-                key={frame.id}
-                className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80"
+                key={frameMotion ? `${frame.id}:${frameMotion.key}` : frame.id}
+                data-preview-frame={frame.id}
+                className={cn('relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80', frameMotion?.className)}
                 style={{ width: frame.width * scale, height: frame.height * scale }}
               >
                 <div
@@ -718,6 +726,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                   style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}
                 >
                   {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
+                  {/* What the caller lays over the screen, in the screen's own units (a prototype's hotspots). */}
+                  {frameOverlay?.(frame)}
                   {/* What changed since the step before, ringed where it
                       sits on the screen (the ring keeps its weight at any
                       scale). */}
@@ -729,6 +739,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             )
           })}
         </div>
+        {canvasExtra}
       </div>
       </div>
     </div>

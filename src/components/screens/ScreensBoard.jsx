@@ -1,27 +1,36 @@
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Flag, LocateFixed, Maximize, Minus, PencilRuler, Play, Plus, RotateCcw, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Flag, Maximize, Minus, PencilRuler, Play, Plus, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ConflictCountPin } from '@/components/conflicts/ConflictPins'
+import { ConflictRow } from '@/components/dashboard/ConflictsDrawer'
+import { useLanguage } from '@/i18n/language'
+import { conflictsByScreen, countLabel } from '@/lib/screenConflicts'
 import { LocalizedText } from '@/i18n/runtime'
 import { boardLayout, linksOf, screenOf, transitionsOf } from '@/lib/screens'
 import { boardFit, clampZoom, linkPath, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Screens — the project's screens on one board, in the order its flows say
-// (lib/screens' boardLayout), with the links between them, and a prototype
-// that can be played from any of them.
+// (lib/screens' boardLayout), with the links between them and how many open
+// changes each has.
 //
 //   · The board pans (drag, the wheel, Space + drag) and zooms (pinch or
 //     ⌘/Ctrl + wheel, the toolbar) between 10% and 200%; it opens fitted.
 //   · A press selects a screen — the screen in view everywhere else too
-//     (Preview, Code, the side panel). A double press, Enter or ▶ plays the
-//     prototype from it. "Edit" opens it on the canvas, where its layers,
-//     pins and tools are.
+//     (Preview, Code, the side panel). A double press, Enter or ▶ shows it
+//     in Preview, where the prototype plays from it. "Edit" opens it on the
+//     canvas, where its layers, pins and tools are.
+//   · A screen with open changes carries the change pin with their number,
+//     the same size at any zoom; pressing it lists them, and a row opens
+//     that change. The toolbar has the project's total and steps through
+//     the screens that have any.
 //   · The drawings on the cards are the screens themselves, scaled — never
 //     interactive, each inside its own error boundary, and only the cards in
 //     view are drawn.
-// Viewing and playing only: links and hotspots aren't edited here.
+// Viewing only: links and hotspots aren't edited here, and nothing plays here.
 
 const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-md px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
 const BAR = 'flex items-center gap-0.5 rounded-lg border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
@@ -55,10 +64,16 @@ function ScreenDrawing({ frame }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, boardView, dockApi } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, openConflictReview } = useWorkspace()
+  const language = useLanguage()
   const layout = useMemo(() => boardLayout(prototype), [prototype])
   const links = useMemo(() => linksOf(prototype, layout.cards), [prototype, layout])
   const order = layout.cards.map((card) => card.id)
+  // The open changes, by screen (the workspace's own list: it changes as they're decided, and so does this).
+  const changes = useMemo(() => conflictsByScreen(prototype, conflicts), [prototype, conflicts])
+  const withChanges = order.filter((id) => changes.byScreen.has(id))
+  const [marking, setMarking] = useState(false)
+  const openLabel = (count) => (language === 'ko' ? `미해결 충돌 ${count}건` : `${count} open ${count === 1 ? 'change' : 'changes'}`)
   const cardOf = (id) => layout.cards.find((card) => card.id === id) ?? null
 
   const rootRef = useRef(null)
@@ -94,7 +109,7 @@ function ScreensBoard() {
     const el = rootRef.current
     if (!el) return undefined
     const onWheel = (event) => {
-      if (event.target.closest('[data-board-chrome], [data-prototype-player]')) return
+      if (event.target.closest('[data-board-chrome]')) return
       event.preventDefault()
       const box = el.getBoundingClientRect()
       if (event.ctrlKey || event.metaKey) setView((prev) => zoomAt(prev ?? { x: 0, y: 0, zoom: 1 }, clampZoom((prev?.zoom ?? 1) * Math.exp(-event.deltaY * 0.01)), { x: event.clientX - box.left, y: event.clientY - box.top }))
@@ -121,24 +136,21 @@ function ScreensBoard() {
     window.addEventListener('pointerup', onUp)
   }
 
-  // Playing: { history: [screenId, …] } — the screens passed through, the last one showing.
-  const [playing, setPlaying] = useState(null)
-  const starter = useRef(null)
-  const play = (id = prototype.startScreenId) => {
-    if (!screenOf(prototype, id)) return
-    starter.current = document.activeElement
-    setActivePageId(id)
-    setPlaying({ history: [id] })
-  }
-  const stop = (last) => {
-    setPlaying(null)
-    if (last) setActivePageId(last)
-    requestAnimationFrame(() => (starter.current?.isConnected ? starter.current : rootRef.current)?.focus?.())
-  }
+  // Shown in Preview: the prototype plays from that screen there.
+  const play = (id = prototype.startScreenId) => { if (screenOf(prototype, id)) showScreenIn('preview', id) }
   const reveal = (id) => {
     const card = cardOf(id)
     if (!card) return
     setView((prev) => { const zoom = prev?.zoom ?? 1; return { zoom, x: room.width / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y + card.height / 2) * zoom } })
+  }
+  // The next (or the one before) of the screens with open changes, in board order, from the one selected.
+  const stepChange = (step) => {
+    if (!withChanges.length) return
+    const at = withChanges.indexOf(activePageId)
+    const from = at === -1 ? (step > 0 ? -1 : 0) : at
+    const next = withChanges[(from + step + withChanges.length) % withChanges.length]
+    setActivePageId(next)
+    reveal(next)
   }
 
   function onKeyDown(event) {
@@ -215,8 +227,10 @@ function ScreensBoard() {
           const screen = screenOf(prototype, card.id)
           const selected = card.id === activePageId
           const out = new Set(transitionsOf(prototype, card.id).live.filter((t) => t.targetScreenId !== card.id).map((t) => t.targetScreenId)).size
+          const open = changes.byScreen.get(card.id) ?? []
+          const dim = marking && !open.length
           return (
-            <div key={card.id} className="absolute" style={{ left: card.x, top: card.y - 32, width: card.width }}>
+            <div key={card.id} data-screen-dim={dim ? '' : undefined} className={cn('absolute transition-opacity duration-150 motion-reduce:transition-none', dim && 'opacity-30')} style={{ left: card.x, top: card.y - 32, width: card.width }}>
               <div className="flex h-8 items-center gap-1.5 text-[13px] text-slate-300">
                 <span className="tabular-nums text-slate-500">{card.n}</span>
                 <span aria-hidden className="text-slate-600">·</span>
@@ -228,7 +242,7 @@ function ScreensBoard() {
                 )}
                 {selected && (
                   <span data-board-chrome className="ml-auto flex shrink-0 items-center gap-0.5">
-                    <button type="button" data-screen-play title="Play from this screen" aria-label="Play from this screen" onClick={() => play(card.id)} className={TOOL}><Play className="size-3.5" /></button>
+                    <button type="button" data-screen-play title="View from this screen in Preview" aria-label="View from this screen in Preview" onClick={() => play(card.id)} className={TOOL}><Play className="size-3.5" /></button>
                     <button type="button" data-screen-edit title="Edit on the canvas" aria-label="Edit on the canvas" onClick={() => dockApi?.getPanel('canvas')?.api.setActive()} className={TOOL}><PencilRuler className="size-3.5" /></button>
                   </span>
                 )}
@@ -237,7 +251,7 @@ function ScreensBoard() {
                 type="button"
                 data-screen-card={card.id}
                 aria-pressed={selected}
-                aria-label={`Screen ${card.n}, ${screen.name}, goes to ${out} ${out === 1 ? 'screen' : 'screens'}`}
+                aria-label={`Screen ${card.n}, ${screen.name}, goes to ${out} ${out === 1 ? 'screen' : 'screens'}${open.length ? `, ${openLabel(open.length)}` : ''}`}
                 onClick={() => { setActivePageId(card.id); rootRef.current?.focus() }}
                 onDoubleClick={() => play(card.id)}
                 className={cn('relative block overflow-hidden rounded-xl bg-white text-left shadow-xl shadow-black/40 outline-none transition-shadow', selected ? 'ring-[3px] ring-emerald-300' : 'ring-1 ring-white/15 hover:ring-2 hover:ring-white/40')}
@@ -245,6 +259,32 @@ function ScreensBoard() {
               >
                 {drawn.has(card.id) && <ScreenDrawing frame={screen.frame} />}
               </button>
+              {/* Its open changes: the change pin with their number, at the card's top right — kept the
+                  size it is on screen whatever the zoom. Its presses are its own: they never reach the
+                  card (no select-then-preview) or the board (no drag). */}
+              {open.length > 0 && (
+                <div data-board-chrome className="absolute z-10" style={{ top: 32 - 10, right: -6, transform: `scale(${1 / shown.zoom})`, transformOrigin: 'top right' }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+                  <Popover>
+                    <PopoverTrigger
+                      data-screen-changes={card.id}
+                      data-count={open.length}
+                      aria-label={openLabel(open.length)}
+                      title={openLabel(open.length)}
+                      translate="no"
+                      onClick={(event) => { event.stopPropagation(); setActivePageId(card.id) }}
+                      className="ds-intrinsic flex cursor-pointer rounded-full p-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                    >
+                      <ConflictCountPin label={countLabel(open.length)} />
+                    </PopoverTrigger>
+                    <PopoverContent align="start" side="right" sideOffset={10} data-screen-changes-list className="w-72 p-1.5">
+                      <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-slate-400"><LocalizedText text={screen.name} /> · <span translate="no">{openLabel(open.length)}</span></p>
+                      <div className="max-h-72 overflow-y-auto">
+                        {open.map((conflict) => <ConflictRow key={conflict.id} conflict={conflict} onOpen={() => openConflictReview(conflict.id)} />)}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
           )
         })}
@@ -260,7 +300,17 @@ function ScreensBoard() {
       )}
 
       <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn(BAR, 'absolute top-3 right-3 z-20')}>
-        <button type="button" data-board-play title="Play from the start" aria-label="Play from the start" onClick={() => play()} className={cn(TOOL, 'bg-white/10 px-2 font-medium text-white')}><Play className="size-3.5" /><LocalizedText text="Play" /></button>
+        {/* The project's open changes: pressed, the screens without any step back; ‹ › walk the ones with. */}
+        {changes.total > 0 && (
+          <>
+            <button type="button" data-board-changes aria-pressed={marking} aria-label={openLabel(changes.total)} title={openLabel(changes.total)} translate="no" onClick={() => setMarking((on) => !on)} className={cn(TOOL, 'gap-1 px-2 tabular-nums', marking && 'bg-white/[0.12] text-white')}>
+              <TriangleAlert className="size-3.5 text-amber-300" />{countLabel(changes.total)}
+            </button>
+            <button type="button" data-board-change-prev title="Previous screen with changes" aria-label="Previous screen with changes" disabled={!withChanges.length} onClick={() => stepChange(-1)} className={TOOL}><ChevronLeft className="size-3.5" /></button>
+            <button type="button" data-board-change-next title="Next screen with changes" aria-label="Next screen with changes" disabled={!withChanges.length} onClick={() => stepChange(1)} className={TOOL}><ChevronRight className="size-3.5" /></button>
+            <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+          </>
+        )}
         {prototype.flows.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger data-board-flows title="Go to a flow" className={cn(TOOL, 'px-2')}><LocalizedText text="Flows" /></DropdownMenuTrigger>
@@ -278,124 +328,6 @@ function ScreensBoard() {
         <button type="button" title="Zoom in" aria-label="Zoom in" disabled={shown.zoom >= ZOOM_MAX} onClick={() => zoomBy(1.25)} className={TOOL}><Plus className="size-3.5" /></button>
       </div>
 
-      {playing && <PrototypePlayer prototype={prototype} order={order} playing={playing} setPlaying={setPlaying} onScreen={setActivePageId} onStop={stop} onReveal={(id) => { stop(id); reveal(id) }} />}
-    </div>
-  )
-}
-
-// The prototype, playing: the screen at its real size in a frame (smaller
-// only when the view can't hold it; a long page scrolls inside it). A press
-// on a hotspot goes where its transition says, the way it says (slide, fade
-// or at once — at once under reduced motion); a press anywhere else shows
-// where the hotspots are. Back steps through the screens passed; Esc ends it.
-function PrototypePlayer({ prototype, order, playing, setPlaying, onScreen, onStop, onReveal }) {
-  const current = playing.history[playing.history.length - 1]
-  const screen = screenOf(prototype, current)
-  const { live, broken } = transitionsOf(prototype, current)
-  const frameRef = useRef(null)
-  const scrollRef = useRef(null)
-  const [room, setRoom] = useState({ width: 0, height: 0 })
-  const [hint, setHint] = useState(false)
-  const [how, setHow] = useState('none')
-
-  useLayoutEffect(() => {
-    const el = frameRef.current
-    if (!el) return undefined
-    const measure = () => setRoom({ width: el.clientWidth, height: el.clientHeight })
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-  // (A link that can't be followed is said once, for whoever keeps the data.)
-  useEffect(() => {
-    for (const t of broken) console.warn(`[prototype] "${t.id}" on "${current}" can't be followed: its hotspot or its target doesn't exist.`)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current])
-  useEffect(() => {
-    const onKey = (event) => {
-      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('[role="menu"]')) return
-      event.preventDefault()
-      event.stopPropagation()
-      onStop(current)
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [current, onStop])
-  const closeRef = useRef(null)
-  useEffect(() => { closeRef.current?.focus() }, [])
-
-  if (!screen) return null
-  // Tall pages keep their width and scroll; a screen that fits is shown whole.
-  const long = screen.size.height > screen.size.width * 1.6 && prototype.kind === 'single-page'
-  const scale = room.width ? Math.min(1, (room.width - 48) / screen.size.width, long ? 1 : (room.height - 48) / screen.size.height) : 1
-  const go = (transition) => {
-    if (transition.scrollTo) {
-      const target = screen.frame.layers.find((layer) => layer.id === transition.scrollTo)
-      scrollRef.current?.scrollTo({ top: Math.max(0, (target?.y ?? 0) - 24) * scale, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-      return
-    }
-    setHow(transition.animation ?? 'none')
-    setPlaying({ history: [...playing.history, transition.targetScreenId] })
-    onScreen(transition.targetScreenId)
-  }
-  const back = () => { if (playing.history.length < 2) return; const history = playing.history.slice(0, -1); setHow('none'); setPlaying({ history }); onScreen(history[history.length - 1]) }
-  const restart = (id = prototype.startScreenId) => { setHow('none'); setPlaying({ history: [id] }); onScreen(id) }
-  const flash = () => { setHint(true); window.setTimeout(() => setHint(false), 700) }
-  const hotspots = live.map((transition) => ({ transition, layer: screen.frame.layers.find((layer) => layer.id === transition.hotspotId) }))
-
-  return (
-    <div data-prototype-player role="dialog" aria-label="Prototype" onPointerDown={(event) => event.stopPropagation()} className="absolute inset-0 z-30 flex flex-col bg-[#101012]/95 animate-in fade-in duration-150 motion-reduce:animate-none">
-      <div data-board-chrome role="toolbar" aria-label="Prototype" className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[0.08] px-3">
-        <button type="button" data-play-back title="Back" aria-label="Back" disabled={playing.history.length < 2} onClick={back} className={TOOL}><ArrowLeft className="size-3.5" /></button>
-        <button type="button" data-play-restart title="Start over" aria-label="Start over" onClick={() => restart()} className={TOOL}><RotateCcw className="size-3.5" /></button>
-        <p data-play-position className="mx-2 flex min-w-0 items-center gap-2 text-[13px] text-slate-100">
-          <span className="min-w-0 truncate font-medium"><LocalizedText text={screen.name} /></span>
-          <span className="shrink-0 tabular-nums text-slate-500">{order.indexOf(current) + 1} / {order.length}</span>
-        </p>
-        {prototype.flows.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger data-play-flows title="Play a flow from its first screen" className={cn(TOOL, 'px-2')}><LocalizedText text="Flows" /></DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-40">
-              {prototype.flows.map((flow) => (
-                <DropdownMenuItem key={flow.id} onClick={() => restart(flow.screenIds[0])} className="text-xs"><LocalizedText text={flow.name} /></DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        <span className="ml-auto" />
-        <button type="button" data-play-reveal onClick={() => onReveal(current)} className={cn(TOOL, 'px-2')}><LocateFixed className="size-3.5" /><LocalizedText text="Show on board" /></button>
-        <button ref={closeRef} type="button" data-play-exit title="Exit · Esc" aria-label="Exit" onClick={() => onStop(current)} className={TOOL}><X className="size-4" /></button>
-      </div>
-      {/* (Said as the screen changes.) */}
-      <span role="status" aria-live="polite" className="sr-only"><LocalizedText text={screen.name} /></span>
-      <div ref={frameRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-6">
-        <div ref={scrollRef} data-play-frame className={cn('relative max-h-full shrink-0 rounded-2xl bg-white shadow-2xl shadow-black/60 ring-1 ring-white/20', long ? 'overflow-y-auto' : 'overflow-hidden')} style={{ width: screen.size.width * scale, height: long ? undefined : screen.size.height * scale }}>
-          <div style={{ width: screen.size.width * scale, height: screen.size.height * scale }}>
-            <div
-              key={`${current}:${playing.history.length}`}
-              data-play-screen={current}
-              onClick={flash}
-              className={cn('relative origin-top-left motion-reduce:animate-none', how === 'slide' && 'animate-in fade-in slide-in-from-right-8 duration-200', how === 'fade' && 'animate-in fade-in duration-200')}
-              style={{ width: screen.size.width, height: screen.size.height, transform: `scale(${scale})` }}
-            >
-              <ScreenDrawing frame={screen.frame} />
-              {hotspots.map(({ transition, layer }) => layer && (
-                <button
-                  key={transition.id}
-                  type="button"
-                  data-hotspot={transition.hotspotId}
-                  aria-label={transition.label ?? layer.name}
-                  title={transition.label ?? layer.name}
-                  onClick={(event) => { event.stopPropagation(); go(transition) }}
-                  className={cn('absolute cursor-pointer rounded-md outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-sky-500', hint ? 'bg-sky-400/25 ring-2 ring-sky-500' : 'hover:ring-2 hover:ring-sky-500/50')}
-                  style={{ left: layer.x, top: layer.y, width: layer.width, height: layer.height }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

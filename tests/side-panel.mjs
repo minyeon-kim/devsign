@@ -120,7 +120,7 @@ try {
   assert.ok(!/<WorkspaceBottomPanel[ \/>]/.test(page) && !page.includes("from '@/components/workspace/WorkspaceBottomPanel'"), 'not mounted by the Workspace')
   assert.ok(!/DEFAULT_TABS|TerminalPanel|ConsolePanel/.test(bottom), 'Merge Studio’s only: no Workspace tabs left in it')
   assert.ok(provider.includes("if (patch.open === true && activeViewNow.current !== 'mergeStudio') {") && provider.includes('patch = { ...patch, open: false }'))
-  assert.ok(provider.includes("if (tab === 'terminal' || tab === 'console') openSideView(tab)") && provider.includes("else if (tab === 'design-compare') openOrFocusPanel(dockApi, panelById.designCompare)") && provider.includes('else requestConflictDrawer()'))
+  assert.ok(provider.includes("if (tab === 'terminal' || tab === 'console') openSideView(tab)") && provider.includes("else if (tab === 'design-compare') setCompareMode(true)") && provider.includes('else requestConflictDrawer()'))
   assert.ok(palette.includes('run: () => openSideView(tab),') && palette.includes("id: 'toggle-side'") && palette.includes("id: 'toggle-chat'") && !palette.includes('toggle-bottom'))
   console.log('Passed: the side panel at the left on the activity bar and AI Chat at the right — folded by default, remembered (v2 keys), kept while folded — and no bottom panel in the Workspace.')
 } finally { await server.close() }

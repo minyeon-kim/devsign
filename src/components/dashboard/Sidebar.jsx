@@ -77,10 +77,12 @@ const WORKSPACE_VIEWS = [
   { id: 'console', label: 'Console', icon: ScrollText, side: true },
 ]
 function WorkspaceViews({ workspace, slots }) {
-  const { sidePanel, filesWindow, toggleSideView, setBottomPanel, mergeItems } = workspace
+  const { sidePanel, filesWindow, toggleSideView, compareMode, setCompareMode, mergeItems } = workspace
   const designSets = mergeItems.filter((item) => item.hasDesign).length
-  const showing = (view) => view.side && sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck'))
-  const press = (view) => (view.side ? toggleSideView(view.id) : setBottomPanel({ tab: view.id, open: true }))
+  // Every icon is a switch: on, it shows its view; pressed again, it puts it away. (A side panel
+  // view folds the panel; Design Compare — a mode of the main window — leaves the mode.)
+  const showing = (view) => (view.side ? sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck')) : compareMode)
+  const press = (view) => (view.side ? toggleSideView(view.id) : setCompareMode(!compareMode))
   const { shown, more } = railSplit(WORKSPACE_VIEWS, slots)
   return (
     <div data-workspace-views role="group" aria-label="Workspace views" className="flex flex-col gap-1">
@@ -96,6 +98,7 @@ function WorkspaceViews({ workspace, slots }) {
               data-side-view={view.side ? view.id : undefined}
               data-workspace-view={view.id}
               aria-expanded={view.side ? showing(view) : undefined}
+              aria-pressed={view.side ? undefined : showing(view)}
               aria-controls={view.side ? 'workspace-side-panel' : undefined}
               onClick={() => press(view)}
               className={cn(showing(view) && activeClass)}

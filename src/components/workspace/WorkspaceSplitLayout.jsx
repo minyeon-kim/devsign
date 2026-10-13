@@ -8,6 +8,7 @@ import { AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/p
 import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import WorkspaceViewTabs, { VIEW_PANEL_ID, viewTabId } from '@/components/workspace/WorkspaceViewTabs'
 import ScreensBoard from '@/components/screens/ScreensBoard'
+import PrototypePreview from '@/components/screens/PrototypePreview'
 import { VIEWS } from '@/lib/viewLink'
 import { cn } from 'cn'
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
@@ -15,13 +16,12 @@ import LayersPanel from '@/components/dockview/panels/LayersPanel'
 import AssetsPanel from '@/components/dockview/panels/AssetsPanel'
 import CanvasPanel from '@/components/dockview/panels/CanvasPanel'
 import EditorPanel from '@/components/dockview/panels/EditorPanel'
-import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import LayerInspectPanel from '@/components/dockview/panels/LayerInspectPanel'
 import ChatPanel from '@/components/dockview/panels/ChatPanel'
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
-import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/dockPanels'
+import { addDockPanel, buildInitialLayout, openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import SplitHandle from '@/components/layout/SplitHandle'
 import FloatingWindow from '@/components/workspace/FloatingWindow'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
@@ -36,7 +36,8 @@ const components = {
   assets: AssetsPanel,
   canvas: CanvasPanel,
   editor: EditorPanel,
-  preview: PreviewPanelContent,
+  // (The Workspace's Preview is the prototype, playing: PreviewPanelContent with its hotspots live.)
+  preview: PrototypePreview,
   layerInspect: LayerInspectPanel,
   chat: ChatPanel,
   terminal: TerminalPanel,
@@ -157,7 +158,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, compareMode, setCompareMode } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -289,6 +290,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   panelOpen.current = { side: sidePanel.open, chat: aiChat.open }
   const viewNow = useRef(workspaceView)
   viewNow.current = workspaceView
+  const compareNow = useRef(compareMode)
+  compareNow.current = compareMode
   const focusKey = useRef(null)
   const filesTab = useRef(filesWindow.tab)
   filesTab.current = filesWindow.tab
@@ -314,8 +317,13 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       // The main window showing another of its views (a file opened from the
       // tree, a pin taking the canvas up): the Workspace's view follows.
       const main = store.groups[store.panels[panelById.canvas.id]?.groupId]
-      const showing = main && applied.current.view ? viewOfPanel(store.panels[main.activeId]?.component) : null
-      if (showing && showing !== viewNow.current) setWorkspaceView(showing)
+      const shownPanel = main && applied.current.view ? store.panels[main.activeId]?.component ?? null : null
+      const showing = viewOfPanel(shownPanel)
+      // (Design Compare's tab closed, or another view raised over it: the mode ends. Raised by itself: it begins.)
+      const leftCompare = Boolean(shownPanel) && compareNow.current && shownPanel !== 'designCompare'
+      if (shownPanel && (shownPanel === 'designCompare') !== compareNow.current) setCompareMode(shownPanel === 'designCompare')
+      // (Leaving the mode by closing its tab shows whatever panel was under it for a moment: that isn't a view picked — the view it was on comes back.)
+      if (showing && showing !== viewNow.current && !leftCompare) setWorkspaceView(showing)
       // (Terminal and Console stay up until another view is picked.)
       if (!SIDE_TABS.includes(filesTab.current)) return
       if (component === 'editor' && filesTab.current !== 'files') setFilesWindow({ tab: 'files' })
@@ -462,11 +470,20 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   useLayoutEffect(() => {
     if (mergeStudio || !mainGroup) { applied.current.view = false; return }
     // (Leaving the studio runs first and moves the code file back: read the window afresh.)
-    const showing = store.panels[store.groups[mainGroup.id]?.activeId]?.component
-    if (!VIEW_PANELS[workspaceView].includes(showing)) dockApi.getPanel(panelById[VIEW_PANELS[workspaceView][0]].id)?.api.setActive()
+    // Design Compare (the address's `?mode=compare`) takes the window over while it's on: its panel is
+    // opened and raised. Off, its panel goes and the window is back on its view — the screen, the board's
+    // place and the prototype's session were never touched, so it comes back exactly as it was left.
+    applied.current.view = false
+    if (compareMode) {
+      openOrFocusPanel(dockApi, panelById.designCompare)
+    } else {
+      dockApi.getPanel(panelById.designCompare.id)?.api.close()
+      const showing = store.panels[store.groups[mainGroup.id]?.activeId]?.component
+      if (!VIEW_PANELS[workspaceView].includes(showing)) dockApi.getPanel(panelById[VIEW_PANELS[workspaceView][0]].id)?.api.setActive()
+    }
     applied.current.view = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mergeStudio, mainGroupId, workspaceView])
+  }, [mergeStudio, mainGroupId, workspaceView, compareMode])
 
   // Their widths, inside their limits for this window.
   const [viewportWidth, setViewportWidth] = useState(() => (typeof window === 'undefined' ? null : window.innerWidth))
