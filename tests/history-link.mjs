@@ -120,6 +120,6 @@ console.log('history-link: ok')
   // The viewer fills what's left; the timeline is under it.
   const body = overlay.slice(overlay.indexOf('data-history-body'))
   assert.ok(body.indexOf('<div className="min-h-0 flex-1">') > 0 && body.indexOf('<div className="min-h-0 flex-1">') < body.indexOf('<HistoryTimeline'))
-  assert.ok(read('src/components/docs/DocsOverlay.jsx').includes("const COLUMN = cn(BREADCRUMB_COLUMN, 'pt-2 pb-10')"))
+  assert.ok(read('src/components/docs/DocsOverlay.jsx').includes("const READING = 'mx-auto w-full max-w-[760px] px-6 pt-6 pb-24'"))
   console.log('history-link (alignment): ok')
 }
