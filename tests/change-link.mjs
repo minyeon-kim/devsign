@@ -62,3 +62,14 @@ console.log('change-link: ok')
   assert.ok(read('src/components/mergestudio/DesignComparison.jsx').includes("if (activeReview && inMergeStudio && reviewView === 'panel') return"))
   console.log('change-link (one way in): ok')
 }
+
+// ── The detail's path: 워크스페이스 › 확인할 변경점 — its first item goes where Close goes. ──
+{
+  const overlay = read('src/components/conflicts/ConflictReviewOverlay.jsx')
+  assert.ok(overlay.includes("<Breadcrumb items={[{ label: 'Workspace', onClick: () => openConflictReview(null) }, { label: 'Conflicts', onClick: () => requestConflictDrawer(conflict.id) }]} />"))
+  assert.ok(overlay.includes('onClick={() => openConflictReview(null)}') && !overlay.includes('projectCrumbs'), 'Close and the first item do the same thing; the project isn\'t in the path')
+  assert.ok(overlay.includes('<BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">'), 'the bar is where it was')
+  // Where you are stays marked when it's pressable.
+  assert.ok(read('src/components/layout/Breadcrumb.jsx').includes('<button type="button" aria-current="page" onClick={item.onClick}'))
+  console.log('change-link (path): ok')
+}

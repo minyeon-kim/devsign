@@ -54,7 +54,7 @@ export function projectCrumbs(project, { current = false } = {}) {
 }
 
 // `items`: `{ label, to?, onClick?, key?, translate? }`, the page you're on
-// last. Labels are app words to translate; a name that is the user's own (a
+// last (with an `onClick` it's a button, still marked as where you are). Labels are app words to translate; a name that is the user's own (a
 // project, a document, a change) sets `translate: false`.
 export default function Breadcrumb({ items = [], meta = null, className }) {
   const language = useLanguage()
@@ -71,7 +71,10 @@ export default function Breadcrumb({ items = [], meta = null, className }) {
             <Fragment key={item.key ?? `${index}:${item.label}`}>
               {index > 0 && <li aria-hidden role="presentation" className="flex shrink-0 items-center"><ChevronRight className="size-3" /></li>}
               <li data-breadcrumb-item={current ? 'current' : 'parent'} className="flex min-w-0 items-center" style={style}>
-                {current ? (
+                {current && item.onClick ? (
+                  // (Where you are — and pressable, when pressing it does something there.)
+                  <button type="button" aria-current="page" onClick={item.onClick} title={item.label} className={cn('ds-intrinsic', ITEM, 'text-white focus-visible:outline-none')}>{text}</button>
+                ) : current ? (
                   <span aria-current="page" title={item.label} className={cn(ITEM, 'text-white')}>{text}</span>
                 ) : item.to ? (
                   <Link to={item.to} title={item.label} className={cn(ITEM, LINK)}>{text}</Link>
