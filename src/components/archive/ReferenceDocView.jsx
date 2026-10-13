@@ -140,14 +140,14 @@ function Block({ block }) {
 // `path`: the categories it's filed under ("개발 › API") — said in the meta line over the title.
 // `frameClassName`: the column the article and its contents list sit in — its own centred one by
 // default (a panel).
-// `page` (the docs layer): the reading column is the middle of three — 680px, in the middle of the
-// layer whatever its width — and the contents list floats in the empty one at its right, 48px from
-// the article, so it never moves the article. It needs the room to sit there (680 + 224 either side
-// = 1176px of layer): under that the list folds into the article, as it does in a panel. Under it
-// all, the article keeps 24px at its sides. The width asked is the layer's own (`@container/doc`),
-// not the window's, so opening or closing the drawer settles it the same way.
+// `page` (the docs layer): what's read sits in the middle of the layer as one block — the 680px
+// article and, when there's room, its contents list 48px beside it (176px, sticky) — so the
+// empty space is the same on both sides whether or not the list is there. Under 1100px of
+// layer the list folds into the article, which is then centred alone; the article keeps 24px at
+// its sides. The width asked is the layer's own (`@container/doc`), not the window's, so
+// opening or closing the drawer settles it the same way.
 const DOC_FRAME = 'mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10'
-export const DOC_PAGE_FRAME = 'grid w-full grid-cols-[minmax(0,1fr)_minmax(0,680px)_minmax(0,1fr)] px-6 pt-6 pb-24'
+export const DOC_PAGE_FRAME = 'flex w-full justify-center px-6 pt-6 pb-24'
 function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME, page = false }) {
   const root = useRef(null)
   const author = allPeople.find((p) => p.id === doc.authorId)
@@ -161,7 +161,7 @@ function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME, page = f
   return (
     <div ref={root} className="@container/doc w-full">
     <div data-doc-frame={page ? 'page' : undefined} className={page ? DOC_PAGE_FRAME : frameClassName}>
-      <article data-doc-article className={page ? 'col-start-2 min-w-0' : 'min-w-0 max-w-[680px] flex-1'}>
+      <article data-doc-article className={'min-w-0 max-w-[680px] flex-1'}>
         <header className="mb-8">
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
             <span className={cn('flex size-5 items-center justify-center rounded-md', type.tone)}>
@@ -188,7 +188,7 @@ function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME, page = f
           </div>
         </header>
 
-        {sections.length > 1 && <details className={cn('mb-6 rounded-xl border border-white/[0.08] px-4 py-3', page ? '@min-[1176px]/doc:hidden' : '@min-[960px]/doc:hidden')}>
+        {sections.length > 1 && <details className={cn('mb-6 rounded-xl border border-white/[0.08] px-4 py-3', page ? '@min-[1100px]/doc:hidden' : '@min-[960px]/doc:hidden')}>
           <summary className="cursor-pointer text-xs text-muted-foreground">On this page</summary>
           <nav aria-label="On this page" className="mt-2 flex flex-col items-start gap-1">
             {sections.map(section => <button key={section.id} type="button" onClick={() => jumpTo(section.id)} className="py-1 text-left text-xs text-muted-foreground hover:text-foreground">{section.text}</button>)}
@@ -200,7 +200,7 @@ function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME, page = f
       </article>
 
       {sections.length > 1 && (
-        <nav aria-label="On this page" data-doc-toc className={cn('sticky top-10 hidden w-44 self-start', page ? 'col-start-3 row-start-1 ml-12 @min-[1176px]/doc:block' : 'shrink-0 @min-[960px]/doc:block')}>
+        <nav aria-label="On this page" data-doc-toc className={cn('sticky top-10 hidden w-44 self-start', page ? 'ml-12 shrink-0 @min-[1100px]/doc:block' : 'shrink-0 @min-[960px]/doc:block')}>
           <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">On this page</p>
           <ul className="space-y-1 border-l border-white/[0.06]">
             {sections.map((s) => (

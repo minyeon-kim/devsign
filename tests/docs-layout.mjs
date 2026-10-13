@@ -6,8 +6,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { createServer } from 'vite'
 
 // What the Docs layer shows is read in the middle of the layer: a document is
-// the middle of three columns (680px), its contents list floats in the empty
-// one at its right — and never moves the article; the index and the updates
+// one block — the 680px article and its contents list beside it — centred,
+// the list folding into the article when there isn't room; the index and the updates
 // sit in one middle column too.
 const store = new Map()
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) }
@@ -22,25 +22,22 @@ try {
   const page = render({ page: true })
   const panel = render({})
 
-  // Three columns; the article is the middle one, the list the right one.
-  assert.equal(DOC_PAGE_FRAME, 'grid w-full grid-cols-[minmax(0,1fr)_minmax(0,680px)_minmax(0,1fr)] px-6 pt-6 pb-24')
-  assert.match(page, /data-doc-frame="page" class="grid w-full grid-cols-\[minmax\(0,1fr\)_minmax\(0,680px\)_minmax\(0,1fr\)\]/)
-  assert.match(page, /<article data-doc-article="true" class="col-start-2 min-w-0"/, 'the article is the middle column')
+  // One block in the middle: the article and, beside it, the list.
+  assert.equal(DOC_PAGE_FRAME, 'flex w-full justify-center px-6 pt-6 pb-24')
+  assert.match(page, /data-doc-frame="page" class="flex w-full justify-center/)
+  assert.match(page, /<article data-doc-article="true" class="min-w-0 max-w-\[680px\] flex-1"/)
   const toc = page.match(/<nav[^>]*data-doc-toc[^>]*class="([^"]*)"/)?.[1] ?? page.match(/<nav[^>]*class="([^"]*)"[^>]*data-doc-toc/)?.[1] ?? ''
-  assert.ok(toc.includes('col-start-3') && toc.includes('row-start-1') && toc.includes('ml-12') && toc.includes('w-44') && toc.includes('sticky') && toc.includes('top-10'), `the list: right column, 48px off the article, 176px, sticky — ${toc}`)
-  // It needs 680 + 224 either side (1176px of layer) — the layer's own width, not the window's.
-  assert.ok(toc.includes('hidden') && toc.includes('@min-[1176px]/doc:block'))
-  assert.ok(page.includes('@min-[1176px]/doc:hidden'), 'under it the list folds into the article')
+  assert.ok(toc.includes('ml-12') && toc.includes('w-44') && toc.includes('shrink-0') && toc.includes('sticky') && toc.includes('top-10'), `the list: 48px off the article, 176px, sticky — ${toc}`)
+  // It shows when the block fits (680 + 48 + 176, and 24px at the sides: 1100px of layer) — the layer's own width.
+  assert.ok(toc.includes('hidden') && toc.includes('@min-[1100px]/doc:block'))
+  assert.ok(page.includes('@min-[1100px]/doc:hidden'), 'under it the list folds into the article')
   assert.ok(page.includes('@container/doc'))
-  // The list is not in the article's flow: the article's place doesn't depend on it.
-  assert.ok(!/<article[^>]*flex-1/.test(page))
   // The header, in the article's column: bigger title, summary, meta.
   assert.match(page, /<h1 class="[^"]*text-4xl[^"]*font-bold/)
   assert.match(page, /text-base leading-\[1\.6\]/)
   // A panel's document keeps its own frame.
   assert.match(panel, /<div class="mx-auto flex max-w-5xl gap-8/)
-  assert.doesNotMatch(panel, /grid-cols-\[/)
-
+  
   // The layer: the index and the updates in the same middle column.
   const overlay = read('src/components/docs/DocsOverlay.jsx')
   assert.ok(overlay.includes("const READING = 'mx-auto w-full max-w-[760px] px-6 pt-6 pb-24'"))
