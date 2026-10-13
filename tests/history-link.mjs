@@ -107,3 +107,15 @@ console.log('history-link: ok')
   assert.ok(!/playing|pause\(/.test(esc), 'Esc doesn\'t stop playback first: it closes')
   console.log('history-link (top bar): ok')
 }
+
+// ── The viewer and the timeline start on the path's line, in the page's column. ──
+{
+  const overlay = read('src/components/history/HistoryOverlay.jsx')
+  assert.ok(overlay.includes("<div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-2 pb-4')}>"), 'the path\'s column, 8px under the bar — as Docs and a change\'s title row')
+  assert.ok(!overlay.includes('flex-col gap-3 p-4'))
+  // The viewer fills what's left; the timeline is under it.
+  const body = overlay.slice(overlay.indexOf('data-history-body'))
+  assert.ok(body.indexOf('<div className="min-h-0 flex-1">') > 0 && body.indexOf('<div className="min-h-0 flex-1">') < body.indexOf('<HistoryTimeline'))
+  assert.ok(read('src/components/docs/DocsOverlay.jsx').includes("const COLUMN = cn(BREADCRUMB_COLUMN, 'pt-2 pb-10')"))
+  console.log('history-link (alignment): ok')
+}

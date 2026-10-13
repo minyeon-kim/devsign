@@ -2,7 +2,8 @@ import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Info, X } from 'lucide-react'
-import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
+import { cn } from 'cn'
+import Breadcrumb, { BREADCRUMB_COLUMN, BreadcrumbBar } from '@/components/layout/Breadcrumb'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import HistoryCompare from '@/components/history/HistoryCompare'
@@ -146,7 +147,10 @@ function HistoryLayer() {
         </button>
       </BreadcrumbBar>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+      {/* The viewer and the timeline, in the page's column: the same left line as the path, starting 8px
+          under the bar — where a change's detail has its title row. The viewer takes the height that's
+          left; the timeline stays at the foot. */}
+      <div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-2 pb-4')}>
         <div className="min-h-0 flex-1">
           <HistoryCompare
             entryId={selectedId}
