@@ -31,8 +31,8 @@ export default function DevicePicker({ category, pick, onPick, screen, compact =
       <DropdownMenu>
         <DropdownMenuTrigger data-preview-device={screen.id} className={cn(BUTTON, 'min-w-0')}>
           <MonitorSmartphone className="size-3.5 shrink-0 text-slate-400" />
-          <span translate="no" className={cn('truncate', compact ? 'min-w-0 max-[1024px]:hidden' : 'max-w-[120px]')}>{screen.custom ? <LocalizedText text="Custom width" /> : screen.label}</span>
-          <span className={cn('shrink-0 text-slate-500 tabular-nums', compact && 'max-[1024px]:hidden')}>{compact ? `· ${screen.width}` : `${screen.width}px`}</span>
+          <span translate="no" className={cn('truncate', compact ? 'min-w-0 max-[1025px]:hidden' : 'max-w-[120px]')}>{screen.custom ? <LocalizedText text="Custom width" /> : screen.label}</span>
+          <span className={cn('shrink-0 text-slate-500 tabular-nums', compact && 'max-[1025px]:hidden')}>{compact ? `· ${screen.width}` : `${screen.width}px`}</span>
           <ChevronDown className="size-3 shrink-0 text-slate-400" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align={compact ? 'start' : 'end'} className="max-h-[70vh] min-w-64">

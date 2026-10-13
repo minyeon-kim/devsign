@@ -368,8 +368,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               <DropdownMenu>
                 <DropdownMenuTrigger data-preview-device={device.id} data-toolbar-control className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
                   <Smartphone className="size-3.5 shrink-0 text-slate-400" />
-                  <span className="min-w-0 truncate max-[1024px]:hidden"><LocalizedText text={device.label} /></span>
-                  {device.width && <span className="shrink-0 text-slate-500 tabular-nums max-[1024px]:hidden">{device.width}</span>}
+                  <span className="min-w-0 truncate max-[1025px]:hidden"><LocalizedText text={device.label} /></span>
+                  {device.width && <span className="shrink-0 text-slate-500 tabular-nums max-[1025px]:hidden">{device.width}</span>}
                   <ChevronDown className="size-3 shrink-0 text-slate-400" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-52">

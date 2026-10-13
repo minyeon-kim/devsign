@@ -27,7 +27,7 @@ import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/histo
 // as a new checkpoint.
 // (Mounted only while the layer is open: nothing here runs — no keys, no playback — when it isn't.)
 function HistoryLayer() {
-  const { closeHistory, requestHistoryDrawer, historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
+  const { closeHistory, requestHistoryDrawer, historyEntries, conflicts, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
   const language = useLanguage()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
@@ -165,8 +165,6 @@ function HistoryLayer() {
           onSelect={selectVersion}
           playing={playing}
           onTogglePlay={toggle}
-          isCurrent={selectedId === activeHistoryId}
-          hideRestore
         />
       </div>
 
