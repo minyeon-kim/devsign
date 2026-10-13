@@ -2575,3 +2575,6 @@ Object.assign(ko, {
   'File changed': '변경됨',
   'Pick the changed files to start your first merge.': '변경된 파일을 골라 첫 병합을 시작해 보세요.',
 })
+
+// Merge Studio's way out.
+Object.assign(ko, { 'Back to Workspace': '워크스페이스로 돌아가기' })

@@ -1,5 +1,6 @@
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeStudioWorkspace from '@/components/mergestudio/MergeStudioWorkspace'
+import StudioExit from '@/components/mergestudio/StudioExit'
 
 // Merge Studio replaces the workspace body with one canvas, on the item
 // WorkspaceProvider says is open (`openMergeItem`: the selection, or the
@@ -9,6 +10,7 @@ function MergeStudioView() {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
+      <StudioExit />
       <MergeStudioWorkspace key={selected?.id ?? 'empty'} item={selected} />
     </div>
   )
