@@ -73,3 +73,14 @@ console.log('change-link: ok')
   assert.ok(read('src/components/layout/Breadcrumb.jsx').includes('<button type="button" aria-current="page" onClick={item.onClick}'))
   console.log('change-link (path): ok')
 }
+
+// ── The global home is "Home" wherever it's named; the project home's rows and counts are links to the address. ──
+{
+  assert.ok(read('src/components/layout/Breadcrumb.jsx').includes("{ label: 'Home', to: '/dashboard' }"))
+  const rail = read('src/components/dashboard/Sidebar.jsx')
+  assert.ok(rail.includes("{ id: 'home', label: 'Home', icon: House, path: '/dashboard' }") && rail.includes('<RailButton label="Home" icon={House} render={<Link to="/dashboard" />} />') && !rail.includes('label="Dashboard"'))
+  assert.ok(read('src/i18n/ko.js').includes('\nHome|홈\n'))
+  const home = read('src/pages/ProjectOverviewPage.jsx')
+  assert.ok(home.includes('navigate(changeHref(project.id, conflict.id))') && home.includes('navigate(changesHref(project.id, filter))') && !home.includes('setBottomPanel'), 'the project home sends to the address — nothing of its own')
+  console.log('change-link (home): ok')
+}

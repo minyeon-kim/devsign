@@ -156,7 +156,7 @@ function TeamPage() {
     <DashboardLayout projectProportions>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" title="Back to dashboard" nativeButton={false} render={<Link to="/dashboard" />}>
+          <Button variant="ghost" size="icon-sm" title="Back to home" nativeButton={false} render={<Link to="/dashboard" />}>
             <ArrowLeft className="size-3.5" />
           </Button>
           <div>

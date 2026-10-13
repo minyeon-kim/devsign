@@ -122,9 +122,9 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
         {project ? (
           <>
             {/* Home (outside a project) and this button lead to the same
-                /dashboard route — give them the same icon so it reads as
-                one destination in both places, not two different ones. */}
-            <RailButton label="Dashboard" icon={House} render={<Link to="/dashboard" />} />
+                /dashboard route — the same name and the same icon, so it reads
+                as one destination in both places, not two different ones. */}
+            <RailButton label="Home" icon={House} render={<Link to="/dashboard" />} />
             {/* The split code-editor/canvas layout, same shape as the icon. */}
             <RailButton label="Workspace" icon={LayoutPanelLeft} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
             <RailButton

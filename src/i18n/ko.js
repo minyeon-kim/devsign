@@ -1011,6 +1011,7 @@ Maximize|최대화
 Collapse panel|패널 접기
 Expand panel|패널 펼치기
 Back to dashboard|대시보드로 돌아가기
+Back to home|홈으로 돌아가기
 Activity overview|활동 개요
 More|더 보기
 Most active projects|활동이 많은 프로젝트

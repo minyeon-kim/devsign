@@ -10,7 +10,7 @@ import { useLanguage } from '@/i18n/language'
 // one (the project's dashboard, History, Docs, a change's detail), so they
 // are the same thing in the same place.
 //
-// Its look is the project dashboard's "Dashboard › Dashboard Redesign", value
+// Its look is the project home's "Home › Dashboard Redesign", value
 // for value (that page's path was the first, and is the reference):
 //   · everything is the small text — 12px on a 16px line, regular weight —
 //     with 8px between every piece;
@@ -44,11 +44,12 @@ export function BreadcrumbBar({ children, className, rowClassName, ...props }) {
   )
 }
 
-// The crumbs every project page starts with: the dashboard, then the project
-// (a link — or, with `current`, the page you're on).
+// The crumbs every project page starts with: Home (the global home — called
+// that everywhere, in and out of a project), then the project (a link — or,
+// with `current`, the page you're on).
 export function projectCrumbs(project, { current = false } = {}) {
   return [
-    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Home', to: '/dashboard' },
     { label: project?.name ?? '', translate: false, key: `project:${project?.id}`, ...(!current && { to: `/projects/${project?.id}` }) },
   ]
 }
