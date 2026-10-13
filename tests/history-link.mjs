@@ -89,3 +89,21 @@ console.log('history-link: ok')
   assert.ok(read('src/components/mergestudio/MergeStudioWorkspace.jsx').includes('onOpenHistory: requestHistoryDrawer,'))
   console.log('history-link (structure): ok')
 }
+
+// ── The top bar: the other layers' own — 워크스페이스 › 히스토리, Close, Esc. ──
+{
+  const overlay = read('src/components/history/HistoryOverlay.jsx')
+  const BAR = 'className="h-16 pt-0" rowClassName="h-12">'
+  for (const file of ['src/components/history/HistoryOverlay.jsx', 'src/components/docs/DocsOverlay.jsx', 'src/components/conflicts/ConflictReviewOverlay.jsx']) assert.ok(read(file).includes(BAR), `${file}: the same bar`)
+  const CLOSE = 'className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"'
+  assert.ok(overlay.includes(CLOSE) && read('src/components/conflicts/ConflictReviewOverlay.jsx').includes(CLOSE), 'the same Close button')
+  assert.ok(overlay.includes("title={`${translateText('Close', language)} · Esc`}"))
+  assert.ok(overlay.includes("items={[{ label: 'Workspace', onClick: closeHistory }, { label: 'History', onClick: requestHistoryDrawer }]}") && overlay.includes('onClick={closeHistory}') && !overlay.includes('projectCrumbs'))
+  // The count, the ⓘ and the filter's badge stay after the path.
+  assert.ok(overlay.includes('{`${timeline.length} checkpoints`}') && overlay.includes('data-history-info') && overlay.includes('data-history-scope'))
+  // Esc: a dialog (the rollback's), a menu or a listbox first; else it closes — playing or not. Focus in on Close, back out after.
+  assert.ok(overlay.includes(`document.querySelector('[data-slot="dialog-content"], [role="menu"], [role="listbox"]')`) && overlay.includes('closeRef.current?.focus()') && overlay.includes('if (before instanceof HTMLElement && before.isConnected) before.focus()'))
+  const esc = overlay.slice(overlay.indexOf('function onKey(event) {\n      if (event.key !== \'Escape\''), overlay.indexOf('window.addEventListener(\'keydown\', onKey)\n    return () => {\n      window.removeEventListener(\'keydown\', onKey)\n      if (before'))
+  assert.ok(!/playing|pause\(/.test(esc), 'Esc doesn\'t stop playback first: it closes')
+  console.log('history-link (top bar): ok')
+}

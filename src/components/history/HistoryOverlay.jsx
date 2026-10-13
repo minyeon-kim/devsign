@@ -1,8 +1,10 @@
 import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
-import { useEffect, useMemo, useState } from 'react'
-import { Info } from 'lucide-react'
-import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Info, X } from 'lucide-react'
+import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
+import { translateText } from '@/i18n/translate'
+import { useLanguage } from '@/i18n/language'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
@@ -10,7 +12,6 @@ import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoin
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { KIND_LABEL, filterHistoryEntries } from '@/lib/historyMeta'
 import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
-import { projects } from '@/data/mockData'
 
 // History — the project's version control as checkpoints (Replit style) —
 // as a layer over the Workspace (the address's `?history`, lib/historyLink),
@@ -25,8 +26,8 @@ import { projects } from '@/data/mockData'
 // as a new checkpoint.
 // (Mounted only while the layer is open: nothing here runs — no keys, no playback — when it isn't.)
 function HistoryLayer() {
-  const { projectId, historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
-  const project = projects.find((candidate) => candidate.id === projectId) ?? { id: projectId, name: projectId }
+  const { closeHistory, requestHistoryDrawer, historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
+  const language = useLanguage()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   // What the checkpoint in view is compared with — the one before it, or the
@@ -85,13 +86,39 @@ function HistoryLayer() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
+  // Esc closes the layer — at once, playing or not (playback stops with it) — unless a
+  // dialog (the rollback confirmation), a menu or a listbox opened inside is up: that
+  // goes first. Focus comes in on Close, and goes back to where it was on closing.
+  const closeRef = useRef(null)
+  const close = useRef(closeHistory)
+  useEffect(() => { close.current = closeHistory })
+  useEffect(() => {
+    const before = document.activeElement
+    closeRef.current?.focus()
+    function onKey(event) {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('[data-slot="dialog-content"], [role="menu"], [role="listbox"]')) return
+      // (Esc in the drawer's search clears the search.)
+      if (event.target instanceof HTMLInputElement && event.target.type === 'search' && event.target.value) return
+      close.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      if (before instanceof HTMLElement && before.isConnected) before.focus()
+    }
+  }, [])
+
   return (
     <div data-history-overlay role="dialog" aria-label="History" className="absolute inset-0 z-[650] flex min-h-0 flex-col overflow-hidden bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
-      {/* The path, and how many versions. What the page is sits behind the
-          ⓘ; a filter narrowing the playback says so here. */}
-      <BreadcrumbBar data-history-title>
+      {/* The same top bar as the other layers: against the top, a 48px row in a
+          64px place, Close at its right. The path says where this is —
+          워크스페이스 › 히스토리 — its first item going where Close goes; "히스토리"
+          is where you are, and pressing it brings the drawer up when it's been
+          closed. After the path: how many versions; what the layer is sits
+          behind the ⓘ; a filter narrowing the playback says so here. */}
+      <BreadcrumbBar data-history-title className="h-16 pt-0" rowClassName="h-12">
         <Breadcrumb
-          items={[...projectCrumbs(project), { label: 'History' }]}
+          items={[{ label: 'Workspace', onClick: closeHistory }, { label: 'History', onClick: requestHistoryDrawer }]}
           meta={(
             <>
               <span>{`${timeline.length} checkpoints`}</span>
@@ -106,6 +133,17 @@ function HistoryLayer() {
             </>
           )}
         />
+        <button
+          ref={closeRef}
+          type="button"
+          data-history-overlay-close
+          aria-label="Close"
+          title={`${translateText('Close', language)} · Esc`}
+          onClick={closeHistory}
+          className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+        >
+          <X className="size-4" />
+        </button>
       </BreadcrumbBar>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
