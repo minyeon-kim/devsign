@@ -78,7 +78,9 @@ function FloatingRestorePill({ group, panelsById, dockApi, corner = 'top' }) {
           // the right, over where it folded from.
           'pointer-events-auto absolute flex h-8',
           corner === 'bottom' ? 'bottom-4' : 'top-2',
-          group.panelIds.includes(panelById.chat.id) ? 'left-4' : 'right-2',
+          // (In the studio the way out is the row's first pill — "← Workspace", or its icon in a
+          // narrow window — so AI Chat's sits after it.)
+          group.panelIds.includes(panelById.chat.id) ? (corner === 'top' ? 'left-[9.75rem] @max-[1100px]:left-14' : 'left-4') : 'right-2',
           'items-center gap-2 px-3.5 text-[12px] font-medium text-slate-300 transition-colors hover:text-white',
           PANEL_RADIUS,
           FLOATING_PANEL

@@ -39,7 +39,7 @@ function NewMergeMenu({ variant = 'toolbar' }) {
         data-new-merge={variant}
         className={variant === 'header'
           // The studio's own header row: a pill like its neighbours.
-          ? cn(FLOATING_PILL, 'flex h-8 items-center justify-center gap-1.5 px-4 text-[13px] font-semibold text-foreground')
+          ? cn(FLOATING_PILL, 'flex h-8 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-semibold text-foreground')
           : variant === 'empty'
             ? 'ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15 hover:text-white'
             : 'ds-intrinsic flex h-8 shrink-0 items-center gap-1 rounded-full bg-white/10 px-3 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15 hover:text-white'}
