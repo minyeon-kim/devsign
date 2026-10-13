@@ -98,13 +98,18 @@ function WorkspacePage() {
 
   // `?changes=<filter>`: the change list, on that filter — each time the address names one.
   const { change: changeId, evidence: evidenceId, source: sourceKey, changes: listFilter } = readChangeParams(location.search)
-  const handledFilter = useRef(null)
+  // (Applied when the address first names it or names another — not again each time
+  // something else about the address changes. With a change open full screen, only
+  // the filter is set: the list that's shown beside a detail is the left one.)
+  const appliedFilter = useRef(null)
   useEffect(() => {
-    if (!listFilter || handledFilter.current === `${location.key}:${listFilter}`) return
-    handledFilter.current = `${location.key}:${listFilter}`
+    if (!listFilter) { appliedFilter.current = null; return }
+    if (appliedFilter.current === listFilter) return
+    appliedFilter.current = listFilter
+    if (changeId) { setBottomPanel({ conflictFilter: listFilter }); return }
     exitMergeStudio()
     setBottomPanel({ open: true, tab: 'conflict', conflictFilter: listFilter })
-  }, [listFilter, location.key, exitMergeStudio, setBottomPanel])
+  }, [listFilter, changeId, exitMergeStudio, setBottomPanel])
 
   // `?change=<id>` reached by a link (another page, a reload, a shared address —
   // not opened here a moment ago): its element and file are selected too (the

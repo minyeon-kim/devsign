@@ -2542,6 +2542,8 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!record) return
     openedChange.current = changeParam
     exitMergeStudio()
+    // (The bottom panel's list folds in the same step the left one is asked for — one list at a time, never a moment with both.)
+    setBottomPanelState((prev) => (prev.open && prev.tab === 'conflict' ? { ...prev, open: false } : prev))
     requestConflictDrawer(record.id)
     focusConflictPin(record)
   }, [changeParam, conflicts, exitMergeStudio, requestConflictDrawer, focusConflictPin])

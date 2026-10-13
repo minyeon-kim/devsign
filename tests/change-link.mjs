@@ -84,3 +84,16 @@ console.log('change-link: ok')
   assert.ok(home.includes('navigate(changeHref(project.id, conflict.id))') && home.includes('navigate(changesHref(project.id, filter))') && !home.includes('setBottomPanel'), 'the project home sends to the address — nothing of its own')
   console.log('change-link (home): ok')
 }
+
+// ── Found while opening a change from each way in ──
+{
+  // The filter is applied when the address first names it — not again on every change of the address (it would
+  // re-open the bottom list and close the left one beside a detail).
+  const page = read('src/pages/WorkspacePage.jsx')
+  assert.ok(page.includes('if (appliedFilter.current === listFilter) return') && page.includes('if (changeId) { setBottomPanel({ conflictFilter: listFilter }); return }'))
+  // The bottom list folds in the same step the left one is asked for.
+  const provider = read('src/state/WorkspaceProvider.jsx')
+  const rule = provider.slice(provider.indexOf('const openedChange = useRef(null)'), provider.indexOf('  const value = {'))
+  assert.ok(rule.indexOf("prev.open && prev.tab === 'conflict' ? { ...prev, open: false } : prev") > 0 && rule.indexOf("prev.open && prev.tab === 'conflict'") < rule.indexOf('requestConflictDrawer(record.id)'))
+  console.log('change-link (lists): ok')
+}
