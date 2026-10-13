@@ -81,3 +81,23 @@ console.log('doc-link: ok')
   assert.ok(drawer.includes('draggable') && drawer.includes('event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id)'))
   console.log('doc-link (structure): ok')
 }
+
+// ── The top bar: the change detail's own — same place, same height, same Close; the path says where this is. ──
+{
+  const overlay = read('src/components/docs/DocsOverlay.jsx')
+  const change = read('src/components/conflicts/ConflictReviewOverlay.jsx')
+  const BAR = '<BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">'
+  assert.ok(overlay.includes(BAR) && change.includes(BAR))
+  const CLOSE = 'className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"'
+  assert.ok(overlay.includes(CLOSE) && change.includes(CLOSE), 'the same Close button')
+  assert.ok(overlay.includes("title={`${translateText('Close', language)} · Esc`}"))
+  // 워크스페이스 › 문서 (› 문서 업데이트): the first item closes, as Close does; the project and the categories aren't in it.
+  assert.ok(overlay.includes("{ label: 'Workspace', onClick: closeDocs }") && overlay.includes('onClick={closeDocs}'))
+  assert.ok(overlay.includes("[{ label: 'Docs', onClick: toIndex }, { label: 'Document updates' }]") && overlay.includes(": [{ label: 'Docs', onClick: toIndex }]"))
+  assert.ok(!overlay.includes('projectCrumbs') && overlay.includes("requestDocsDrawer(); if (view.kind !== 'index') openDocs({ docs: 'index' })"))
+  // The category path is the document's own meta line.
+  assert.ok(overlay.includes('path={docPath(tree, view.doc.id) ?? []}') && read('src/components/archive/ReferenceDocView.jsx').includes('data-doc-path'))
+  // Esc and focus, as the change's detail does.
+  for (const text of [overlay, change]) assert.ok(text.includes(`document.querySelector('[data-slot="dialog-content"], [role="menu"], [role="listbox"]')`) && text.includes('closeRef.current?.focus()') && text.includes('if (before instanceof HTMLElement && before.isConnected) before.focus()'))
+  console.log('doc-link (top bar): ok')
+}

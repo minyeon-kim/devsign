@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { AlertTriangle, FileText, Info } from 'lucide-react'
@@ -136,7 +137,8 @@ function Block({ block }) {
 // (type, title, summary, author, updated), the body at a comfortable
 // reading width, and — on wide screens — an "On this page" list built
 // from the doc's h2 blocks.
-function ReferenceDocView({ doc }) {
+// `path`: the categories it's filed under ("개발 › API") — said in the meta line over the title.
+function ReferenceDocView({ doc, path = [] }) {
   const root = useRef(null)
   const author = allPeople.find((p) => p.id === doc.authorId)
   const type = DOC_TYPES[doc.type] ?? DOC_TYPES.doc
@@ -156,6 +158,7 @@ function ReferenceDocView({ doc }) {
               <FileText className="size-3 text-white" />
             </span>
             {type.label}
+            {path.length > 0 && <span data-doc-path className="min-w-0 truncate text-muted-foreground/80"><span aria-hidden>· </span>{path.map((label, index) => <span key={`${index}:${label}`}>{index > 0 && <span aria-hidden> › </span>}<LocalizedText text={label} /></span>)}</span>}
           </div>
           <h1 className="mt-3 text-[26px] leading-tight font-semibold tracking-tight text-foreground">{doc.title}</h1>
           {doc.summary && <p className="mt-2 text-[15px] leading-7 text-muted-foreground">{doc.summary}</p>}
