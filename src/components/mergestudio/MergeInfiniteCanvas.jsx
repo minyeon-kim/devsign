@@ -20,6 +20,7 @@ import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { COUNT_BADGE, STUDIO_PILL as FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
+import NewMergeMenu from '@/components/mergestudio/NewMergeMenu'
 
 const MIN_ZOOM = 25
 const MAX_ZOOM = 200
@@ -2480,6 +2481,8 @@ function MergeInfiniteCanvas({
           {/* The collapsed Block Deck lives here, in the header, as a
               toggle pill (see MergeStudioWorkspace). */}
           {headerAction}
+          {/* Where a merge is started: here, in the studio (the header's button only comes in). */}
+          <NewMergeMenu variant="header" />
           {annotations.length > 0 && (
             <button
               type="button"

@@ -26,7 +26,7 @@ import { getFileIconMeta } from '@/lib/fileIcons'
 import { allPeople, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { ActiveFilterChips, MergeFilterButton } from '@/components/mergestudio/MergeFilterMenu'
-import AddFilesMenu from '@/components/mergestudio/AddFilesMenu'
+import NewMergeMenu from '@/components/mergestudio/NewMergeMenu'
 import { EMPTY_FILTERS, dueDateOf, matchesFilters, peopleOnItem } from '@/components/mergestudio/mergeFilters'
 import { itemSeverity } from '@/components/mergestudio/mergeSummary'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -528,8 +528,8 @@ function MergeListSidebar({ item, files = [], frame, selectedLayerId, selectedFi
                   />
                 </div>
                 <MergeFilterButton value={filters} onChange={changeFilters} items={mergeItems} markedDays={dueDays} />
-                {/* Add files lives with the list's own controls. */}
-                <AddFilesMenu />
+                {/* Where a merge is started lives with the list's own controls. */}
+                <NewMergeMenu />
               </div>
               <ActiveFilterChips
                 value={filters}

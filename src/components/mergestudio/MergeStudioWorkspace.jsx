@@ -1,3 +1,4 @@
+import NewMergeMenu from '@/components/mergestudio/NewMergeMenu'
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import { MergeCheckGuide } from '@/components/conflicts/CheckDecisions'
 import { translateText } from '@/i18n/translate'
@@ -627,7 +628,6 @@ function MergeStudioWorkspace({ item }) {
     otherMembers,
     mergeItems,
     mergeEntry,
-    startMergeFromOpenFiles,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
@@ -1849,14 +1849,12 @@ function MergeStudioWorkspace({ item }) {
           <div className="space-y-1">
             <p className="text-sm font-medium text-slate-300">No saved merge work</p>
             <p className="max-w-[260px] text-xs text-slate-500">
-              Start a new merge from the currently open files to begin.
+              Pick the changed files to start your first merge.
             </p>
           </div>
-          {/* The same way in as the header's menu (lib/mergeEntry): start from what's open — or say why not. */}
-          <button type="button" data-merge-empty-start disabled={!mergeEntry?.start} onClick={startMergeFromOpenFiles} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-white/10 px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:bg-white/[0.05] disabled:text-slate-500">
-            <LocalizedText text="Start new from current work" />
-          </button>
-          {!mergeEntry?.start && <p className="text-xs text-slate-500"><LocalizedText text="Open a file first" /></p>}
+          {/* The same way to start as the list's: pick what to merge (the changed files first). */}
+          <NewMergeMenu variant="empty" />
+          <p data-merge-empty-changed className="text-xs text-slate-500"><LocalizedText text={mergeEntry?.changedCount > 0 ? `${mergeEntry.changedCount} changed file${mergeEntry.changedCount === 1 ? '' : 's'}` : 'No changed files yet'} /></p>
         </div>
       )}
 
