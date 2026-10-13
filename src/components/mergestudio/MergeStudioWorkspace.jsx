@@ -626,6 +626,8 @@ function MergeStudioWorkspace({ item }) {
     currentUser,
     otherMembers,
     mergeItems,
+    mergeEntry,
+    startMergeFromOpenFiles,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
@@ -1850,6 +1852,11 @@ function MergeStudioWorkspace({ item }) {
               Start a new merge from the currently open files to begin.
             </p>
           </div>
+          {/* The same way in as the header's menu (lib/mergeEntry): start from what's open — or say why not. */}
+          <button type="button" data-merge-empty-start disabled={!mergeEntry?.start} onClick={startMergeFromOpenFiles} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-white/10 px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:bg-white/[0.05] disabled:text-slate-500">
+            <LocalizedText text="Start new from current work" />
+          </button>
+          {!mergeEntry?.start && <p className="text-xs text-slate-500"><LocalizedText text="Open a file first" /></p>}
         </div>
       )}
 
