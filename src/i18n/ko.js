@@ -2565,3 +2565,13 @@ Object.assign(ko, {
   'Open and edit a file, then come back to start a merge.': '파일을 열어 수정한 뒤 다시 눌러 병합을 시작하세요.',
   'Start new from current work': '현재 작업으로 새로 시작',
 })
+
+// Merge Studio: straight in, "New merge" inside.
+Object.assign(ko, {
+  'New merge': '새 병합',
+  'Start a merge from': '병합할 파일 고르기',
+  'No changed files. Pick the files to merge.': '변경된 파일이 없어요. 병합할 파일을 직접 골라 주세요.',
+  'No changed files yet': '아직 변경된 파일이 없어요',
+  'File changed': '변경됨',
+  'Pick the changed files to start your first merge.': '변경된 파일을 골라 첫 병합을 시작해 보세요.',
+})

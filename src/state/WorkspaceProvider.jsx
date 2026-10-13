@@ -410,8 +410,6 @@ export function WorkspaceProvider({ children, projectId }) {
     for (const item of mergeItems) if (item.category === 'Workspace') registerMergeVariants(item.id, item.designPageId)
   }, [mergeItems])
   const [selectedMergeItemId, setSelectedMergeItemId] = useDemoState(`project:${projectId}:selectedMergeItemId`, null)
-  // What the Merge Studio menu can offer (lib/mergeEntry): saved work to open, files to start from.
-  const mergeEntry = useMemo(() => mergeEntryState({ mergeItems, openFiles }), [mergeItems])
 
   // Which conversation AI Chat shows: the Workspace's, or — in Merge Studio
   // with an item open — that item's own, opening on the item it's about
@@ -664,6 +662,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
   const [editorDirtyFiles, setEditorDirtyFiles] = useState({})
+  // What the Merge Studio entry says (lib/mergeEntry): merges waiting, files with changes.
+  const mergeEntry = useMemo(() => mergeEntryState({ mergeItems, files, draftChanges, editorDirtyFiles }), [mergeItems, files, draftChanges, editorDirtyFiles])
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.
@@ -819,11 +819,9 @@ export function WorkspaceProvider({ children, projectId }) {
     [setNotifications, currentUser.id]
   )
 
-  // Shared by `startMergeFromOpenFiles` (the Merge Studio menu's one-click
-  // "Start New with Current Work") and `startMergeFromFiles` (the Merge
-  // List's "Add files" picker, see AddFilesMenu) — builds a fresh Merge
-  // List entry from a set of files, selects it, and enters Merge Studio
-  // already looking at it.
+  // Builds a fresh Merge List entry from a set of files (`startMergeFromFiles`, the
+  // "New merge" picker's start — see NewMergeMenu), selects it, and enters Merge
+  // Studio already looking at it.
   const startMergeFromFileIds = useCallback(
     (fileIds, fileLabels) => {
       if (!fileIds.length) return
@@ -853,14 +851,8 @@ export function WorkspaceProvider({ children, projectId }) {
     [activePageId, setSelectedMergeItemId, setMergeItems, currentUser.id]
   )
 
-  // "Start New with Current Work" — snapshots whatever's open in the editor
-  // right now into a fresh Merge List entry.
-  const startMergeFromOpenFiles = useCallback(() => {
-    startMergeFromFileIds(openFiles.map((f) => f.id), openFiles.map((f) => f.name))
-  }, [startMergeFromFileIds])
-
-  // "Add files" — the same, but from a hand-picked set of this project's
-  // files rather than only ever whatever's currently open.
+  // "New merge" — from the files picked in the picker (the changed ones are
+  // offered first and selected to begin with).
   const startMergeFromFiles = useCallback(
     (fileIds) => {
       startMergeFromFileIds(fileIds, fileIds.map((fid) => files.find((f) => f.id === fid)?.name ?? fid))
@@ -2754,7 +2746,6 @@ export function WorkspaceProvider({ children, projectId }) {
     setSelectedMergeItemId,
     openMergeStudio,
     exitMergeStudio,
-    startMergeFromOpenFiles,
     startMergeFromFiles,
     mergeEntry,
     completeMerge,
