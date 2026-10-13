@@ -662,8 +662,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const [mergedBaseline, setMergedBaseline] = useDemoState(`project:${projectId}:mergedBaseline`, {})
   const [draftChanges, setDraftChanges] = useDemoState(`project:${projectId}:draftChanges`, {})
   const [editorDirtyFiles, setEditorDirtyFiles] = useState({})
-  // What the Merge Studio entry says (lib/mergeEntry): merges waiting, files with changes.
-  const mergeEntry = useMemo(() => mergeEntryState({ mergeItems, files, draftChanges, editorDirtyFiles }), [mergeItems, files, draftChanges, editorDirtyFiles])
+  // What "New merge" offers (lib/mergeEntry): the files with changes.
+  const mergeEntry = useMemo(() => mergeEntryState({ files, draftChanges, editorDirtyFiles }), [files, draftChanges, editorDirtyFiles])
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
   // The header's "Merge Changes" CTA: registered by the Merge Studio
   // workspace ({ merged, count, open }) so the top bar can render it.

@@ -2,24 +2,21 @@ import { Sparkles } from 'lucide-react'
 import { cn } from 'cn'
 import { FLOATING_PILL } from '@/components/mergestudio/floatingStyles'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { badgeOf } from '@/lib/mergeEntry'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 
 // The header's "Merge Studio" button: pressing it goes straight in (the studio is
-// its own view — see MergeStudioView — with the Merge List and its "New merge"
-// inside; there's no menu to choose from first). How many merges are waiting is
-// on the button itself, a small number at the icon's corner; in the studio the
-// button reads as where you are.
+// its own view — see MergeStudioView — with its "New merge" inside; there's no
+// menu to choose from first, and no number on it). In the studio the button reads
+// as where you are.
 // `standalone` renders the trigger as its own floating pill (the Workspace
 // header's separate pieces) instead of a control inside a pill.
 function MergeStudioMenu({ standalone = false, borderless = false }) {
-  const { openMergeStudio, activeView, mergeEntry } = useWorkspace()
+  const { openMergeStudio, activeView } = useWorkspace()
   const language = useLanguage()
   const inStudio = activeView === 'mergeStudio'
-  const badge = badgeOf(mergeEntry?.pending ?? 0)
-  const label = badge ? `${translateText('Merge Studio', language)} · ${translateText(`${mergeEntry.pending} merges waiting`, language)}` : translateText('Merge Studio', language)
+  const label = translateText('Merge Studio', language)
 
   return (
     <button
@@ -43,10 +40,7 @@ function MergeStudioMenu({ standalone = false, borderless = false }) {
         inStudio && (borderless ? 'bg-white/[0.08]' : 'bg-muted')
       )}
     >
-      <span className="relative flex">
-        <Sparkles className={cn('text-emerald-400', standalone ? 'size-4' : 'size-3.5')} />
-        {badge && <span data-merge-badge aria-hidden className="absolute -top-2 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] leading-none font-semibold text-slate-950 tabular-nums">{badge}</span>}
-      </span>
+      <Sparkles className={cn('text-emerald-400', standalone ? 'size-4' : 'size-3.5')} />
       <LocalizedText text="Merge Studio" />
     </button>
   )
