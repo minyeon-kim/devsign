@@ -13,7 +13,8 @@ import { eventsOf, progressOf } from '@/lib/conflictEvents'
 //     lead     the type's own sentence — the requester's message ("검토 요청"), "내일 마감 · 해결 방법 미선택",
 //              "Jane 승인 · 병합 가능"; null for "변경 감지"
 //     changes  the properties that differ: `shown` the first two, `more` how many are left ("외 N건")
-//     images   the two labels over the pictures: "코드" / "디자인" for a drift, "이전" / "이후" otherwise
+//     images   the two labels under the pictures: what's compared, and — for a change of one value — the value on each side:
+//              "현재 · 4px" / "제안 · 8px" for a drift (what the code has now, what's proposed), "이전" / "이후" otherwise
 //   Null for a notification that isn't about a change's values (a comment, a mention, a merge).
 
 export const CHANGE_NOTICES = { detected: '변경 감지', request: '검토 요청', due: '마감 임박', decision: '승인' }
@@ -35,6 +36,10 @@ export function changesOf(conflict) {
   return differencesOf(conflict).filter((entry) => !entry.shared).map((entry) => ({ label: entry.label, from: String(entry.current), to: String(entry.expected) }))
 }
 
+// A value without what's said about it in brackets: "8px (space.2)" → "8px".
+export const shortValue = (value) => String(value ?? '').replace(/\s*\(.*\)\s*$/, '')
+// "gap  4px → 8px" — one property as a diff: its name in lower case, the two values without their notes.
+export const diffChipOf = (change) => `${String(change.label).toLowerCase()}  ${shortValue(change.from)} → ${shortValue(change.to)}`
 // "Padding 12px → 16px" — one property, as one line of text.
 export const changeText = (change) => `${change.label} ${change.from} → ${change.to}`
 
@@ -69,7 +74,7 @@ export function summaryOf(notification, conflict, { nameOf = (id) => id } = {}) 
     lead,
     changes,
     kind: kindWordOf(conflict),
-    images: drift ? ['코드', '디자인'] : ['이전', '이후'],
+    images: (drift ? ['현재', '제안'] : ['이전', '이후']).map((word, index) => (all.length === 1 ? `${word} · ${shortValue(index === 0 ? all[0].from : all[0].to)}` : word)),
     file: String(conflict.file ?? '').split('/').pop() || null,
     requester: requesterId ? nameOf(requesterId) : null,
   }

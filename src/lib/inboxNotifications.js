@@ -28,6 +28,17 @@ export function reviewAlerts(conflicts, userId, day) {
   return alerts
 }
 
+// A daily digest from an earlier day that today's digest already covers —
+// every change it listed is still waiting, and is listed again today. It
+// would be the same card twice under two days, so only today's is shown. (One
+// that listed something since done is its own history, and stays.)
+export const isDigest = (notification) => String(notification?.id ?? '').startsWith('review-medium-')
+export function supersededDigest(notification, liveAlerts) {
+  if (!isDigest(notification)) return false
+  const today = liveAlerts.find((alert) => isDigest(alert) && alert.id !== notification.id)
+  return Boolean(today && (notification.reviewConflictIds ?? []).every((id) => today.reviewConflictIds.includes(id)))
+}
+
 export function groupInboxNotifications(notifications) {
   const groups = []
   const threads = new Map()

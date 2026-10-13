@@ -19,12 +19,17 @@ try {
   assert.equal(padding.label, '변경 감지')
   assert.equal(s.changeText(padding.changes.all[0]), 'Padding 12px → 16px (space.4)')
   assert.deepEqual(s.closedPartsOf(padding), { change: padding.changes.all[0], more: 0 })
-  assert.deepEqual(padding.images, ['코드', '디자인'])
+  // The pictures' labels: what's there now and what's proposed, each with its value (without its note).
+  assert.deepEqual(padding.images, ['현재 · 12px', '제안 · 16px'])
+  assert.equal(s.diffChipOf(padding.changes.all[0]), 'padding  12px → 16px', 'the change as a diff chip')
+  const legend = s.summaryOf(note('request', 'CON-008'), byId('CON-008'), { nameOf })
+  assert.deepEqual([legend.images, s.diffChipOf(legend.changes.all[0])], [['현재 · 4px', '제안 · 8px'], 'gap  4px → 8px'])
 
   // Two shown, the rest "외 N건"; a value both sides share isn't a difference.
   const many = { ...byId('CON-003'), comparisonFields: ['a', 'b', 'c'].map((label) => ({ label, current: '1', expected: '2' })).concat([{ label: 'same', current: '3', expected: '3' }]) }
   const three = s.summaryOf(note('detected', 'CON-003'), many, { nameOf })
   assert.deepEqual([three.changes.shown.length, three.changes.more], [2, 1])
+  assert.deepEqual(three.images, ['현재', '제안'], 'several values: the sides alone')
   assert.equal(s.closedPartsOf(three).more, 2, 'the closed line: the first, and the rest counted')
 
   // 마감 임박: "내일 마감 · {현재 상태}".
@@ -56,11 +61,11 @@ try {
   assert.equal(t.thumbPlanOf(byId('CON-025'), []), null)
   assert.ok(t.thumbPlanOf(byId('CON-008'), []).mode === 'sample')
 
-  // Wired: a fixed 140×88 place, a 150ms fade, 200ms height, made once in the provider.
+  // Wired: a place of fixed height (88px, half the card's width each), a 150ms fade, 200ms height, made once in the provider.
   assert.deepEqual([t.THUMB.width, t.THUMB.height], [140, 88])
   const drawer = readFileSync(new URL('../src/components/mergestudio/MergeInboxDrawer.jsx', import.meta.url), 'utf8')
   assert.ok(drawer.includes('duration-150') && drawer.includes('duration-200') && !drawer.includes('animate-pulse'))
-  assert.ok(drawer.includes("thumb.status !== 'failed'"), 'a failed picture hides its place')
+  assert.ok(drawer.includes("if (!gaps && thumb.status === 'failed') return null"), 'a failed picture hides its place (one drawn live has no picture to fail)')
   assert.ok(readFileSync(new URL('../src/state/WorkspaceProvider.jsx', import.meta.url), 'utf8').includes('useNotificationThumbs({ projectId, notifications, conflicts, pages: projectPages })'))
   console.log('Passed: change notifications summarise by template; pictures are kept once, shared, and hidden when they fail.')
 } finally { await server.close() }

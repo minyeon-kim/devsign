@@ -19,7 +19,7 @@ import { codeMergeVariants, designMergeVariants, projects as allProjects } from 
 
 // The project's next release ({ name, date }), for saying when a put-off change goes in.
 const releaseOfProject = (projectId) => allProjects.find((candidate) => candidate.id === projectId)?.release ?? null
-import { reviewAlerts } from '@/lib/inboxNotifications'
+import { reviewAlerts, supersededDigest } from '@/lib/inboxNotifications'
 import { addNotification, createNotification, isUnread, markAllRead, markRead, normalize, prune, seedNotificationsOf, shouldNotify } from '@/lib/notifications'
 import { allConflictRecords } from '@/lib/conflicts'
 import { formatTime } from '@/lib/conflictEvents'
@@ -398,10 +398,13 @@ export function WorkspaceProvider({ children, projectId }) {
         // Addressed to someone else (e.g. a review decision sent to its author).
         && (!n.recipientId || n.recipientId === currentUser.id)
         // (The seeded request for a review that's live is that alert — not said twice.)
-        && !(n.kind === 'approval' && isUnread(n) && pendingIds.has(n.target?.conflictId)))
+        && !(n.kind === 'approval' && isUnread(n) && pendingIds.has(n.target?.conflictId))
+        // (Nor yesterday's digest of the very changes today's lists.)
+        && !supersededDigest(n, liveAlerts))
       .map((n) => normalize(n, now))
       // (Said by its time once it has one; a sample keeps its own words.)
-      .map((n) => (n.seeded || !n.timeLabel || n.timeLabel === 'Just now' ? { ...n, timeLabel: n.timeLabel === 'Just now' && now - n.createdAt < 60000 ? 'Just now' : formatTime(n.createdAt, now) } : n))
+      // ("Today" / "Now" were true when it was made: once it's history it says its date and time — "10월 12일 오후 6:00".)
+      .map((n) => (n.seeded || !n.timeLabel || ['Just now', 'Today', 'Now'].includes(n.timeLabel) ? { ...n, timeLabel: n.timeLabel === 'Just now' && now - n.createdAt < 60000 ? 'Just now' : formatTime(n.createdAt, now) } : n))
     // Newest first; the last 30 days, 200 at most.
     return prune([...alerts, ...rest], now)
   }, [liveAlerts, storedNotifications, currentUser.id])
