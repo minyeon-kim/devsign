@@ -2535,3 +2535,8 @@ Object.assign(ko, {
   'Details': '자세히',
   'Every other checkpoint is filtered out of this playback.': '필터에 걸리지 않은 체크포인트는 재생에서 빠져요.',
 })
+Object.assign(ko, {
+  'Previous version': '이전 버전',
+  'More view options': '보기 옵션 더 보기',
+  'Ring the changed elements': '바뀐 요소에 링 표시',
+})

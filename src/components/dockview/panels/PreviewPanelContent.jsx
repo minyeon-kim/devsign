@@ -1,13 +1,15 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Crosshair, LayoutGrid, Maximize2, Minus, Monitor, PenTool, ScanSearch, Plus, Smartphone, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Columns2, Crosshair, Diff, Maximize2, MoreHorizontal, Monitor, Smartphone, SquareSplitHorizontal, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
+import { translateText } from '@/i18n/translate'
+import { useLanguage } from '@/i18n/language'
 import { DEVICES, focusBox, frameOnDevice, isPhoneFrame } from '@/lib/devicePreview'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
-import CanvasZoomControl, { CANVAS_ZOOM_STEP, MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
+import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import { overrideFromEdit, prototypeFileForPage } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import CodeRender, { INSPECT_TONE } from '@/components/history/CodeRender'
@@ -89,7 +91,7 @@ const COMPARE_KEY = 'devsign.previewCompare'
 // How two renders are compared (this version against the current one):
 // side by side, one over the other with a divider to drag, or side by side
 // with what differs marked.
-const COMPARE_MODES = [['side', 'Renders side by side'], ['slider', 'Slider'], ['diff', 'Differences only']]
+const COMPARE_MODES = [['side', 'Renders side by side', Columns2], ['slider', 'Slider', SquareSplitHorizontal], ['diff', 'Differences only', Diff]]
 // At or under this window width, two renders side by side are too small to
 // read: side by side becomes the slider.
 const NARROW_WINDOW = 1280
@@ -150,7 +152,7 @@ const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen
 const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null, flush = false } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -158,6 +160,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const frames = Array.isArray(snapshotFrames) && snapshotFrames.length ? snapshotFrames : page.frames
   const renderedEdits = snapshotEdits ?? (historical ? {} : liveEdits)
   const file = prototypeFileForPage(page.id)
+  const language = useLanguage()
   const boxRef = useRef(null)
   const [box, setBox] = useState({ width: 320, height: 240 })
   const [zoom, setZoom] = useState(100)
@@ -306,7 +309,6 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const canMark = canRing
   const noChangeTitle = rendering?.unchanged ? 'No code change since the version before'
     : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'
-  const changedTitle = canMark ? 'Show changed elements' : noChangeTitle
   // One icon button of the toolbar: named by its tooltip, lit while on.
   const tool = ({ id, label, Icon, on = false, disabled = false, onClick }) => (
     <button key={id} type="button" {...{ [`data-preview-${id}`]: '' }} aria-label={label} title={label} aria-pressed={on} disabled={disabled} onClick={onClick}
@@ -315,20 +317,26 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
     </button>
   )
 
+  // The ⋯ menu's switches (each on or off; the ring is the Whole screen tab's own).
+  const options = [
+    rendering && { id: 'design', label: 'Compare with the design original', on: designShown, onClick: () => setDesignShown((current) => !current) },
+    rendering && { id: 'overview', label: 'All devices', on: overview, onClick: () => setOverview((current) => !current) },
+    compareView && rendering && { id: 'inspect', label: 'Inspection marks', on: inspecting && inspectCount > 0, disabled: !inspectable || compareMode === 'diff' || !inspectCount, title: compareMode === 'diff' ? 'Inspection marks are always on in Differences only' : inspectCount ? undefined : 'Nothing to mark on this screen', onClick: () => setInspectPick(!inspectPick) },
+    view === 'full' && { id: 'rings', label: 'Ring the changed elements', on: marking, disabled: !canMark, title: canMark ? undefined : noChangeTitle, onClick: () => setRingPick(!ringPick) },
+  ].filter(Boolean)
+
   const panel = (
     <div data-preview-panel className={cn('flex h-full flex-col overflow-hidden', !embedded && !fullscreen && 'bg-card', fullscreen && 'pt-3')}>
       {viewControls ? (
-        // One line, whatever the pane's width: the device on the left (it
-        // gives way first — its name truncates), the views as icon buttons
-        // on the right. What's being rendered is said under the frame, once.
-        <div data-preview-controls className={cn('flex shrink-0 items-center gap-x-1.5 gap-y-1.5 px-3 pb-2', compareView ? 'flex-wrap' : 'flex-nowrap', embedded && !fullscreen ? 'pt-0' : 'pt-2.5')}>
-          {/* (The comparison's toolbar holds more — what it's compared with, how:
-              in a narrow pane its tools go to a second line rather than run
-              into each other.) */}
-          <div className={cn('flex min-w-0 items-center gap-1.5', compareView ? 'flex-none' : 'flex-1')}>
+        // One line at any width, straight on the layer (no band): on the left
+        // what's compared with and what's shown of it; on the right how the
+        // two are compared, which screen, the rest in one menu, full screen.
+        // (Six controls; the zoom floats over the canvas.)
+        <div data-preview-controls className={cn('flex shrink-0 flex-nowrap items-center gap-2 pb-2', flush && !fullscreen ? 'pt-2' : cn('px-3', embedded && !fullscreen ? 'pt-0' : 'pt-2.5'))}>
+          <div className="flex min-w-0 items-center gap-2">
             {toolbarExtra}
             {/* The two views. (In a narrow window: their icons, the names as tooltips.) */}
-            <div role="tablist" aria-label="Preview view" data-preview-views className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+            <div role="tablist" aria-label="Preview view" data-preview-views data-toolbar-control className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
               {VIEWS.map(([id, label, Icon]) => {
                 const off = id === 'changed' && !hasChanged
                 return (
@@ -342,27 +350,29 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 )
               })}
             </div>
-            {/* Comparing: how, first; the device moves to the right, with the views. */}
+          </div>
+          <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+            {/* How two renders are compared — icons, the names as tooltips. */}
             {comparing && (
-              <div role="tablist" aria-label="Comparison mode" data-compare-modes className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
-                {COMPARE_MODES.map(([id, label]) => (
-                  <button key={id} type="button" role="tab" data-compare-mode={id} aria-selected={compareMode === id} title={id === 'side' && narrow ? 'Shown as a slider in a narrow window' : undefined} onClick={() => setComparePick(id)}
-                    className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors', compareMode === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
-                    <LocalizedText text={label} />
+              <div role="tablist" aria-label="Comparison mode" data-compare-modes data-toolbar-control className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+                {COMPARE_MODES.map(([id, label, Icon]) => (
+                  <button key={id} type="button" role="tab" data-compare-mode={id} aria-selected={compareMode === id} aria-label={translateText(label, language)} title={translateText(id === 'side' && narrow ? 'Shown as a slider in a narrow window' : label, language)} onClick={() => setComparePick(id)}
+                    className={cn('ds-intrinsic inline-flex size-6 items-center justify-center rounded transition-colors', compareMode === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                    <Icon className="size-3.5" />
                   </button>
                 ))}
               </div>
             )}
-            {rendering && !comparing && !compareView && <DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} />}
+            {rendering && <span data-toolbar-control className="flex min-w-0 shrink-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
             {phone && !rendering && (
               <DropdownMenu>
-                <DropdownMenuTrigger data-preview-device={device.id} className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+                <DropdownMenuTrigger data-preview-device={device.id} data-toolbar-control className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
                   <Smartphone className="size-3.5 shrink-0 text-slate-400" />
-                  <span className="min-w-0 truncate"><LocalizedText text={device.label} /></span>
-                  {device.width && <span className="shrink-0 text-slate-500 tabular-nums">{device.width}</span>}
+                  <span className="min-w-0 truncate max-[1024px]:hidden"><LocalizedText text={device.label} /></span>
+                  {device.width && <span className="shrink-0 text-slate-500 tabular-nums max-[1024px]:hidden">{device.width}</span>}
                   <ChevronDown className="size-3 shrink-0 text-slate-400" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-52">
+                <DropdownMenuContent align="end" className="min-w-52">
                   {DEVICES.map((entry) => (
                     <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
                       <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
@@ -373,31 +383,31 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          </div>
-          <div className={cn('flex shrink-0 items-center gap-0.5', compareView && 'ml-auto')}>
-            {(comparing || (compareView && rendering)) && <span className="mr-1 flex min-w-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
-            {rendering && tool({ id: 'design', label: 'Compare with the design original', Icon: PenTool, on: designShown, onClick: () => setDesignShown((current) => !current) })}
-            {rendering && tool({ id: 'overview', label: 'All devices', Icon: LayoutGrid, on: overview, onClick: () => setOverview((current) => !current) })}
-            {/* Inspection (a comparison's): the problems on the screen(s), marked where they are. */}
-            {compareView && rendering && tool({ id: 'inspect', label: compareMode === 'diff' ? 'Inspection marks are always on in Differences only' : inspectCount ? 'Inspection marks' : 'Nothing to mark on this screen', Icon: ScanSearch, on: inspecting && inspectCount > 0, disabled: !inspectable || compareMode === 'diff' || !inspectCount, onClick: () => setInspectPick(!inspectPick) })}
-            {/* "화면 전체" only: the changed elements ringed on it, or not. (In "바뀐 요소" they always are.) */}
-            {view === 'full' && tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setRingPick(!ringPick) })}
+            {/* The switches, in one menu — a dot on it when any is on. */}
+            {options.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger data-preview-more data-toolbar-control aria-label={translateText('More view options', language)} title={translateText('More view options', language)} className="ds-intrinsic relative flex size-7 shrink-0 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.09] hover:text-white">
+                  <MoreHorizontal className="size-4" />
+                  {options.some((option) => option.on) && <span aria-hidden data-preview-more-dot className="absolute top-1 right-1 size-1.5 rounded-full bg-white" />}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-56">
+                  {options.map((option) => (
+                    <DropdownMenuItem key={option.id} data-preview-option={option.id} aria-checked={option.on} disabled={option.disabled} title={option.title ? translateText(option.title, language) : undefined} onClick={option.onClick} className="gap-2 text-xs">
+                      <Check className={cn('size-3.5 shrink-0', option.on ? 'opacity-100' : 'opacity-0')} />
+                      <LocalizedText text={option.label} />
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {fullscreen
               ? (
-                <button type="button" data-preview-fullscreen-close aria-label="Exit full screen" title="Exit full screen" onClick={() => setFullscreen(false)} className="ds-intrinsic ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.08] px-2 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
+                <button type="button" data-preview-fullscreen-close data-toolbar-control aria-label="Exit full screen" title="Exit full screen" onClick={() => setFullscreen(false)} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.08] px-2 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
                   <X className="size-3.5 shrink-0" />
                   <kbd className="rounded bg-white/[0.1] px-1 font-sans text-[10px] text-slate-300">Esc</kbd>
                 </button>
               )
-              : tool({ id: 'fullscreen', label: 'View full screen', Icon: Maximize2, onClick: () => setFullscreen(true) })}
-            {/* The zoom, with the rest of the tools (not floating over the canvas). */}
-            {compareView && (
-              <span data-preview-zoom className="ml-1 inline-flex h-7 shrink-0 items-center rounded-md bg-white/[0.05]">
-                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= MIN_CANVAS_ZOOM} onClick={() => zoomBy(-CANVAS_ZOOM_STEP)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 hover:bg-white/[0.09] hover:text-white disabled:opacity-35"><Minus className="size-3" /></button>
-                <span className="w-9 text-center text-[10.5px] text-slate-200 tabular-nums">{zoom}%</span>
-                <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_CANVAS_ZOOM} onClick={() => zoomBy(CANVAS_ZOOM_STEP)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 hover:bg-white/[0.09] hover:text-white disabled:opacity-35"><Plus className="size-3" /></button>
-              </span>
-            )}
+              : <span data-toolbar-control className="flex">{tool({ id: 'fullscreen', label: 'View full screen', Icon: Maximize2, onClick: () => setFullscreen(true) })}</span>}
           </div>
         </div>
       ) : (
@@ -424,7 +434,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           <span><LocalizedText text={codeRender.error} /> <LocalizedText text="Showing the design prototype instead." /></span>
         </p>
       )}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="group/canvas relative flex min-h-0 flex-1 flex-col">
       {viewControls && (
         <>
           {/* What the marks are, or why there are none here — over the
@@ -448,7 +458,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           )}
           {/* (A design-frame preview says which version it shows here; a code render says so under its frame.) */}
           {caption && !rendering && <span data-preview-caption className="pointer-events-none absolute top-1 right-3 z-20 rounded-md bg-black/60 px-2 py-1 text-[10.5px]">{caption}</span>}
-          {!compareView && <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>}
+          {/* The zoom floats at the canvas's corner (as in the Workspace): faint until the pointer is over the canvas. */}
+          <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90 opacity-50 transition-opacity group-hover/canvas:opacity-100 focus-within:opacity-100"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>
         </>
       )}
       <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto', compareView && rendering ? '' : 'pb-4', compareView && rendering ? '' : viewControls ? 'px-3' : 'px-4')}>

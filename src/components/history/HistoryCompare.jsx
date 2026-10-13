@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { changeHref, sourceKeyOf } from '@/lib/changeLink'
-import { Archive, ArchiveRestore, ChevronRight, Code2, Link2, MessageSquareText, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, ChevronDown, ChevronRight, Code2, Link2, MessageSquareText, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
@@ -442,23 +442,31 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             codeRender={codeRender}
             variant="compare"
             emphasizeMark={problemHover && problem ? problem.id : null}
-            toolbarExtra={(
-              // What it's compared with — the one control for it.
-              <div role="tablist" aria-label={translateText('Compared with', language)} data-baseline={base} className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
-                {[['previous', 'Previous checkpoint'], ['current', 'Current version']].map(([id, label]) => {
+            flush={!embedded}
+          toolbarExtra={(
+            // What it's compared with — the one control for it: "비교: 이전 버전 ▾".
+            <DropdownMenu>
+              <DropdownMenuTrigger data-baseline={base} data-toolbar-control aria-label={translateText('Compared with', language)} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium whitespace-nowrap text-slate-100 transition-colors hover:bg-white/[0.08] hover:text-white">
+                <span className="font-normal text-slate-400"><LocalizedText text="Compare" />:</span>
+                <LocalizedText text={base === 'previous' ? 'Previous version' : 'Current version'} />
+                <ChevronDown className="size-3 shrink-0 text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                {[['previous', 'Previous version'], ['current', 'Current version']].map(([id, label]) => {
                   const unavailable = id === 'previous' && !previousEntry
                   return (
-                    <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="flex">
-                      <button type="button" role="tab" data-baseline-option={id} aria-selected={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)}
-                        className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40', base === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                    <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="block">
+                      <DropdownMenuItem data-baseline-option={id} aria-checked={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)} className="gap-2 text-xs">
+                        <Check className={cn('size-3.5 shrink-0', base === id ? 'opacity-100' : 'opacity-0')} />
                         <LocalizedText text={label} />
-                      </button>
+                      </DropdownMenuItem>
                     </span>
                   )
                 })}
-              </div>
-            )}
-            caption={
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          caption={
               <span className="shrink-0 text-emerald-300">
                 {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
                 {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
