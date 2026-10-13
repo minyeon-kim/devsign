@@ -141,8 +141,10 @@ function ConflictPanel({ inMergeStudio }) {
     })
   }
 
-  // (In the full-screen viewer, the list stays here behind it.)
-  if (reviewConflict && reviewView === 'panel') return <ReviewDetail conflict={reviewConflict} inMergeStudio={inMergeStudio} />
+  // Outside Merge Studio this tab is the list alone: a row opens the change full
+  // screen (the list stays here, behind it). Inside Merge Studio the detail is
+  // here, beside the canvas it points at.
+  if (inMergeStudio && reviewConflict && reviewView === 'panel') return <ReviewDetail conflict={reviewConflict} inMergeStudio={inMergeStudio} />
 
   return (
     <div ref={listRef} className="flex h-full min-h-0 min-w-0 flex-col bg-card">

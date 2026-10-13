@@ -41,3 +41,24 @@ const page = read('src/pages/WorkspacePage.jsx')
 assert.ok(page.includes('readChangeParams(location.search)') && page.includes("setBottomPanel({ open: true, tab: 'conflict', conflictFilter: listFilter })"))
 assert.ok(page.includes('checkpointRationale(entry, [conflict], comments).evidence.find((candidate) => sourceKeyOf(candidate) === sourceKey)'))
 console.log('change-link: ok')
+
+// ── One way to open: full screen with the left list; Merge Studio's bottom panel is the exception, said by name. ──
+{
+  const provider = read('src/state/WorkspaceProvider.jsx')
+  assert.ok(provider.includes("const openConflictReview = useCallback((id, { view = 'overlay', evidence = null, source = null } = {}) => {"), 'a change opens full screen unless asked otherwise')
+  assert.ok(provider.includes("const openConflictFromNotification = useCallback((id) => { if (id) openConflictReview(id) }, [openConflictReview])"), 'a notification\'s way in is the one way in')
+  // Open full screen ⇒ the Workspace's own view, the left list, the change's pin — however it got there.
+  const rule = provider.slice(provider.indexOf('const openedChange = useRef(null)'), provider.indexOf('  const value = {'))
+  assert.ok(['exitMergeStudio()', 'requestConflictDrawer(record.id)', 'focusConflictPin(record)'].every((call) => rule.includes(call)))
+  // The exception, where it's made.
+  const named = { 'src/components/mergestudio/MergeStudioWorkspace.jsx': 2, 'src/components/mergestudio/MergeInfiniteCanvas.jsx': 2, 'src/pages/WorkspacePage.jsx': 1, 'src/components/chat/ChatConversation.jsx': 1 }
+  for (const [file, count] of Object.entries(named)) assert.equal((read(file).match(/openConflictReview\([^)]*\{ view: 'panel' \}\)/g) ?? []).length, count, `${file}: the bottom panel's detail, by name`)
+  assert.ok(read('src/components/mergestudio/DesignComparison.jsx').includes("const reviewIn = inMergeStudio ? { view: 'panel' } : undefined"))
+  // Nothing else asks for the panel, and nothing opens the bottom list on the way.
+  for (const file of ['src/components/conflicts/CheckDecisions.jsx', 'src/pages/ProjectOverviewPage.jsx', 'src/components/layout/TopBar.jsx']) assert.ok(!/view: 'panel'/.test(read(file)), `${file} opens a change in the panel`)
+  assert.ok(!/setBottomPanel\(\{ open: true, tab: 'conflict' \}\)\s*\n\s*openConflictReview\(conflict\.id\)/.test(read('src/components/conflicts/CheckDecisions.jsx')))
+  // Outside Merge Studio the bottom tabs are lists alone.
+  assert.ok(read('src/components/dockview/panels/ConflictPanel.jsx').includes("if (inMergeStudio && reviewConflict && reviewView === 'panel') return"))
+  assert.ok(read('src/components/mergestudio/DesignComparison.jsx').includes("if (activeReview && inMergeStudio && reviewView === 'panel') return"))
+  console.log('change-link (one way in): ok')
+}

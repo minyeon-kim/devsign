@@ -32,7 +32,9 @@ export function designCompareOptions(item) {
 }
 
 function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false }) {
-  const { conflicts, addComment, openConflictReview, reviewConflictId, decisionsFor, historyEntries, createMergeRequest, updateConflict, updateMergeItem, currentUser, otherMembers } = useWorkspace()
+  // Where a change opened from here shows: full screen with the left list — the one way — except inside Merge Studio, whose bottom panel keeps it.
+  const reviewIn = inMergeStudio ? { view: 'panel' } : undefined
+  const { conflicts, addComment, openConflictReview, reviewConflictId, reviewView, decisionsFor, historyEntries, createMergeRequest, updateConflict, updateMergeItem, currentUser, otherMembers } = useWorkspace()
   const navigate = useNavigate()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
   const options = designCompareOptions(item)
@@ -87,11 +89,12 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
     setCommentAnchor(null)
     toast('코멘트를 추가했어요', {
       description: conflict.title,
-      action: { label: 'View', onClick: () => { openConflictReview(conflict.id) } },
+      action: { label: 'View', onClick: () => { openConflictReview(conflict.id, reviewIn) } },
     })
   }
 
-  if (activeReview) return <ReviewDetail conflict={activeReview} inMergeStudio={inMergeStudio} />
+  // (Its detail is here only in Merge Studio; anywhere else it opens full screen.)
+  if (activeReview && inMergeStudio && reviewView === 'panel') return <ReviewDetail conflict={activeReview} inMergeStudio={inMergeStudio} />
 
   // Which drafts are compared is a choice only when there are more than two
   // (two are always both compared).
@@ -118,9 +121,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
   }
   const next = !item ? null
     : mixSet ? (actions.primary === 'request' ? { label: MIX_ACTION_LABEL.request, run: requestMerge }
-      : actions.primary === 'open-request' ? { label: MIX_ACTION_LABEL['open-request'], run: () => openConflictReview(mixRequest.id, { view: 'overlay' }) } : null)
-      : requested ? { label: { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기', run: () => openConflictReview(conflict.id) }
-        : conflict && !isDesignReview(conflict) ? { label: '변경 검토', run: () => openConflictReview(conflict.id) }
+      : actions.primary === 'open-request' ? { label: MIX_ACTION_LABEL['open-request'], run: () => openConflictReview(mixRequest.id, reviewIn) } : null)
+      : requested ? { label: { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기', run: () => openConflictReview(conflict.id, reviewIn) }
+        : conflict && !isDesignReview(conflict) ? { label: '변경 검토', run: () => openConflictReview(conflict.id, reviewIn) }
           : null
   const compose = item && (mixSet ? actions.primary === 'compose' : (!next || !requested)) ? { disabled: pickedOptions.length < 2, run: () => onCompare(item, pickedOptions) } : null
   const edit = mixSet && actions.secondary === 'edit' ? { label: MIX_ACTION_LABEL.edit, run: editMix } : null

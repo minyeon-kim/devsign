@@ -165,7 +165,7 @@ function plural(n, word) {
 const RESULT_ACTION = 'ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-md border border-white/15 bg-white/[0.05] px-3 text-[11px] font-medium leading-none text-slate-100 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/10 focus-visible:outline-2 focus-visible:outline-emerald-300'
 
 function ResultCard({ result, messageId }) {
-  const { focusChange, setBottomPanel, openConflictReview, applyPendingAiEdit, discardPendingAiEdit } = useWorkspace()
+  const { focusChange, setBottomPanel, openConflictReview, activeView, applyPendingAiEdit, discardPendingAiEdit } = useWorkspace()
   const status = RESULT_STATUS[result.status] ?? RESULT_STATUS.done
   const StatusIcon = status.icon
   const pending = result.status === 'pending'
@@ -246,8 +246,9 @@ function ResultCard({ result, messageId }) {
                     type="button"
                     className={RESULT_ACTION}
                     onClick={() => {
-                      setBottomPanel({ tab: 'conflict', open: true })
-                      openConflictReview(result.reviewItems[0].conflictId)
+                      // (The one way a change opens: full screen with the left list — in Merge Studio, its bottom panel.)
+                      if (activeView === 'mergeStudio') { setBottomPanel({ tab: 'conflict', open: true }); openConflictReview(result.reviewItems[0].conflictId, { view: 'panel' }) }
+                      else openConflictReview(result.reviewItems[0].conflictId)
                     }}
                   >
                     Review changes

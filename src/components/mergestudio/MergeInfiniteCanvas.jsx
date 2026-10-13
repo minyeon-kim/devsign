@@ -1612,7 +1612,8 @@ function MergeInfiniteCanvas({
   const decidedCount = decisionKeys.filter((key) => decisionMap[key] != null).length
   function openDecisions() {
     const conflict = item && conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId)
-    if (conflict) openConflictReview(conflict.id)
+    // (Merge Studio's canvas: the bottom panel's detail, beside it — said by name.)
+    if (conflict) openConflictReview(conflict.id, { view: 'panel' })
     setBottomPanel({ tab: 'conflict', open: true })
   }
 
@@ -1644,7 +1645,7 @@ function MergeInfiniteCanvas({
       const match = d.kind === 'design'
         ? linked.find((c) => c.layerId === d.layerId)
         : linked.find((c) => c.fileId === d.fileId && c.line === d.line)
-      if (match) openConflictReview(match.id)
+      if (match) openConflictReview(match.id, { view: 'panel' })
     }
   }
 

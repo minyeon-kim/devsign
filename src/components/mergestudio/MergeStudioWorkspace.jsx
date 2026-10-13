@@ -784,7 +784,7 @@ function MergeStudioWorkspace({ item }) {
     // room for the result and its review.
     // (Its next step, asking for approval, is the bar at the top there —
     // no toast saying it again.)
-    openConflictReview(requestId, { view: 'overlay' })
+    openConflictReview(requestId)
   }
 
   // Asked for from the parts bar, without leaving the canvas: the same
@@ -800,7 +800,7 @@ function MergeStudioWorkspace({ item }) {
       mixRequest: { note: note || null, warnings, at: Date.now() },
     })
     const asked = reviewerIds.map((id) => (otherMembers ?? []).find((member) => member.id === id)?.name).filter(Boolean)
-    toast(`${asked.join(', ') || '검토자'}에게 승인을 요청했어요`, { description: item.title, action: { label: '요청 보기', onClick: () => { endComparison(); exitMergeStudio(); openConflictReview(requestId, { view: 'overlay' }) } } })
+    toast(`${asked.join(', ') || '검토자'}에게 승인을 요청했어요`, { description: item.title, action: { label: '요청 보기', onClick: () => { endComparison(); exitMergeStudio(); openConflictReview(requestId) } } })
   }
   // One whole draft, for every part at once (one edit: ⌘Z takes it back).
   function takeWholeDraft(draftKey) {
@@ -830,7 +830,8 @@ function MergeStudioWorkspace({ item }) {
 
   function openReviewFor(target) {
     const conflict = conflicts.find((c) => c.mergeItemId === target.id || c.id === target.conflictId)
-    if (conflict) openConflictReview(conflict.id)
+    // (Inside Merge Studio: the bottom panel's detail, beside the canvas — said by name.)
+    if (conflict) openConflictReview(conflict.id, { view: 'panel' })
     setBottomPanel({ tab: 'conflict', open: true })
   }
   // The open conflict this item is being adjusted for (a draft merge is
@@ -980,7 +981,7 @@ function MergeStudioWorkspace({ item }) {
   // code, checks, review and merge all are.
   function openReview() {
     const conflict = conflicts.find((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
-    if (conflict) openConflictReview(conflict.id)
+    if (conflict) openConflictReview(conflict.id, { view: 'panel' })
     setBottomPanel({ tab: 'conflict', open: true })
   }
 
@@ -1686,7 +1687,6 @@ function MergeStudioWorkspace({ item }) {
               onClick={() => {
                 setCheckGuide(null)
                 exitMergeStudio()
-                setBottomPanel({ tab: 'conflict', open: true })
                 openConflictReview(adjustingFor.id)
                 toast(adjustmentCount ? '조정 내용을 변경 내역에 반영했어요' : '변경 내역으로 돌아왔어요', adjustmentCount ? { description: adjustingFor.adjustmentReason?.text ? '검토 화면의 카드에 조정한 값이 표시돼요.' : '검토 화면의 카드에 조정한 값이 표시돼요. 조정한 이유를 선택하세요.' } : undefined)
               }}

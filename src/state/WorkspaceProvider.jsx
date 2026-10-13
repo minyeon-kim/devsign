@@ -210,11 +210,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // workspace, so opening a conflict from the drawer or the terminal
   // always reuses the same window instead of stacking a second one.
   const [reviewConflictId, setReviewConflictId] = useState(null)
-  // …and where its detail shows: 'panel' (in the bottom panel, beside the
-  // canvas) or 'overlay' (the full-screen viewer over the work area — what
-  // a row of either list, the bottom panel's or the sidebar's, opens).
-  // Kept here, with the id, so every way in drives the one viewer.
-  const [reviewView, setReviewView] = useState('panel')
+  // …and where its detail shows. One rule: a change opens full screen over the
+  // Workspace ('overlay'), with the left rail's list beside it — whatever opened
+  // it. The one exception is said where it's made: inside Merge Studio a
+  // change's detail stays in the bottom panel ('panel'), beside the canvas it
+  // points at. Kept here, with the id, so every way in drives the one viewer.
+  const [reviewView, setReviewView] = useState('overlay')
   // Design System Update → Documentation → History (see
   // lib/designSystemUpdates): the updates, and the Reference Docs the
   // documented ones generated (shown in the Archive beside the static docs).
@@ -243,7 +244,7 @@ export function WorkspaceProvider({ children, projectId }) {
   //   · opened here, in this session: pushed — Back closes it, Forward opens it again;
   //   · another change while one is open: replaced — one step back still closes;
   //   · closed: back, when it was pushed; else the parameter is taken off in place.
-  // The bottom panel's own detail ('panel' — Merge Studio's) is not an address.
+  // The bottom panel's own detail ('panel' — Merge Studio's, asked for by name) is not an address.
   const navigate = useNavigate()
   const location = useLocation()
   const workspacePath = workspacePathOf(projectId)
@@ -258,7 +259,7 @@ export function WorkspaceProvider({ children, projectId }) {
     // (The address no longer names one: the full-screen detail is closed.)
     else if (reviewViewNow.current === 'overlay') setReviewConflictId(null)
   }, [changeParam])
-  const openConflictReview = useCallback((id, { view = 'panel', evidence = null, source = null } = {}) => {
+  const openConflictReview = useCallback((id, { view = 'overlay', evidence = null, source = null } = {}) => {
     const { location: at, onWorkspace: here, changeParam: shown } = route.current
     if (!id) {
       if (here && shown) {
@@ -724,11 +725,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const requestConflictDrawer = useCallback((id) => {
     setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
   }, [])
-  const openConflictFromNotification = useCallback((id) => {
-    if (!id) return
-    requestConflictDrawer(id)
-    openConflictReview(id, { view: 'overlay' })
-  }, [openConflictReview, requestConflictDrawer])
+  // (A notification's way in is the one way in: kept under its name for those that call it.)
+  const openConflictFromNotification = useCallback((id) => { if (id) openConflictReview(id) }, [openConflictReview])
 
   const markNotificationRead = useCallback((id, unread = false) => {
     // (Read is when it was read — nothing leaves the list. `unread`: back to unread.)
@@ -1585,7 +1583,7 @@ export function WorkspaceProvider({ children, projectId }) {
         decideDesign(c.id, decision, { actorId: c.scriptedDecision.by })
         const designer = teamMembers.find((p) => p.id === c.scriptedDecision.by)?.name ?? 'The designer'
         notifyPerson(currentUser.id, c, `${DECISION_LABEL[decision.choice]} — ${c.title}`, 'comment', c.scriptedDecision.by)
-        toast(`${designer}님이 결정했어요: ${DECISION_LABEL[decision.choice]}`, { description: `${c.id} · 바로 반영을 시작해요`, action: { label: '결정 보기', onClick: () => openConflictReview(c.id, { view: 'overlay' }) } })
+        toast(`${designer}님이 결정했어요: ${DECISION_LABEL[decision.choice]}`, { description: `${c.id} · 바로 반영을 시작해요`, action: { label: '결정 보기', onClick: () => openConflictReview(c.id) } })
       }
     }, Math.max(0, Math.min(...asked.map((c) => c.decisionRequest.sentAt)) + DECISION_REPLY_MS - Date.now()))
     return () => window.clearTimeout(timer)
@@ -2530,6 +2528,23 @@ export function WorkspaceProvider({ children, projectId }) {
       },
     ])
   }, [conflicts, currentUser.id, logEvent, projectId, setConflicts])
+
+  // A change open full screen is always the same screen, however it got there
+  // (a row, a notification, a toast, a link, a reload): the Workspace's own
+  // view — not Merge Studio — with the left rail's list beside the detail
+  // (AppShell opens it and folds the bottom panel's), and the change's pin
+  // picked on the canvas, so closing the detail shows where it is.
+  const openedChange = useRef(null)
+  useEffect(() => {
+    if (!changeParam) { openedChange.current = null; return }
+    if (openedChange.current === changeParam) return
+    const record = conflicts.find((candidate) => candidate.id === changeParam)
+    if (!record) return
+    openedChange.current = changeParam
+    exitMergeStudio()
+    requestConflictDrawer(record.id)
+    focusConflictPin(record)
+  }, [changeParam, conflicts, exitMergeStudio, requestConflictDrawer, focusConflictPin])
 
   const value = {
     projectId,

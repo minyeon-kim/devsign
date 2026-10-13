@@ -182,7 +182,7 @@ export function CheckGuideHighlight({ layerId }) {
 // says what to change here and when it's done. `checks` are the studio's
 // live ones, so the note turns to Fixed as soon as the check passes.
 export function MergeCheckGuide({ item, checks, low = false }) {
-  const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, setBottomPanel, exitMergeStudio } = useWorkspace()
+  const { checkGuide, setCheckGuide, conflicts, decideDrift, openConflictReview, exitMergeStudio } = useWorkspace()
   const ko = useLanguage() === 'ko'
   if (!checkGuide || !item) return null
   // For a conflict's item — or, with no conflict yet (drafts still being
@@ -200,8 +200,8 @@ export function MergeCheckGuide({ item, checks, low = false }) {
   const finish = () => {
     setCheckGuide(null)
     if (!conflict) return
+    // (Out of Merge Studio: the change opens the one way — full screen, the left list beside it.)
     exitMergeStudio?.()
-    setBottomPanel({ open: true, tab: 'conflict' })
     openConflictReview(conflict.id)
   }
   const steps = check?.details?.length ? [

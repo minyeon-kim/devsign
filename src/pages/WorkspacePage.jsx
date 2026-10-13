@@ -32,7 +32,6 @@ function WorkspacePage() {
     setBottomPanel,
     focusChange,
     openConflictReview,
-    requestConflictDrawer,
     historyEntries,
     comments,
   } = useWorkspace()
@@ -67,7 +66,8 @@ function WorkspacePage() {
         // `collapsePanel` (arriving to fix a check): the review stays
         // selected but folded, so the canvas it points at is in view.
         setBottomPanel({ open: !state.collapsePanel, tab: 'conflict' })
-        openConflictReview(state.conflictId)
+        // (In Merge Studio: the bottom panel's own detail — the one exception to full screen.)
+        openConflictReview(state.conflictId, { view: 'panel' })
       }
       if (item) {
         requestMergeFocus({
@@ -107,8 +107,9 @@ function WorkspacePage() {
   }, [listFilter, location.key, exitMergeStudio, setBottomPanel])
 
   // `?change=<id>` reached by a link (another page, a reload, a shared address —
-  // not opened here a moment ago): the Workspace itself, the change's place in
-  // the left list, and its element and file. With a History source
+  // not opened here a moment ago): its element and file are selected too (the
+  // left list and the Workspace's own view come with any change that's open —
+  // the provider's). With a History source
   // (`&evidence=<checkpoint>`), that source is found again and brought up.
   const handledChange = useRef(null)
   useEffect(() => {
@@ -117,15 +118,13 @@ function WorkspacePage() {
     if (!conflict) return
     handledChange.current = `${location.key}:${changeId}`
     if (location.state?.changePushed) return
-    exitMergeStudio()
     focusChange(conflict)
-    requestConflictDrawer(conflict.id)
     if (evidenceId) {
       const entry = historyEntries.find((candidate) => candidate.id === evidenceId)
       const item = entry ? checkpointRationale(entry, [conflict], comments).evidence.find((candidate) => sourceKeyOf(candidate) === sourceKey) ?? null : null
       setBottomPanel({ evidence: item ? { ...item, conflictId: conflict.id } : null })
     }
-  }, [changeId, evidenceId, sourceKey, location.key, location.state, conflicts, historyEntries, comments, exitMergeStudio, focusChange, requestConflictDrawer, setBottomPanel])
+  }, [changeId, evidenceId, sourceKey, location.key, location.state, conflicts, historyEntries, comments, focusChange, setBottomPanel])
 
   const inMergeStudio = activeView === 'mergeStudio'
 
