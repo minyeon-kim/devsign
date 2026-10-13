@@ -65,3 +65,19 @@ assert.ok(read('src/components/dashboard/Sidebar.jsx').includes('Boolean(docLaye
 // The layer is the Workspace's, beside the change's detail.
 assert.ok(read('src/pages/WorkspacePage.jsx').includes('<DocsOverlay />'))
 console.log('doc-link: ok')
+
+// ── The layer's structure: the Workspace's, with the Docs drawer beside it — as a change's detail has its list. ──
+{
+  const overlay = read('src/components/docs/DocsOverlay.jsx')
+  assert.ok(overlay.includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card') && overlay.includes('animate-in fade-in duration-150'), 'the same layer as the change\'s detail: over the work area, same level, same surface')
+  assert.ok(read('src/components/conflicts/ConflictReviewOverlay.jsx').includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150'))
+  const provider = read('src/state/WorkspaceProvider.jsx')
+  const rule = provider.slice(provider.indexOf('const openedDocs = useRef(false)'), provider.indexOf('  const value = {'))
+  assert.ok(rule.includes('exitMergeStudio()') && rule.includes('requestDocsDrawer()'), 'open ⇒ the Workspace\'s own view and the Docs drawer')
+  const shell = read('src/components/dashboard/AppShell.jsx')
+  assert.ok(shell.includes("if (docsDrawerRequest && docsDrawerRequest !== handledDocsRequest) {") && shell.includes("setDrawer('docs')"))
+  // A document can still be dragged from the drawer into the Workspace as a panel.
+  const drawer = read('src/components/dashboard/DocsDrawer.jsx')
+  assert.ok(drawer.includes('draggable') && drawer.includes('event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id)'))
+  console.log('doc-link (structure): ok')
+}

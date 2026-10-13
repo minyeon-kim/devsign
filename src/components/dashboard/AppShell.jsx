@@ -88,6 +88,13 @@ function AppShell({ topBar, project, children }) {
       workspace.setBottomPanel({ open: false })
     }
   }
+  // The docs layer (WorkspaceProvider's `requestDocsDrawer`) opens the Docs drawer the same way.
+  const { docsDrawerRequest } = workspace ?? {}
+  const [handledDocsRequest, setHandledDocsRequest] = useState(null)
+  if (docsDrawerRequest && docsDrawerRequest !== handledDocsRequest) {
+    setHandledDocsRequest(docsDrawerRequest)
+    setDrawer('docs')
+  }
   const openConflicts = workspace ? conflictCounts(workspace.conflicts).open : 0
 
   return (

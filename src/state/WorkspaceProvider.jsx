@@ -494,6 +494,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // the left sidebar with the review over the work area — never the bottom
   // panel's list. See `openConflictFromNotification`.
   const [conflictDrawerRequest, setConflictDrawerRequest] = useState(null)
+  // …and for the Docs drawer: the docs layer is open with its category tree beside it. See `requestDocsDrawer`.
+  const [docsDrawerRequest, setDocsDrawerRequest] = useState(null)
   // Merge Studio's unmerged per-item edits ({ [itemId]: draft }), kept
   // across item switches and trips out of Merge Studio (see
   // MergeStudioWorkspace). A ref: saving a draft never needs a re-render.
@@ -753,6 +755,9 @@ export function WorkspaceProvider({ children, projectId }) {
     setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
   }, [])
   // (A notification's way in is the one way in: kept under its name for those that call it.)
+  const requestDocsDrawer = useCallback(() => {
+    setDocsDrawerRequest({ nonce: nextId('docs-drawer') })
+  }, [])
   const openConflictFromNotification = useCallback((id) => { if (id) openConflictReview(id) }, [openConflictReview])
 
   const markNotificationRead = useCallback((id, unread = false) => {
@@ -2575,6 +2580,19 @@ export function WorkspaceProvider({ children, projectId }) {
     focusConflictPin(record)
   }, [changeParam, conflicts, exitMergeStudio, requestConflictDrawer, focusConflictPin])
 
+  // The docs layer open is always the same screen too: the Workspace's own view
+  // with the Docs drawer (the category tree) beside the document — however it
+  // was opened, and after a reload.
+  const openedDocs = useRef(false)
+  useEffect(() => {
+    const open = Boolean(docParam || docsParam)
+    if (open === openedDocs.current) return
+    openedDocs.current = open
+    if (!open) return
+    exitMergeStudio()
+    requestDocsDrawer()
+  }, [docParam, docsParam, exitMergeStudio, requestDocsDrawer])
+
   const value = {
     projectId,
     currentUser,
@@ -2731,6 +2749,8 @@ export function WorkspaceProvider({ children, projectId }) {
     conflictDrawerRequest,
     openConflictFromNotification,
     requestConflictDrawer,
+    docsDrawerRequest,
+    requestDocsDrawer,
     docParam,
     docsParam,
     openDoc,
