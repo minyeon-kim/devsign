@@ -51,7 +51,9 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
           list this was opened from (the change's own title is the heading
           right under it) — with Close at the end of its row: the row's
           right edge is the title's and the side panel's too. */}
-      <BreadcrumbBar>
+      {/* (The full-page detail's top bar: against the top of the screen, 48px tall, the path and
+          Close centred in it. The bar's place is still 64px, so everything under it is where it was.) */}
+      <BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">
         <Breadcrumb items={[...projectCrumbs({ id: conflict.projectId, name: conflict.projectName ?? projects.find((project) => project.id === conflict.projectId)?.name ?? conflict.projectId }), { label: 'Conflicts' }]} />
         <button
           ref={closeRef}

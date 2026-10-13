@@ -35,10 +35,11 @@ const LINK = 'transition-colors hover:text-white focus-visible:text-white focus-
 
 export const BREADCRUMB_COLUMN = 'mx-auto w-full max-w-[1180px] px-6 sm:px-10'
 
-export function BreadcrumbBar({ children, className, ...props }) {
+// `rowClassName`: the row's own classes (its height), where a page sets the bar differently.
+export function BreadcrumbBar({ children, className, rowClassName, ...props }) {
   return (
     <div data-breadcrumb-bar className={cn('shrink-0 pt-8', className)} {...props}>
-      <div className={cn(BREADCRUMB_COLUMN, 'flex h-8 min-w-0 items-center gap-2')}>{children}</div>
+      <div data-breadcrumb-row className={cn(BREADCRUMB_COLUMN, 'flex h-8 min-w-0 items-center gap-2', rowClassName)}>{children}</div>
     </div>
   )
 }
