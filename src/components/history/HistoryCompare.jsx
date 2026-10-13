@@ -121,7 +121,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   const comparison = useMemo(() => {
     if (!entry || !baseEntryOf || sameAsBase) return null
     return base === 'previous'
-      ? { left: previousEntry, right: entry, leftTitle: number ? `Checkpoint #${number - 1}` : 'Previous checkpoint', rightTitle: mineTitle, thisSide: 'other' }
+      ? { left: previousEntry, right: entry, leftTitle: number ? `Previous · #${number - 1}` : 'Previous version', rightTitle: mineTitle, thisSide: 'other' }
       : { left: entry, right: current, leftTitle: mineTitle, rightTitle: 'Current version', thisSide: 'mine' }
   }, [entry, baseEntryOf, sameAsBase, base, previousEntry, number, mineTitle, current])
   const pair = playing ? null : comparison
@@ -467,7 +467,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             </DropdownMenu>
           )}
           caption={
-              <span className="shrink-0 text-emerald-300">
+              <span className="shrink-0 text-slate-300">
                 {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
                 {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
               </span>

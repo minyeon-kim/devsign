@@ -134,10 +134,10 @@ function CompareSlider({ width, height, left, right }) {
           event.stopPropagation()
           setPosition(Math.max(0, Math.min(100, next)))
         }}
-        className="absolute inset-y-0 z-10 w-0.5 -translate-x-1/2 bg-emerald-300 outline-none focus-visible:bg-white"
+        className="absolute inset-y-0 z-10 w-0.5 -translate-x-1/2 bg-white/80 outline-none focus-visible:bg-white"
         style={{ left: `${position}%` }}
       >
-        <span className="absolute top-1/2 left-1/2 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-300 text-slate-950 shadow-lg ring-2 ring-black/30"><ChevronsLeftRight className="size-4" /></span>
+        <span className="absolute top-1/2 left-1/2 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-950 shadow-lg ring-2 ring-black/30"><ChevronsLeftRight className="size-4" /></span>
       </div>
     </div>
   )
@@ -148,7 +148,7 @@ const VIEW_KEY = 'devsign.previewView'
 const RING_KEY = 'devsign.previewRings'
 // The two views, as tabs.
 const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen', Monitor]]
-// A changed part's ring in "바뀐 요소": the app's accent (in "화면 전체" the render's own amber).
+// A changed part's ring: the one green on the screen — "this version"'s changed element, never the other side.
 const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
@@ -434,15 +434,16 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
           <span><LocalizedText text={codeRender.error} /> <LocalizedText text="Showing the design prototype instead." /></span>
         </p>
       )}
-      <div className="group/canvas relative flex min-h-0 flex-1 flex-col">
+      {/* The canvas: the Workspace's own dot pattern on the layer — no panel of its own. */}
+      <div className="group/canvas relative flex min-h-0 flex-1 flex-col" style={compareView ? { backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)', backgroundSize: '18px 18px' } : undefined}>
       {viewControls && (
         <>
           {/* What the marks are, or why there are none here — over the
               canvas, so the toolbar stays one line. */}
           {elsewhere.length > 0 ? (
-            <span data-preview-status data-preview-no-effect role="status" className="absolute top-1 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-[#2a2415]/95 px-2 py-1 text-[11px] text-amber-100 shadow-lg ring-1 ring-amber-300/25 ring-inset">
+            <span data-preview-status data-preview-no-effect role="status" className="absolute top-1 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-black/70 px-2 py-1 text-[11px] text-slate-200 shadow-lg ring-1 ring-white/10 ring-inset">
               <span>이 변경은 <span translate="no">{viewport.custom ? '' : viewport.label}</span>({viewport.width}px · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} />)에는 영향이 없어요</span>
-              <button type="button" data-preview-go-viewport={elsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: elsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
+              <button type="button" data-preview-go-viewport={elsewhere[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: elsewhere[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-white/10 px-1.5 font-medium text-white transition-colors hover:bg-white/15">
                 <span translate="no">{elsewhere[0].label}</span>({elsewhere[0].width}px)에서 보기
               </button>
             </span>
@@ -450,7 +451,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             <span data-preview-status data-compare-same role="status" className="absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
               <LocalizedText text="Both versions render the same on this screen." />
             </span>
-          ) : !overview && changedNames && (view === 'changed' ? rendering : marking && !compareView) && (
+          ) : !overview && !compareView && changedNames && (view === 'changed' ? rendering : marking) && (
             // (A design frame cut to its element says its name under the cut itself — below.)
             <span data-preview-status data-preview-changed-names className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
               <LocalizedText text={view === 'changed' ? 'Changed element' : 'Changed'} /> · <span translate="no">{changedNames}</span>
@@ -478,7 +479,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             [data-layer-id="${CSS.escape(highlightLayerId)}"] { animation: preview-changed-${String(highlightKey).replace(/[^a-zA-Z0-9_-]/g, '')} 1200ms ease-out backwards; border-radius: 6px; z-index: 5; }
           `}</style>
         )}
-        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', compareView && rendering ? 'w-full' : viewControls ? 'mx-auto' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
+        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', compareView && rendering ? 'my-auto w-full' : viewControls ? 'mx-auto' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
           {conflictPreview ? (
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />
@@ -501,7 +502,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                       className="ds-intrinsic flex min-w-0 flex-col items-center gap-1 rounded-lg p-1 text-center transition-colors hover:bg-white/[0.05]">
                       <CodeRender spec={rendering.spec} screen={screen} scale={scale} />
                       <span translate="no" className="max-w-full truncate text-[11px] font-medium text-slate-200">{screen.label} <span className="font-normal text-slate-500 tabular-nums">{screen.width}</span></span>
-                      <span className={cn('rounded px-1 text-[10px] font-medium', layout.overlap ? 'bg-rose-500/20 text-rose-200' : layout.squeezed != null ? 'bg-amber-400/20 text-amber-100' : 'bg-white/[0.06] text-slate-400')}>
+                      <span className={cn('rounded px-1 text-[10px] font-medium', layout.overlap ? 'bg-rose-500/20 text-rose-200' : layout.squeezed != null ? 'bg-white/10 text-slate-200' : 'bg-white/[0.06] text-slate-400')}>
                         <LocalizedText text={BREAKPOINT_LABEL[screen.breakpoint]} /> · {layout.columns}열{layout.overlap ? ` · 겹침 ${layout.overlap}px` : layout.squeezed != null ? ` · 간격 ${layout.squeezed}px` : ''}
                       </span>
                     </button>
@@ -516,7 +517,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             // middle of that. Each frame's name is its caption, right above
             // it; what's inspected is hatched on the screen and named under
             // the frame, on a thin line.
-            const pad = narrow ? 24 : 32
+            const pad = narrow ? 16 : 24
             const between = 48
             const captionHeight = 24
             const design = designShown ? frames[0] : null
@@ -539,7 +540,8 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             // same one on both sides, enlarged to the room (the same scale for both).
             const cut = view === 'changed' && region ? region : null
             const shown = cut ?? { x: 0, y: 0, width: viewport.width, height: contentHeight }
-            const scale = cut ? changedScale({ width: paneWidth, height: paneHeight }, cut, zoom) : Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
+            // (As large as the canvas allows — up to twice its real size — on both axes.)
+            const scale = cut ? changedScale({ width: paneWidth, height: paneHeight }, cut, zoom) : Math.max(0.05, Math.min(2, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
             const frameWidth = shown.width * scale
             const frameHeight = shown.height * scale
             const emphasisOf = (side) => (hoverMark?.side === side ? hoverMark.id : emphasizeMark)
@@ -562,29 +564,34 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 </Fragment>
               )
             })
+            // One rule for the names: this version's in white, the other side's in slate.
+            const nameTone = (side) => (side === thisSide ? 'text-white' : 'text-slate-400')
             const caption = (key, label, tone) => (
               <figcaption className={cn('flex items-baseline justify-center gap-1 text-[11px] font-medium whitespace-nowrap', tone)} style={{ height: captionHeight }}>
                 <LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span>
                 {/* (A width outside the kind's breakpoint: the layout it gets.) */}
-                {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-amber-200"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
+                {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-slate-400"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
               </figcaption>
             )
             // (The changed parts ringed: in "바뀐 요소" on both sides — the same part of each — in the accent;
             // in "화면 전체", on this version, when its toggle is on.)
-            const ring = { marked: marking && gridChanged, parts: marking ? renderParts : [], ...(cut && { markStyle: CHANGED_RING }) }
-            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} inspect={marks.mine} emphasis={emphasisOf('mine')} {...ring} />
-            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} inspect={marks.other} emphasis={emphasisOf('other')} {...(cut ? ring : {})} /> : null
+            // Only on this version's side (the other side is what it was), and a changed grid is
+            // ringed as the one outline — not its cards again. The ring names what changed on hover.
+            const ring = { marked: marking && gridChanged, parts: marking && !gridChanged ? renderParts : [], markStyle: CHANGED_RING, markTitle: changedNames }
+            const ringedMine = !other || thisSide === 'mine'
+            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} inspect={marks.mine} emphasis={emphasisOf('mine')} {...(ringedMine ? ring : {})} />
+            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} inspect={marks.other} emphasis={emphasisOf('other')} {...(ringedMine ? {} : ring)} /> : null
             const framed = (node, list, side) => <div className="relative" style={{ width: frameWidth, height: frameHeight }}>{node}{labels(list, side)}</div>
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, (paneHeight + labelSpace) / design.height)) * (zoom / 100) : 1
             return (
-              <div data-render-compare={compareMode ?? 'single'} data-render-canvas data-preview-shown={view} className="flex w-full items-start justify-center" style={{ padding: pad, paddingBottom: pad + labelSpace }}>
+              <div data-render-compare={compareMode ?? 'single'} data-render-canvas data-preview-shown={view} className="flex w-full items-center justify-center" style={{ padding: pad, paddingBottom: pad + labelSpace }}>
                 {slider ? (
                   <figure data-render-pane="slider" className="m-0 flex min-w-0 flex-col items-center">
                     {/* The two names over their own sides (never over the screen itself). */}
                     <figcaption className="flex items-baseline justify-between gap-3 text-[11px] font-medium" style={{ width: frameWidth, height: captionHeight }}>
-                      <span data-slider-label="left" className="min-w-0 truncate text-slate-100"><LocalizedText text={rendering.title} /></span>
+                      <span data-slider-label="left" className={cn('min-w-0 truncate', nameTone('mine'))}><LocalizedText text={rendering.title} /></span>
                       <span className="shrink-0 font-normal text-slate-500"><span className="tabular-nums">{viewport.width}px</span> · <LocalizedText text="Drag the divider, or press ← →" /></span>
-                      <span data-slider-label="right" className="min-w-0 truncate text-emerald-300"><LocalizedText text={other.title} /></span>
+                      <span data-slider-label="right" className={cn('min-w-0 truncate', nameTone('other'))}><LocalizedText text={other.title} /></span>
                     </figcaption>
                     <div className="relative" style={{ width: frameWidth, height: frameHeight }}>
                       <CompareSlider width={frameWidth} height={frameHeight} left={mine} right={theirs} />
@@ -594,17 +601,17 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                   </figure>
                 ) : (
                   <>
-                    <figure data-render-pane="checkpoint" className="m-0 flex min-w-0 flex-col items-center">{caption('checkpoint', rendering.title, 'text-slate-100')}{framed(mine, marks.mine, 'mine')}</figure>
+                    <figure data-render-pane="checkpoint" className="m-0 flex min-w-0 flex-col items-center">{caption('checkpoint', rendering.title, nameTone('mine'))}{framed(mine, marks.mine, 'mine')}</figure>
                     {other && (
                       // (The space between the frames, the arrow in its middle.)
                       <div aria-hidden data-render-arrow className="flex shrink-0 items-center justify-center text-slate-500" style={{ width: between, height: frameHeight, marginTop: captionHeight }}><ArrowRight className="size-5" /></div>
                     )}
-                    {other && <figure data-render-pane="latest" className="m-0 flex min-w-0 flex-col items-center">{caption('latest', other.title, 'text-emerald-300')}{framed(theirs, marks.other, 'other')}</figure>}
+                    {other && <figure data-render-pane="latest" className="m-0 flex min-w-0 flex-col items-center">{caption('latest', other.title, nameTone('other'))}{framed(theirs, marks.other, 'other')}</figure>}
                   </>
                 )}
                 {design && (
                   <figure data-render-pane="design" className="m-0 flex min-w-0 flex-col items-center" style={{ marginLeft: between }}>
-                    {caption('design', 'Design original', 'text-sky-300')}
+                    {caption('design', 'Design original', 'text-slate-400')}
                     <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: design.width * designScale, height: design.height * designScale }}>
                       <div className="relative" style={{ width: design.width, height: design.height, transform: `scale(${designScale})`, transformOrigin: 'top left' }}>
                         {design.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} onSelect={() => {}} />)}
@@ -639,7 +646,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 <figcaption className={cn('text-[11px] font-medium', tone)}>
                   <LocalizedText text={label} /> <span className="font-normal text-slate-500 tabular-nums">· {key === 'design' ? design.name : `${viewport.width}px`}</span>
                   {/* (A width outside the kind's breakpoint: the layout it gets.) */}
-                  {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-amber-200"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
+                  {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-slate-400"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
                 </figcaption>
                 {node}
               </figure>
@@ -687,13 +694,15 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                   <div className="absolute" style={{ left: -cut.x * scale, top: -cut.y * scale, width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                     {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
                     {cut.layers.map((layer) => (
-                      <span key={`ring-${layer.id}`} data-preview-ring={layer.id} aria-hidden className="pointer-events-none absolute z-10 rounded-md" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153), 0 0 0 ${6 / scale}px rgb(52 211 153 / 22%)` }} />
+                      <span key={`ring-${layer.id}`} data-preview-ring={layer.id} aria-hidden title={compareView ? changedNames : undefined} className={cn('absolute z-10 rounded-md', compareView ? 'pointer-events-auto' : 'pointer-events-none')} style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153), 0 0 0 ${6 / scale}px rgb(52 211 153 / 22%)` }} />
                     ))}
                   </div>
                 </div>
-                <figcaption data-preview-changed-names className="text-[11px] text-slate-400">
-                  <LocalizedText text="Changed element" /> · <span translate="no">{changedNames}</span>
-                </figcaption>
+                {!compareView && (
+                  <figcaption data-preview-changed-names className="text-[11px] text-slate-400">
+                    <LocalizedText text="Changed element" /> · <span translate="no">{changedNames}</span>
+                  </figcaption>
+                )}
               </figure>
             )
           })() : shownFrames.map((frame) => {
@@ -713,7 +722,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                       sits on the screen (the ring keeps its weight at any
                       scale). */}
                   {frame.layers.filter((layer) => changedIds.includes(layer.id)).map((layer) => (
-                    <span key={`ring-${layer.id}`} data-preview-ring={layer.id} aria-hidden className="pointer-events-none absolute z-10 rounded-md" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153), 0 0 0 ${6 / scale}px rgb(52 211 153 / 22%)` }} />
+                    <span key={`ring-${layer.id}`} data-preview-ring={layer.id} aria-hidden title={compareView ? changedNames : undefined} className={cn('absolute z-10 rounded-md', compareView ? 'pointer-events-auto' : 'pointer-events-none')} style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153), 0 0 0 ${6 / scale}px rgb(52 211 153 / 22%)` }} />
                   ))}
                 </div>
               </div>
