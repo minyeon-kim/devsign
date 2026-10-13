@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
 import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
@@ -16,31 +16,19 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 // sidebar toggle — except, inside a project, Docs and History, which slide
 // a drawer open beside it (the docs category tree, the checkpoints). The drawer's width
 // animates, pushing the content column over rather than overlapping it.
-// History is the one two-column view: its page opens the History drawer
-// (the checkpoint list) with it — however you got there — and leaving the
-// page closes it again. Toggling History off (its icon, or closing its
-// drawer) leaves the whole view — list and viewer — for the Workspace.
+// Docs, History and a change's detail are layers over the Workspace (their
+// addresses: lib/docLink, lib/historyLink, lib/changeLink); each asks for its
+// drawer when it opens — handled here the same way for all three. A drawer's
+// icon only opens and closes the drawer; the layer is closed by its own Close.
 function AppShell({ topBar, project, children }) {
   // null | 'docs' | 'history' | 'import' | 'conflicts'
   const [drawer, setDrawer] = useState(null)
-  const navigate = useNavigate()
-  const { pathname, state } = useLocation()
-  const onHistoryPage = !!project && pathname.replace(/\/$/, '') === `/projects/${project.id}/history`
-  const [wasOnHistory, setWasOnHistory] = useState(false)
-  if (onHistoryPage !== wasOnHistory) {
-    setWasOnHistory(onHistoryPage)
-    if (onHistoryPage) setDrawer('history')
-    else if (drawer === 'history' && state?.keepDrawer !== 'history') setDrawer(null)
-  }
+  const { pathname } = useLocation()
 
-  const leavingHistory = (panel) => onHistoryPage && panel === 'history' && drawer === 'history'
-  const exitHistory = () => navigate(`/projects/${project.id}/workspace`)
-
-  // Merge Studio's "Version history" link opens this same drawer instead of
-  // a separate panel of its own — see WorkspaceProvider's
-  // `requestHistoryDrawer`/`historyDrawerRequest`. Same render-phase sync
-  // as `wasOnHistory` above, not an effect: `historyDrawerRequest` is a
-  // fresh object each time, so a reference check is enough to catch it.
+  // The History drawer is opened the way the Docs and change-list drawers are: asked for
+  // (WorkspaceProvider's `requestHistoryDrawer` — by the History layer when it opens, and by
+  // Merge Studio's "Version history" link, which opens the list alone). A request is a fresh
+  // object each time, so a reference check in render is enough to catch it — no effect.
   const workspace = useWorkspaceOptional()
   const { historyDrawerRequest } = workspace ?? {}
   const [handledHistoryRequest, setHandledHistoryRequest] = useState(null)
@@ -65,7 +53,6 @@ function AppShell({ topBar, project, children }) {
     if (panelListOpen && drawer === 'conflicts') setDrawer(null)
   }
   function toggleDrawer(panel) {
-    if (leavingHistory(panel)) { exitHistory(); return }
     const opening = drawer !== panel
     setDrawer(opening ? panel : null)
     if (opening && panel === 'conflicts' && panelListOpen) {
@@ -104,7 +91,7 @@ function AppShell({ topBar, project, children }) {
         drawer={drawer}
         onToggleDrawer={toggleDrawer}
         openConflicts={openConflicts}
-        onCloseDrawer={() => (leavingHistory(drawer) ? exitHistory() : setDrawer(null))}
+        onCloseDrawer={() => setDrawer(null)}
       />
 
       <div className={`flex min-w-0 flex-1 flex-col overflow-hidden ${drawer ? 'pl-2' : ''}`}>

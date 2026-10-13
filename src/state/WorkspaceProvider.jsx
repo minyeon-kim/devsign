@@ -2622,6 +2622,17 @@ export function WorkspaceProvider({ children, projectId }) {
     requestDocsDrawer()
   }, [docParam, docsParam, exitMergeStudio, requestDocsDrawer])
 
+  // …and History: the Workspace's own view with the History drawer (the checkpoint
+  // list) beside the viewer — however it was opened, and after a reload.
+  const openedHistory = useRef(false)
+  useEffect(() => {
+    if (historyOpen === openedHistory.current) return
+    openedHistory.current = historyOpen
+    if (!historyOpen) return
+    exitMergeStudio()
+    requestHistoryDrawer()
+  }, [historyOpen, exitMergeStudio, requestHistoryDrawer])
+
   const value = {
     projectId,
     currentUser,

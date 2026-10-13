@@ -137,7 +137,7 @@ function HistoryEntryMenu({ children, entry, isCurrent, onOpen, onRestore, onArc
 // of change (a manual edit, an AI edit, a merge, a rollback) in one list —
 // the kind pills and the target dropdown narrow that down; both apply to
 // the History page's playback timeline too (shared via `historyFilter`).
-function HistoryDrawer({ project }) {
+function HistoryDrawer() {
   const { historyEntries, conflicts, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter, historyOpen, openHistory } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const language = useLanguage()

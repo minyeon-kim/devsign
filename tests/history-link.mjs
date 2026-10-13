@@ -67,3 +67,25 @@ assert.ok(provider.includes('{ state: pushState(fromHistory) }'), 'a change or a
 assert.ok(provider.includes("else navigate({ pathname: at.pathname, search: withHistory(at.search, null) }, { replace: true, state: null })"))
 assert.ok(read('src/pages/WorkspacePage.jsx').includes('<HistoryOverlay />'))
 console.log('history-link: ok')
+
+// ── The layer's structure: the Workspace's, with the History drawer beside it — handled like the other two. ──
+{
+  const overlay = read('src/components/history/HistoryOverlay.jsx')
+  assert.ok(overlay.includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col overflow-hidden bg-card') && overlay.includes('animate-in fade-in duration-150'))
+  assert.ok(overlay.includes('return historyOpen ? <HistoryLayer /> : null'), 'nothing of it runs — keys, playback — unless the layer is open')
+  const provider = read('src/state/WorkspaceProvider.jsx')
+  const rule = provider.slice(provider.indexOf('const openedHistory = useRef(false)'), provider.indexOf('  const value = {'))
+  assert.ok(rule.includes('exitMergeStudio()') && rule.includes('requestHistoryDrawer()'))
+  // AppShell has no History page of its own to watch: the drawer is asked for, as Docs' is.
+  const shell = read('src/components/dashboard/AppShell.jsx')
+  for (const gone of ['onHistoryPage', 'wasOnHistory', 'leavingHistory', 'exitHistory', 'keepDrawer']) assert.ok(!shell.includes(gone), `AppShell still has ${gone}`)
+  assert.ok(shell.includes("if (historyDrawerRequest && historyDrawerRequest !== handledHistoryRequest) {") && shell.includes('onCloseDrawer={() => setDrawer(null)}'))
+  // The rail's button and the drawer go by the address, not a path.
+  const rail = read('src/components/dashboard/Sidebar.jsx')
+  assert.ok(rail.includes('readHistoryParams(search).open') && !rail.includes('`${base}/history`'))
+  const drawer = read('src/components/dashboard/HistoryDrawer.jsx')
+  assert.ok(drawer.includes('const onHistoryPage = historyOpen') && drawer.includes('    if (onHistoryPage) select(id)\n    else openHistory(id)'))
+  // Merge Studio's "Version history" still opens the list alone.
+  assert.ok(read('src/components/mergestudio/MergeStudioWorkspace.jsx').includes('onOpenHistory: requestHistoryDrawer,'))
+  console.log('history-link (structure): ok')
+}

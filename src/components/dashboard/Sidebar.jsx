@@ -1,4 +1,5 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
+import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -89,7 +90,8 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
   // (Docs are a layer over the Workspace: on, when the address names a document or a docs view — lib/docLink.)
   const docLayer = readDocParams(search)
   const onDocs = !!base && path === `${base}/workspace` && Boolean(docLayer.doc || docLayer.docs)
-  const onHistory = !!base && path.startsWith(`${base}/history`)
+  // (History too: on, when the address names it — lib/historyLink.)
+  const onHistory = !!base && path === `${base}/workspace` && !docLayer.doc && !docLayer.docs && !new URLSearchParams(search).has('change') && readHistoryParams(search).open
 
   return (
     <div
