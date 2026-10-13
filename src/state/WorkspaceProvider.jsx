@@ -422,6 +422,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // (`mergeChats`, below) — see `chatThread`.
   const [workspaceChat, setWorkspaceChat] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
   const [mergeChats, setMergeChats] = useDemoState(`project:${projectId}:mergeChats`, {})
+  // (A request in the Workspace's conversation still waiting on the person — said on AI Chat's button while it's folded.)
+  const chatAwaitingApproval = workspaceChat.some((message) => message.pendingEdit && message.result?.status === 'pending')
   const [isAiTyping, setIsAiTyping] = useState(false)
   const wasAiTyping = useRef(false)
   useEffect(() => {
@@ -2351,7 +2353,8 @@ export function WorkspaceProvider({ children, projectId }) {
       if (!message?.pendingEdit) return
       const { scenario, target, trimmed } = message.pendingEdit
       const { result, historyId, reply } = commitAiScenario(scenario, target, trimmed, currentUser)
-      setChatMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: reply, result, historyId, pendingEdit: null } : m)))
+      // (`decision`: that this result was asked about first — the card folds to one line that says so.)
+      setChatMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, text: reply, result, historyId, pendingEdit: null, decision: 'approved' } : m)))
     },
     [chatMessages, commitAiScenario, setChatMessages, currentUser]
   )
@@ -2360,7 +2363,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // untouched), so this only has to relabel the message.
   const discardPendingAiEdit = useCallback((messageId) => {
     setChatMessages((prev) =>
-      prev.map((m) => (m.id === messageId ? { ...m, result: { ...m.result, status: 'discarded' }, pendingEdit: null } : m))
+      prev.map((m) => (m.id === messageId ? { ...m, result: { ...m.result, status: 'discarded' }, pendingEdit: null, decision: 'declined' } : m))
     )
   }, [setChatMessages])
 
@@ -2758,6 +2761,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setAiChat,
     toggleAiChat,
     chatUnread,
+    chatAwaitingApproval,
     historyFilter,
     setHistoryFilter,
     assetAssemblies,

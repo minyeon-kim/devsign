@@ -793,6 +793,23 @@ After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
 Whole screen|화면 전체
+Decline|거절
+Declined|거절됨
+Expired|만료됨
+Show details|자세히 보기
+Hide details|접기
+Approval requested|승인 요청이 있습니다
+Approval request|승인 요청
+Awaiting approval|승인 대기
+Applying…|적용 중…
+Couldn’t apply. Try again.|적용하지 못했어요. 다시 시도해 주세요.
+Retry|다시 시도
+Can’t be undone|되돌릴 수 없어요
+Runs on your machine|내 컴퓨터에서 실행돼요
+Open sidebar|사이드바 열기
+No changes|변경 없음
+Expand AI Chat · Awaiting approval|AI 채팅 펼치기 · 승인 대기
+This request is no longer available.|더 이상 처리할 수 없는 요청이에요.
 Collapse AI Chat|AI 채팅 접기
 Expand AI Chat|AI 채팅 펼치기
 Expand AI Chat · New reply|AI 채팅 펼치기 · 새 응답

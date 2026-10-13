@@ -149,7 +149,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -482,7 +482,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     if (before.side !== sidePanel.open) {
       // (A frame later: the window has stopped being inert by then.)
       if (sidePanel.open) { opened = 'side'; if (sideByKey.current) requestAnimationFrame(() => (leaf('side')?.querySelector('[role="tab"][aria-selected="true"]') ?? leaf('side')?.querySelector('button'))?.focus()) }
-      else if (held('side')) (document.querySelector(`[data-side-view="${filesWindow.tab}"]`) ?? document.querySelector('[data-side-view]'))?.focus()
+      else if (held('side')) (document.querySelector('[data-sidebar-toggle]') ?? document.querySelector(`[data-side-view="${filesWindow.tab}"]`) ?? document.querySelector('[data-side-view]'))?.focus()
       sideByKey.current = false
     }
     if (before.chat !== aiChat.open) {
@@ -590,18 +590,21 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             data-chat-toggle
             aria-expanded={false}
             aria-controls={CHAT_ID}
-            aria-label={chatUnread ? 'Expand AI Chat · New reply' : 'Expand AI Chat'}
+            aria-label={chatAwaitingApproval ? 'Expand AI Chat · Awaiting approval' : chatUnread ? 'Expand AI Chat · New reply' : 'Expand AI Chat'}
             title={`Expand AI Chat · ${CHAT_SHORTCUT}`}
             onClick={() => setAiChat({ open: true })}
             className={cn('absolute right-4 bottom-4 z-40 flex h-8 items-center gap-2 px-3.5 text-[12px] font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', PANEL_RADIUS, FLOATING_PANEL)}
           >
             <Sparkles className="size-4 shrink-0" />
             AI Chat
-            {chatUnread && <span data-chat-unread aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />}
+            {/* A request waiting says so in words; a finished answer is a dot. */}
+            {chatAwaitingApproval
+              ? <span data-chat-awaiting aria-hidden className="shrink-0 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-amber-200">Awaiting approval</span>
+              : chatUnread && <span data-chat-unread aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />}
           </button>
         )}
         {/* (Said once, politely, when it appears.) */}
-        <span role="status" aria-live="polite" className="sr-only">{!mergeStudio && chatUnread ? 'New reply in AI Chat' : ''}</span>
+        <span role="status" aria-live="polite" className="sr-only">{mergeStudio || aiChat.open ? '' : chatAwaitingApproval ? 'Approval requested' : chatUnread ? 'New reply in AI Chat' : ''}</span>
 
         {/* Where a dragged window would dock. */}
         {/* Where a dragged window / tab would land: a split (a half of
