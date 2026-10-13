@@ -2,7 +2,7 @@ import { ContextMenu } from '@base-ui/react/context-menu'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, Check, ChevronDown, RotateCcw, Search, Sparkles, TriangleAlert, X } from 'lucide-react'
+import { Archive, Check, ChevronDown, RotateCcw, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { allPeople } from '@/data/mockData'
+import { DrawerCount, DrawerEmpty, DrawerFilters, DrawerGroup, DrawerRow, DrawerSearch, DrawerShell, DrawerSkeleton, GROUP_HEIGHT, ROW_HEIGHT, TITLE_CENTER, chipClass } from '@/components/dashboard/DrawerList'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { TRUNK, branchColors, branchGraph, branchNames, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { useLanguage } from '@/i18n/language'
@@ -27,10 +27,9 @@ import { HISTORY_KINDS, KIND_ICON, KIND_LABEL, KIND_TONE, historyMeta, historyTa
 // back into it. The current branch's lane is drawn heavier. Rows are a
 // fixed height, so the slices join up exactly.
 // Every row is a title line and its branch line.
-const ROW_HEIGHT = 46
 const LANE_GAP = 12
 const LANE_X = 9
-const DOT_Y = 16
+const DOT_Y = TITLE_CENTER
 // The drawer's own surface: a checkpoint that isn't the current one is a
 // ring of its branch's color around it.
 const GRAPH_BG = 'var(--background)'
@@ -62,20 +61,29 @@ function GraphRow({ row, lanes, colors, currentBranch, selected, current, height
       ))}
       {/* The checkpoint: a ring in its branch's color; filled when it's
           the current one; larger, with a halo, when it's selected. */}
-      {selected && <circle cx={x(row.lane)} cy={DOT_Y} r="8" fill={color} opacity="0.22" />}
-      <circle cx={x(row.lane)} cy={DOT_Y} r={selected ? 5 : 3.5} fill={current ? color : GRAPH_BG} stroke={color} strokeWidth="2" />
+      {selected && <circle cx={x(row.lane)} cy={DOT_Y} r="7" fill="none" stroke="white" strokeWidth="1.5" />}
+      <circle cx={x(row.lane)} cy={DOT_Y} r="3" fill={current ? color : GRAPH_BG} stroke={color} strokeWidth="2" />
     </svg>
   )
 }
 
-// "Yesterday, 5:20 PM" → "Yesterday": the day is enough in the list; the
-// full time is on hover and in the viewer.
-// Translated first, so the day that's left reads in the viewer's language
-// ("Mon, 2:10 PM" → "월요일 오후 2:10" → "월요일").
-function shortTime(timestamp, language) {
-  const text = translateText(String(timestamp ?? ''), language)
-  const day = text.replace(/,? \d{1,2}:\d{2} (AM|PM)$/, '').replace(/ ?(오전|오후) \d{1,2}:\d{2}$/, '')
-  return day || text
+// When a checkpoint was made, as its group and its time of day: "Yesterday,
+// 5:20 PM" → the group "Yesterday" and "오후 5:20" (the day is the group's).
+// A group is today, yesterday, this week, or before that.
+export function stampOf(timestamp, language) {
+  const text = String(timestamp ?? '')
+  const comma = text.indexOf(', ')
+  // (A bare time of day is today's.)
+  const day = comma === -1 ? (/^\d{1,2}:\d{2} (AM|PM)$/.test(text) ? 'Today' : text) : text.slice(0, comma)
+  const clock = comma === -1 ? (day === 'Today' && /\d/.test(text) ? text : '') : text.slice(comma + 2)
+  const ago = /^(\d+) days? ago$/.exec(day)
+  const group = day === 'Today' || day === 'Just now' ? 'Today'
+    : day === 'Yesterday' ? 'Yesterday'
+      : (ago && Number(ago[1]) < 7) || /^(Mon|Tues?|Wed(nes)?|Thu(rs)?|Fri|Sat(ur)?|Sun)(day)?$/.test(day) ? 'This week'
+        : 'Before that'
+  const match = /^(\d{1,2}:\d{2}) (AM|PM)$/.exec(clock)
+  const time = match ? (language === 'ko' ? `${match[2] === 'AM' ? '오전' : '오후'} ${match[1]}` : clock) : translateText(clock || day, language)
+  return { group, time }
 }
 
 // A checkpoint's kind as a small icon badge, so the list reads at a glance
@@ -87,26 +95,6 @@ function KindBadge({ kind }) {
   return (
     <span title={KIND_LABEL[kind]} className={cn('flex size-4 shrink-0 items-center justify-center', KIND_TONE[kind])}>
       <Icon className="size-3" />
-    </span>
-  )
-}
-
-// Who made this checkpoint — a person's avatar, or a small sparkle for
-// Devsign's own edits/sync (an `actorLabel`, see lib/historyMeta) — the
-// same at-a-glance read as KindBadge, but for *who* instead of *what kind*.
-function ActorAvatar({ entry }) {
-  if (entry.actorLabel) {
-    return (
-      <span title={entry.actorLabel} className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300">
-        <Sparkles className="size-2.5" />
-      </span>
-    )
-  }
-  const person = entry.actorId ? allPeople.find((p) => p.id === entry.actorId) : null
-  if (!person) return null
-  return (
-    <span title={person.name} className={cn('flex size-4 shrink-0 items-center justify-center rounded-full text-[7px] leading-none font-semibold text-white', person.colorClass)}>
-      {person.initials}
     </span>
   )
 }
@@ -133,7 +121,7 @@ function HistoryEntryMenu({ children, entry, isCurrent, onOpen, onRestore, onArc
 export function HistoryCount() {
   const { historyEntries, conflicts } = useWorkspace()
   const count = foldConflictCheckpoints(withBranches(historyEntries, conflicts)).filter((entry) => !entry.archived).length
-  return <span data-history-count className="ml-1.5 font-normal text-slate-500 tabular-nums">{count}</span>
+  return <DrawerCount data-history-count count={count} />
 }
 
 // History opens this compact list beside the current page first, with the
@@ -182,13 +170,6 @@ function HistoryDrawer() {
   // The graph is laid out oldest → newest; the list shows it newest first.
   const graph = branchGraph([...active].reverse())
   const archived = [...matches].filter((e) => e.archived).reverse()
-  const scopeLabel = kindFilter !== 'all' && historyFilter.target !== 'all'
-    ? `${KIND_LABEL[kindFilter]} · ${historyFilter.target}`
-    : historyFilter.target !== 'all'
-      ? historyFilter.target
-      : kindFilter !== 'all'
-        ? KIND_LABEL[kindFilter]
-        : null
   const filtersActive = kindFilter !== 'all' || historyFilter.target !== 'all' || (historyFilter.branch ?? 'all') !== 'all'
 
   const open = (id) => {
@@ -227,41 +208,49 @@ function HistoryDrawer() {
     toast('Checkpoint archived', { description: entry.label, action: { label: 'Undo', onClick: () => restoreHistoryEntry(entry.id) } })
   }
 
-  return (
-    <div className="flex flex-col pb-2">
-      <div className="relative mb-2">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="search"
-          aria-label="Search project history"
-          placeholder="Search history..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => { if (event.key === 'Escape') setQuery('') }}
-          className="h-8 w-full min-w-0 appearance-none rounded-full border border-white/10 bg-[#090909] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 [&::-webkit-search-cancel-button]:appearance-none"
-        />
-        {query && <button type="button" aria-label="Clear history search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
-      </div>
+  const query_ = query.trim()
+  const clearFilters = () => setHistoryFilter({ kind: 'all', target: 'all', branch: 'all' })
+  const clearAll = () => { clearFilters(); setQuery('') }
+  // The rows, newest first, in runs of one day (each run under its caption).
+  const groups = []
+  active.forEach((entry, index) => {
+    const { group, time } = stampOf(entry.timestamp, language)
+    const last = groups.at(-1)
+    if (last?.label === group) last.items.push({ entry, index, time })
+    else groups.push({ label: group, items: [{ entry, index, time }] })
+  })
+  // The rail's width, and the lines that run on through a caption.
+  const railWidth = LANE_X * 2 + (graph.lanes - 1) * LANE_GAP
+  const railThrough = (row) => (
+    <svg aria-hidden width={railWidth} height={GROUP_HEIGHT} className="block shrink-0" fill="none" strokeLinecap="round">
+      {row.lanes.map((lane, lane_) => lane && (!lane.dot || lane.up) && (
+        <path key={lane_} d={`M ${LANE_X + lane_ * LANE_GAP} -0.5 L ${LANE_X + lane_ * LANE_GAP} ${GROUP_HEIGHT + 0.5}`} stroke={colors.get(lane.name)} strokeWidth={lane.name === currentBranch ? 2.5 : 1.5} />
+      ))}
+    </svg>
+  )
+  const kindOn = kindFilter !== 'all'
+  const fileOn = historyFilter.target !== 'all'
+  const branchOn = (historyFilter.branch ?? 'all') !== 'all'
 
-      {/* Kind + target filters, both as dropdowns — one consistent filter
-          language instead of a pill row next to a dropdown. Every
-          checkpoint in this project's History, across every file it
-          touched, otherwise shows in one undifferentiated list. Both also
-          narrow the History page's playback timeline (see `historyFilter`
-          in WorkspaceProvider). */}
-      <div className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-0.5 px-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={cn(
-              'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-              kindFilter !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
-            )}
-          >
-            {kindFilter !== 'all' && <KindBadge kind={kindFilter} />}
-            <span className="truncate">{kindFilter === 'all' ? 'All kinds' : KIND_LABEL[kindFilter]}</span>
-            <ChevronDown className="size-3" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
+  if (!historyEntries) return <DrawerSkeleton />
+
+  return (
+    <DrawerShell
+      data-history-drawer
+      top={(
+        <>
+          <DrawerSearch value={query} onChange={setQuery} placeholder={translateText('Search history...', language)} label={translateText('Search project history', language)} />
+          {/* The filters, one shape each, on one line — they also narrow the
+              History layer's playback (`historyFilter`). Archived is a view of
+              the same list, not a second tab row. */}
+          <DrawerFilters label="Filter history">
+            <DropdownMenu>
+              <DropdownMenuTrigger data-filter="kind" className={chipClass(kindOn)}>
+                {kindOn && <KindBadge kind={kindFilter} />}
+                <span className="truncate">{kindOn ? <LocalizedText text={KIND_LABEL[kindFilter]} /> : <LocalizedText text="By kind" />}</span>
+                <ChevronDown className="size-3 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuItem onClick={() => setHistoryFilter({ kind: 'all' })}>All kinds</DropdownMenuItem>
             {HISTORY_KINDS.filter((kind) => kind !== 'conflict').map((kind) => (
               <DropdownMenuItem key={kind} onClick={() => setHistoryFilter({ kind })} className="gap-1.5">
@@ -284,19 +273,14 @@ function HistoryDrawer() {
               {showConflicts && showResolved && <Check className="size-3.5 text-slate-300" />}
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
-        {targets.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(
-                'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-                historyFilter.target !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
-              )}
-            >
-              <span className={cn('max-w-24 truncate', historyFilter.target !== 'all' && 'font-mono')}>{historyFilter.target === 'all' ? <LocalizedText text="All files" /> : historyFilter.target}</span>
-              <ChevronDown className="size-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            </DropdownMenu>
+            {targets.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger data-filter="file" className={cn(chipClass(fileOn), 'min-w-0')}>
+                  <span className={cn('max-w-24 truncate', fileOn && 'font-mono')}>{fileOn ? historyFilter.target : <LocalizedText text="By file" />}</span>
+                  <ChevronDown className="size-3 shrink-0" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem onClick={() => setHistoryFilter({ target: 'all' })}><LocalizedText text="All files" /></DropdownMenuItem>
               {targets.map((target) => (
                 <DropdownMenuItem key={target} onClick={() => setHistoryFilter({ target })} className="font-mono">
@@ -304,21 +288,15 @@ function HistoryDrawer() {
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {branches.length > 1 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(
-                'flex h-6 min-w-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-                (historyFilter.branch ?? 'all') !== 'all' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
-              )}
-            >
-              {(historyFilter.branch ?? 'all') !== 'all' && <span className="size-1.5 shrink-0 rounded-full" style={{ background: colors.get(historyFilter.branch) }} />}
-              <span translate="no" className="max-w-24 truncate font-mono">{(historyFilter.branch ?? 'all') === 'all' ? 'All branches' : historyFilter.branch}</span>
-              <ChevronDown className="size-3 shrink-0" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+              </DropdownMenu>
+            )}
+            {branches.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger data-filter="branch" className={cn(chipClass(branchOn), 'min-w-0')}>
+                  <span translate="no" className={cn('max-w-24 truncate', branchOn && 'font-mono')}>{branchOn ? historyFilter.branch : <LocalizedText text="By branch" />}</span>
+                  <ChevronDown className="size-3 shrink-0" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={() => setHistoryFilter({ branch: 'all' })}>All branches</DropdownMenuItem>
               {branches.map((name) => (
                 <DropdownMenuItem key={name} onClick={() => setHistoryFilter({ branch: name })} className="gap-2 font-mono">
@@ -327,152 +305,114 @@ function HistoryDrawer() {
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {/* The filter also narrows the History layer's playback — said here,
-            where it's set (not up in the path). */}
-        {onHistoryPage && scopeLabel && (
-          <span data-history-scope title={translateText('Every other checkpoint is filtered out of this playback.', language)} className="inline-flex h-5 min-w-0 items-center rounded-full bg-white/[0.07] px-2 text-[10.5px] font-medium text-slate-300">
-            <span className="truncate"><LocalizedText text={scopeLabel} /></span>
-          </span>
-        )}
-        {/* Archived is a view of the same list, not a second tab row. */}
-        {(archived.length > 0 || tab === 'archived') && (
-          <button
-            type="button"
-            aria-pressed={tab === 'archived'}
-            onClick={() => setTab(tab === 'archived' ? 'active' : 'archived')}
-            className={cn(
-              'flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium transition-colors',
-              'ml-auto',
-              tab === 'archived' ? 'bg-white/[0.1] text-white' : 'text-slate-500 hover:text-slate-200'
+              </DropdownMenu>
             )}
-          >
-            <Archive className="size-3" />
-            <span className="tabular-nums">{archived.length}</span>
-          </button>
-        )}
-      </div>
-
-      {tab === 'active' && active.length === 0 && (
-        <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">
-          {query.trim() ? 'No matching checkpoints.' : filtersActive ? 'No checkpoints match this filter.' : 'No checkpoints yet.'}
-        </p>
+            {(archived.length > 0 || tab === 'archived') && (
+              <button type="button" data-filter="archived" aria-pressed={tab === 'archived'} aria-label={translateText('Archived', language)} onClick={() => setTab(tab === 'archived' ? 'active' : 'archived')} className={cn(chipClass(tab === 'archived'), 'ml-auto')}>
+                <Archive className="size-3" />
+                <span className="tabular-nums">{archived.length}</span>
+              </button>
+            )}
+          </DrawerFilters>
+          {filtersActive && (
+            <button type="button" data-drawer-clear onClick={clearFilters} className="ds-intrinsic mb-1 inline-flex h-6 items-center rounded-md px-2 text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-white/60">
+              <LocalizedText text="Clear all filters" />
+            </button>
+          )}
+        </>
       )}
-      {/* One quiet rail down the left — a dot per checkpoint, tinted for a
-          merge or a rollback — drawn by each row itself, so it's there on
-          first paint with nothing to measure. */}
-      <div>
-      {tab === 'active' &&
-        active.map((entry, index) => {
-          const isCurrent = entry.id === currentId
-          const selected = onHistoryPage && entry.id === selectedId
-          const meta = historyMeta(entry, currentUser.id)
-          const row = graph.rows[active.length - 1 - index]
-          // Every row names its branch; a merge names both ends.
-          const branchLabel = entry.mergedBranches?.length ? `${entry.mergedBranches.join(', ')} → ${entry.branch}` : entry.branch ?? TRUNK
-          // The conflicts this version caused: open ones, and resolved ones
-          // unless they're filtered out.
-          const marks = showConflicts ? (entry.conflictMarks ?? []).map((mark) => ({ ...mark, resolved: conflicts.find((c) => c.id === mark.conflictId)?.reviewStage === 'resolved' })).filter((mark) => showResolved || !mark.resolved) : []
-          const openMarks = marks.filter((mark) => !mark.resolved)
-          return (
-            <HistoryEntryMenu key={entry.id} entry={entry} isCurrent={isCurrent}
-              onOpen={() => open(entry.id)} onRestore={() => setRollbackId(entry.id)} onArchive={archive}>
-            <div
-              data-history-id={entry.id}
-              ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
-              className="group relative flex items-stretch"
-            >
-              <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={ROW_HEIGHT} />
-              <div className={cn('relative min-w-0 flex-1 rounded-xl transition-colors', selected ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]', flashId === entry.id && 'bg-emerald-400/[0.07]')}>
-              <div
-                // The row selects a preview; secondary actions use its context menu.
-                role="button"
-                tabIndex={0}
-                onClick={() => open(entry.id)}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
-                  event.preventDefault()
-                  open(entry.id)
-                }}
-                aria-current={selected ? 'true' : undefined}
-                style={{ height: ROW_HEIGHT }}
-                // 6px + half a 20px line = 16px: the dot's center.
-                className="flex w-full cursor-pointer flex-col justify-start rounded-xl px-2.5 pt-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300"
-              >
-                {/* One line: what happened, and when — every title starts
-                    at the same place. Everything else is the dot beside it,
-                    the meta line under it, the hover, and the viewer. */}
-                <span className="flex items-baseline gap-2">
-                  <span
-                    className={cn('min-w-0 flex-1 truncate text-[13px] leading-5', selected ? 'font-medium text-white' : 'text-slate-200')}
-                    title={meta ? `${entry.label} — ${meta}` : entry.label}
-                  >
-                    {entry.label}
-                  </span>
-                  <span className={cn('shrink-0 text-[11px] tabular-nums', isCurrent ? 'font-medium text-emerald-300' : 'text-slate-500')}>
-                    {isCurrent ? 'Current' : <span translate="no">{shortTime(entry.timestamp, language)}</span>}
-                  </span>
-                </span>
-                {/* The meta line: its branch, in that lane's color (a merge:
-                    from → to), then — only on a version that caused one —
-                    the conflict: amber while it's open, a grey "Resolved"
-                    once it's settled. Both remain visible while hovering. */}
-                <span className="flex min-w-0 items-center gap-1.5 text-[10.5px] leading-4">
-                  <span translate="no" className="min-w-0 truncate font-mono" style={{ color: colors.get(entry.branch ?? TRUNK) }}>{branchLabel}</span>
-                  {marks.length > 0 && (
-                    <>
-                      <span aria-hidden className="text-slate-600">·</span>
-                      <span
-                        data-conflict-mark={openMarks.length ? 'open' : 'resolved'}
-                        title={marks.map((mark) => mark.label).join(' · ')}
-                        className={cn('ds-intrinsic inline-flex h-4 shrink-0 items-center gap-0.5 rounded font-medium', openMarks.length ? 'text-amber-300' : 'text-slate-500')}
-                      >
-                        {openMarks.length ? <TriangleAlert className="size-3" /> : <Check className="size-3" />}
-                        <LocalizedText text={openMarks.length ? 'Conflict' : 'Resolved'} />
-                        {(openMarks.length || marks.length) > 1 && <span className="tabular-nums">{openMarks.length || marks.length}</span>}
-                      </span>
-                    </>
-                  )}
-                </span>
-              </div>
-              </div>
-            </div>
-            </HistoryEntryMenu>
-          )
-        })}
-
-      </div>
+    >
+      {tab === 'active' && active.length === 0 && (
+        <DrawerEmpty onClear={filtersActive || query_ ? clearAll : null}>
+          <LocalizedText text={query_ ? 'No matching checkpoints.' : filtersActive ? 'No checkpoints match this filter.' : 'No checkpoints yet.'} />
+        </DrawerEmpty>
+      )}
+      {/* The rail down the left — a dot per checkpoint on its branch's lane —
+          drawn by each row itself (and carried through each caption), so it's
+          there on first paint with nothing to measure. */}
+      {tab === 'active' && groups.map(({ label, items }) => (
+        <DrawerGroup key={`${label}:${items[0].entry.id}`} label={label} lead={railThrough(graph.rows[active.length - 1 - items[0].index])}>
+          {items.map(({ entry, index, time }) => {
+            const isCurrent = entry.id === currentId
+            const selected = onHistoryPage && entry.id === selectedId
+            const row = graph.rows[active.length - 1 - index]
+            // The branch is said when it isn't the trunk (a merge names both ends).
+            const branchLabel = entry.mergedBranches?.length ? `${entry.mergedBranches.join(', ')} → ${entry.branch}` : entry.branch ?? TRUNK
+            const showBranch = Boolean(entry.mergedBranches?.length) || branchLabel !== TRUNK
+            // The conflicts this version caused: open ones, and resolved ones
+            // unless they're filtered out.
+            const marks = showConflicts ? (entry.conflictMarks ?? []).map((mark) => ({ ...mark, resolved: conflicts.find((c) => c.id === mark.conflictId)?.reviewStage === 'resolved' })).filter((mark) => showResolved || !mark.resolved) : []
+            const openMarks = marks.filter((mark) => !mark.resolved)
+            const who = historyMeta({ ...entry, kind: null, target: null }, currentUser.id)
+            const whole = historyMeta(entry, currentUser.id)
+            return (
+              <HistoryEntryMenu key={entry.id} entry={entry} isCurrent={isCurrent}
+                onOpen={() => open(entry.id)} onRestore={() => setRollbackId(entry.id)} onArchive={archive}>
+                <div
+                  data-history-id={entry.id}
+                  ref={(el) => (el ? refs.current.set(entry.id, el) : refs.current.delete(entry.id))}
+                  className={cn('flex items-stretch rounded-lg', flashId === entry.id && 'bg-white/[0.1]')}
+                >
+                  <GraphRow row={row} lanes={graph.lanes} colors={colors} currentBranch={currentBranch} selected={selected} current={isCurrent} height={ROW_HEIGHT} />
+                  <div className="min-w-0 flex-1">
+                    <DrawerRow
+                      selected={selected}
+                      onOpen={() => open(entry.id)}
+                      title={entry.label}
+                      aria-label={whole ? `${entry.label} — ${whole}` : entry.label}
+                      titleAdornment={isCurrent ? <span data-history-current className="inline-flex h-4 shrink-0 items-center rounded bg-white/10 px-1.5 text-[11px] font-medium text-slate-200"><LocalizedText text="Current" /></span> : null}
+                      time={<span translate="no">{time}</span>}
+                      meta={(
+                        <>
+                          <span className="min-w-0 truncate">
+                            {who && <LocalizedText text={who} />}{who && KIND_LABEL[entry.kind] && ' · '}{KIND_LABEL[entry.kind] && <LocalizedText text={KIND_LABEL[entry.kind]} />}
+                          </span>
+                          {showBranch && <span translate="no" data-branch className="min-w-0 shrink-[3] truncate font-mono text-[11px]">· {branchLabel}</span>}
+                          {marks.length > 0 && (
+                            <span
+                              data-conflict-mark={openMarks.length ? 'open' : 'resolved'}
+                              title={marks.map((mark) => mark.label).join(' · ')}
+                              className={cn('ds-intrinsic ml-auto inline-flex h-4 shrink-0 items-center gap-0.5 font-medium', openMarks.length ? 'text-amber-300' : 'text-slate-500')}
+                            >
+                              {openMarks.length ? <TriangleAlert className="size-3" /> : <Check className="size-3" />}
+                              <LocalizedText text={openMarks.length ? 'Check change' : 'Resolved'} />
+                            </span>
+                          )}
+                        </>
+                      )}
+                    />
+                  </div>
+                </div>
+              </HistoryEntryMenu>
+            )
+          })}
+        </DrawerGroup>
+      ))}
 
       {tab === 'archived' &&
         (archived.length === 0 ? (
-          <p role="status" className="px-2.5 py-8 text-center text-xs text-slate-500">{query.trim() ? 'No matching archived checkpoints.' : 'No archived checkpoints.'}</p>
+          <DrawerEmpty onClear={query_ ? clearAll : null}><LocalizedText text={query_ ? 'No matching archived checkpoints.' : 'No archived checkpoints.'} /></DrawerEmpty>
         ) : (
-          archived.map((entry) => (
-            <HistoryEntryMenu key={entry.id} entry={entry} isCurrent={entry.id === currentId}
-              onOpen={() => open(entry.id)} onRestore={() => setRollbackId(entry.id)} onArchive={archive}
-              onUnarchive={() => {
-                restoreHistoryEntry(entry.id)
-                toast('Checkpoint restored to History', { description: entry.label })
-              }}>
-              <div role="button" tabIndex={0} onClick={() => open(entry.id)}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
-                  event.preventDefault()
-                  open(entry.id)
-                }}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 hover:bg-white/[0.035] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] text-slate-300">{entry.label}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500 tabular-nums">
-                    <KindBadge kind={entry.kind} />
-                    <ActorAvatar entry={entry} />
-                    <span className="min-w-0 truncate">{entry.timestamp}</span>
-                  </p>
+          archived.map((entry) => {
+            const who = historyMeta({ ...entry, kind: null, target: null }, currentUser.id)
+            return (
+              <HistoryEntryMenu key={entry.id} entry={entry} isCurrent={entry.id === currentId}
+                onOpen={() => open(entry.id)} onRestore={() => setRollbackId(entry.id)} onArchive={archive}
+                onUnarchive={() => {
+                  restoreHistoryEntry(entry.id)
+                  toast('Checkpoint restored to History', { description: entry.label })
+                }}>
+                <div>
+                  <DrawerRow
+                    onOpen={() => open(entry.id)}
+                    title={entry.label}
+                    time={<span translate="no">{stampOf(entry.timestamp, language).time}</span>}
+                    meta={<span className="min-w-0 truncate">{who && <LocalizedText text={who} />}{who && KIND_LABEL[entry.kind] && ' · '}{KIND_LABEL[entry.kind] && <LocalizedText text={KIND_LABEL[entry.kind]} />}</span>}
+                  />
                 </div>
-              </div>
-            </HistoryEntryMenu>
-          ))
+              </HistoryEntryMenu>
+            )
+          })
         ))}
 
       <RollbackCheckpointModal
@@ -483,7 +423,7 @@ function HistoryDrawer() {
           if (onHistoryPage && restoredId) select(restoredId)
         }}
       />
-    </div>
+    </DrawerShell>
   )
 }
 

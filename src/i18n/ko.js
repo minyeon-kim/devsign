@@ -2541,3 +2541,19 @@ Object.assign(ko, {
   'Ring the changed elements': '바뀐 요소에 링 표시',
 })
 Object.assign(ko, { 'Screen and code': '화면 + 코드' })
+
+// The list drawers (Conflict Points, History).
+Object.assign(ko, {
+  'By kind': '종류',
+  'By file': '파일',
+  'By branch': '브랜치',
+  'Clear all filters': '필터 지우기',
+  'Clear search': '검색어 지우기',
+  'Search changes…': '변경점 검색…',
+  'Search changes': '변경점 검색',
+  'No matching conflicts.': '검색과 맞는 변경점이 없어요.',
+  'Next week': '다음 주',
+  'After that': '이후',
+  'Before that': '이전',
+  'Filter history': '히스토리 필터',
+})

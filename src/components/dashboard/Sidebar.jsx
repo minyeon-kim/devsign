@@ -14,7 +14,7 @@ import { currentUser, currentUserFor } from '@/data/mockData'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer, { HistoryCount } from '@/components/dashboard/HistoryDrawer'
 import ImportDrawer from '@/components/dashboard/ImportDrawer'
-import ConflictsDrawer from '@/components/dashboard/ConflictsDrawer'
+import ConflictsDrawer, { ConflictCount } from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { projectTone } from '@/lib/projectTone'
@@ -356,11 +356,13 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
               {panel === 'history' && project && <HistoryCount />}
+              {panel === 'conflicts' && project && <ConflictCount />}
             </p>
             <HistoryNavButtons />
             <CloseButton onClose={onCloseDrawer} />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-2">
+          {/* (The list drawers keep their top — search, filters — and scroll their list themselves.) */}
+          <div className={cn('min-h-0 flex-1 px-2', panel === 'history' || panel === 'conflicts' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto')}>
             {panel === 'docs' && project && <DocsDrawer project={project} />}
             {panel === 'history' && project && <HistoryDrawer project={project} />}
             {panel === 'import' && project && <ImportDrawer project={project} />}
