@@ -7,7 +7,8 @@ import { cn } from 'cn'
 // to nudge. Invisible at rest — a hairline shows on hover/drag, in keeping
 // with the borderless panels around it.
 // (`onReset`: a double click — back to the size it starts at.)
-function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, onReset, className, orientation = 'vertical' }) {
+// (`value`: where it stands, 0–100, for `aria-valuenow`.)
+function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, onReset, value, className, orientation = 'vertical' }) {
   const vertical = orientation === 'vertical'
   const [dragging, setDragging] = useState(false)
 
@@ -47,6 +48,9 @@ function SplitHandle({ label, onResizeStart, onResize, onResizeEnd, onStep, onRe
       role="separator"
       aria-orientation={orientation}
       aria-label={label}
+      aria-valuenow={value}
+      aria-valuemin={value == null ? undefined : 0}
+      aria-valuemax={value == null ? undefined : 100}
       title={label}
       tabIndex={0}
       onPointerDown={handlePointerDown}

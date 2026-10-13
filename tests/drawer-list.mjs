@@ -47,7 +47,8 @@ try {
   }
   assert.ok(chip.includes('h-6') && chip.includes('rounded-md'))
   // Conflicts: four filters with counts; the empty one (done: 0) can't be picked.
-  const filterButtons = [...conflicts.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>/g)].map((m) => m[0])
+  // (The four standing filters — "This screen" is a switch of its own, before them.)
+  const filterButtons = [...conflicts.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>/g)].map((m) => m[0]).filter((tag) => !tag.includes('data-screen-only'))
   assert.equal(filterButtons.length, 4)
   assert.ok(filterButtons.some((tag) => /\sdisabled=""/.test(tag)), 'a filter with no items is disabled')
   assert.ok(filterButtons.filter((tag) => /aria-pressed="true"/.test(tag)).length === 1)
@@ -87,7 +88,7 @@ try {
   assert.ok(parts.includes('ArrowDown') && parts.includes("event.key !== 'Enter'"), '↑ ↓ move between rows, Enter opens')
   assert.ok(!/emerald|amber|yellow|green/.test(parts.replace(/\/\/.*$/gm, '')), 'the shared parts use no accent')
   // One top: both drawers keep it fixed and scroll their list.
-  assert.ok(read('src/components/dashboard/Sidebar.jsx').includes("panel === 'history' || panel === 'conflicts' ? 'flex flex-col overflow-hidden'"))
+  assert.ok(read('src/components/dashboard/Sidebar.jsx').includes("panel === 'history' || panel === 'conflicts' || panel === 'compare' ? 'flex flex-col overflow-hidden'"))
   assert.ok(read('src/components/dashboard/Sidebar.jsx').includes('<ConflictCount />') && read('src/components/dashboard/Sidebar.jsx').includes('<HistoryCount />'))
   assert.match(read('src/i18n/ko.js'), /'By file': '파일'/)
 

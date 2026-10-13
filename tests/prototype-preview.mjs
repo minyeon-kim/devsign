@@ -4,8 +4,7 @@ import { createServer } from 'vite'
 
 // Preview is the prototype, playing (one engine, one session — the
 // Workspace's); the Screens board counts each screen's open changes on the
-// change pin; Design Compare is a mode the activity bar's icon turns on and
-// off like any other.
+// change pin.
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8')
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
@@ -13,7 +12,6 @@ try {
   const engine = await server.ssrLoadModule('/src/lib/prototypeEngine.js')
   const { startSession, currentOf, sessionAt, follow, stepBack, canStepBack, restart, flowOf, positionOf, isEnd } = engine
   const { conflictsByScreen, countLabel, conflictReferenceProblems, isCounted } = await server.ssrLoadModule('/src/lib/screenConflicts.js')
-  const { readMode, withView } = await server.ssrLoadModule('/src/lib/viewLink.js')
   const derive = await server.ssrLoadModule('/src/mocks/derive.js')
   const { LANDING_PROJECT_ID } = await server.ssrLoadModule('/src/data/screenPages.js')
   const shop = prototypeOf('checkout-redesign')
@@ -88,13 +86,6 @@ try {
   assert.deepEqual(conflictReferenceProblems(landing, derive.seededConflicts().filter((c) => c.projectId === LANDING_PROJECT_ID)), [])
   assert.equal(conflictReferenceProblems(shop, [{ id: 'bad', layerId: 'nope', designPageId: 'page-gone' }]).length, 2)
 
-  // --- The address: Design Compare is a mode ---
-  assert.equal(readMode('?view=screens&mode=compare'), 'compare')
-  assert.equal(readMode('?mode=other'), null)
-  assert.equal(withView('?view=screens&screen=cart', { mode: 'compare' }), '?view=screens&screen=cart&mode=compare', 'the view and the screen are left as they are')
-  assert.equal(withView('?view=screens&screen=cart&mode=compare', { mode: null }), '?view=screens&screen=cart')
-  assert.equal(withView('?view=screens&mode=compare', { view: 'code', mode: null }), '?view=code')
-
   // --- In the app ---
   const preview = read('components/screens/PrototypePreview.jsx')
   const board = read('components/screens/ScreensBoard.jsx')
@@ -116,19 +107,14 @@ try {
   assert.ok(preview.includes('data-proto-end') && preview.includes('const end = !single && isEnd(prototype, activePageId)'))
   assert.ok(preview.includes('role="status" aria-live="polite"') && preview.includes('console.warn(`[prototype]'))
   // ⌥← · R · H — not while typing, only while Preview shows, never under a layer.
-  assert.ok(preview.includes("event.altKey && event.key === 'ArrowLeft'") && preview.includes("event.key.toLowerCase() === 'r' && !single") && preview.includes("event.key.toLowerCase() === 'h'") && preview.includes('isTyping(event.target)') && preview.includes("const showing = workspaceView === 'preview' && !compareMode"))
+  assert.ok(preview.includes("event.altKey && event.key === 'ArrowLeft'") && preview.includes("event.key.toLowerCase() === 'r' && !single") && preview.includes("event.key.toLowerCase() === 'h'") && preview.includes('isTyping(event.target)') && preview.includes("const showing = workspaceView === 'preview'"))
   // Screens and addresses move in one step, replacing — the browser's Back isn't the prototype's.
-  assert.ok(provider.includes("sayView({ view, screen: id, mode: null })") && provider.includes('{ replace: true, state: at.state }'))
+  assert.ok(provider.includes("sayView({ view, screen: id })") && provider.includes('{ replace: true, state: at.state }'))
   // The board's pins: the change pin with a number, its own presses, a list of the drawer's rows, the total and its steps.
   assert.ok(board.includes('<ConflictCountPin label={countLabel(open.length)} />') && read('components/conflicts/ConflictPins.jsx').includes('export function ConflictCountPin('))
   assert.ok(board.includes('transform: `scale(${1 / shown.zoom})`'), 'the same size on screen at any zoom')
-  assert.ok(board.includes('onClick={(event) => { event.stopPropagation(); setActivePageId(card.id) }}') && board.includes('onDoubleClick={(event) => event.stopPropagation()}') && board.includes('onPointerDown={(event) => event.stopPropagation()}'))
-  assert.ok(board.includes('<ConflictRow key={conflict.id} conflict={conflict} onOpen={() => openConflictReview(conflict.id)} />'))
+  assert.ok(board.includes('onClick={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }}') && board.includes('onDoubleClick={(event) => event.stopPropagation()}') && board.includes('onPointerDown={(event) => event.stopPropagation()}'))
+  assert.ok(board.includes('setChangesOfScreenOnly(true); requestConflictDrawer()'), 'its changes open in the pane beside the Workspace, narrowed to that screen')
   assert.ok(board.includes('data-board-changes') && board.includes('data-board-change-prev') && board.includes('data-board-change-next') && board.includes('aria-label={openLabel(open.length)}'))
-  // Design Compare: the icon is a switch like the rest; the mode leaves the view and the screen alone.
-  assert.ok(rail.includes('view.side ? toggleSideView(view.id) : setCompareMode(!compareMode)') && rail.includes('aria-pressed={view.side ? undefined : showing(view)}'))
-  assert.ok(layout.includes('dockApi.getPanel(panelById.designCompare.id)?.api.close()') && layout.includes('if (compareMode) {'))
-  assert.ok(provider.includes("const setCompareMode = useCallback((on) => sayView({ mode: on ? 'compare' : null }), [sayView])"))
-  assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('const PICKED = new Map()'), 'what was picked is kept for the session')
-  console.log('Passed: the prototype engine and its one session, Preview playing it, per-screen change counts on the board, and Design Compare as a mode that toggles.')
+  console.log('Passed: the prototype engine and its one session, Preview playing it, and per-screen change counts on the board.')
 } finally { await server.close() }

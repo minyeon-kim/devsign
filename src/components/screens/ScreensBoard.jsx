@@ -3,9 +3,7 @@ import { ChevronLeft, ChevronRight, Flag, Maximize, Minus, PencilRuler, Play, Pl
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ConflictCountPin } from '@/components/conflicts/ConflictPins'
-import { ConflictRow } from '@/components/dashboard/ConflictsDrawer'
 import { useLanguage } from '@/i18n/language'
 import { conflictsByScreen, countLabel } from '@/lib/screenConflicts'
 import { LocalizedText } from '@/i18n/runtime'
@@ -24,8 +22,8 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 //     in Preview, where the prototype plays from it. "Edit" opens it on the
 //     canvas, where its layers, pins and tools are.
 //   · A screen with open changes carries the change pin with their number,
-//     the same size at any zoom; pressing it lists them, and a row opens
-//     that change. The toolbar has the project's total and steps through
+//     the same size at any zoom; pressing it opens them in the pane beside
+//     the Workspace (the change list, narrowed to that screen). The toolbar has the project's total and steps through
 //     the screens that have any.
 //   · The drawings on the cards are the screens themselves, scaled — never
 //     interactive, each inside its own error boundary, and only the cards in
@@ -64,7 +62,7 @@ function ScreenDrawing({ frame }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, openConflictReview } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, requestConflictDrawer, setChangesOfScreenOnly } = useWorkspace()
   const language = useLanguage()
   const layout = useMemo(() => boardLayout(prototype), [prototype])
   const links = useMemo(() => linksOf(prototype, layout.cards), [prototype, layout])
@@ -80,24 +78,45 @@ function ScreensBoard() {
   const [room, setRoom] = useState({ width: 0, height: 0 })
   // { x, y, zoom }: where the board's top-left sits in the view, and its scale (1 = 100%).
   const [view, setViewState] = useState(() => (boardView.current?.projectId === prototype.id ? boardView.current.view : null))
-  const setView = useCallback((next) => setViewState((prev) => {
-    const value = typeof next === 'function' ? next(prev) : next
-    boardView.current = { projectId: prototype.id, view: value }
-    return value
-  }), [boardView, prototype.id])
+  // (`fitted`: the view is the whole board fitted, as it opens or after "Fit all" — it stays fitted as
+  // the room changes, until the board is moved or zoomed by hand.)
+  const fitted = useRef(!view)
+  const setView = useCallback((next, { keepFitted = false } = {}) => {
+    if (!keepFitted) fitted.current = false
+    setViewState((prev) => {
+      const value = typeof next === 'function' ? next(prev) : next
+      boardView.current = { projectId: prototype.id, view: value }
+      return value
+    })
+  }, [boardView, prototype.id])
   useLayoutEffect(() => {
     const el = rootRef.current
     if (!el) return undefined
-    const measure = () => setRoom({ width: el.clientWidth, height: el.clientHeight })
+    // (The board's room changing — a pane opening beside it, the window resized — keeps what was at
+    // its centre at its centre: nothing is refitted, the zoom is left alone.)
+    let last = null
+    const measure = () => {
+      const next = { width: el.clientWidth, height: el.clientHeight }
+      if (last && !fitted.current && (last.width !== next.width || last.height !== next.height)) {
+        const dx = (next.width - last.width) / 2
+        const dy = (next.height - last.height) / 2
+        setView((prev) => (prev ? { ...prev, x: prev.x + dx, y: prev.y + dy } : prev))
+        fitted.current = false
+      }
+      last = next
+      setRoom(next)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const fit = useCallback((box = layout) => setView(boardFit(box, room)), [layout, room, setView])
+  const fit = useCallback((box = layout) => { setView(boardFit(box, room), { keepFitted: true }); fitted.current = box === layout }, [layout, room, setView])
   // Fitted the first time there's room to fit into (and whenever the project changes).
   useLayoutEffect(() => {
-    if (!view && room.width > 0 && layout.cards.length) fit()
+    // (Not into a sliver: on arrival the window can be a few px wide for a frame while the panes take their places.)
+    if ((!view || fitted.current) && room.width >= 240 && room.height >= 200 && layout.cards.length) fit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.width, room.height, prototype.id])
   const shown = view ?? { x: 0, y: 0, zoom: 1 }
@@ -264,25 +283,19 @@ function ScreensBoard() {
                   card (no select-then-preview) or the board (no drag). */}
               {open.length > 0 && (
                 <div data-board-chrome className="absolute z-10" style={{ top: 32 - 10, right: -6, transform: `scale(${1 / shown.zoom})`, transformOrigin: 'top right' }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-                  <Popover>
-                    <PopoverTrigger
-                      data-screen-changes={card.id}
-                      data-count={open.length}
-                      aria-label={openLabel(open.length)}
-                      title={openLabel(open.length)}
-                      translate="no"
-                      onClick={(event) => { event.stopPropagation(); setActivePageId(card.id) }}
-                      className="ds-intrinsic flex cursor-pointer rounded-full p-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                    >
-                      <ConflictCountPin label={countLabel(open.length)} />
-                    </PopoverTrigger>
-                    <PopoverContent align="start" side="right" sideOffset={10} data-screen-changes-list className="w-72 p-1.5">
-                      <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-slate-400"><LocalizedText text={screen.name} /> · <span translate="no">{openLabel(open.length)}</span></p>
-                      <div className="max-h-72 overflow-y-auto">
-                        {open.map((conflict) => <ConflictRow key={conflict.id} conflict={conflict} onOpen={() => openConflictReview(conflict.id)} />)}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <button
+                    type="button"
+                    data-screen-changes={card.id}
+                    data-count={open.length}
+                    aria-label={openLabel(open.length)}
+                    title={openLabel(open.length)}
+                    translate="no"
+                    // (Its changes, in the pane beside the Workspace — the list narrowed to this screen.)
+                    onClick={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }}
+                    className="ds-intrinsic flex cursor-pointer rounded-full p-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                  >
+                    <ConflictCountPin label={countLabel(open.length)} />
+                  </button>
                 </div>
               )}
             </div>

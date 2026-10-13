@@ -23,13 +23,11 @@ export function readViewParams(search, screenIds = []) {
   return { view: VIEWS.includes(view) ? view : null, screen: screenIdOf(params.get('screen'), screenIds) }
 }
 
-// Design Compare takes the main window over as a mode of its own: ?mode=compare.
-export const readMode = (search) => (new URLSearchParams(search ?? '').get('mode') === 'compare' ? 'compare' : null)
-
-// The same address saying this view and screen (whatever else it says is kept). `mode`: 'compare', or null to leave it.
-export function withView(search, { view, screen, mode } = {}) {
+// The same address saying this view and screen (whatever else it says is kept).
+export function withView(search, { view, screen } = {}) {
   const params = new URLSearchParams(search ?? '')
-  if (mode !== undefined) { if (mode === 'compare') params.set('mode', 'compare'); else params.delete('mode') }
+  // (An address from when Design Compare was a mode of the main window: it's a pane now — lib/workPane.)
+  params.delete('mode')
   if (view !== undefined) { if (view && VIEWS.includes(view)) params.set('view', view); else params.delete('view') }
   if (screen !== undefined) { if (screen) params.set('screen', screenSlug(screen)); else params.delete('screen') }
   const rest = params.toString()

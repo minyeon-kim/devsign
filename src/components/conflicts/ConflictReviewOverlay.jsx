@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { conflictListRecord } from '@/lib/conflicts'
 import { translateText } from '@/i18n/translate'
@@ -15,7 +16,7 @@ import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
 // there's never a second copy and closing it always returns to where you
 // were: the Close button, Escape, or the review's own back arrow.
 function ConflictReviewOverlay({ inMergeStudio = false }) {
-  const { conflicts, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer } = useWorkspace()
+  const { conflicts, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost } = useWorkspace()
   const conflict = reviewView === 'overlay' ? conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null : null
   const closeRef = useRef(null)
   const language = useLanguage()
@@ -44,8 +45,11 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   }, [open])
 
   if (!conflict) return null
-  return (
-    <div data-review-overlay role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150 motion-reduce:animate-none">
+  // In the work pane when it's the change list's (lib/workPane): the detail takes the list's place
+  // there and the Workspace stays in view beside it. Without the pane it covers the work area, as before.
+  const inPane = !inMergeStudio && workPane === 'conflicts' && workPaneHost
+  const layer = (
+    <div data-review-overlay data-in-pane={inPane ? '' : undefined} role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150 motion-reduce:animate-none">
       {/* Where this is: a layer over the Workspace — 워크스페이스 › 확인할 변경점. The
           path's first item goes where Close goes (it closes the detail: back to
           the Workspace's canvas); the last is where you are — the change list —
@@ -74,6 +78,7 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
       </div>
     </div>
   )
+  return inPane ? createPortal(layer, workPaneHost) : layer
 }
 
 export default ConflictReviewOverlay

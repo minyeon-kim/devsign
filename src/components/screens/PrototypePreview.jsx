@@ -28,7 +28,7 @@ const isTyping = (target) => target instanceof HTMLElement && (target.isContentE
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function PrototypePreview(props) {
-  const { prototype, activePageId, workspaceView, compareMode, prototypeSession, prototypeFollow, prototypeBack, prototypeRestart, showScreenIn } = useWorkspace()
+  const { prototype, activePageId, workspaceView, prototypeSession, prototypeFollow, prototypeBack, prototypeRestart, showScreenIn } = useWorkspace()
   const screen = screenOf(prototype, activePageId)
   const { live, broken } = transitionsOf(prototype, activePageId)
   const single = prototype.kind === 'single-page'
@@ -66,7 +66,7 @@ function PrototypePreview(props) {
     requestAnimationFrame(() => rootRef.current?.querySelector('[data-hotspot]')?.focus())
   }, [activePageId, motion.key])
 
-  const showing = workspaceView === 'preview' && !compareMode
+  const showing = workspaceView === 'preview'
   useEffect(() => {
     if (!showing) return undefined
     const onKey = (event) => {

@@ -26,9 +26,8 @@ export function openOrFocusPanel(dockApi, def) {
     return
   }
 
-  // (`dockWith`: the view it belongs beside, when that's open — Design Compare
-  // with the canvas. AI Chat's window is its own: nothing else opens into it.)
-  const sibling = (def.dockWith && dockApi.getPanel(def.dockWith)) || dockApi.panels.find((p) => panelById[p.id]?.group === def.group && p.id !== panelById.chat.id)
+  // (AI Chat's window is its own: nothing else opens into it.)
+  const sibling = dockApi.panels.find((p) => panelById[p.id]?.group === def.group && p.id !== panelById.chat.id)
   if (sibling) {
     addDockPanel(dockApi, def, { position: { direction: 'within', referencePanel: sibling.id } })?.api.setActive()
     return

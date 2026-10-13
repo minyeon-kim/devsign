@@ -79,7 +79,7 @@ console.log('history-link: ok')
   // AppShell has no History page of its own to watch: the drawer is asked for, as Docs' is.
   const shell = read('src/components/dashboard/AppShell.jsx')
   for (const gone of ['onHistoryPage', 'wasOnHistory', 'leavingHistory', 'exitHistory', 'keepDrawer']) assert.ok(!shell.includes(gone), `AppShell still has ${gone}`)
-  assert.ok(shell.includes("if (historyDrawerRequest && historyDrawerRequest !== handledHistoryRequest) {") && shell.includes('onCloseDrawer={() => setDrawer(null)}'))
+  assert.ok(shell.includes("if (historyDrawerRequest && historyDrawerRequest !== handledHistoryRequest) {") && shell.includes('onCloseDrawer={closeDrawer}'))
   // The rail's button and the drawer go by the address, not a path.
   const rail = read('src/components/dashboard/Sidebar.jsx')
   assert.ok(rail.includes('readHistoryParams(search).open') && !rail.includes('`${base}/history`'))

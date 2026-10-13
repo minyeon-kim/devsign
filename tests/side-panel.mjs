@@ -81,10 +81,10 @@ try {
   assert.ok(dock.includes('if (atStart) { root.children.unshift(leaf); root.sizes.unshift(size) }'))
   for (const view of ['files', 'layers', 'assets', 'inspect', 'design-compare', 'terminal', 'console']) assert.ok(sidebar.includes(`{ id: '${view}', label:`), `${view} is on the bar`)
   assert.ok(sidebar.indexOf("id: 'inspect'") < sidebar.indexOf("id: 'design-compare'") && sidebar.includes("id: 'design-compare', label: 'Design Compare', icon: Layers3, rule: true"), 'the bottom panel’s views come after a hairline')
-  assert.ok(sidebar.includes("aria-expanded={view.side ? showing(view) : undefined}") && sidebar.includes("aria-controls={view.side ? 'workspace-side-panel' : undefined}"))
+  assert.ok(sidebar.includes('aria-expanded={showing(view)}') && sidebar.includes("aria-controls={view.side ? 'workspace-side-panel' : 'work-pane'}"))
   assert.ok(sidebar.includes('data-views-more') && sidebar.includes('railSplit(WORKSPACE_VIEWS, slots)') && sidebar.includes('onKeyDown={railArrowKeys}'))
   assert.ok(sidebar.includes('data-view-badge'), 'Design Compare’s count sits on its icon')
-  assert.ok(shell.includes("workspace.activeView === 'workspace'") && shell.includes("const LAYER_PARAMS = ['change', 'doc', 'docs', 'history']"), 'only while the Workspace itself is showing')
+  assert.ok(shell.includes("workspace.activeView === 'workspace'") && shell.includes("const LAYER_PARAMS = ['doc', 'docs', 'history']"), 'only while the Workspace itself is showing')
   // Its views: the navigator's four as tabs (← / → between them); Terminal and Console in the same panel.
   assert.ok(windowSource.includes("role={isNavigatorGroup ? 'tablist' : undefined}") && tabs.includes("role={panel.component === 'navigator' ? 'tab' : undefined}") && navigator.includes('role="tabpanel"'))
   assert.ok(navigator.includes("filesWindow.tab === 'terminal' && <TerminalPanel />") && navigator.includes("filesWindow.tab === 'console' && <ConsolePanel />"))
@@ -120,7 +120,7 @@ try {
   assert.ok(!/<WorkspaceBottomPanel[ \/>]/.test(page) && !page.includes("from '@/components/workspace/WorkspaceBottomPanel'"), 'not mounted by the Workspace')
   assert.ok(!/DEFAULT_TABS|TerminalPanel|ConsolePanel/.test(bottom), 'Merge Studio’s only: no Workspace tabs left in it')
   assert.ok(provider.includes("if (patch.open === true && activeViewNow.current !== 'mergeStudio') {") && provider.includes('patch = { ...patch, open: false }'))
-  assert.ok(provider.includes("if (tab === 'terminal' || tab === 'console') openSideView(tab)") && provider.includes("else if (tab === 'design-compare') setCompareMode(true)") && provider.includes('else requestConflictDrawer()'))
+  assert.ok(provider.includes("if (tab === 'terminal' || tab === 'console') openSideView(tab)") && provider.includes("else if (tab === 'design-compare') setWorkPane('compare')") && provider.includes('else requestConflictDrawer()'))
   assert.ok(palette.includes('run: () => openSideView(tab),') && palette.includes("id: 'toggle-side'") && palette.includes("id: 'toggle-chat'") && !palette.includes('toggle-bottom'))
   console.log('Passed: the side panel at the left on the activity bar and AI Chat at the right — folded by default, remembered (v2 keys), kept while folded — and no bottom panel in the Workspace.')
 } finally { await server.close() }

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { isSplit } from '@/lib/workPane'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
 import { conflictCounts } from '@/lib/conflicts'
@@ -21,7 +22,8 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 // drawer when it opens — handled here the same way for all three. A drawer's
 // icon only opens and closes the drawer; the layer is closed by its own Close.
 // What the address says when a layer is over the Workspace (lib/changeLink, docLink, historyLink).
-const LAYER_PARAMS = ['change', 'doc', 'docs', 'history']
+// (A change's detail isn't one: it's shown in the pane beside the Workspace, which stays in use.)
+const LAYER_PARAMS = ['doc', 'docs', 'history']
 
 function AppShell({ topBar, project, children }) {
   // null | 'docs' | 'history' | 'import' | 'conflicts'
@@ -40,44 +42,36 @@ function AppShell({ topBar, project, children }) {
     setDrawer('history')
   }
 
-  // The conflict list has two ways in — this drawer and the Workspace's
-  // bottom panel — and only one shows it at a time, so the work area is
-  // never squeezed from the left and from below by the same list:
-  //   · opening the drawer folds the bottom panel's list (toggleDrawer);
-  //   · opening the bottom panel's list closes the drawer (below — the
-  //     same render-phase sync as above, on the moment it opens).
-  // The full-screen viewer either one opens is the workspace's own state,
-  // so it's the same viewer whichever list it came from.
-  const panelList = workspace?.bottomPanel
-  const panelListOpen = Boolean(panelList?.open && panelList.tab === 'conflict') && pathname.replace(/\/$/, '').endsWith('/workspace')
-  const [wasPanelListOpen, setWasPanelListOpen] = useState(panelListOpen)
-  if (panelListOpen !== wasPanelListOpen) {
-    setWasPanelListOpen(panelListOpen)
-    if (panelListOpen && drawer === 'conflicts') setDrawer(null)
-  }
+  // What's open at the left: a narrow list drawer (this state), or a work
+  // pane beside the Workspace — the changes to check, Design Compare — which
+  // is the address's `?panel` (lib/workPane, WorkspaceProvider's `workPane`).
+  // One at a time: a pane opening puts the drawer away, and a drawer
+  // opening closes the pane.
+  const workPane = workspace?.workPane ?? null
+  const shown = drawer ?? workPane
   function toggleDrawer(panel) {
-    const opening = drawer !== panel
-    setDrawer(opening ? panel : null)
-    if (opening && panel === 'conflicts' && panelListOpen) {
-      // (Counted as already folded, so folding it doesn't read as the
-      // panel's list having just been opened.)
-      setWasPanelListOpen(false)
-      workspace.setBottomPanel({ open: false })
+    if (isSplit(panel)) {
+      setDrawer(null)
+      workspace?.setWorkPane(shown === panel ? null : panel)
+      return
     }
+    if (workPane) workspace?.setWorkPane(null)
+    setDrawer(shown === panel ? null : panel)
   }
-  // A notification about a conflict opens this drawer (WorkspaceProvider's
-  // `openConflictFromNotification`) — the bottom panel's list folds, as when
-  // the drawer is opened by hand.
-  const { conflictDrawerRequest } = workspace ?? {}
-  const [handledConflictRequest, setHandledConflictRequest] = useState(null)
-  if (conflictDrawerRequest && conflictDrawerRequest !== handledConflictRequest) {
-    setHandledConflictRequest(conflictDrawerRequest)
-    setDrawer('conflicts')
-    if (panelListOpen) {
-      setWasPanelListOpen(false)
-      workspace.setBottomPanel({ open: false })
-    }
+  function closeDrawer() {
+    if (drawer) setDrawer(null)
+    else workspace?.setWorkPane(null)
   }
+  // A notification about a conflict, a change opened from anywhere, the
+  // Screens board's pin: the change list is asked for (WorkspaceProvider's
+  // `requestConflictDrawer`) — its pane opens.
+  const { conflictDrawerRequest, setWorkPane } = workspace ?? {}
+  useEffect(() => {
+    if (!conflictDrawerRequest) return
+    setDrawer(null)
+    setWorkPane?.('conflicts')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conflictDrawerRequest])
   // The docs layer (WorkspaceProvider's `requestDocsDrawer`) opens the Docs drawer the same way.
   const { docsDrawerRequest } = workspace ?? {}
   const [handledDocsRequest, setHandledDocsRequest] = useState(null)
@@ -91,15 +85,16 @@ function AppShell({ topBar, project, children }) {
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         project={project}
-        drawer={drawer}
+        drawer={shown}
         onToggleDrawer={toggleDrawer}
         openConflicts={openConflicts}
-        onCloseDrawer={() => setDrawer(null)}
+        onCloseDrawer={closeDrawer}
+        context={workspace}
         // (The Workspace's own views sit on the bar while it's the Workspace that's showing — not a layer over it.)
         workspace={workspace && workspace.activeView === 'workspace' && pathname.replace(/\/$/, '').endsWith('/workspace') && !LAYER_PARAMS.some((key) => new URLSearchParams(search).has(key)) ? workspace : null}
       />
 
-      <div className={`flex min-w-0 flex-1 flex-col overflow-hidden ${drawer ? 'pl-2' : ''}`}>
+      <div className={`flex min-w-0 flex-1 flex-col overflow-hidden ${shown ? 'pl-2' : ''}`}>
         {topBar}
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
       </div>

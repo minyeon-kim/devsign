@@ -793,6 +793,9 @@ After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
 Whole screen|화면 전체
+This screen|이 화면만
+Show Workspace|워크스페이스 보기
+Resize pane|창 크기 조절
 View from this screen in Preview|미리보기에서 이 화면부터 보기
 Previous screen with changes|충돌이 있는 이전 화면
 Next screen with changes|충돌이 있는 다음 화면

@@ -7,7 +7,6 @@ import {
   Folder,
   History,
   Layers,
-  Layers3,
   MessageSquare,
   Monitor,
   ScanEye,
@@ -22,7 +21,6 @@ import {
 export const PANEL_ICONS = {
   Folder,
   Layers,
-  Layers3,
   Component,
   AppWindow,
   FileCode,

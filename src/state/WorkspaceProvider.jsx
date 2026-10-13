@@ -71,7 +71,8 @@ import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCateg
 import { importKind } from '@/lib/importFiles'
 import { AI_CHAT, SIDE_PANEL, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
 import { prototypeOf } from '@/lib/screens'
-import { defaultViewOf, readLastView, readMode, readViewParams, withView, writeLastView } from '@/lib/viewLink'
+import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
+import { isSplit, readPanel, readSplit, withPanel, writeSplit } from '@/lib/workPane'
 import { follow, restart as restartSession, sessionAt, startSession, stepBack } from '@/lib/prototypeEngine'
 import {
   PROTOTYPE_FILES,
@@ -477,7 +478,7 @@ export function WorkspaceProvider({ children, projectId }) {
   const setWorkspaceView = useCallback((view) => {
     setLastView(view)
     writeLastView(projectId, view)
-    sayView({ view, mode: null })
+    sayView({ view })
   }, [projectId, sayView])
   const setActivePageId = useCallback((id) => {
     setActivePageIdState(id)
@@ -488,13 +489,53 @@ export function WorkspaceProvider({ children, projectId }) {
     setActivePageIdState(id)
     setLastView(view)
     writeLastView(projectId, view)
-    sayView({ view, screen: id, mode: null })
+    sayView({ view, screen: id })
   }, [projectId, sayView])
-  // Design Compare is a mode of the main window (?mode=compare): on, it takes
-  // the window over; off, the window is back on the view and the screen it
-  // was on — neither is touched while it's up.
-  const compareMode = onWorkspace && readMode(location.search) === 'compare'
-  const setCompareMode = useCallback((on) => sayView({ mode: on ? 'compare' : null }), [sayView])
+  // The work pane (lib/workPane): what's open beside the Workspace, half and
+  // half — the changes to check, Design Compare — said in the address
+  // (?panel=conflicts), so a reload or a link comes back to it. Opening or
+  // closing it replaces the address and touches nothing of the Workspace's:
+  // its view, its screen, the board's place and the prototype stay as they are.
+  // One thing at a time at the left: the pane opening folds the side panel,
+  // and the side panel opening closes the pane.
+  const workPane = readPanel(location.search)
+  const setWorkPane = useCallback((panel) => {
+    const { location: at } = route.current
+    const search = withPanel(at.search, panel)
+    if (search !== at.search) navigate({ pathname: at.pathname, search }, { replace: true, state: at.state })
+    if (isSplit(panel)) {
+      setSidePanelState((prev) => (prev.open ? { ...prev, open: false } : prev))
+      writeSplit({ ...readSplit(), last: panel })
+    }
+  }, [navigate])
+  const sideWasOpen = useRef(sidePanel.open)
+  useEffect(() => {
+    const opened = sidePanel.open && !sideWasOpen.current
+    sideWasOpen.current = sidePanel.open
+    if (!opened) return
+    writeSplit({ ...readSplit(), last: 'side' })
+    if (readPanel(route.current.location.search)) setWorkPane(null)
+  }, [sidePanel.open, setWorkPane])
+  // The top bar's switch is the whole left area's: off, whatever is open
+  // there closes; on, what was last open comes back (the side panel, when
+  // nothing is remembered).
+  const leftOpen = sidePanel.open || Boolean(workPane)
+  const toggleLeft = useCallback(() => {
+    const { location: at } = route.current
+    const pane = readPanel(at.search)
+    if (pane || sideViewNow.current.open) {
+      if (pane) setWorkPane(null)
+      setSidePanelState((prev) => (prev.open ? { ...prev, open: false } : prev))
+      return
+    }
+    const { last } = readSplit()
+    if (isSplit(last)) setWorkPane(last)
+    else setSidePanelState((prev) => ({ ...prev, open: true }))
+  }, [setWorkPane])
+  // Where the pane is on the page (the change detail is shown inside it — ConflictReviewOverlay).
+  const [workPaneHost, setWorkPaneHost] = useState(null)
+  // The change list narrowed to the screen in view (the Screens board's pin turns it on).
+  const [changesOfScreenOnly, setChangesOfScreenOnly] = useState(false)
   // The prototype being played (lib/prototypeEngine): the screens passed
   // through, ending on the screen in view. A screen picked anywhere else
   // starts it over from there.
@@ -932,7 +973,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // Where each of the bottom panel's views went (see `setBottomPanel`).
   workspaceViewOpener.current = (tab) => {
     if (tab === 'terminal' || tab === 'console') openSideView(tab)
-    else if (tab === 'design-compare') setCompareMode(true)
+    else if (tab === 'design-compare') setWorkPane('compare')
     else requestConflictDrawer()
   }
   // (A notification's way in is the one way in: kept under its name for those that call it.)
@@ -2702,8 +2743,10 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!location) return false
     setActivePageId(location.pageId)
     setCanvasFocus({ ...location, commentId: null, quiet: true, smooth: true, nonce: nextId('canvas-focus') })
+    // (The element is on the canvas, and the Workspace is in view beside the change: Screens comes up on it.)
+    if (activeViewNow.current !== 'mergeStudio') dockApi?.getPanel('canvas')?.api.setActive()
     return true
-  }, [canvasLocationFor, selectConflictPin])
+  }, [canvasLocationFor, selectConflictPin, dockApi])
 
   // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
   // never silent — it needs a reason, which is posted to the conflict's
@@ -2881,8 +2924,14 @@ export function WorkspaceProvider({ children, projectId }) {
     workspaceView,
     setWorkspaceView,
     showScreenIn,
-    compareMode,
-    setCompareMode,
+    workPane,
+    setWorkPane,
+    leftOpen,
+    toggleLeft,
+    workPaneHost,
+    setWorkPaneHost,
+    changesOfScreenOnly,
+    setChangesOfScreenOnly,
     prototypeSession,
     prototypeFollow,
     prototypeBack,

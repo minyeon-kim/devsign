@@ -91,7 +91,7 @@ try {
   assert.ok(chat.includes('if (chatOpen && awaiting) requestAnimationFrame(showPending)'))
 
   // --- The top bar's sidebar switch: the side panel's own state, nothing kept beside it ---
-  assert.ok(topBar.includes('const { sidePanel, setSidePanel } = useWorkspace()') && topBar.includes('const open = sidePanel.open') && !/useState/.test(topBar.slice(topBar.indexOf('function SidebarToggle'), topBar.indexOf('function ProjectTitle'))))
+  assert.ok(topBar.includes('const { leftOpen: open, toggleLeft } = useWorkspace()') && !/useState/.test(topBar.slice(topBar.indexOf('function SidebarToggle'), topBar.indexOf('function ProjectTitle'))))
   assert.ok(topBar.includes('aria-expanded={open}') && topBar.includes('aria-controls="workspace-side-panel"') && topBar.includes("const label = open ? 'Close sidebar' : 'Open sidebar'"))
   assert.ok(topBar.includes('{open && <path data-sidebar-filled') && !/Chevron/.test(topBar), 'filled when open — not an arrow')
   assert.ok(topBar.indexOf('<SidebarToggle />') < topBar.indexOf('{project?.name}'), 'first in the bar')

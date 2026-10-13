@@ -28,16 +28,15 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // here — so repeating both of those a few pixels away added nothing
 // (the old "Workspace" segment even linked to the page already open).
 // This keeps just what the rail can't show: which project you're in.
-// The side panel's switch, first in the bar: always here (the bar narrowing
-// never takes it away) and never moved by the panel it opens, which sits
-// under the bar. It shows the panel's own state — the same one the activity
-// bar's icons and ⌘B change (WorkspaceProvider's `sidePanel`) — as the
-// sidebar icon with its side filled while the panel is open, and brings the
-// panel back on the view it was last on.
+// The left area's switch, first in the bar: always here (the bar narrowing
+// never takes it away). It shows whether anything is open at the left — the
+// side panel or a work pane (WorkspaceProvider's `leftOpen`, the same state
+// the activity bar's icons and ⌘B change) — as the sidebar icon with its
+// side filled while something is; off, that closes; on, what was last open
+// comes back.
 const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
 function SidebarToggle() {
-  const { sidePanel, setSidePanel } = useWorkspace()
-  const open = sidePanel.open
+  const { leftOpen: open, toggleLeft } = useWorkspace()
   const label = open ? 'Close sidebar' : 'Open sidebar'
   return (
     <div className="group/sidebar-toggle relative flex shrink-0">
@@ -47,7 +46,7 @@ function SidebarToggle() {
         aria-label={label}
         aria-expanded={open}
         aria-controls="workspace-side-panel"
-        onClick={() => setSidePanel({ open: !open })}
+        onClick={toggleLeft}
         className="ds-header-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
       >
         <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

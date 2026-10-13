@@ -1,3 +1,4 @@
+import { conflictsByScreen } from '@/lib/screenConflicts'
 import { useEffect, useRef, useState } from 'react'
 import { changeHref } from '@/lib/changeLink'
 import { RecentTime } from '@/components/ui/RecentTime'
@@ -100,7 +101,7 @@ export function ConflictCount() {
 
 function ConflictsDrawer({ project }) {
   const { conflicts, openItems, doneItems, filter, primaryFilters, statusFilters, setFilter, countOf, selectedId, open } = useConflictList({ view: 'overlay' })
-  const { conflictPin, hoverConflictPin, focusConflictPin } = useWorkspace()
+  const { conflictPin, hoverConflictPin, focusConflictPin, prototype, activePageId, changesOfScreenOnly, setChangesOfScreenOnly } = useWorkspace()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const language = useLanguage()
@@ -131,10 +132,15 @@ function ConflictsDrawer({ project }) {
     const text = [conflict.title, kindWordOf(conflict), statusOf(conflict)].filter(Boolean).flatMap((part) => [part, translateText(part, language)]).join(' ').toLocaleLowerCase()
     return terms.every((term) => text.includes(term))
   }
-  const openShown = openItems.filter(found)
-  const doneShown = doneItems.filter(found)
-  const filtering = filter.id !== 'all' || terms.length > 0
-  const clear = () => { setFilter('all'); setQuery('') }
+  // "This screen": only the changes on the screen in view (lib/screenConflicts) — it follows the
+  // screen as another is picked in the Workspace. The Screens board's pin turns it on.
+  const screen = prototype.screens.find((entry) => entry.id === activePageId) ?? null
+  const onScreen = changesOfScreenOnly && screen ? new Set((conflictsByScreen(prototype, conflicts).byScreen.get(screen.id) ?? []).map((conflict) => conflict.id)) : null
+  const here = (conflict) => !onScreen || onScreen.has(conflict.id)
+  const openShown = openItems.filter(found).filter(here)
+  const doneShown = doneItems.filter(found).filter(here)
+  const filtering = filter.id !== 'all' || terms.length > 0 || Boolean(onScreen)
+  const clear = () => { setFilter('all'); setQuery(''); setChangesOfScreenOnly(false) }
   const row = (conflict) => <ConflictRow key={conflict.id} conflict={conflict} selected={pickedId === conflict.id} hovered={conflictPin.hoverId === conflict.id} onOpen={openRow} onHover={hoverConflictPin} />
 
   return (
@@ -144,6 +150,13 @@ function ConflictsDrawer({ project }) {
         <>
           <DrawerSearch value={query} onChange={setQuery} placeholder={translateText('Search changes…', language)} label={translateText('Search changes', language)} />
           {/* One line: the four standing filters, then the statuses in a menu. */}
+          {screen && (
+            <button type="button" data-screen-only aria-pressed={changesOfScreenOnly} onClick={() => setChangesOfScreenOnly(!changesOfScreenOnly)} className={cn(chipClass(changesOfScreenOnly), 'max-w-full self-start')}>
+              <LocalizedText text="This screen" />
+              <span aria-hidden className="text-slate-500">·</span>
+              <span className="min-w-0 truncate"><LocalizedText text={screen.name} /></span>
+            </button>
+          )}
           <DrawerFilters label="Filter conflicts">
             {primaryFilters.map((entry) => {
               const count = countOf(entry)

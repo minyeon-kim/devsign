@@ -1,10 +1,13 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { PANELS, SPLIT, isSplit, paneWidth, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
+import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
+import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Component, Ellipsis, Files, History, House, Import, Layers, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, ScanEye, ScrollText, SquareTerminal, TriangleAlert, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Component, Ellipsis, Maximize2, Minimize2, Files, History, House, Import, Layers, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, ScanEye, ScrollText, SquareTerminal, TriangleAlert, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -76,13 +79,14 @@ const WORKSPACE_VIEWS = [
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, side: true },
   { id: 'console', label: 'Console', icon: ScrollText, side: true },
 ]
-function WorkspaceViews({ workspace, slots }) {
-  const { sidePanel, filesWindow, toggleSideView, compareMode, setCompareMode, mergeItems } = workspace
+function WorkspaceViews({ workspace, slots, drawer, onToggleDrawer }) {
+  const { sidePanel, filesWindow, toggleSideView, mergeItems } = workspace
+  const comparing = drawer === 'compare'
   const designSets = mergeItems.filter((item) => item.hasDesign).length
   // Every icon is a switch: on, it shows its view; pressed again, it puts it away. (A side panel
-  // view folds the panel; Design Compare — a mode of the main window — leaves the mode.)
-  const showing = (view) => (view.side ? sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck')) : compareMode)
-  const press = (view) => (view.side ? toggleSideView(view.id) : setCompareMode(!compareMode))
+  // view folds the panel; Design Compare is a work pane beside the Workspace — lib/workPane.)
+  const showing = (view) => (view.side ? sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck')) : comparing)
+  const press = (view) => (view.side ? toggleSideView(view.id) : onToggleDrawer('compare'))
   const { shown, more } = railSplit(WORKSPACE_VIEWS, slots)
   return (
     <div data-workspace-views role="group" aria-label="Workspace views" className="flex flex-col gap-1">
@@ -97,9 +101,8 @@ function WorkspaceViews({ workspace, slots }) {
               hint={view.side ? SIDE_SHORTCUT : null}
               data-side-view={view.side ? view.id : undefined}
               data-workspace-view={view.id}
-              aria-expanded={view.side ? showing(view) : undefined}
-              aria-pressed={view.side ? undefined : showing(view)}
-              aria-controls={view.side ? 'workspace-side-panel' : undefined}
+              aria-expanded={showing(view)}
+              aria-controls={view.side ? 'workspace-side-panel' : 'work-pane'}
               onClick={() => press(view)}
               className={cn(showing(view) && activeClass)}
             />
@@ -299,7 +302,7 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, works
         )}
       </nav>
 
-      {workspace && <WorkspaceViews workspace={workspace} slots={slots} />}
+      {workspace && <WorkspaceViews workspace={workspace} slots={slots} drawer={drawer} onToggleDrawer={onToggleDrawer} />}
 
       {/* (48px tall, as the top bar is.) */}
       <div className="mt-auto flex shrink-0 flex-col items-center gap-1">
@@ -370,7 +373,8 @@ function HistoryNavButtons() {
   )
 }
 
-const DRAWER_TITLES = { docs: 'Docs', history: 'History', import: 'Import', conflicts: 'Conflict Points' }
+const DRAWER_TITLES = Object.fromEntries(Object.entries(PANELS).map(([id, panel]) => [id, panel.label]))
+const RAIL_PX = 48
 const DRAWER_WIDTH = 272
 const DRAWER_MIN = 220
 const DRAWER_MAX = 480
@@ -421,7 +425,8 @@ function UserBadge({ projectId }) {
   )
 }
 
-function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts, workspace = null }) {
+// `workspace`: the Workspace, while its own views belong on the bar; `context`: the project's workspace state whatever is showing (the pane's contents read it).
+function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts, workspace = null, context = null }) {
   // Keep showing the last panel while the drawer animates shut.
   const [shown, setShown] = useState(drawer)
   if (drawer && drawer !== shown) setShown(drawer)
@@ -433,6 +438,40 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   const dragStart = useRef(DRAWER_WIDTH)
   const resize = (w) => setWidth(Math.max(DRAWER_MIN, Math.min(DRAWER_MAX, w)))
 
+  // A work pane (lib/workPane: the changes to check, Design Compare) is as
+  // wide as its share of the room — half, until its edge is dragged; the
+  // share is kept. The room is the window less the bar and an open AI Chat,
+  // so the pane and the Workspace split what's left. With too little to
+  // split, or maximized, the pane has it all.
+  const split = isSplit(panel)
+  const [ratio, setRatio] = useState(() => readSplit().ratio)
+  const [maximized, setMaximized] = useState(false)
+  const [windowWidth, setWindowWidth] = useState(() => (typeof window === 'undefined' ? 1440 : window.innerWidth))
+  useEffect(() => {
+    // (Once a frame at most, however fast the window reports.)
+    let frame = 0
+    const onResize = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; setWindowWidth(window.innerWidth) }) }
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame) }
+  }, [])
+  const chat = workspace && context?.aiChat?.open ? clampWidth(AI_CHAT, context.aiChat.width, windowWidth) + 8 : 0
+  const room = Math.max(0, windowWidth - RAIL_PX - chat)
+  const pane = paneWidth(room, ratio, { maximized })
+  const shownWidth = split ? pane.width : width
+  const setShare = (next, keep = false) => { setRatio(next); if (keep) writeSplit({ ...readSplit(), ratio: next }) }
+  // (Maximizing is for the pane that's open: it doesn't outlast it.)
+  if (!drawer && maximized) setMaximized(false)
+  // Opened: the focus goes into it; closed with the focus inside: back to its icon.
+  const asideRef = useRef(null)
+  const wasOpen = useRef(null)
+  useEffect(() => {
+    const before = wasOpen.current
+    wasOpen.current = drawer
+    if (isSplit(drawer) && before !== drawer) requestAnimationFrame(() => asideRef.current?.querySelector('input, button:not([data-pane-chrome]), [tabindex="0"]')?.focus({ preventScroll: true }))
+    else if (!drawer && isSplit(before) && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-conflicts-entry]')?.focus()
+  }, [drawer])
+  const setHost = context?.setWorkPaneHost
+
   return (
     <div className="z-10 flex h-full shrink-0">
       <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} workspace={workspace} />
@@ -440,44 +479,84 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
       <div
         inert={!drawer}
         aria-hidden={!drawer}
-        style={{ width: drawer ? width : 0 }}
+        style={{ width: drawer ? shownWidth : 0 }}
         className={cn(
           'h-full shrink-0 overflow-hidden motion-reduce:transition-none',
           !resizing && 'transition-[width] duration-200 ease-out'
         )}
       >
         <aside
+          ref={asideRef}
+          id="work-pane"
+          role={split ? 'region' : undefined}
+          data-work-pane={split ? panel : undefined}
+          data-pane-full={split && pane.full ? '' : undefined}
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
-          style={{ width }}
+          style={{ width: shownWidth }}
           className="relative flex h-full flex-col bg-background pb-2"
         >
-          <SplitHandle
-            label="Resize sidebar"
-            className="absolute inset-y-0 -right-1 z-10"
-            onResizeStart={() => {
-              dragStart.current = width
-              setResizing(true)
-            }}
-            onResize={(dx) => resize(dragStart.current + dx)}
-            onResizeEnd={() => setResizing(false)}
-            onStep={(d) => resize(width + d)}
-          />
+          {split ? (
+            !pane.full && (
+              <SplitHandle
+                label="Resize pane"
+                value={Math.round((pane.width / Math.max(1, room)) * 100)}
+                className="absolute inset-y-0 -right-1 z-10"
+                onResizeStart={() => { dragStart.current = pane.width; setResizing(true) }}
+                onResize={(dx) => setShare(ratioOf(room, dragStart.current + dx))}
+                onResizeEnd={() => { setResizing(false); writeSplit({ ...readSplit(), ratio }) }}
+                onStep={(d) => setShare(ratioOf(room, pane.width + d), true)}
+                onReset={() => setShare(SPLIT.ratio, true)}
+              />
+            )
+          ) : (
+            <SplitHandle
+              label="Resize sidebar"
+              className="absolute inset-y-0 -right-1 z-10"
+              onResizeStart={() => {
+                dragStart.current = width
+                setResizing(true)
+              }}
+              onResize={(dx) => resize(dragStart.current + dx)}
+              onResizeEnd={() => setResizing(false)}
+              onStep={(d) => resize(width + d)}
+            />
+          )}
           <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
               {panel === 'history' && project && <HistoryCount />}
               {panel === 'conflicts' && project && <ConflictCount />}
             </p>
-            <HistoryNavButtons />
+            {split ? (
+              <>
+                {/* With no room to split, the pane has the window: the way back to the Workspace is said. */}
+                {pane.full && !maximized && (
+                  <button type="button" data-pane-chrome data-pane-workspace onClick={onCloseDrawer} className="ds-intrinsic flex h-7 shrink-0 items-center rounded-full px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                    <LocalizedText text="Show Workspace" />
+                  </button>
+                )}
+                {room >= SPLIT.narrow && (
+                  <Tooltip>
+                    <TooltipTrigger data-pane-chrome data-pane-maximize aria-pressed={maximized} aria-label={maximized ? 'Restore' : 'Maximize'} onClick={() => setMaximized((on) => !on)} className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                      {maximized ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{maximized ? 'Restore' : 'Maximize'}</TooltipContent>
+                  </Tooltip>
+                )}
+              </>
+            ) : <HistoryNavButtons />}
             <CloseButton onClose={onCloseDrawer} />
           </div>
           {/* (The list drawers keep their top — search, filters — and scroll their list themselves.) */}
-          <div className={cn('min-h-0 flex-1 px-2', panel === 'history' || panel === 'conflicts' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto')}>
+          <div className={cn('min-h-0 flex-1 px-2', panel === 'history' || panel === 'conflicts' || panel === 'compare' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto')}>
             {panel === 'docs' && project && <DocsDrawer project={project} />}
             {panel === 'history' && project && <HistoryDrawer project={project} />}
             {panel === 'import' && project && <ImportDrawer project={project} />}
             {panel === 'conflicts' && project && <ConflictsDrawer project={project} />}
+            {panel === 'compare' && project && context && <WorkspaceDesignCompare />}
           </div>
+          {/* A change's detail opens here, over the list it was picked from (ConflictReviewOverlay). */}
+          {panel === 'conflicts' && <div ref={setHost} data-work-pane-layer className="pointer-events-none absolute inset-0 z-20 [&>*]:pointer-events-auto" />}
         </aside>
       </div>
     </div>
