@@ -211,7 +211,8 @@ function UpdateCard({ update, active, affectedDocs, createdDoc, onChangeCategory
 }
 
 // System changes automatically queued by Conflict / Merge, reviewed in Docs.
-function DesignSystemUpdates({ onOpenDoc, onOpenHistory }) {
+// `className`: its own padding and width, where it's set in a column that has them (the docs layer).
+function DesignSystemUpdates({ onOpenDoc, onOpenHistory, className }) {
   const { dsUpdates, referenceDocs, documentDsUpdate, archiveDsUpdate, setDocumentUpdateCategory } = useWorkspace()
   const counts = dsUpdates.reduce((acc, u) => ({ ...acc, [u.stage]: (acc[u.stage] ?? 0) + 1 }), {})
   // Keep registration order for pending updates, completed records below.
@@ -219,7 +220,7 @@ function DesignSystemUpdates({ onOpenDoc, onOpenHistory }) {
   const next = nextDocumentChange(dsUpdates)
 
   return (
-    <div className="flex max-w-3xl flex-col gap-5 px-6 py-5">
+    <div data-doc-updates className={cn('flex max-w-3xl flex-col gap-5 px-6 py-5', className)}>
       <div className="flex flex-col gap-3">
         <p className="text-xs text-slate-400">
           System changes from Conflict and Merge are automatically listed here for approval. Updates cover all project documents and are processed in order, then recorded in History.

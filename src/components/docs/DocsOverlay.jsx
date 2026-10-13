@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { FileText, X } from 'lucide-react'
 import { cn } from 'cn'
-import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
+import Breadcrumb, { BREADCRUMB_COLUMN, BreadcrumbBar } from '@/components/layout/Breadcrumb'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -11,6 +11,10 @@ import { buildDocTree, docPath } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allPeople } from '@/data/mockData'
 import { useNavigate } from 'react-router-dom'
+
+// The layer's content column: the path's own (BREADCRUMB_COLUMN — the same left line as the
+// top bar), starting 8px under the bar — where a change's detail has its title row.
+const COLUMN = cn(BREADCRUMB_COLUMN, 'pt-2 pb-10')
 
 // One doc in the index — a borderless row that opens it.
 function DocRow({ doc, onOpen }) {
@@ -67,10 +71,13 @@ function DocsGroup({ node, depth, onOpen }) {
 // All docs, grouped by the same category tree as the Docs sidebar.
 function DocsIndex({ tree, onOpen }) {
   return (
-    <div className="max-w-3xl px-6 py-5">
-      {tree.map((node) => (
-        <DocsGroup key={node.id} node={node} depth={0} onOpen={onOpen} />
-      ))}
+    // (In the page's column: its rows are inset 12px, so they're pulled out by as much — their text starts on the path's line.)
+    <div data-docs-index className={COLUMN}>
+      <div className="-mx-3 max-w-3xl">
+        {tree.map((node) => (
+          <DocsGroup key={node.id} node={node} depth={0} onOpen={onOpen} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -156,8 +163,8 @@ function DocsOverlay() {
         </button>
       </BreadcrumbBar>
       <div data-docs-scroll className="min-h-0 flex-1 overflow-y-auto">
-        {view.kind === 'doc' && <ReferenceDocView key={view.doc.id} doc={view.doc} path={docPath(tree, view.doc.id) ?? []} />}
-        {view.kind === 'dsUpdates' && <DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} />}
+        {view.kind === 'doc' && <ReferenceDocView key={view.doc.id} doc={view.doc} path={docPath(tree, view.doc.id) ?? []} frameClassName={cn(COLUMN, 'flex gap-8')} />}
+        {view.kind === 'dsUpdates' && <div className={COLUMN}><DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} className="px-0 py-0" /></div>}
         {view.kind === 'index' && <DocsIndex tree={tree} onOpen={openDoc} />}
       </div>
     </div>

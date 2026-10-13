@@ -101,3 +101,17 @@ console.log('doc-link: ok')
   for (const text of [overlay, change]) assert.ok(text.includes(`document.querySelector('[data-slot="dialog-content"], [role="menu"], [role="listbox"]')`) && text.includes('closeRef.current?.focus()') && text.includes('if (before instanceof HTMLElement && before.isConnected) before.focus()'))
   console.log('doc-link (top bar): ok')
 }
+
+// ── The content starts on the path's line: the list, a document and the updates sit in the page's column. ──
+{
+  const overlay = read('src/components/docs/DocsOverlay.jsx')
+  assert.ok(overlay.includes("const COLUMN = cn(BREADCRUMB_COLUMN, 'pt-2 pb-10')"), 'the path\'s column, 8px under the bar — where a change\'s detail has its title row')
+  assert.ok(overlay.includes('<div data-docs-index className={COLUMN}>') && overlay.includes('<div className="-mx-3 max-w-3xl">'), 'the list: its rows\' own inset is taken back, so their text starts on the line')
+  assert.ok(overlay.includes("frameClassName={cn(COLUMN, 'flex gap-8')}") && overlay.includes('<div className={COLUMN}><DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} className="px-0 py-0" /></div>'))
+  assert.ok(!/max-w-3xl px-6 py-5/.test(overlay))
+  // A document keeps its reading width and its contents list; as a Workspace panel it keeps its own centred frame.
+  const view = read('src/components/archive/ReferenceDocView.jsx')
+  assert.ok(view.includes("const DOC_FRAME = 'mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10'") && view.includes('frameClassName = DOC_FRAME') && view.includes('<article className="min-w-0 max-w-[680px] flex-1">'))
+  assert.ok(read('src/components/dockview/panels/DocumentPanel.jsx').includes('<ReferenceDocView doc={doc} />'))
+  console.log('doc-link (alignment): ok')
+}

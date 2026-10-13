@@ -138,7 +138,10 @@ function Block({ block }) {
 // reading width, and — on wide screens — an "On this page" list built
 // from the doc's h2 blocks.
 // `path`: the categories it's filed under ("개발 › API") — said in the meta line over the title.
-function ReferenceDocView({ doc, path = [] }) {
+// `frameClassName`: the column the article and its contents list sit in — its own centred one by
+// default (a panel); the docs layer gives the page's column, so the article starts on the path's line.
+const DOC_FRAME = 'mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10'
+function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME }) {
   const root = useRef(null)
   const author = allPeople.find((p) => p.id === doc.authorId)
   const type = DOC_TYPES[doc.type] ?? DOC_TYPES.doc
@@ -150,7 +153,7 @@ function ReferenceDocView({ doc, path = [] }) {
 
   return (
     <div ref={root} className="@container/doc w-full">
-    <div className="mx-auto flex max-w-5xl gap-8 px-5 py-8 @min-[960px]/doc:px-8 @min-[960px]/doc:py-10">
+    <div data-doc-frame className={frameClassName}>
       <article className="min-w-0 max-w-[680px] flex-1">
         <header className="mb-8">
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
