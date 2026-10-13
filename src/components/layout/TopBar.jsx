@@ -28,9 +28,46 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // here — so repeating both of those a few pixels away added nothing
 // (the old "Workspace" segment even linked to the page already open).
 // This keeps just what the rail can't show: which project you're in.
+// The side panel's switch, first in the bar: always here (the bar narrowing
+// never takes it away) and never moved by the panel it opens, which sits
+// under the bar. It shows the panel's own state — the same one the activity
+// bar's icons and ⌘B change (WorkspaceProvider's `sidePanel`) — as the
+// sidebar icon with its side filled while the panel is open, and brings the
+// panel back on the view it was last on.
+const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
+function SidebarToggle() {
+  const { sidePanel, setSidePanel } = useWorkspace()
+  const open = sidePanel.open
+  const label = open ? 'Close sidebar' : 'Open sidebar'
+  return (
+    <div className="group/sidebar-toggle relative flex shrink-0">
+      <button
+        type="button"
+        data-sidebar-toggle={open ? 'open' : 'closed'}
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls="workspace-side-panel"
+        onClick={() => setSidePanel({ open: !open })}
+        className="ds-header-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+      >
+        <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 3v18" />
+          {open && <path data-sidebar-filled d="M5 3h4v18H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor" stroke="none" />}
+        </svg>
+      </button>
+      {/* (From the button's left edge: it's the first thing in the bar.) */}
+      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-0 z-[100] whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-popover px-2 py-1 text-[11px] text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/sidebar-toggle:opacity-100 group-focus-within/sidebar-toggle:opacity-100">
+        {label}<span className="ml-1.5 opacity-60">{SIDE_SHORTCUT}</span>
+      </span>
+    </div>
+  )
+}
+
 function ProjectTitle({ project }) {
   return (
-    <div className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center text-[13px]">
+    <div className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-1.5 text-[13px]">
+      <SidebarToggle />
       <Link
         to={`/projects/${project?.id}`}
         title={`Open ${project?.name}`}
