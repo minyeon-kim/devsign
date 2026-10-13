@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
 import { cn } from 'cn'
 import { RECORD_ROWS, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
@@ -1007,11 +1006,11 @@ function DecisionForm({ conflict, onDecide }) {
 }
 
 // The way to the History's replay of this change (the committed steps).
+// (History is a layer of the Workspace — lib/historyLink: opened from here it's a step of its own, so Back returns to this change.)
 function useReplayNavigation(conflict, workspace) {
-  const navigate = useNavigate()
   return () => {
     const checkpoint = [...(workspace?.historyEntries ?? [])].reverse().find((entry) => entry.conflictId === conflict.id || entry.conflictIds?.includes(conflict.id))
-    navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
+    workspace?.openHistory(checkpoint?.id ?? null, { flash: true })
   }
 }
 const FOLD_STEPS = ['detect', 'request', 'decision', 'fix']
@@ -1036,7 +1035,6 @@ function DetectionFacts({ conflict, cause = false }) {
 // `onReplay(key)`: opens the change's replay — 'start' (the first step, playing)
 // or at a step of the record ('detect', 'request', 'decision', 'fix').
 export default function DesignDecisionFlow({ conflict, workspace, viewer, banner = null, onReplay }) {
-  const navigate = useNavigate()
   const developer = viewer?.jobRole === 'Developer'
   const stage = decisionStageOf(conflict)
   const request = conflict.decisionRequest
@@ -1219,7 +1217,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           }}
           onResolve={() => {
             const checkpoint = workspace.resolveDecision(conflict.id)
-            if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: '히스토리에서 보기', onClick: () => navigate(`/projects/${conflict.projectId}/history?v=${checkpoint}`, { state: { flashCheckpoint: checkpoint } }) } })
+            if (checkpoint) toast(`${conflict.id}을 병합하고 해결했어요`, { description: '수정 · 승인 · 해결 기록이 남았어요.', action: { label: '히스토리에서 보기', onClick: () => workspace.openHistory(checkpoint, { flash: true }) } })
           }}
         />
       )}

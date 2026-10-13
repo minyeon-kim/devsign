@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import { History } from 'lucide-react'
 import ChatConversation from '@/components/chat/ChatConversation'
 import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
@@ -9,8 +8,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // the same conversation as the floating chat widget. The agent's
 // checkpoints (History) sit on the window's header line.
 function ChatPanel() {
-  const { projectId } = useWorkspace()
-  const navigate = useNavigate()
+  const { openHistory } = useWorkspace()
 
   return (
     <div className="flex h-full flex-col bg-card pt-2">
@@ -19,7 +17,7 @@ function ChatPanel() {
           type="button"
           title="Agent checkpoints (History)"
           aria-label="Agent checkpoints (History)"
-          onClick={() => navigate(`/projects/${projectId}/history`)}
+          onClick={() => openHistory()}
           className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
         >
           <History className="size-3.5" />

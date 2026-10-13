@@ -12,7 +12,8 @@ import { lazy, Suspense } from 'react'
 import PageSkeleton from '@/components/layout/PageSkeleton'
 // A project's pages load on demand (and ahead of the click, from a project
 // card's hover) — see lib/projectPages.
-import { HistoryPage, ImportPage, ProjectLayout, ProjectOverviewPage, WorkspacePage } from '@/lib/projectPages'
+import { ImportPage, ProjectLayout, ProjectOverviewPage, WorkspacePage } from '@/lib/projectPages'
+import { legacyHistoryHref } from '@/lib/historyLink'
 
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ActivityPage = lazy(() => import('@/pages/ActivityPage'))
@@ -27,13 +28,25 @@ function DocsRedirect() {
   return <Navigate to={legacyDocsHref(projectId, state)} replace />
 }
 
+// History is a layer over the Workspace too (lib/historyLink): an old
+// /history link — its checkpoint in `?v=` or in `location.state`
+// ({ highlightId }) — lands on the address that means the same; the one-off
+// `flashCheckpoint` (light it in the list) goes along.
+function HistoryRedirect() {
+  const { projectId } = useParams()
+  const { search, state } = useLocation()
+  return <Navigate to={legacyHistoryHref(projectId, search, state)} state={state?.flashCheckpoint ? { flashCheckpoint: state.flashCheckpoint } : null} replace />
+}
+
 // The Archive was split into Docs and History: old /archive links (and
 // their `location.state`) land on whichever of the two they pointed at.
 function ArchiveRedirect() {
   const { projectId } = useParams()
   const { state } = useLocation()
   const toHistory = state?.tab === 'history' || state?.highlightId
-  return toHistory ? <Navigate to="../history" state={state} replace relative="path" /> : <Navigate to={legacyDocsHref(projectId, state)} replace />
+  return toHistory
+    ? <Navigate to={legacyHistoryHref(projectId, '', state)} state={state?.flashCheckpoint ? { flashCheckpoint: state.flashCheckpoint } : null} replace />
+    : <Navigate to={legacyDocsHref(projectId, state)} replace />
 }
 
 function App() {
@@ -61,7 +74,7 @@ function App() {
             <Route index element={<ProjectOverviewPage />} />
             <Route path="workspace" element={<WorkspacePage />} />
             <Route path="docs" element={<DocsRedirect />} />
-            <Route path="history" element={<HistoryPage />} />
+            <Route path="history" element={<HistoryRedirect />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="archive" element={<ArchiveRedirect />} />
           </Route>

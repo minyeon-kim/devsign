@@ -1,4 +1,5 @@
 import ConflictReviewOverlay from '@/components/conflicts/ConflictReviewOverlay'
+import HistoryOverlay from '@/components/history/HistoryOverlay'
 import DocsOverlay from '@/components/docs/DocsOverlay'
 import { readChangeParams, sourceKeyOf } from '@/lib/changeLink'
 import { checkpointRationale } from '@/lib/rationale'
@@ -176,6 +177,8 @@ function WorkspacePage() {
       <ConflictReviewOverlay inMergeStudio={inMergeStudio} />
       {/* (Docs: the same kind of layer, at ?doc / ?docs.) */}
       <DocsOverlay />
+      {/* (History: the third layer, at ?history.) */}
+      <HistoryOverlay />
     </div>
     </WorkspaceBottomPanelPortalContext.Provider>
   )

@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { withHistory } from '@/lib/historyLink'
 import { signature } from '@/lib/demoStorage'
 import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -36,30 +37,29 @@ function nearestDifferingBefore(active, current, projectId) {
   return fallback
 }
 
-// The checkpoint History is showing, kept in the URL (`?v=<id>`) so the
-// drawer's list, the timeline slider and playback all drive — and follow —
-// the same selection. Without `v` it's a deep link's `highlightId`, else
-// the nearest checkpoint behind current that actually changed something —
-// current against itself is always "no changes" with Compare-latest on,
-// which reads as the comparison being broken rather than as there being
-// nothing to compare yet. Selecting replaces the entry, so scrubbing
-// doesn't flood the browser history.
+// The checkpoint History is showing, kept in the address (`?history=<id>` —
+// lib/historyLink) so the drawer's list, the timeline slider and playback all
+// drive — and follow — the same selection. Without one it's the nearest
+// checkpoint behind current that actually changed something — current against
+// itself is always "no changes" with Compare-latest on, which reads as the
+// comparison being broken rather than as there being nothing to compare yet.
+// Selecting replaces the entry, so scrubbing doesn't flood the browser history.
 export function useSelectedCheckpoint() {
-  const [params, setParams] = useSearchParams()
   const location = useLocation()
-  const { activeHistoryId, historyEntries, projectId } = useWorkspace()
+  const navigate = useNavigate()
+  const { activeHistoryId, historyEntries, projectId, historyParam } = useWorkspace()
   const active = historyEntries.filter(entry => !entry.archived)
   const current = active.find(entry => entry.id === activeHistoryId)
   const defaultId = nearestDifferingBefore(active, current, projectId) ?? activeHistoryId
-  const requestedId = params.get('v') ?? location.state?.highlightId ?? defaultId
+  const requestedId = historyParam ?? defaultId
   const selectedId = active.find(entry => entry.id === requestedId)?.id
     ?? active.find(entry => entry.id === activeHistoryId)?.id
     ?? active.at(-1)?.id
     ?? null
 
   const select = useCallback(
-    (id) => setParams({ v: id }, { replace: true, state: location.state }),
-    [setParams, location.state]
+    (id) => navigate({ pathname: location.pathname, search: withHistory(location.search, id) }, { replace: true, state: location.state }),
+    [navigate, location.pathname, location.search, location.state]
   )
   return [selectedId, select]
 }

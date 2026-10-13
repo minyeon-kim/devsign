@@ -1,6 +1,6 @@
 import { ContextMenu } from '@base-ui/react/context-menu'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
 import { Archive, Check, ChevronDown, RotateCcw, Search, Sparkles, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -138,16 +138,14 @@ function HistoryEntryMenu({ children, entry, isCurrent, onOpen, onRestore, onArc
 // the kind pills and the target dropdown narrow that down; both apply to
 // the History page's playback timeline too (shared via `historyFilter`).
 function HistoryDrawer({ project }) {
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const { historyEntries, conflicts, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter } = useWorkspace()
+  const { historyEntries, conflicts, activeHistoryId, archiveHistoryEntry, restoreHistoryEntry, currentUser, historyFilter, setHistoryFilter, historyOpen, openHistory } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const language = useLanguage()
   const [tab, setTab] = useState('active')
   const [query, setQuery] = useState('')
   const [rollbackId, setRollbackId] = useState(null)
-  const historyPath = `/projects/${project.id}/history`
-  const onHistoryPage = pathname.replace(/\/$/, '') === historyPath
+  // (The History layer open — the address's `?history`: a row moves its selection. Not open: a row opens it there.)
+  const onHistoryPage = historyOpen
 
   // Every checkpoint with the branch it sits on (lib/historyBranches); the
   // colors are fixed for the whole history, so a branch keeps its color
@@ -179,11 +177,11 @@ function HistoryDrawer({ project }) {
 
   const open = (id) => {
     if (onHistoryPage) select(id)
-    else navigate(`${historyPath}?v=${id}`)
+    else openHistory(id)
   }
 
   // Arriving from a conflict ("Check the reasoning in History"): the
-  // checkpoint it points at is selected by the link's `?v=`; here it's
+  // checkpoint it points at is selected by the address (`?history=<id>`); here it's
   // brought into view and lit for a moment, once per arrival.
   const location = useLocation()
   const [flashId, setFlashId] = useState(null)

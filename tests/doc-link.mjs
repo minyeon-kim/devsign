@@ -57,7 +57,8 @@ assert.ok(/docHref\(project\.id, doc\.id\)/.test(read('src/pages/ProjectOverview
 // The provider: the address is what's shown; pushed here, replaced over an open layer, back or replace to close.
 const provider = read('src/state/WorkspaceProvider.jsx')
 assert.ok(provider.includes("const docLayer = onWorkspace && !changeParam ? readDocParams(location.search) : { doc: null, docs: null }"), 'a change\'s detail wins when an address names both')
-assert.ok(provider.includes("search: withDoc(at.search, target) }, anyLayer ? { replace: true, state: at.state } : { state: { changePushed: true } }"))
+assert.ok(provider.includes("search: withDoc(at.search, target) }, anyLayer ? { replace: true, state: at.state } : { state: pushState(fromHistory) }"))
+assert.ok(provider.includes('const pushState = (fromOtherLayer) => (fromOtherLayer ? null : { changePushed: true })'), 'pushed and marked — unmarked only when it comes from History (tests/history-link.mjs)')
 assert.ok(provider.includes("else navigate({ pathname: at.pathname, search: withDoc(at.search, null) }, { replace: true, state: null })"))
 assert.ok(provider.includes('search: withChange(withoutDoc(at.search), id, { evidence, source }) }, anyLayer ?'), 'opening a change takes the document off the address')
 // The rail's Docs button is on by the address, not by a path.

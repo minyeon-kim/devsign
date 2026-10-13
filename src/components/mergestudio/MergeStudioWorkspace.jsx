@@ -606,6 +606,7 @@ function MergeStudioWorkspace({ item }) {
     setDesignCompareRequest,
     requestMergeFocus,
     requestHistoryDrawer,
+    openHistory,
     mergePreviewOpen,
     setMergePreviewOpen,
     exitMergeStudio,
@@ -824,7 +825,7 @@ function MergeStudioWorkspace({ item }) {
     exitMergeStudio()
     toast('최종 디자인을 저장했어요', {
       description: '병합 전후 변경 이력은 History에서 확인할 수 있어요.',
-      action: { label: 'History에서 보기', onClick: () => navigate(`/projects/${item.projectId}/history?v=${checkpointId}`, { state: { flashCheckpoint: checkpointId } }) },
+      action: { label: 'History에서 보기', onClick: () => openHistory(checkpointId, { flash: true }) },
     })
   }
 

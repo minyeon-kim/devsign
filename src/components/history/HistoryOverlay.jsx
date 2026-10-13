@@ -1,7 +1,6 @@
 import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
 import { Info } from 'lucide-react'
 import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
 import HistoryCompare from '@/components/history/HistoryCompare'
@@ -11,20 +10,23 @@ import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoin
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { KIND_LABEL, filterHistoryEntries } from '@/lib/historyMeta'
 import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
+import { projects } from '@/data/mockData'
 
-// History — the project's version control as checkpoints (Replit style),
-// in two columns: the checkpoint list in the drawer beside it (which opens
-// with this page, see AppShell / HistoryDrawer) and, here, one full-width
-// viewer of the selected version — its code (an inline diff against the
+// History — the project's version control as checkpoints (Replit style) —
+// as a layer over the Workspace (the address's `?history`, lib/historyLink),
+// the way a change's detail and Docs are. Two columns: the checkpoint list in
+// the drawer beside it (which opens with the layer, see HistoryDrawer) and,
+// here, one viewer of the selected version — its code (an inline diff against the
 // latest with "Compare latest" on, the plain file with it off) or its
 // canvas — with the version slider and ▶ playback pinned to the bottom.
 // The list, the slider, ← / → and playback all move the same selection
-// (the URL's `?v=`). "Rollback here" opens the "Rollback to checkpoint"
+// (the address's `?history=<id>`). "Rollback here" opens the "Rollback to checkpoint"
 // dialog; rollbacks never erase anything — the restored state lands on top
 // as a new checkpoint.
-function HistoryPage() {
-  const { project } = useOutletContext()
-  const { historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
+// (Mounted only while the layer is open: nothing here runs — no keys, no playback — when it isn't.)
+function HistoryLayer() {
+  const { projectId, historyEntries, conflicts, activeHistoryId, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
+  const project = projects.find((candidate) => candidate.id === projectId) ?? { id: projectId, name: projectId }
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   // What the checkpoint in view is compared with — the one before it, or the
@@ -84,7 +86,7 @@ function HistoryPage() {
   })
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+    <div data-history-overlay role="dialog" aria-label="History" className="absolute inset-0 z-[650] flex min-h-0 flex-col overflow-hidden bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
       {/* The path, and how many versions. What the page is sits behind the
           ⓘ; a filter narrowing the playback says so here. */}
       <BreadcrumbBar data-history-title>
@@ -158,4 +160,10 @@ function HistoryPage() {
   )
 }
 
-export default HistoryPage
+// The layer itself: there when the address names History.
+function HistoryOverlay() {
+  const { historyOpen } = useWorkspace()
+  return historyOpen ? <HistoryLayer /> : null
+}
+
+export default HistoryOverlay

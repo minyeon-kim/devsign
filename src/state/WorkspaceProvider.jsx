@@ -31,6 +31,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocation, useNavigate } from 'react-router-dom'
 import { closeHowOf, readChangeParams, withChange, workspacePathOf } from '@/lib/changeLink'
 import { readDocParams, withDoc, withoutDoc } from '@/lib/docLink'
+import { readHistoryParams, withHistory } from '@/lib/historyLink'
 import { toast } from '@/i18n/toast'
 import { translateText } from '@/i18n/translate'
 import {
@@ -258,8 +259,18 @@ export function WorkspaceProvider({ children, projectId }) {
   const docParam = docLayer.doc
   const docsParam = docLayer.docs
   const layerShown = Boolean(changeParam || docParam || docsParam)
-  const route = useRef({ location, onWorkspace, changeParam, layerShown })
-  route.current = { location, onWorkspace, changeParam, layerShown }
+  // History is the third layer (lib/historyLink): ?history, ?history=<checkpoint>.
+  // A change's detail or a document wins when an address names more than one.
+  const historyLayer = onWorkspace && !layerShown ? readHistoryParams(location.search) : { open: false, checkpoint: null }
+  const historyOpen = historyLayer.open
+  const historyParam = historyLayer.checkpoint
+  const route = useRef({ location, onWorkspace, changeParam, layerShown, historyOpen })
+  route.current = { location, onWorkspace, changeParam, layerShown, historyOpen }
+  // How a layer opened here is put on the browser's history:
+  //   · over nothing — pushed and marked, so closing it goes back;
+  //   · from History to another layer, or from another layer to History — pushed, unmarked: Back
+  //     returns to the layer it came from, while closing it lands on the Workspace.
+  const pushState = (fromOtherLayer) => (fromOtherLayer ? null : { changePushed: true })
   const reviewViewNow = useRef(reviewView)
   reviewViewNow.current = reviewView
   useEffect(() => {
@@ -268,7 +279,7 @@ export function WorkspaceProvider({ children, projectId }) {
     else if (reviewViewNow.current === 'overlay') setReviewConflictId(null)
   }, [changeParam])
   const openConflictReview = useCallback((id, { view = 'overlay', evidence = null, source = null } = {}) => {
-    const { location: at, onWorkspace: here, changeParam: shown, layerShown: anyLayer } = route.current
+    const { location: at, onWorkspace: here, changeParam: shown, layerShown: anyLayer, historyOpen: fromHistory } = route.current
     if (!id) {
       if (here && shown) {
         if (closeHowOf(at.state) === 'back') navigate(-1)
@@ -281,7 +292,7 @@ export function WorkspaceProvider({ children, projectId }) {
     if (view === 'overlay') {
       // (Over a layer that's already open — another change, or a document — it takes its place: one step back still closes.
       // The docs layer comes off the address with it: never both.)
-      if (here) navigate({ pathname: at.pathname, search: withChange(withoutDoc(at.search), id, { evidence, source }) }, anyLayer ? { replace: true, state: at.state } : { state: { changePushed: true } })
+      if (here) navigate({ pathname: at.pathname, search: withChange(withoutDoc(at.search), id, { evidence, source }) }, anyLayer ? { replace: true, state: at.state } : { state: pushState(fromHistory) })
       // (From another page of the project: to the Workspace — and closing it stays there, it doesn't go back.)
       else navigate({ pathname: workspacePath, search: withChange('', id, { evidence, source }) })
       return
@@ -294,7 +305,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // The docs layer, opened and closed by the same rule:
   //   target: { doc: id } | { docs: 'index' | 'updates' } — or null to close.
   const openDocs = useCallback((target) => {
-    const { location: at, onWorkspace: here, layerShown: anyLayer } = route.current
+    const { location: at, onWorkspace: here, layerShown: anyLayer, historyOpen: fromHistory } = route.current
     const shown = here ? readDocParams(at.search) : { doc: null, docs: null }
     if (!target) {
       if (!here || !(shown.doc || shown.docs)) return
@@ -302,12 +313,30 @@ export function WorkspaceProvider({ children, projectId }) {
       else navigate({ pathname: at.pathname, search: withDoc(at.search, null) }, { replace: true, state: null })
       return
     }
-    if (here) navigate({ pathname: at.pathname, search: withDoc(at.search, target) }, anyLayer ? { replace: true, state: at.state } : { state: { changePushed: true } })
+    if (here) navigate({ pathname: at.pathname, search: withDoc(at.search, target) }, anyLayer ? { replace: true, state: at.state } : { state: pushState(fromHistory) })
     // (From another page of the project: to the Workspace — and closing it stays there.)
     else navigate({ pathname: workspacePath, search: withDoc('', target) })
   }, [navigate, workspacePath])
   const openDoc = useCallback((docId) => openDocs(docId ? { doc: docId } : null), [openDocs])
   const closeDocs = useCallback(() => openDocs(null), [openDocs])
+  // History, opened and closed by the same rule.
+  //   checkpointId: the checkpoint to show (none: its default). `flash`: light it in the list for a moment.
+  // Inside History, another checkpoint replaces — scrubbing never piles up steps to go back through.
+  const openHistory = useCallback((checkpointId = null, { flash = false } = {}) => {
+    const { location: at, onWorkspace: here, layerShown: anyLayer, historyOpen: shown } = route.current
+    const lit = flash && checkpointId ? { flashCheckpoint: checkpointId } : {}
+    const search = withHistory(here ? at.search : '', checkpointId ?? true)
+    if (!here) { navigate({ pathname: workspacePath, search }, { state: flash && checkpointId ? lit : null }); return }
+    if (shown) { navigate({ pathname: at.pathname, search }, { replace: true, state: { ...at.state, ...lit } }); return }
+    const mark = pushState(anyLayer)
+    navigate({ pathname: at.pathname, search }, { state: mark || flash ? { ...mark, ...lit } : null })
+  }, [navigate, workspacePath])
+  const closeHistory = useCallback(() => {
+    const { location: at, onWorkspace: here, historyOpen: shown } = route.current
+    if (!here || !shown) return
+    if (closeHowOf(at.state) === 'back') navigate(-1)
+    else navigate({ pathname: at.pathname, search: withHistory(at.search, null) }, { replace: true, state: null })
+  }, [navigate])
   // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
   // not, and which tab it shows. Open from the start, at the left: the
   // file tree is where files are opened.
@@ -2753,6 +2782,10 @@ export function WorkspaceProvider({ children, projectId }) {
     requestDocsDrawer,
     docParam,
     docsParam,
+    historyOpen,
+    historyParam,
+    openHistory,
+    closeHistory,
     openDoc,
     openDocs,
     closeDocs,

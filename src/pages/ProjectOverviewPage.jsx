@@ -1,4 +1,5 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
+import { historyHref } from '@/lib/historyLink'
 import { docHref, docsHref } from '@/lib/docLink'
 import { changeHref, changesHref } from '@/lib/changeLink'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
@@ -120,7 +121,7 @@ const SHORT_EVENT_VERB = {
   reopened: 'reopened',
 }
 
-function ProjectTimeline({ activities: liveActivities, history, conflicts, historyPath, onOpenConflict, onOpenActivity }) {
+function ProjectTimeline({ activities: liveActivities, history, conflicts, projectId, onOpenConflict, onOpenActivity }) {
   const tokenFor = (entry) => {
     const targetFile = entry.target?.split(' · ')[0]
     const conflict = conflicts.find((item) => item.id === entry.conflictId)
@@ -196,7 +197,7 @@ function ProjectTimeline({ activities: liveActivities, history, conflicts, histo
               return (
                 <li key={entry.id}>
                   {entry.kind === 'version' ? (
-                    <Link to={historyPath} state={{ highlightId: entry.id }} className="flex min-w-0 items-center gap-3 py-1.5 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                    <Link to={historyHref(projectId, entry.id)} className="flex min-w-0 items-center gap-3 py-1.5 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
                       {content}
                     </Link>
                   ) : (
@@ -237,7 +238,7 @@ function ProjectOverviewPage() {
   const { conflicts, mergeItems, historyEntries, referenceDocs, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
   const { events } = useConflictStore()
   const workspacePath = `/projects/${project.id}/workspace`
-  const historyPath = `/projects/${project.id}/history`
+  const historyPath = historyHref(project.id)
   // The same Inbox bell + drawer as the Workspace/Merge Studio header
   // (MergeInboxDrawer) — Project home had no notifications at all before,
   // not a smaller version of this one. An item here isn't on-screen yet,
@@ -398,7 +399,7 @@ function ProjectOverviewPage() {
                 activities={timelineActivities}
                 history={recentHistory}
                 conflicts={conflicts}
-                historyPath={historyPath}
+                projectId={project.id}
                 onOpenConflict={openConflict}
                 onOpenActivity={() => navigate('/activity')}
               />

@@ -10,7 +10,6 @@ import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
 import { buildDocTree, docPath } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { allPeople } from '@/data/mockData'
-import { useNavigate } from 'react-router-dom'
 
 // The layer's content column: the path's own (BREADCRUMB_COLUMN — the same left line as the
 // top bar), starting 8px under the bar — where a change's detail has its title row.
@@ -105,8 +104,7 @@ function resolveView(docId, docsView, referenceDocs) {
 // goes where Close goes; the project and a document's categories aren't in it
 // (the category path is the document's own meta line).
 function DocsOverlay() {
-  const { projectId, referenceDocs, docParam, docsParam, openDoc, openDocs, closeDocs, requestDocsDrawer } = useWorkspace()
-  const navigate = useNavigate()
+  const { referenceDocs, docParam, docsParam, openDoc, openDocs, closeDocs, requestDocsDrawer, openHistory: openHistoryLayer } = useWorkspace()
   const language = useLanguage()
   const view = resolveView(docParam, docsParam, referenceDocs)
   const open = Boolean(view)
@@ -137,7 +135,8 @@ function DocsOverlay() {
   const tree = buildDocTree(referenceDocs)
   // "문서": where you are. From a document (or the updates) it goes to the list; the drawer comes up if it's been closed.
   const toIndex = () => { requestDocsDrawer(); if (view.kind !== 'index') openDocs({ docs: 'index' }) }
-  const openHistory = (highlightId) => navigate(`/projects/${projectId}/history`, { state: { highlightId } })
+  // (To the History layer, on that checkpoint: a step of its own — Back returns here.)
+  const openHistory = (checkpointId) => openHistoryLayer(checkpointId ?? null, { flash: true })
 
   return (
     <div data-docs-overlay={view.kind} role="dialog" aria-label="Docs" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">

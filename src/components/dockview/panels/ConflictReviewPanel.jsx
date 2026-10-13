@@ -1,4 +1,5 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
+import { historyHref } from '@/lib/historyLink'
 import { PreviewFrame } from '@/components/conflicts/ElementPreview'
 import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
@@ -2742,7 +2743,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The Activity tab is this conflict's own activity, here in the panel
   // (see ConflictHistoryReplay). From there, "Project history" is the way out to the project's archive: it
   // goes to History itself, on the saved version this conflict came from —
-  // selected (the link's `?v=`), scrolled to and lit for a moment in the
+  // selected (the address's `?history=<id>`), scrolled to and lit for a moment in the
   // list (`flashCheckpoint`).
   // The saved version this difference first came in with (the one its
   // conflict is marked on in History).
@@ -2752,7 +2753,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     : null
   function openProjectHistory() {
     const checkpoint = causeVersion
-    navigate(`/projects/${conflict.projectId}/history${checkpoint ? `?v=${checkpoint.id}` : ''}`, { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
+    // (Inside the Workspace: the History layer, a step of its own. Elsewhere — a panel with no workspace — its address.)
+    if (workspace?.openHistory) workspace.openHistory(checkpoint?.id ?? null, { flash: true })
+    else navigate(historyHref(conflict.projectId, checkpoint?.id ?? null), { state: checkpoint ? { flashCheckpoint: checkpoint.id } : null })
   }
 
   function handleRequestReview({ quiet = false, exceptionSubmitted = false } = {}) {
@@ -3738,7 +3741,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {conflict.decisionFlow && replayRailSteps && <ReplayStepRail steps={replayRailSteps} />}
                       <div className="flex min-h-0 flex-1">
                       <ConflictReplay key={`${conflict.id}:${replayAutoplay ?? 'open'}`} conflict={conflict} activity={activity} replayId={replayId} onReplay={setReplayId} onBack={() => setReplayId(null)} autoplay={replayAutoplay != null}
-                        onOpenHistory={(entryId) => navigate(`/projects/${conflict.projectId}/history?v=${entryId}`, { state: { flashCheckpoint: entryId } })} />
+                        onOpenHistory={(entryId) => (workspace?.openHistory ? workspace.openHistory(entryId, { flash: true }) : navigate(historyHref(conflict.projectId, entryId), { state: { flashCheckpoint: entryId } }))} />
                       </div>
                     </div>
                   )}
