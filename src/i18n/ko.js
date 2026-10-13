@@ -793,6 +793,43 @@ After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
 Whole screen|화면 전체
+Splash|스플래시
+Onboarding 1|온보딩 1
+Onboarding 2|온보딩 2
+Login|로그인
+Login error|로그인 오류
+Products|상품 목록
+Product detail|상품 상세
+Cart|장바구니
+Payment failed|결제 실패
+Order complete|주문 완료
+Landing|랜딩
+Purchase|구매
+Other screens|기타 화면
+Flows|플로우
+Play|재생
+Start|시작
+Board|보드
+Show on board|보드에서 위치 보기
+This project is a single page.|이 프로젝트는 단일 페이지입니다.
+View in Preview|미리보기에서 보기
+No screens yet|아직 화면이 없어요
+Screens show here once the project has a design page.|디자인 페이지가 생기면 여기에 화면이 표시돼요.
+This screen couldn’t be drawn.|이 화면을 그리지 못했어요.
+Play from this screen|이 화면부터 재생
+Play from the start|처음부터 재생
+Edit on the canvas|캔버스에서 편집
+Fit all|전체 맞춤
+Zoom to 100%|100%로 보기
+Start over|처음부터
+Exit|종료
+Back to the board|보드로 돌아가기
+Workspace view|워크스페이스 보기
+Prototype|프로토타입
+Screens board|화면 보드
+Go to a flow|플로우로 이동
+Play a flow from its first screen|플로우의 첫 화면부터 재생
+Fennel Landing Page|Fennel 랜딩 페이지
 Decline|거절
 Declined|거절됨
 Expired|만료됨

@@ -71,6 +71,8 @@ import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCateg
 import { importKind } from '@/lib/importFiles'
 import { AI_CHAT, SIDE_PANEL, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
+import { prototypeOf } from '@/lib/screens'
+import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
 import {
   PROTOTYPE_FILES,
   deriveComponentOverride,
@@ -451,7 +453,50 @@ export function WorkspaceProvider({ children, projectId }) {
   // Which design "page"/file the Canvas file-tab bar has open — shared here
   // (not local to CanvasPanel) so the Layers panel's frame tree stays in
   // sync with whichever page is active.
-  const [activePageId, setActivePageId] = useState(() => forProject(canvasPages, projectId)[0]?.id ?? null)
+  const [activePageId, setActivePageIdState] = useState(() => forProject(canvasPages, projectId)[0]?.id ?? null)
+  // The project as a prototype (lib/screens): its screens are its design
+  // pages, so "the screen in view" is the active page — one thing, shared by
+  // Preview, Screens, Code and the side panel's Layers and Inspect.
+  const prototype = useMemo(() => prototypeOf(projectId, projectPages), [projectId, projectPages])
+  // The Workspace's view and that screen are in the address (lib/viewLink:
+  // ?view=screens&screen=cart), so a reload or a shared link comes back to
+  // them. With no view said: the one this project was last on — or the board
+  // for an app of several screens, the page itself for a single page.
+  // Changing either replaces the address: tabs and screens stepped through
+  // never pile up behind Back.
+  const viewSaid = onWorkspace ? readViewParams(location.search, projectPages.map((page) => page.id)) : { view: null, screen: null }
+  const [lastView, setLastView] = useState(() => readLastView(projectId))
+  const workspaceView = viewSaid.view ?? lastView ?? defaultViewOf(prototype.kind)
+  const sayView = useCallback((patch) => {
+    const { location: at, onWorkspace: here } = route.current
+    if (!here) return
+    const search = withView(at.search, patch)
+    if (search !== at.search) navigate({ pathname: at.pathname, search }, { replace: true, state: at.state })
+  }, [navigate])
+  const setWorkspaceView = useCallback((view) => {
+    setLastView(view)
+    writeLastView(projectId, view)
+    sayView({ view })
+  }, [projectId, sayView])
+  const setActivePageId = useCallback((id) => {
+    setActivePageIdState(id)
+    if (id) sayView({ screen: id })
+  }, [sayView])
+  useEffect(() => {
+    if (viewSaid.screen) setActivePageIdState(viewSaid.screen)
+  }, [viewSaid.screen])
+  // Code follows the screen in view: showing Code after another screen was
+  // picked opens that screen's file (once — the file tabs are the person's
+  // from there).
+  const codeScreen = useRef(null)
+  useEffect(() => {
+    if (workspaceView !== 'code' || !activePageId || codeScreen.current === activePageId) return
+    codeScreen.current = activePageId
+    const file = prototypeFileForPage(activePageId)
+    if (file) setActiveFileIdState(file.id)
+  }, [workspaceView, activePageId])
+  // Where the Screens board was left (its pan and zoom), kept while other views are up.
+  const boardView = useRef(null)
   // The dockview API, handed up once DockLayout's onReady fires — stored
   // here (rather than only as App-local state) so any panel deep in the
   // tree (Canvas, Editor) can open/focus dockview panels itself, e.g. to
@@ -2799,6 +2844,10 @@ export function WorkspaceProvider({ children, projectId }) {
     restoreHistoryEntry,
     activePageId,
     setActivePageId,
+    prototype,
+    workspaceView,
+    setWorkspaceView,
+    boardView,
     dockApi,
     setDockApi,
     canvasTool,

@@ -59,24 +59,21 @@ export function buildInitialLayout(api) {
   // pane (NavigatorPanel), which WorkspaceSplitLayout docks at the far left.
   //
   // Every view is an independent tab (close, drag, split, reopen from a
-  // `+`). The default split: the code file on the left, the Canvas up front
-  // in the center with Preview beside it, and AI Chat in a window of its
-  // own at the far right (folded until asked for — see WorkspaceSplitLayout).
-  // Split shares determine the workspace pane widths; give Canvas a little
-  // more than half so the main work area dominates.
-  addDockPanel(api, panelById.editor, { initialWidth: 380 })
-  addDockPanel(api, panelById.canvas, {
-    position: { direction: 'right', referencePanel: panelById.editor.id },
-    share: 0.68,
-  })
-  addDockPanel(api, panelById.preview, {
-    position: { direction: 'within', referencePanel: panelById.canvas.id },
-  })
+  // `+`). The default split: the main window, and AI Chat in a window of
+  // its own at the far right (folded until asked for — see WorkspaceSplitLayout).
+  // (One main window holds the Workspace's three views — Preview, Screens
+  // (its board, and the canvas a screen is edited on) and Code — and shows
+  // one at a time: see WorkspaceSplitLayout and WorkspaceViewTabs.)
+  addDockPanel(api, panelById.canvas, {})
+  for (const def of [panelById.screens, panelById.preview, panelById.editor]) {
+    addDockPanel(api, def, { position: { direction: 'within', referencePanel: panelById.canvas.id } })
+  }
   addDockPanel(api, panelById.chat, {
     position: { direction: 'right', referencePanel: panelById.canvas.id },
     share: 0.3,
   })
 
-  api.getPanel(panelById.canvas.id)?.api.setActive()
+  // (Screens opens on its board; the Workspace's view decides which of the three shows.)
+  api.getPanel(panelById.screens.id)?.api.setActive()
 }
 

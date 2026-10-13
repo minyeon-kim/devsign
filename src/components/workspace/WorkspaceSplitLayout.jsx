@@ -6,6 +6,9 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 're
 import { Sparkles } from 'lucide-react'
 import { AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/panelPrefs'
 import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
+import WorkspaceViewTabs, { VIEW_PANEL_ID, viewTabId } from '@/components/workspace/WorkspaceViewTabs'
+import ScreensBoard from '@/components/screens/ScreensBoard'
+import { VIEWS } from '@/lib/viewLink'
 import { cn } from 'cn'
 import ExplorerPanel from '@/components/dockview/panels/ExplorerPanel'
 import LayersPanel from '@/components/dockview/panels/LayersPanel'
@@ -19,7 +22,6 @@ import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
 import { addDockPanel, buildInitialLayout, panelById } from '@/components/dockview/dockPanels'
-import { isDeveloperViewer } from '@/lib/viewerRole'
 import SplitHandle from '@/components/layout/SplitHandle'
 import FloatingWindow from '@/components/workspace/FloatingWindow'
 import { PANEL_ICONS } from '@/components/workspace/panelIcons'
@@ -41,7 +43,13 @@ const components = {
   console: ConsolePanel,
   navigator: NavigatorPanel,
   designCompare: WorkspaceDesignCompare,
+  screens: ScreensBoard,
 }
+
+// The Workspace's views and the panels of its main window that show them:
+// Screens is its board — or the canvas, while a screen is being edited.
+const VIEW_PANELS = { preview: ['preview'], screens: ['screens', 'canvas'], code: ['editor'] }
+const viewOfPanel = (component) => VIEWS.find((view) => VIEW_PANELS[view].includes(component)) ?? null
 
 const EMPTY_VIEWS = [panelById.editor, panelById.canvas, panelById.chat]
 const MIN_PANE = 200
@@ -149,7 +157,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -175,13 +183,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     if (didInit.current) return
     didInit.current = true
     buildInitialLayout(dockApi)
-    // The canvas is what a designer works in: the code file starts put away
-    // (anything that opens it brings it up). Developers start with it open.
-    // AI Chat starts folded for everyone (see the side panels, below).
-    if (!mergeStudio && !isDeveloperViewer(projectId)) {
-      const editorGroupId = store.panels[panelById.editor.id]?.groupId
-      if (editorGroupId) dockApi.minimizeGroup(editorGroupId, true)
-    }
+    // (Which of the main window's views shows is the Workspace's view — below;
+    // AI Chat starts folded for everyone — see the side panels.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dockApi])
 
@@ -208,8 +211,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     setFilesWindow({ open: true })
   }, [mergeStudio, dockApi, setFilesWindow, store])
 
-  // Back in the Workspace the code file leaves AI Chat's window for its own
-  // place left of the canvas — put away again for a designer.
+  // Back in the Workspace the code file leaves AI Chat's window for the main one.
   const wasStudio = useRef(mergeStudio)
   useLayoutEffect(() => {
     if (wasStudio.current === mergeStudio) return
@@ -218,8 +220,9 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     const editor = store.panels[panelById.editor.id]
     const canvasGroupId = store.panels[panelById.canvas.id]?.groupId
     if (!editor || !canvasGroupId || editor.groupId !== store.panels[panelById.chat.id]?.groupId) return
-    dockApi.dockPanel(panelById.editor.id, canvasGroupId, 'left')
-    if (!isDeveloperViewer(projectId)) dockApi.minimizeGroup(store.panels[panelById.editor.id].groupId, true)
+    // (Back as one of the main window's views; which one shows is put right just below.)
+    applied.current.view = false
+    dockApi.dockPanel(panelById.editor.id, canvasGroupId, 'center')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeStudio])
 
@@ -284,6 +287,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   const applied = useRef({})
   const panelOpen = useRef({})
   panelOpen.current = { side: sidePanel.open, chat: aiChat.open }
+  const viewNow = useRef(workspaceView)
+  viewNow.current = workspaceView
   const focusKey = useRef(null)
   const filesTab = useRef(filesWindow.tab)
   filesTab.current = filesWindow.tab
@@ -306,6 +311,11 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       if (chat && applied.current.chat === chat.id && Boolean(chat.minimized) === panelOpen.current.chat) setAiChat({ open: !chat.minimized })
       const side = store.groups[store.panels[panelById.navigator.id]?.groupId]
       if (side && applied.current.side === side.id && Boolean(side.minimized) === panelOpen.current.side) setSidePanel({ open: !side.minimized })
+      // The main window showing another of its views (a file opened from the
+      // tree, a pin taking the canvas up): the Workspace's view follows.
+      const main = store.groups[store.panels[panelById.canvas.id]?.groupId]
+      const showing = main && applied.current.view ? viewOfPanel(store.panels[main.activeId]?.component) : null
+      if (showing && showing !== viewNow.current) setWorkspaceView(showing)
       // (Terminal and Console stay up until another view is picked.)
       if (!SIDE_TABS.includes(filesTab.current)) return
       if (component === 'editor' && filesTab.current !== 'files') setFilesWindow({ tab: 'files' })
@@ -443,6 +453,21 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergeStudio, sideGroupId, chatGroupId, sidePanel.open, aiChat.open])
 
+  // The Workspace's view (Preview · Screens · Code — the address's `?view`)
+  // is which panel of the main window shows; put on it before paint, and
+  // followed back when the window shows another by itself (the sync above).
+  const mainGroup = groupOf(panelById.canvas.id)
+  const mainGroupId = mainGroup?.id ?? null
+  const mainShowing = mainGroup ? store.panels[mainGroup.activeId]?.component ?? null : null
+  useLayoutEffect(() => {
+    if (mergeStudio || !mainGroup) { applied.current.view = false; return }
+    // (Leaving the studio runs first and moves the code file back: read the window afresh.)
+    const showing = store.panels[store.groups[mainGroup.id]?.activeId]?.component
+    if (!VIEW_PANELS[workspaceView].includes(showing)) dockApi.getPanel(panelById[VIEW_PANELS[workspaceView][0]].id)?.api.setActive()
+    applied.current.view = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mergeStudio, mainGroupId, workspaceView])
+
   // Their widths, inside their limits for this window.
   const [viewportWidth, setViewportWidth] = useState(() => (typeof window === 'undefined' ? null : window.innerWidth))
   useEffect(() => {
@@ -499,6 +524,12 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   // ⌘/Ctrl+B (or ⌘/Ctrl+\) folds and unfolds the side panel — not while
   // typing; ⌘/Ctrl+L, AI Chat — while typing only from inside the chat itself.
   const onPanelKey = useEffectEvent((event) => {
+    // ⌥1 / ⌥2 / ⌥3: Preview, Screens, Code — not while typing.
+    if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.defaultPrevented && /^Digit[1-3]$/.test(event.code) && !isTyping(event.target)) {
+      event.preventDefault()
+      setWorkspaceView(VIEWS[Number(event.code.slice(5)) - 1])
+      return
+    }
     if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.defaultPrevented) return
     const key = event.key.toLowerCase()
     if (key === 'b' || key === '\\') {
@@ -556,6 +587,9 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             components={components}
             docked={!mergeStudio}
             onDockDragStart={startDockDrag}
+            // The main window's row starts with the Workspace's views.
+            viewTabs={!mergeStudio && group.id === mainGroupId ? <WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /> : null}
+            viewPanel={!mergeStudio && group.id === mainGroupId ? { id: VIEW_PANEL_ID, labelledBy: viewTabId(workspaceView) } : null}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.
             sideToggle={mergeStudio ? null
               : group.id === sideGroupId ? { label: 'Collapse panel', hint: SIDE_SHORTCUT, controls: SIDE_ID, onToggle: () => setSidePanel({ open: false }) }

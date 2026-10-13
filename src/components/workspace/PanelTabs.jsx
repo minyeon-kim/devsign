@@ -47,7 +47,8 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: <Icon className={cn('size-3.5 shrink-0', colorClass)} />,
         active: panelActive && workspace.activeFileId === fileId,
         select: () => workspace.setActiveFileId(fileId),
-        close: workspace.openFileIds.length > 1 ? () => workspace.closeFileTab(fileId) : closeView,
+        // (The last file stays: Code always has one to show.)
+        close: workspace.openFileIds.length > 1 ? () => workspace.closeFileTab(fileId) : null,
       }
     })
   } else if (panel.component === 'canvas') {
@@ -61,8 +62,7 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
         icon: <FileImage className={cn('size-3.5 shrink-0', active && 'text-emerald-300')} />,
         active,
         select: () => workspace.setActivePageId(page.id),
-        close: workspace.activePageId === page.id ? closeView : null,
-        closeLabel: 'Close Canvas',
+        close: null,
       }
     })
   } else if (panel.component === 'navigator') {

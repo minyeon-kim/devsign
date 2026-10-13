@@ -36,7 +36,10 @@ const DRAG_THRESHOLD = 4
 // controls.
 // `sideToggle`: on a side panel's window — { label, hint, controls, mirrored, onToggle } — the button
 // at its tab row's right end that folds the right panel away and back.
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null }) {
+// `viewTabs`: on the Workspace's main window — its Preview · Screens · Code tabs (WorkspaceViewTabs), first
+// in the row. With them the row draws no tab for the views themselves, and the canvas's pages and the
+// editor's files only while they're what's showing; `viewPanel`: { id, labelledBy } for the area under it.
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -128,9 +131,10 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             // the last one. The navigator's tabs (Files/Layers/Assets) are
             // fixed navigation, not addable views, so it gets no `+`.
             <>
+              {viewTabs}
               <div role={isNavigatorGroup ? 'tablist' : undefined} aria-label={isNavigatorGroup ? 'Side panel views' : undefined} className={cn("flex min-w-0 items-center gap-1", isNavigatorGroup ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
                 {group.panelIds.map((pid) =>
-                  panelsById[pid] ? (
+                  panelsById[pid] && !(viewTabs && (['preview', 'screens'].includes(panelsById[pid].component) || (['canvas', 'editor'].includes(panelsById[pid].component) && group.activeId !== pid))) ? (
                     <PanelTabs
                       key={pid}
                       pid={pid}
@@ -142,7 +146,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
                   ) : null
                 )}
               </div>
-              {!isNavigatorGroup && <AddViewMenu group={group} dockApi={dockApi} />}
+              {!isNavigatorGroup && !viewTabs && <AddViewMenu group={group} dockApi={dockApi} />}
             </>
           ) : (
           <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -254,7 +258,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-card">
+      <div role={viewPanel ? 'tabpanel' : undefined} id={viewPanel?.id} aria-labelledby={viewPanel?.labelledBy} className="min-h-0 flex-1 overflow-hidden bg-card">
         <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
           <WindowTabsContext.Provider value={docked || isNavigatorGroup}>
             {ActiveContent && <ActiveContent params={activePanel.params} />}
