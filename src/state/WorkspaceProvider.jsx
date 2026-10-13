@@ -1,3 +1,4 @@
+import { mergeEntryState } from '@/lib/mergeEntry'
 import { scheduleDemoReview, applyDueDemoReviews } from '@/lib/demoReview'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { driftRowsFor } from '@/lib/driftDecisions'
@@ -409,6 +410,8 @@ export function WorkspaceProvider({ children, projectId }) {
     for (const item of mergeItems) if (item.category === 'Workspace') registerMergeVariants(item.id, item.designPageId)
   }, [mergeItems])
   const [selectedMergeItemId, setSelectedMergeItemId] = useDemoState(`project:${projectId}:selectedMergeItemId`, null)
+  // What the Merge Studio menu can offer (lib/mergeEntry): saved work to open, files to start from.
+  const mergeEntry = useMemo(() => mergeEntryState({ mergeItems, openFiles }), [mergeItems])
 
   // Which conversation AI Chat shows: the Workspace's, or — in Merge Studio
   // with an item open — that item's own, opening on the item it's about
@@ -2753,6 +2756,7 @@ export function WorkspaceProvider({ children, projectId }) {
     exitMergeStudio,
     startMergeFromOpenFiles,
     startMergeFromFiles,
+    mergeEntry,
     completeMerge,
     updateMergeItem,
     requestDesignDecision,

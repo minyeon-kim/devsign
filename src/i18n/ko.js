@@ -2557,3 +2557,11 @@ Object.assign(ko, {
   'Before that': '이전',
   'Filter history': '히스토리 필터',
 })
+
+// Merge Studio's entry menu.
+Object.assign(ko, {
+  'Open a file first': '먼저 파일을 열어 주세요',
+  'Nothing to merge yet': '아직 시작할 병합이 없어요',
+  'Open and edit a file, then come back to start a merge.': '파일을 열어 수정한 뒤 다시 눌러 병합을 시작하세요.',
+  'Start new from current work': '현재 작업으로 새로 시작',
+})
