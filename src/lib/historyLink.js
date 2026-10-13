@@ -6,6 +6,7 @@ import { closeHowOf, workspacePathOf } from '@/lib/changeLink'
 //
 //   /projects/:id/workspace?history                 History, on its default checkpoint
 //   /projects/:id/workspace?history=<checkpointId>  History, on that checkpoint
+//   …&view=code                                     the Code tab (the Screen tab is the default: nothing said)
 //
 // One layer at a time: opening History takes a change's detail and Docs off
 // the address, and they take History off (`withoutHistory`). Moving from one
@@ -16,10 +17,11 @@ import { closeHowOf, workspacePathOf } from '@/lib/changeLink'
 const OTHER_LAYERS = ['change', 'evidence', 'source', 'doc', 'docs']
 
 // (`?history`, not `?history=`: said the way it's written.)
-const text = (params, checkpointId) => {
+const VIEWS = ['screen', 'code']
+const text = (params, checkpointId, view = null) => {
   const rest = params.toString()
   const own = checkpointId ? `history=${encodeURIComponent(checkpointId)}` : 'history'
-  return `?${rest ? `${rest}&` : ''}${own}`
+  return `?${rest ? `${rest}&` : ''}${own}${view === 'code' ? '&view=code' : ''}`
 }
 
 // "/projects/p/workspace?history=h-3" — the link to History (on a checkpoint, when one is named).
@@ -31,10 +33,16 @@ export function readHistoryParams(search) {
   return { open: params.has('history'), checkpoint: params.get('history') || null }
 }
 
-// The same address without the History layer.
+// The tab it names: 'code', or null (nothing said — the Screen tab, unless the checkpoint only changed code).
+export function readHistoryView(search) {
+  return new URLSearchParams(search ?? '').get('view') === 'code' ? 'code' : null
+}
+
+// The same address without the History layer (its tab goes with it).
 export function withoutHistory(search) {
   const params = new URLSearchParams(search ?? '')
   params.delete('history')
+  params.delete('view')
   const rest = params.toString()
   return rest ? `?${rest}` : ''
 }
@@ -42,11 +50,24 @@ export function withoutHistory(search) {
 // The same address with History opened — `target`: true (its default
 // checkpoint), a checkpoint's id, or null to close. Whatever else the address
 // says is kept, except the other layers: never two open together.
+// Moving between checkpoints keeps the tab; closing takes it off.
 export function withHistory(search, target) {
+  const view = new URLSearchParams(search ?? '').get('view')
   const params = new URLSearchParams(withoutHistory(search))
   if (target == null || target === false) { const rest = params.toString(); return rest ? `?${rest}` : '' }
   for (const key of OTHER_LAYERS) params.delete(key)
-  return text(params, target === true ? null : target)
+  return text(params, target === true ? null : target, view)
+}
+
+// The same address on a tab — 'code' says so; 'screen', the default, says nothing.
+// (Only on an address that names History.)
+export function withHistoryView(search, view) {
+  const params = new URLSearchParams(search ?? '')
+  if (!params.has('history')) return search ?? ''
+  const checkpoint = params.get('history') || null
+  params.delete('history')
+  params.delete('view')
+  return text(params, checkpoint, VIEWS.includes(view) ? view : null)
 }
 
 // How it's closed — the same rule, the same mark in history, as the other layers'.

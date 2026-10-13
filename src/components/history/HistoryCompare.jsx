@@ -18,9 +18,9 @@ import { deriveComponentOverride } from '@/lib/prototypeSync'
 import { changedLayerIds } from '@/lib/devicePreview'
 import { categoryFor, layoutDelta, layoutDeltaCode, problemsAt, renderOf } from '@/lib/codeRender'
 import { referencePick, screenOf } from '@/lib/devicePresets'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { EvidenceLinks, ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
-import { historyHref } from '@/lib/historyLink'
+import { historyHref, readHistoryView, withHistoryView } from '@/lib/historyLink'
 import { toast } from '@/i18n/toast'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { checkpointRationale } from '@/lib/rationale'
@@ -71,6 +71,7 @@ function snapshotLines(snapshot) {
 function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position, embedded = false, header = null, codeOpenByDefault = false }) {
   const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages, closeHistory } = useWorkspace()
   const navigate = useNavigate()
+  const location = useLocation()
   const language = useLanguage()
   const [ruleFocus, setRuleFocus] = useState(null)
   // The diff: stacked or side by side, and the changed hunks or the whole file.
@@ -84,6 +85,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   // unfolded (`codeOpenByDefault`); the History page starts on one line.
   const [codeOpen, setCodeOpen] = useState(codeOpenByDefault)
   const [reasonOpen, setReasonOpen] = useState(false)
+  // The Screen tab was picked by hand (it isn't in the address: it's the default).
+  const [screenPicked, setScreenPicked] = useState(false)
   // The problem line is under the pointer: its area on the render is drawn stronger.
   const [problemHover, setProblemHover] = useState(false)
   const entry = historyEntries.find((h) => h.id === entryId)
@@ -136,7 +139,6 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     return wholeFile ? numberRows(rows) : foldRows(rows)
   }, [showDiff, rows, entry, wholeFile])
   const changedLines = useMemo(() => changedLineCount(rows), [rows])
-  const codeView = codeViewOf({ open: codeOpen, playing, comparing: Boolean(comparison), changedLines, wholeFile })
   // Playing: the checkpoint before this one until its code is typed in,
   // then this one. Otherwise the latest (comparing) or this version.
   const shownSnapshot = playing ? (baseEntry && !typed ? baseEntry : entry) : pair ? pair.right : entry
@@ -207,6 +209,17 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
       referenceWidth: reference.width,
     }
   }, [entry, baseEntry, typed, playing, pair, comparison, previousEntry, current, projectId, mineTitle, base])
+
+  // The page's tab: the one the address names (&view=code), else the one picked
+  // — kept through checkpoints and playback — else what the checkpoint changed:
+  // the screen, unless it only changed code.
+  const screenChanged = codeRender ? !codeRender.unchanged : changedIds.length > 0
+  const view = embedded ? null : readHistoryView(location.search) ?? (screenPicked || screenChanged || changedLines === 0 ? 'screen' : 'code')
+  const setView = (next) => {
+    setScreenPicked(next === 'screen')
+    navigate({ pathname: location.pathname, search: withHistoryView(location.search, next) }, { replace: true, state: location.state })
+  }
+  const codeView = codeViewOf({ open: embedded ? codeOpen : view === 'code', playing, comparing: Boolean(comparison), changedLines, wholeFile })
 
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
   const playTo = useMemo(() => snapshotLines(entry?.snapshot), [entry])
@@ -390,58 +403,116 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
         </p>
       )}
 
+      {/* The page: a Screen | Code tab under the header, and the tab taking
+          all the height that's left. The replay (embedded) keeps its stack —
+          the renders, the code folded or open under them. */}
+      {!embedded && (
+        <div role="tablist" aria-label={translateText('View', language)} data-history-tabs className="flex h-10 shrink-0 items-end gap-5 border-b border-white/[0.08]">
+          {[['screen', 'Screen', null], ['code', 'Code', comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} in code` : null]].map(([id, label, count]) => (
+            <button key={id} type="button" role="tab" data-history-tab={id} aria-selected={view === id} onClick={() => setView(id)}
+              className={cn('ds-intrinsic -mb-px inline-flex h-9 items-center gap-1.5 border-b-2 text-[13px] font-medium whitespace-nowrap transition-colors', view === id ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200')}>
+              <LocalizedText text={label} />
+              {count && <span className="font-normal text-slate-500 tabular-nums"><LocalizedText text={count} /></span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* What it looks like — the main thing: the whole width, this version
           on the left and the current one on the right. */}
-      <div data-compare-render className="relative mx-3 flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden rounded-xl bg-black/35">
+      {(embedded || view === 'screen') && (
+      <div data-compare-render role={embedded ? undefined : 'tabpanel'} className={cn('relative flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden', embedded && 'mx-3 rounded-xl bg-black/35')}>
         <PreviewPanelContent
-          // A new key fades the preview over — on each checkpoint, and
-          // during playback each time the typed code changes the design.
-          // While playing the preview stays mounted and changes in
-          // place (no fade between steps — two per step left it faint
-          // half the time); the ring on what changed marks the moment.
-          snapshotKey={playing ? 'playing' : shownSnapshot.id}
-          highlightLayerId={highlightLayerId}
-          highlightKey={entryId}
-          previewProps={shownProps}
-          prototypeEdits={shownEdits}
-          activePageId={shownSnapshot.snapshot.activePageId ?? null}
-          frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
-          historical
-          embedded
-          viewControls
-          focusLayerIds={changedIds}
-          codeRender={codeRender}
-          variant="compare"
-          emphasizeMark={problemHover && problem ? problem.id : null}
-          toolbarExtra={(
-            // What it's compared with — the one control for it.
-            <div role="tablist" aria-label={translateText('Compared with', language)} data-baseline={base} className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
-              {[['previous', 'Previous checkpoint'], ['current', 'Current version']].map(([id, label]) => {
-                const unavailable = id === 'previous' && !previousEntry
-                return (
-                  <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="flex">
-                    <button type="button" role="tab" data-baseline-option={id} aria-selected={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)}
-                      className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40', base === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
-                      <LocalizedText text={label} />
-                    </button>
-                  </span>
-                )
-              })}
-            </div>
-          )}
-          caption={
-            <span className="shrink-0 text-emerald-300">
-              {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
-              {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
-            </span>
-          }
-        />
+            // A new key fades the preview over — on each checkpoint, and
+            // during playback each time the typed code changes the design.
+            // While playing the preview stays mounted and changes in
+            // place (no fade between steps — two per step left it faint
+            // half the time); the ring on what changed marks the moment.
+            snapshotKey={playing ? 'playing' : shownSnapshot.id}
+            highlightLayerId={highlightLayerId}
+            highlightKey={entryId}
+            previewProps={shownProps}
+            prototypeEdits={shownEdits}
+            activePageId={shownSnapshot.snapshot.activePageId ?? null}
+            frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
+            historical
+            embedded
+            viewControls
+            focusLayerIds={changedIds}
+            codeRender={codeRender}
+            variant="compare"
+            emphasizeMark={problemHover && problem ? problem.id : null}
+            toolbarExtra={(
+              // What it's compared with — the one control for it.
+              <div role="tablist" aria-label={translateText('Compared with', language)} data-baseline={base} className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+                {[['previous', 'Previous checkpoint'], ['current', 'Current version']].map(([id, label]) => {
+                  const unavailable = id === 'previous' && !previousEntry
+                  return (
+                    <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="flex">
+                      <button type="button" role="tab" data-baseline-option={id} aria-selected={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)}
+                        className={cn('ds-intrinsic inline-flex h-6 items-center rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40', base === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                        <LocalizedText text={label} />
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            caption={
+              <span className="shrink-0 text-emerald-300">
+                {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
+                {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
+              </span>
+            }
+          />
       </div>
+      )}
+
+      {/* The code, in its own tab: what changed (the rest folded) until the
+          whole file is asked for — read the same way round, this version
+          first. Playing on the Screen tab, it still types itself out, unseen. */}
+      {!embedded && view === 'screen' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
+      {!embedded && view === 'code' && (
+        <section data-compare-code="open" data-code-view={codeView} role="tabpanel" aria-label="Code" className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center gap-2 py-2 text-[11px] text-slate-500">
+            <Code2 className="size-3 shrink-0" />
+            <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
+            <span data-code-changed className="shrink-0 text-slate-300"><LocalizedText text={comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} changed` : 'No difference'} /></span>
+            <span className="ml-auto flex shrink-0 items-center gap-2">
+              {!playing && (
+                <button type="button" data-code-whole-file aria-pressed={wholeFile} onClick={() => setWholeFile((current) => !current)} className={cn('ds-intrinsic inline-flex h-6 items-center rounded-md px-2 font-sans text-[10.5px] font-medium transition-colors', wholeFile ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-slate-300 hover:text-white')}>
+                  <LocalizedText text="Show the whole file" />
+                </button>
+              )}
+              <DiffLayoutTabs layout={diffLayout} onLayout={setDiffLayout} />
+            </span>
+          </div>
+        <div className="min-h-0 flex-1 overflow-auto pb-2 text-[12px] leading-5">
+          {codeView === 'typing' ? (
+            // Keyed to the checkpoint: each step starts from the one
+            // before it, exactly, and ends on this one, exactly.
+            <div className="font-mono"><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>
+          ) : codeView === 'hunks' || codeView === 'whole' ? (
+            <DiffView rows={codeRows} layout={diffLayout} wrap={false} className="text-[12px]" labels={[pair.leftTitle, pair.rightTitle]} />
+          ) : codeView === 'none' ? (
+            // Nothing changed at this step: said, in the area's own place.
+            <p data-code-none className="px-3 py-2 font-sans text-xs text-slate-400"><LocalizedText text="No code change" /></p>
+          ) : codeRows.map((row, index) => (
+            // (No difference: the file itself, as it is in both.)
+            // (A line stays a line: the block scrolls sideways, the code doesn't wrap.)
+            <div key={index} className="flex w-max min-w-full py-px pr-3 font-mono whitespace-pre text-slate-300">
+              <span className={GUTTER}>{row.to ?? ''}</span>
+              <span className="whitespace-pre">{row.text || ' '}</span>
+            </div>
+          ))}
+        </div>
+        </section>
+      )}
 
       {/* The code behind it, under it: just what changed (the rest folded)
           until the whole file is asked for — read the same way round, this
           version first. */}
-      {codeView === 'folded' ? (
+      {embedded && codeView === 'folded' ? (
         // One line: the file and how much of it differs (from what it's
         // compared with) — the code itself on asking. Folded stays folded
         // through playback (which goes on behind it).
@@ -454,8 +525,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
         </button>
       ) : null}
       {/* (Playing with the code folded: the step still types itself out, unseen, and moves on.) */}
-      {codeView === 'folded' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
-      {codeView === 'folded' ? null : (
+      {embedded && codeView === 'folded' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
+      {embedded && codeView !== 'folded' && (
       // Unfolded: one height whether it plays or stands still, so nothing
       // around it moves when playback starts, pauses or ends.
       <section data-compare-code="open" data-code-view={codeView} aria-label="Code" className="mx-3 mt-2 mb-3 flex min-h-[132px] shrink flex-col overflow-hidden rounded-xl bg-black/20" style={{ height: wholeFile ? '44%' : '36%' }}>
