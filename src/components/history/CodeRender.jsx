@@ -38,8 +38,13 @@ const MARK = { outline: '3px solid rgb(251 191 36)', outlineOffset: 4, boxShadow
 // screen — for comparing layouts at a readable size.
 // `labels`: false leaves the overlap / squeeze pills out — for a render drawn
 // too small to read them (its caller says it in its own words).
-export default function CodeRender({ spec, screen, scale = 1, marked = false, markStyle = null, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true }) {
-  const mark = (part) => (parts.includes(part) ? { 'data-render-mark': part, style: MARK } : {})
+// `region` ({ x, y, width, height }, in the screen's own px): only that part of the
+// screen is shown — the frame is the region's size and the screen is moved under it —
+// so what's marked or inspected stays exactly on its element (History's "바뀐 요소").
+// Every part carries `data-render-part` (grid, cards, title, subtitle, cta): where it is can be read off the DOM.
+export default function CodeRender({ spec, screen, scale = 1, marked = false, markStyle = null, parts = [], crop = false, className, inspect = null, emphasis = null, labels = true, region = null }) {
+  const partMark = markStyle ?? MARK
+  const mark = (part) => ({ 'data-render-part': part, ...(parts.includes(part) ? { 'data-render-mark': part, style: partMark } : {}) })
   const layout = layoutAt(spec, screen)
   const viewport = crop ? { ...screen, height: Math.min(screen.height, typeof crop === 'number' ? crop : layout.contentHeight) } : screen
   const { columns, padding, gap, cardWidth, overlap, squeezed } = layout
@@ -47,12 +52,13 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, ma
   // over each other, or with what's left of the gap between them.
   const overflowing = layout.tight
   return (
-    <div data-code-render translate="no" data-viewport={viewport.id} data-width={viewport.width} data-height={viewport.height} data-breakpoint={layout.breakpoint} data-squeezed={squeezed ?? undefined} data-columns={columns} data-template={layout.template} data-overlap={overlap} className={cn('relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80', className)} style={{ width: viewport.width * scale, height: viewport.height * scale }}>
-      <div className="absolute top-0 left-0 origin-top-left overflow-hidden bg-slate-50 text-slate-900" style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})`, padding }}>
+    <div data-code-render translate="no" data-viewport={viewport.id} data-width={viewport.width} data-height={viewport.height} data-breakpoint={layout.breakpoint} data-squeezed={squeezed ?? undefined} data-columns={columns} data-template={layout.template} data-overlap={overlap} className={cn('relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80', className)} data-render-region={region ? `${region.x},${region.y},${region.width},${region.height}` : undefined} style={{ width: (region?.width ?? viewport.width) * scale, height: (region?.height ?? viewport.height) * scale }}>
+      <div className="absolute origin-top-left overflow-hidden bg-slate-50 text-slate-900" style={{ left: -(region?.x ?? 0) * scale, top: -(region?.y ?? 0) * scale, width: viewport.width, height: viewport.height, transform: `scale(${scale})`, padding }}>
         <p className="w-fit rounded-md text-[28px] leading-9 font-bold tracking-tight" {...mark('title')}>Dashboard</p>
         <p className="mt-1 w-fit rounded-md text-[14px] text-slate-500" {...mark('subtitle')}>Good morning, Sam · This week</p>
         <section
           data-render-grid
+          data-render-part="grid"
           data-render-mark={marked ? 'grid' : undefined}
           className="relative mt-6 grid"
           style={{
@@ -70,12 +76,13 @@ export default function CodeRender({ spec, screen, scale = 1, marked = false, ma
             <article
               key={label}
               data-render-card
+              data-render-part="cards"
               data-render-mark={parts.includes('cards') ? 'cards' : undefined}
               className="relative flex h-[132px] flex-col gap-2 rounded-2xl border bg-white p-4 shadow-sm"
               style={{
                 ...(overflowing && { width: cardWidth, zIndex: index + 1, background: 'rgb(255 255 255 / 86%)', justifySelf: index % columns === 0 ? 'start' : index % columns === columns - 1 ? 'end' : 'center' }),
                 borderColor: inspect ? 'rgb(226 232 240)' : overlap > 0 ? 'rgb(244 63 94)' : squeezed != null ? 'rgb(245 158 11)' : 'rgb(226 232 240)',
-                ...(parts.includes('cards') && MARK),
+                ...(parts.includes('cards') && partMark),
               }}
             >
               <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><Icon className="size-4" /></span>

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Crosshair, LayoutGrid, Maximize2, Minus, PenTool, Plus, Smartphone, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Crosshair, LayoutGrid, Maximize2, Minus, Monitor, PenTool, ScanSearch, Plus, Smartphone, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
@@ -14,6 +14,7 @@ import CodeRender, { INSPECT_TONE } from '@/components/history/CodeRender'
 import { inspectionsFor, layoutAt, layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, DEVICE_PRESETS, referencePick, screenOf } from '@/lib/devicePresets'
 import DevicePicker from '@/components/history/DevicePicker'
+import { changedRegionAt, changedScale, viewOf } from '@/lib/changedView'
 
 // Space between frames, in px.
 const FRAME_GAP = 24
@@ -40,8 +41,13 @@ function parsePadding(value) {
 // placed inside another card (the conflict review's change replay).
 // `viewControls` (History, and a conflict's replay): the controls over the
 // preview —
-//   · "Show changed elements": the elements that changed since the step
-//     before (`focusLayerIds`) ringed on the screen, on by default;
+//   · two views, as tabs: "바뀐 요소" — only what changed since the step before
+//     (`focusLayerIds`, or the changed parts of a code render), cut out with
+//     room around it and enlarged, ringed, named under it — and "화면 전체", the
+//     whole screen (where the rings are a toggle of their own). The view picked
+//     is kept between visits; a step that changes nothing stays on the element
+//     shown last, and with nothing to show at all the first tab is off, its
+//     tooltip saying why (lib/changedView);
 //   · which phone it's drawn on (lib/devicePreview);
 //   · full screen: the same preview over the whole app, so the screen reads
 //     at a real size whatever room its pane has — Esc or Close goes back,
@@ -137,6 +143,11 @@ function CompareSlider({ width, height, left, right }) {
 
 const DEVICE_KEY = 'devsign.previewDevice'
 const VIEW_KEY = 'devsign.previewView'
+const RING_KEY = 'devsign.previewRings'
+// The two views, as tabs.
+const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen', Monitor]]
+// A changed part's ring in "바뀐 요소": the app's accent (in "화면 전체" the render's own amber).
+const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
 function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, emphasizeMark = null } = {}) {
@@ -159,6 +170,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   // The last element that changed: a step that changes nothing on the
   // screen stays on it (rather than jumping to the full screen).
   const [lastFocus, setLastFocus] = useState([])
+  // (The same for a code render: the box it was last cut to, on the screen it was cut for.)
+  const [lastRegion, setLastRegion] = useState(null)
+  // "화면 전체": whether the changed elements are ringed there (a comparison starts without, as it was).
+  const [ringPick, setRingPickState] = useState(() => stored(RING_KEY, variant === 'compare' ? '0' : '1') === '1')
+  const setRingPick = (on) => { setRingPickState(on); store(RING_KEY, on ? '1' : '0') }
   const [fullscreen, setFullscreen] = useState(false)
   // A code render's screen width (the change's own first, then the one
   // picked), and whether the design prototype is shown beside it.
@@ -236,9 +252,6 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const canMarkRender = renderChanged || renderParts.length > 0
   // Changed, but not at this width (a tablet-only rule on a phone): where it is.
   const changedElsewhere = rendering && !canMarkRender ? screensChanged(rendering.spec, against, category) : []
-  // Whether the changed elements are ringed (there are some, and it's on).
-  const marking = rendering ? canMarkRender && viewPick === 'changed' : Boolean(focus) && viewPick === 'changed'
-  const changedIds = marking && focus && !rendering ? focus.box.layers.map((layer) => layer.id) : []
 
   // One scale for every frame, from whichever arrangement — a row
   // or a column — shows them larger in the space there is.
@@ -259,6 +272,27 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   const compareMode = !comparing ? null : comparePick === 'side' && narrow ? 'slider' : COMPARE_MODES.some(([id]) => id === comparePick) ? comparePick : 'side'
   const versionsDiffer = comparing ? layoutChanged(rendering.spec, rendering.compare.spec, viewport) : false
 
+  // "바뀐 요소": what it's cut to. A design frame: the changed layers' box (`focus`).
+  // A code render: the box around the changed parts — both sides' when two are
+  // compared, so they're cut to the same part at the same scale; a step that
+  // changes nothing stays on the box shown last (for this screen).
+  const screenKey = `${category}:${viewport.width}x${viewport.height}`
+  // (Two renders compared: what changed is what differs between them.)
+  const gridChanged = renderChanged || versionsDiffer
+  const ownRegion = rendering && (gridChanged || renderParts.length > 0) ? changedRegionAt([rendering.spec, comparing ? rendering.compare.spec : null], viewport, { grid: gridChanged, parts: renderParts }) : null
+  const ownRegionKey = ownRegion ? `${screenKey}:${ownRegion.x},${ownRegion.y},${ownRegion.width},${ownRegion.height}` : null
+  if (viewControls && ownRegionKey && ownRegionKey !== lastRegion?.key) setLastRegion({ key: ownRegionKey, screen: screenKey, box: ownRegion })
+  const region = rendering ? ownRegion ?? (lastRegion?.screen === screenKey ? lastRegion.box : null) : null
+  const hasChanged = viewControls && !overview && (rendering ? Boolean(region) : Boolean(focus))
+  const view = viewOf(viewPick, hasChanged)
+  // Whether the changed elements are ringed: always in "바뀐 요소"; in "화면 전체", when its toggle is on.
+  const canRing = rendering ? gridChanged || renderParts.length > 0 : Boolean(focus)
+  const marking = (view === 'changed' || ringPick) && canRing
+  const changedIds = marking && focus && !rendering ? focus.box.layers.map((layer) => layer.id) : []
+  const changedNames = rendering
+    ? [gridChanged && (comparing && versionsDiffer ? `DashboardGrid · ${layoutAt(rendering.spec, viewport).template} → ${layoutAt(rendering.compare.spec, viewport).template}` : `DashboardGrid · ${layoutAt(rendering.previousIsNext ? rendering.spec : against, viewport).template} → ${layoutAt(rendering.previousIsNext ? against : rendering.spec, viewport).template}`), ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')
+    : focus ? focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ') : ''
+
   // The comparison's inspection: what's marked (per side), and whether it's on.
   const inspectable = compareView && rendering && !overview
   const inspecting = inspectable && (compareMode === 'diff' || inspectPick)
@@ -269,10 +303,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
 
   // What "Show changed elements" can't do here, as its tooltip: nothing
   // changed in the code at all, or nothing at this width.
-  const canMark = rendering ? canMarkRender : Boolean(focus)
-  const changedTitle = canMark ? 'Show changed elements'
-    : rendering?.unchanged ? 'No code change since the version before'
-      : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'
+  const canMark = canRing
+  const noChangeTitle = rendering?.unchanged ? 'No code change since the version before'
+    : rendering ? 'Nothing changed at this screen width' : 'Nothing on the screen changed in this step'
+  const changedTitle = canMark ? 'Show changed elements' : noChangeTitle
   // One icon button of the toolbar: named by its tooltip, lit while on.
   const tool = ({ id, label, Icon, on = false, disabled = false, onClick }) => (
     <button key={id} type="button" {...{ [`data-preview-${id}`]: '' }} aria-label={label} title={label} aria-pressed={on} disabled={disabled} onClick={onClick}
@@ -293,6 +327,21 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               into each other.) */}
           <div className={cn('flex min-w-0 items-center gap-1.5', compareView ? 'flex-none' : 'flex-1')}>
             {toolbarExtra}
+            {/* The two views. (In a narrow window: their icons, the names as tooltips.) */}
+            <div role="tablist" aria-label="Preview view" data-preview-views className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
+              {VIEWS.map(([id, label, Icon]) => {
+                const off = id === 'changed' && !hasChanged
+                return (
+                  <span key={id} title={off ? noChangeTitle : label} className="flex">
+                    <button type="button" role="tab" data-preview-view={id} aria-selected={view === id} aria-label={label} disabled={off} onClick={() => setViewPick(id)}
+                      className={cn('ds-intrinsic inline-flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-40', view === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}>
+                      <Icon className="size-3.5 shrink-0" />
+                      {!narrow && <LocalizedText text={label} />}
+                    </button>
+                  </span>
+                )
+              })}
+            </div>
             {/* Comparing: how, first; the device moves to the right, with the views. */}
             {comparing && (
               <div role="tablist" aria-label="Comparison mode" data-compare-modes className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5">
@@ -329,10 +378,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             {(comparing || (compareView && rendering)) && <span className="mr-1 flex min-w-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
             {rendering && tool({ id: 'design', label: 'Compare with the design original', Icon: PenTool, on: designShown, onClick: () => setDesignShown((current) => !current) })}
             {rendering && tool({ id: 'overview', label: 'All devices', Icon: LayoutGrid, on: overview, onClick: () => setOverview((current) => !current) })}
-            {compareView && rendering
-              // Inspection: the problems on the screen(s), marked where they are.
-              ? tool({ id: 'inspect', label: compareMode === 'diff' ? 'Inspection marks are always on in Differences only' : inspectCount ? 'Inspection marks' : 'Nothing to mark on this screen', Icon: Crosshair, on: inspecting && inspectCount > 0, disabled: !inspectable || compareMode === 'diff' || !inspectCount, onClick: () => setInspectPick(!inspectPick) })
-              : tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setViewPick(marking ? 'full' : 'changed') })}
+            {/* Inspection (a comparison's): the problems on the screen(s), marked where they are. */}
+            {compareView && rendering && tool({ id: 'inspect', label: compareMode === 'diff' ? 'Inspection marks are always on in Differences only' : inspectCount ? 'Inspection marks' : 'Nothing to mark on this screen', Icon: ScanSearch, on: inspecting && inspectCount > 0, disabled: !inspectable || compareMode === 'diff' || !inspectCount, onClick: () => setInspectPick(!inspectPick) })}
+            {/* "화면 전체" only: the changed elements ringed on it, or not. (In "바뀐 요소" they always are.) */}
+            {view === 'full' && tool({ id: 'changed', label: changedTitle, Icon: Crosshair, on: marking, disabled: !canMark, onClick: () => setRingPick(!ringPick) })}
             {fullscreen
               ? (
                 <button type="button" data-preview-fullscreen-close aria-label="Exit full screen" title="Exit full screen" onClick={() => setFullscreen(false)} className="ds-intrinsic ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.08] px-2 text-[11px] font-medium text-white transition-colors hover:bg-white/[0.14]">
@@ -391,11 +440,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             <span data-preview-status data-compare-same role="status" className="absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
               <LocalizedText text="Both versions render the same on this screen." />
             </span>
-          ) : marking && !overview && !compareView && (
+          ) : !overview && changedNames && (view === 'changed' ? rendering : marking && !compareView) && (
+            // (A design frame cut to its element says its name under the cut itself — below.)
             <span data-preview-status data-preview-changed-names className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[55%] truncate rounded-md bg-black/60 px-2 py-1 text-[10.5px] text-slate-300">
-              <LocalizedText text="Changed" /> · <span translate="no">{rendering
-                ? [renderChanged && `DashboardGrid · ${layoutAt(against, viewport).template} → ${layoutAt(rendering.spec, viewport).template}`, ...renderParts.map((part) => ({ cards: 'StatCard', cta: 'PurchaseCTA', title: 'Title', subtitle: 'Subtitle' })[part] ?? part)].filter(Boolean).join(' · ')
-                : focus.box.layers.map((layer) => layer.name ?? layer.id).join(', ')}</span>
+              <LocalizedText text={view === 'changed' ? 'Changed element' : 'Changed'} /> · <span translate="no">{changedNames}</span>
             </span>
           )}
           {/* (A design-frame preview says which version it shows here; a code render says so under its frame.) */}
@@ -476,16 +524,21 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const paneHeight = room.height - pad * 2 - captionHeight - labelSpace
             // (One height for both, so they line up — and can lie over each other.)
             const contentHeight = Math.min(viewport.height, Math.max(layoutAt(rendering.spec, viewport).contentHeight, other ? layoutAt(other.spec, viewport).contentHeight : 0))
-            const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
-            const frameWidth = viewport.width * scale
-            const frameHeight = contentHeight * scale
+            // What's shown of the screen: all of it — or, in "바뀐 요소", the changed parts' box, the
+            // same one on both sides, enlarged to the room (the same scale for both).
+            const cut = view === 'changed' && region ? region : null
+            const shown = cut ?? { x: 0, y: 0, width: viewport.width, height: contentHeight }
+            const scale = cut ? changedScale({ width: paneWidth, height: paneHeight }, cut, zoom) : Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
+            const frameWidth = shown.width * scale
+            const frameHeight = shown.height * scale
             const emphasisOf = (side) => (hoverMark?.side === side ? hoverMark.id : emphasizeMark)
             // A mark's name, outside the frame: under it, at the marked area,
             // on a 1px line from the area. Several stack downwards.
             const labels = (list, side, offset = 0) => list.map((item, index) => {
               const tone = INSPECT_TONE[item.tone] ?? INSPECT_TONE.info
-              const x = (item.region.x + item.region.width / 2) * scale
-              const from = Math.min(frameHeight, (item.region.y + item.region.height) * scale)
+              // (Where the area is in what's shown — a cut moves it with the screen.)
+              const x = Math.max(0, Math.min(frameWidth, (item.region.x - shown.x + item.region.width / 2) * scale))
+              const from = Math.max(0, Math.min(frameHeight, (item.region.y - shown.y + item.region.height) * scale))
               const top = frameHeight + 8 + (index + offset) * LABEL_ROW
               return (
                 <Fragment key={`${side}:${item.id}`}>
@@ -505,12 +558,15 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 {key !== 'design' && viewport.breakpoint !== category && <span data-render-breakpoint className="font-normal text-amber-200"> · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} /> <LocalizedText text="layout" /></span>}
               </figcaption>
             )
-            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} inspect={marks.mine} emphasis={emphasisOf('mine')} />
-            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} inspect={marks.other} emphasis={emphasisOf('other')} /> : null
+            // (The changed parts ringed: in "바뀐 요소" on both sides — the same part of each — in the accent;
+            // in "화면 전체", on this version, when its toggle is on.)
+            const ring = { marked: marking && gridChanged, parts: marking ? renderParts : [], ...(cut && { markStyle: CHANGED_RING }) }
+            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} inspect={marks.mine} emphasis={emphasisOf('mine')} {...ring} />
+            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} inspect={marks.other} emphasis={emphasisOf('other')} {...(cut ? ring : {})} /> : null
             const framed = (node, list, side) => <div className="relative" style={{ width: frameWidth, height: frameHeight }}>{node}{labels(list, side)}</div>
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, (paneHeight + labelSpace) / design.height)) * (zoom / 100) : 1
             return (
-              <div data-render-compare={compareMode ?? 'single'} data-render-canvas className="flex w-full items-start justify-center" style={{ padding: pad, paddingBottom: pad + labelSpace }}>
+              <div data-render-compare={compareMode ?? 'single'} data-render-canvas data-preview-shown={view} className="flex w-full items-start justify-center" style={{ padding: pad, paddingBottom: pad + labelSpace }}>
                 {slider ? (
                   <figure data-render-pane="slider" className="m-0 flex min-w-0 flex-col items-center">
                     {/* The two names over their own sides (never over the screen itself). */}
@@ -562,7 +618,10 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             const paneHeight = room.height - 28
             // (One height for both, so they line up — and can lie over each other.)
             const contentHeight = Math.min(viewport.height, Math.max(layoutAt(rendering.spec, viewport).contentHeight, other ? layoutAt(other.spec, viewport).contentHeight : 0))
-            const scale = Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
+            // ("바뀐 요소": the changed parts' box, the same on both sides, enlarged.)
+            const cut = view === 'changed' && region ? region : null
+            const shown = cut ?? { x: 0, y: 0, width: viewport.width, height: contentHeight }
+            const scale = cut ? changedScale({ width: paneWidth, height: paneHeight }, cut, zoom) : Math.max(0.05, Math.min(1, paneWidth / viewport.width, paneHeight / contentHeight)) * (zoom / 100)
             const marks = compareMode === 'diff' && versionsDiffer
             const pane = (key, label, tone, node) => (
               <figure key={key} data-render-pane={key} className="m-0 flex min-w-0 flex-col items-center gap-1.5">
@@ -574,20 +633,20 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                 {node}
               </figure>
             )
-            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} marked={marks || (marking && renderChanged)} parts={marking ? renderParts : []} />
-            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} marked={marks} /> : null
+            const mine = <CodeRender spec={rendering.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} marked={marks || (marking && gridChanged)} parts={marking ? renderParts : []} markStyle={cut ? CHANGED_RING : null} />
+            const theirs = other ? <CodeRender spec={other.spec} screen={viewport} scale={scale} crop={contentHeight} region={cut} marked={marks || Boolean(cut && gridChanged)} parts={cut ? renderParts : []} markStyle={cut ? CHANGED_RING : null} /> : null
             const designScale = design ? Math.max(0.05, Math.min(1.5, paneWidth / design.width, paneHeight / design.height)) * (zoom / 100) : 1
             return (
-              <div data-render-compare={compareMode ?? 'single'} className="flex items-start justify-center gap-4">
+              <div data-render-compare={compareMode ?? 'single'} data-preview-shown={view} className="flex items-start justify-center gap-4">
                 {slider ? (
                   <figure data-render-pane="slider" className="m-0 flex min-w-0 flex-col items-center gap-1.5">
                     {/* The two names over their own sides (never over the screen itself). */}
-                    <figcaption className="flex items-baseline justify-between gap-3 text-[11px] font-medium" style={{ width: viewport.width * scale }}>
+                    <figcaption className="flex items-baseline justify-between gap-3 text-[11px] font-medium" style={{ width: shown.width * scale }}>
                       <span data-slider-label="left" className="min-w-0 truncate text-slate-100"><LocalizedText text={rendering.title} /></span>
                       <span className="shrink-0 font-normal text-slate-500"><span className="tabular-nums">{viewport.width}px</span> · <LocalizedText text="Drag the divider, or press ← →" /></span>
                       <span data-slider-label="right" className="min-w-0 truncate text-emerald-300"><LocalizedText text={other.title} /></span>
                     </figcaption>
-                    <CompareSlider width={viewport.width * scale} height={contentHeight * scale} left={mine} right={theirs} />
+                    <CompareSlider width={shown.width * scale} height={shown.height * scale} left={mine} right={theirs} />
                   </figure>
                 ) : (
                   <>
@@ -604,6 +663,27 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
                   </div>
                 ))}
               </div>
+            )
+          })() : view === 'changed' && focus ? (() => {
+            // The changed element, close up: its box (with room around it) scaled to the
+            // space — up to 3×, then the zoom — and ringed; the rest of the screen is cut
+            // off at the box. Under it, what it is.
+            const { frame, box: cut } = focus
+            const scale = changedScale({ width: room.width, height: room.height - 24 }, cut, zoom)
+            return (
+              <figure data-preview-focus data-preview-shown="changed" className="m-0 flex flex-col items-center gap-2">
+                <div className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80" style={{ width: cut.width * scale, height: cut.height * scale }}>
+                  <div className="absolute" style={{ left: -cut.x * scale, top: -cut.y * scale, width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                    {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
+                    {cut.layers.map((layer) => (
+                      <span key={`ring-${layer.id}`} data-preview-ring={layer.id} aria-hidden className="pointer-events-none absolute z-10 rounded-md" style={{ left: layer.x - 3, top: layer.y - 3, width: layer.width + 6, height: layer.height + 6, boxShadow: `0 0 0 ${2 / scale}px rgb(52 211 153), 0 0 0 ${6 / scale}px rgb(52 211 153 / 22%)` }} />
+                    ))}
+                  </div>
+                </div>
+                <figcaption data-preview-changed-names className="text-[11px] text-slate-400">
+                  <LocalizedText text="Changed element" /> · <span translate="no">{changedNames}</span>
+                </figcaption>
+              </figure>
             )
           })() : shownFrames.map((frame) => {
             const scale = fitScale * (zoom / 100)

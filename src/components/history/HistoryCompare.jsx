@@ -191,6 +191,13 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
       delta: comparison ? layoutDelta(specOf(comparison.left)?.spec, specOf(comparison.right)?.spec, reference, { effects: false }) : null,
       deltaCode: comparison ? layoutDeltaCode(specOf(comparison.left)?.spec, specOf(comparison.right)?.spec, reference) : null,
       compare: other ? { title: pair.rightTitle, spec: other } : null,
+      // The checkpoint before this one — what "바뀐 요소" is measured against when one render is shown
+      // (with two, it's what differs between them); `unchanged`: its code is the same as that one's.
+      // (While a step plays and its code hasn't been typed yet the render is still the one before, so
+      // it's measured against the step's own — the same part stays in view through the step.)
+      previous: specOf(playing && baseEntry && !typed ? entry : previousEntry)?.spec ?? null,
+      previousIsNext: Boolean(playing && baseEntry && !typed),
+      unchanged: Boolean(previousEntry && mine && JSON.stringify(specOf(previousEntry)?.spec) === JSON.stringify(mine)),
       // What's wrong with this version's own render, the checkpoint before
       // it and the current version — for the problem line.
       problems: mine ? problemsAt(mine, reference) : [],

@@ -792,6 +792,8 @@ Chosen|선택한 방식
 After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
+Whole screen|화면 전체
+Preview view|미리보기 보기 방식
 Preview view|미리보기 보기 방식
 Show changed elements|변경 요소 보기
 No code change|코드 변경 없음
