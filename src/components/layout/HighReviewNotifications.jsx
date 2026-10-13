@@ -147,7 +147,8 @@ export default function HighReviewNotifications() {
     entry.close()
   }
 
-  function dismissAll() {
+  // Everything on screen goes — when the stack's time is up (a card is put away by pressing it).
+  function clearStack() {
     setRequestDismissed(true)
     setVisibleIds([])
     entry.close()
@@ -156,10 +157,10 @@ export default function HighReviewNotifications() {
   // The stack leaves on its own after a while, unless it's being pointed at
   // (then it waits until the pointer leaves).
   const [hovering, setHovering] = useState(false)
-  const dismissAllLater = useEffectEvent(() => dismissAll())
+  const clearStackLater = useEffectEvent(() => clearStack())
   useEffect(() => {
     if (!show || hovering) return
-    const timer = window.setTimeout(dismissAllLater, AUTO_HIDE_MS)
+    const timer = window.setTimeout(clearStackLater, AUTO_HIDE_MS)
     return () => window.clearTimeout(timer)
   }, [show, hovering])
   if (!show) return null
@@ -168,15 +169,9 @@ export default function HighReviewNotifications() {
   // Rendered into <body> and fixed to the window (.ds-notification-stack:
   // above the bottom edge, 24px off the right edge, never wider than the
   // window), so no panel's overflow or transform can clip a card or its
-  // dismiss button. "Dismiss all" sits on the same right edge.
+  // dismiss button. A card is dismissed by pressing it (or its ×); the stack leaves on its own.
   return createPortal(
     <aside ref={stackRef} data-notice-stack onPointerEnter={() => setHovering(true)} onPointerLeave={() => setHovering(false)} aria-label="High priority notifications" aria-live="polite" className="ds-notification-stack">
-      {/* (One card closes with its own ×: "Dismiss all" is for a stack.) */}
-      {cardCount > 1 && (
-        <div className="flex shrink-0 justify-end">
-          <button type="button" data-dismiss-all onClick={dismissAll} className="ds-intrinsic ds-notification-dismiss-all">알림 모두 닫기</button>
-        </div>
-      )}
       {showRequest && request && requestConflict && (
         <ConflictNotice
           conflict={requestConflict}

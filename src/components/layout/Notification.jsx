@@ -12,13 +12,44 @@ import { LocalizedText } from '@/i18n/runtime'
 const TYPE_ICON = { success: CircleCheck, warning: TriangleAlert, error: OctagonX, info: Info }
 const text = (value) => (typeof value === 'string' ? <LocalizedText text={value} /> : value)
 
+// A card that can be dismissed (`onDismiss`) is dismissed by pressing it anywhere that isn't a
+// control of its own — its buttons and links do their own thing, and a press that ends a text
+// selection isn't one. From the keyboard: focus it, then Enter, Space or Esc (focus moves on to
+// a card beside it). Dismissing only puts it away: it stays in the Inbox.
+const OWN_CONTROLS = 'button, a, input, textarea, select, summary, [role="button"], [role="menuitem"]'
+
 // `icon`: a component to use in place of the type's own.
 // `actions`: [{ label, onClick, quiet?, ...buttonProps }] — at most one filled.
 // `children`: anything between the text and the actions (a list of rows).
-export function Notification({ type, icon, title, body, bodyClassName, children, actions = [], onDismiss, dismissLabel = '알림 닫기', as: Tag = 'section', className, ...rest }) {
+export function Notification({ type, icon, title, body, bodyClassName, children, actions = [], onDismiss, dismissLabel = '알림 닫기', dismissHint = '누르면 알림이 닫혀요', as: Tag = 'section', className, ...rest }) {
   const Icon = icon ?? TYPE_ICON[type] ?? Info
+  const dismissible = typeof onDismiss === 'function'
+  function onPress(event) {
+    if (!dismissible || event.defaultPrevented || event.target.closest?.(OWN_CONTROLS)) return
+    if (window.getSelection?.()?.toString()) return
+    onDismiss()
+  }
+  function onKeyDown(event) {
+    if (!dismissible || event.target !== event.currentTarget || !['Enter', ' ', 'Escape'].includes(event.key)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const card = event.currentTarget
+    const beside = [card.nextElementSibling, card.previousElementSibling].find((el) => el?.matches?.('[data-notification][tabindex]'))
+    onDismiss()
+    queueMicrotask(() => beside?.isConnected && beside.focus())
+  }
   return (
-    <Tag data-notification data-type={type} className={cn('ds-notification ds-notification-enter', className)} {...rest}>
+    <Tag
+      data-notification
+      data-type={type}
+      data-dismissible={dismissible ? '' : undefined}
+      tabIndex={dismissible ? 0 : undefined}
+      aria-description={dismissible ? dismissHint : undefined}
+      onClick={onPress}
+      onKeyDown={onKeyDown}
+      className={cn('ds-notification ds-notification-enter', className)}
+      {...rest}
+    >
       {onDismiss && (
         <button type="button" data-notice-dismiss aria-label={dismissLabel} title={dismissLabel} onClick={onDismiss} className="ds-intrinsic ds-notification-close">
           <X aria-hidden />
