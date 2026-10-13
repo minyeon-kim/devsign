@@ -215,11 +215,12 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   // the screen, unless it only changed code.
   const screenChanged = codeRender ? !codeRender.unchanged : changedIds.length > 0
   const view = embedded ? null : readHistoryView(location.search) ?? (screenPicked || screenChanged || changedLines === 0 ? 'screen' : 'code')
+  const split = view === 'split'
   const setView = (next) => {
     setScreenPicked(next === 'screen')
     navigate({ pathname: location.pathname, search: withHistoryView(location.search, next) }, { replace: true, state: location.state })
   }
-  const codeView = codeViewOf({ open: embedded ? codeOpen : view === 'code', playing, comparing: Boolean(comparison), changedLines, wholeFile })
+  const codeView = codeViewOf({ open: embedded ? codeOpen : view !== 'screen', playing, comparing: Boolean(comparison), changedLines, wholeFile })
 
   const playFrom = useMemo(() => snapshotLines((baseEntry ?? entry)?.snapshot), [baseEntry, entry])
   const playTo = useMemo(() => snapshotLines(entry?.snapshot), [entry])
@@ -408,7 +409,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           the renders, the code folded or open under them. */}
       {!embedded && (
         <div role="tablist" aria-label={translateText('View', language)} data-history-tabs className="flex h-10 shrink-0 items-end gap-5 border-b border-white/[0.08]">
-          {[['screen', 'Screen', null], ['code', 'Code', comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} in code` : null]].map(([id, label, count]) => (
+          {[['screen', 'Screen', null], ['code', 'Code', comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} in code` : null], ['split', 'Screen and code', null]].map(([id, label, count]) => (
             <button key={id} type="button" role="tab" data-history-tab={id} aria-selected={view === id} onClick={() => setView(id)}
               className={cn('ds-intrinsic -mb-px inline-flex h-9 items-center gap-1.5 border-b-2 text-[13px] font-medium whitespace-nowrap transition-colors', view === id ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200')}>
               <LocalizedText text={label} />
@@ -420,8 +421,10 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
 
       {/* What it looks like — the main thing: the whole width, this version
           on the left and the current one on the right. */}
-      {(embedded || view === 'screen') && (
-      <div data-compare-render role={embedded ? undefined : 'tabpanel'} className={cn('relative flex min-h-[260px] flex-1 basis-0 flex-col overflow-hidden', embedded && 'mx-3 rounded-xl bg-black/35')}>
+      {/* (Screen and code together: the screen on the left, the code beside it — one under the other in a narrow window.) */}
+      <div data-compare-body={embedded ? undefined : view} className={embedded ? 'contents' : cn('flex min-h-0 flex-1 basis-0', split ? 'flex-row gap-5 max-[1280px]:flex-col' : 'flex-col')}>
+      {(embedded || view !== 'code') && (
+      <div data-compare-render role={embedded ? undefined : 'tabpanel'} className={cn('relative flex min-h-[260px] basis-0 flex-col overflow-hidden', split ? 'min-w-0 flex-[3]' : 'flex-1', embedded && 'mx-3 rounded-xl bg-black/35')}>
         <PreviewPanelContent
             // A new key fades the preview over — on each checkpoint, and
             // during playback each time the typed code changes the design.
@@ -443,6 +446,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             variant="compare"
             emphasizeMark={problemHover && problem ? problem.id : null}
             flush={!embedded}
+          narrowPane={split}
           toolbarExtra={(
             // What it's compared with — the one control for it: "비교: 이전 버전 ▾".
             <DropdownMenu>
@@ -480,8 +484,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           whole file is asked for — read the same way round, this version
           first. Playing on the Screen tab, it still types itself out, unseen. */}
       {!embedded && view === 'screen' && playing && <div hidden><PlaybackCode key={entryId} from={playFrom} to={playTo} onTyped={handleTyped} onDone={onStepDone} layout={diffLayout} /></div>}
-      {!embedded && view === 'code' && (
-        <section data-compare-code="open" data-code-view={codeView} role="tabpanel" aria-label="Code" className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
+      {!embedded && view !== 'screen' && (
+        <section data-compare-code="open" data-code-view={codeView} role="tabpanel" aria-label="Code" className={cn('flex min-h-0 basis-0 flex-col overflow-hidden', split ? 'min-w-0 flex-[2]' : 'flex-1')}>
           <div className="flex shrink-0 items-center gap-2 py-2 text-[11px] text-slate-500">
             <Code2 className="size-3 shrink-0" />
             <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
@@ -516,6 +520,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
         </div>
         </section>
       )}
+      </div>
 
       {/* The code behind it, under it: just what changed (the rest folded)
           until the whole file is asked for — read the same way round, this
