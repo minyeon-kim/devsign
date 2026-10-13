@@ -1,6 +1,6 @@
 // The full-page detail's side panel: where the change is on the screen comes
 // first — a block across the panel, right under the tabs — then what it is,
-// who reviews it, the details; and the panel starts on the title's row.
+// who reviews it, the details; and the panel's top is the main view's first container's.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
@@ -25,10 +25,9 @@ assert.ok(block.includes('Math.min(1, (width - 32) / size.width, (SCREEN_MAX_HEI
 assert.ok(block.includes('data-screen-location-mark className="absolute rounded-[2px] border-[1.5px] border-emerald-400"'), 'the changed area: a 1.5px accent box')
 assert.ok(block.includes('workspace.revealConflictOnCanvas(conflict)') && block.includes('workspace.openConflictReview?.(null)'), 'pressed: to that frame on the canvas')
 
-// The panel on the page, wide: on the title's row, pinned; its column kept; narrower and in the panel, as before.
-assert.ok(panel.includes("page && 'xl:absolute xl:top-2 xl:right-[calc(max((100%-1180px)/2,0px)+40px)] xl:bottom-6 xl:h-auto xl:w-[320px] xl:!pt-3'"))
-assert.ok(panel.includes('{page && <div aria-hidden data-review-sidebar-space className="hidden xl:block" />}'))
-assert.ok(panel.includes("page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5 xl:pr-[380px]')"), 'the header stops short of the panel')
+// The panel on the page: in the grid's row beside the main view — its top is the first container's top
+// (measured in the browser: 0px apart); never lifted out of the row.
+assert.ok(panel.includes("REVIEW_CONTEXT_CARD, page && 'xl:!pt-3')}>") && !/data-review-sidebar[^>]*xl:absolute/.test(panel) && !panel.includes('data-review-sidebar-space'))
 assert.ok(panel.includes('xl:grid-cols-[minmax(0,1fr)_320px]'), 'the panel\'s width is as it was')
 // Sections: the existing divider and its 12px either side (24px between) — no larger gap.
 assert.ok(panel.includes("page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3'") && !panel.includes('[data-info-section]+[data-info-section]]:mt-8'))

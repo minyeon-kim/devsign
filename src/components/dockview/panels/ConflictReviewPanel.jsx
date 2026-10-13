@@ -3499,10 +3499,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     </InfoSection>
   ) : null
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
         {conflict && (
           <>
-            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5 xl:pr-[380px]') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
+            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
               <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
                 <div className={cn('flex min-w-0 items-center gap-2.5', !page && 'flex-wrap')}>
                   {!page && <button
@@ -3748,9 +3748,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     impact, evidence, approvals, reviewers, details) and
                     Comments (the thread and its composer), as two tabs. The
                     comparison beside it takes all the rest. */}
-                {/* (On the page, wide: it starts on the title's row — not under the header — and stays
-                    there while the main view scrolls. Its column in the grid is kept by the spacer after it.) */}
-                <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD, page && 'xl:absolute xl:top-2 xl:right-[calc(max((100%-1180px)/2,0px)+40px)] xl:bottom-6 xl:h-auto xl:w-[320px] xl:!pt-3')}>
+                {/* (In the grid's own row beside the main view: its top is the first container's top,
+                    whatever the header's height. Each scrolls on its own, so it stays put.) */}
+                <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD, page && 'xl:!pt-3')}>
                   <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
                     {/* A design decision keeps one record — its History — in
                         place of separate Comments and Activity. */}
@@ -3831,7 +3831,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   )}
                 </aside>
-                {page && <div aria-hidden data-review-sidebar-space className="hidden xl:block" />}
               </div>
             </div>
           </>
