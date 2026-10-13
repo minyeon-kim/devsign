@@ -1614,7 +1614,6 @@ Needs your review|내 검토 필요
 Reviewers|검토자
 Checkout Redesign|결제 화면 개편
 Design System v2|디자인 시스템 v2
-Mobile Nav Revamp|모바일 내비게이션 개편
 Onboarding Flow|온보딩 흐름
 Implemented the button in PlaceOrderButton.jsx|PlaceOrderButton.jsx에 버튼을 구현했습니다
 Opened a second draft of the Order summary card|주문 요약 카드의 두 번째 초안을 열었습니다

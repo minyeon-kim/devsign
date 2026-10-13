@@ -16,9 +16,6 @@ function findBell() {
   return document.querySelector('[data-inbox-button]')
 }
 
-// Walkthrough review requests that appear a few seconds after entering a
-// project's Workspace. `restart` puts the conflict back before its review.
-const NAV_REQUEST_DELAY_MS = 4000
 // How long the notices stay up before going (they're kept in the Inbox).
 const AUTO_HIDE_MS = 6000
 // Each scenario's request: the conflict it's about.
@@ -26,7 +23,6 @@ const REQUESTS = {
   // (Dashboard Redesign: the designer gets Alex's request for a design
   // decision; the developer, the drift being detected on their code.)
   'dashboard-redesign': { conflictId: 'CON-002' },
-  'mobile-nav-revamp': { conflictId: 'CON-020' },
   'checkout-redesign': { conflictId: 'CON-014' },
 }
 
@@ -90,13 +86,6 @@ export default function HighReviewNotifications() {
   const [requestDismissed, setRequestDismissedState] = useState(() => seenProjects.has(projectId))
   const setRequestDismissed = (value) => { if (value) seenProjects.add(projectId); setRequestDismissedState(value) }
   const onWorkspace = /\/workspace\/?$/.test(pathname)
-  const [navDue, setNavDue] = useState(false)
-  const isNav = projectId === 'mobile-nav-revamp'
-  useEffect(() => {
-    if (!isNav || !onWorkspace) { setNavDue(false); return }
-    const timer = window.setTimeout(() => setNavDue(true), NAV_REQUEST_DELAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [isNav, onWorkspace])
   const request = REQUESTS[projectId] ?? null
   const requestConflict = request ? conflicts.find((c) => c.id === request.conflictId) : null
   // (Elsewhere a request is only news to the one it's waiting on.)
@@ -108,7 +97,7 @@ export default function HighReviewNotifications() {
       ? (requestConflict?.designDecision ? `${allPeople.find((person) => person.id === requestConflict.designDecision.by)?.name}님이 결정했어요: ${DECISION_LABEL[requestConflict.designDecision.choice]}` : `새 변경 확인이 자동 감지됐어요 · ${request?.conflictId}`)
       : `${requester} requested your review`)
     : `${requester} requested your review`
-  const showRequest = onWorkspace && !requestDismissed && ((projectId === 'dashboard-redesign' && requestConflict?.reviewStage !== 'resolved') || (projectId !== 'dashboard-redesign' && awaitingYou && (!isNav || navDue)))
+  const showRequest = onWorkspace && !requestDismissed && ((projectId === 'dashboard-redesign' && requestConflict?.reviewStage !== 'resolved') || (projectId !== 'dashboard-redesign' && awaitingYou))
   const seen = useRef(seenNotifications)
   const [visibleIds, setVisibleIds] = useState([])
 

@@ -48,7 +48,19 @@ try {
 
   // The sample history: main forks into a feature branch and the hotfix,
   // they run side by side, the feature merges back, the hotfix carries on.
-  const sample = foldConflictCheckpoints(withBranches(projectHistorySeeds['mobile-nav-revamp'], []))
+  // (Said here: no project's seed branches any more.)
+  const step = (id, label, branch, extra = {}) => ({ id, label, kind: 'edit', branch, target: 'BottomNav.jsx', archived: false, ...extra })
+  const sample = foldConflictCheckpoints(withBranches([
+    step('history-nav-1', '하단 내비게이션 추가', 'main'),
+    step('history-nav-2', '아이콘 20px로 변경', 'main'),
+    step('history-conflict-con-020', '탭 아이콘이 디자인(24px)보다 작아요', 'hotfix/mobile-nav-icon', { kind: 'conflict', conflictId: 'CON-020' }),
+    step('history-nav-feature-1', '읽지 않음 배지 추가', 'feature/nav-badge'),
+    step('history-conflict-con-021', '배지가 알림 수를 제한 없이 보여 줘요', 'feature/nav-badge', { kind: 'conflict', conflictId: 'CON-021' }),
+    step('history-nav-feature-2', 'CON-021 수정 · 99+ 제한', 'feature/nav-badge', { conflictId: 'CON-021' }),
+    step('history-nav-hotfix-2', '24px 아이콘 초안', 'hotfix/mobile-nav-icon'),
+    step('history-nav-merge-badge', 'CON-021 병합 · 반영 완료', 'main', { kind: 'merge', mergedBranches: ['feature/nav-badge'], conflictId: 'CON-021', conflictIds: ['CON-021'] }),
+    step('history-nav-hotfix-3', '터치 영역 48px로 변경', 'hotfix/mobile-nav-icon'),
+  ], []))
   assert.ok(sample.every((entry) => entry.branch), 'every sample checkpoint names its branch')
   assert.ok(sample.every((entry) => entry.label.length <= 20), 'labels are short enough for the list')
   assert.deepEqual(sample.find((entry) => entry.id === 'history-nav-2').conflictMarks.map((mark) => mark.conflictId), ['CON-020'])
@@ -71,20 +83,6 @@ try {
   // Still in progress: the hotfix's last checkpoint ends its lane, unmerged.
   assert.deepEqual(row('history-nav-hotfix-3').lanes[2], { name: 'hotfix/mobile-nav-icon', dot: true, up: false, down: true })
   assert.deepEqual(row('history-nav-hotfix-3').merges, [])
-
-  // For playback: every checkpoint keeps its whole file and the values its
-  // preview is drawn from, the code is written from those values, and each
-  // step (in time order, whatever the branch) changes something visible.
-  const visible = (entry) => JSON.stringify([entry.snapshot.previewProps.iconSize, entry.snapshot.previewProps.hitArea, entry.snapshot.previewProps.badgeCount, entry.snapshot.previewProps.badgeCap])
-  for (const [index, entry] of sample.entries()) {
-    const { lines, previewProps } = entry.snapshot
-    assert.ok(lines.length >= 5 && lines[0].startsWith('export function BottomNav'), `${entry.id} keeps the whole file`)
-    assert.ok(lines.some((line) => line.includes(`size-${previewProps.iconSize / 4}`) && line.includes(`hitArea="${previewProps.hitArea}px"`)), `${entry.id}: code matches its preview values`)
-    assert.equal(lines.some((line) => line.includes('badge=')), previewProps.badgeCount > 0)
-    if (index) assert.notEqual(visible(entry), visible(sample[index - 1]), `${entry.id} changes the preview`)
-  }
-  assert.deepEqual(sample.map((entry) => entry.snapshot.previewProps.iconSize), [16, 20, 20, 20, 24, 20, 24])
-  assert.deepEqual(sample.map((entry) => entry.snapshot.previewProps.badgeCount), [0, 0, 3, 128, 0, 128, 0])
 
   // A lane is reused once its branch has ended.
   const reused = branchGraph([{ id: 'a' }, { id: 'b', branch: 'one' }, { id: 'c' }, { id: 'd', branch: 'two' }])

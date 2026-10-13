@@ -38,7 +38,7 @@ try {
     const list = useConflictList()
     return createElement('div', null, list.visible.map((record) => createElement('span', { key: record.id }, record.id)))
   }
-  for (const projectId of ['checkout-redesign', 'mobile-nav-revamp']) {
+  for (const projectId of ['checkout-redesign']) {
     const listHtml = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
       createElement(WorkspaceProvider, { projectId }, createElement(ListProbe)))))
     const samples = records.filter((record) => record.kind === 'code-conflict' && /^CON-/.test(record.id) && record.projectId === projectId)

@@ -47,8 +47,8 @@ const PAGES = [
   // The other seeded projects: their pages as they open, without the click walk.
   { name: 'project-overview-dashboard-redesign', path: '/projects/dashboard-redesign', explore: false },
   { name: 'workspace-dashboard-redesign', path: '/projects/dashboard-redesign/workspace', explore: false },
-  { name: 'project-overview-mobile-nav-revamp', path: '/projects/mobile-nav-revamp', explore: false },
-  { name: 'workspace-mobile-nav-revamp', path: '/projects/mobile-nav-revamp/workspace', explore: false },
+  { name: 'project-overview-fennel-landing', path: '/projects/fennel-landing', explore: false },
+  { name: 'workspace-fennel-landing', path: '/projects/fennel-landing/workspace', explore: false },
 ]
 
 // The local cursor overlay follows the mouse; keep it out of the pictures.

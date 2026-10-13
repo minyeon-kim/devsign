@@ -64,12 +64,5 @@ try {
   // (Typed back to what it was: nothing is left written by hand.)
   assert.deepEqual(withHandLines(stroke, manual, stroke.diff.before), {})
 
-  // 5 · What the code can't spell is still set, as text.
-  const icon = byId('CON-020')
-  const hitAt = icon.comparisonFields.findIndex((field) => field.label === 'Hit area')
-  const hit = fieldControlsFor(icon, itemOf(icon))[hitAt]
-  assert.equal(hit.mode, 'text')
-  assert.equal(mergeResultOf(icon, itemOf(icon), 'B', { handValues: { 'Hit area': '48px' } }).rows[hitAt].to, '48px')
-
   console.log(`Passed: every compared value of ${conflicts.length} conflicts is editable; values are written into and read back from the code Merge Studio edits.`)
 } finally { await server.close() }

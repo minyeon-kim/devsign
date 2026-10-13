@@ -137,7 +137,6 @@ export const projectViewportSequences = {
 export const projectViewerIds = {
   'dashboard-redesign': 'jane',
   'checkout-redesign': 'jane',
-  'mobile-nav-revamp': 'james',
 }
 
 // Projects where more than one person has a UT track: Dashboard Redesign
@@ -244,17 +243,6 @@ export const projects = [
     thumbnailType: 'checkout',
     activityCount: 12,
   },
-  {
-    id: 'mobile-nav-revamp',
-    name: 'Mobile Nav Revamp',
-    description: 'Bottom navigation redesign — icon sizing and gesture affordances kept in sync between the Figma prototype and the app.',
-    ownerId: 'james',
-    memberIds: ['james', 'jane', 'min'],
-    updatedAtLabel: 'Yesterday',
-    filesCount: 4,
-    thumbnailType: 'mobile-nav',
-    activityCount: 4,
-  },
   // One long page (data/screenPages): the single-page project.
   {
     id: LANDING_PROJECT_ID,
@@ -264,7 +252,7 @@ export const projects = [
     memberIds: [currentUser.id, 'min'],
     updatedAtLabel: '3d ago',
     filesCount: 1,
-    thumbnailType: 'checkout',
+    thumbnailType: 'marketing',
     activityCount: 0,
   },
 ]
@@ -292,8 +280,8 @@ export const conflictChecklist = [
   // walkthrough — the Structural Drift found at 768px, which Alex asks about,
   // Taylor approves, and is fixed, checked and merged as it's played; it
   // starts from 변경 감지. Every other design change follows its steps:
-  // Checkout Redesign's CON-012 and Mobile Nav Revamp's CON-021 are merged
-  // that way, the rest each at their own stage. The merge conflicts
+  // Checkout Redesign's CON-012 is merged that way, the rest each at their
+  // own stage. The merge conflicts
   // (CON-022 – CON-025) are numbered and timed the same way but resolved as
   // before, in Merge Studio. `decisionFlow` gives
   // CON-002's review the design-decision flow (DesignDecisionFlow) instead
@@ -324,7 +312,6 @@ function isoDateOffset(days) {
 
 export const mergeSchedule = [
   { id: 'ms-1', projectId: 'checkout-redesign', projectName: 'Checkout Redesign', dateISO: isoDateOffset(1), title: 'Merge payment method updates', time: '10:00 AM' },
-  { id: 'ms-4', projectId: 'mobile-nav-revamp', projectName: 'Mobile Nav Revamp', dateISO: isoDateOffset(9), title: 'Merge gesture nav prototype', time: '11:00 AM' },
   { id: 'ms-5', projectId: 'marketing-site-refresh', projectName: 'Marketing Site Refresh', dateISO: isoDateOffset(-2), title: 'Merge landing page hero', time: '9:00 AM' },
 ]
 
@@ -348,22 +335,6 @@ export const activities = [
     timestamp: stepTimeOf('CON-014', 'requested'),
     dateGroup: 'today',
     thumbnailTypes: ['checkout'],
-  },
-  {
-    id: 'activity-nav-1',
-    type: 'conflict',
-    actorId: 'min',
-    actorName: 'Alex',
-    actorInitials: 'AL',
-    actorColorClass: 'bg-emerald-500',
-    action: 'requested your review on',
-    target: titleOf('CON-020'),
-    conflictId: 'CON-020',
-    historyId: 'history-conflict-con-020',
-    projectId: 'mobile-nav-revamp',
-    timestamp: stepTimeOf('CON-020', 'requested'),
-    dateGroup: 'today',
-    thumbnailTypes: ['mobile-nav'],
   },
   {
     id: 'activity-co-4',
@@ -702,22 +673,6 @@ export const mergeListItems = [
     category: 'Checkout',
     assigneeId: 'min',
   },
-  // Mobile Nav Revamp's own item for Conflict Point CON-020 — reuses page-1
-  // (the shared Mobile App canvas) directly by id for its design side,
-  // since this project has no canvasPages entry of its own; `tab-bar`
-  // stands in for the redesigned bottom nav.
-  {
-    id: 'merge-mobile-nav-icon',
-    projectId: 'mobile-nav-revamp',
-    conflictId: 'CON-020',
-    ...mergeStateOf('CON-020'),
-    subtitle: '1 file · Design + Code',
-    fileIds: ['app'],
-    hasDesign: true,
-    designPageId: 'page-1',
-    category: 'Navigation',
-    assigneeId: 'james',
-  },
   {
     id: 'merge-flowbank',
     title: 'FlowBank - Homepage',
@@ -891,33 +846,6 @@ export const designMergeVariants = {
       'shipping-label': { fileId: 'shipping', line: 4, span: 1 },
     },
   },
-  'merge-mobile-nav-icon': {
-    layerDiffs: {
-      // Two diffs, not one — driftSeverity (mergeSummary.js) reads 2 diffs
-      // as Medium, matching CON-020's declared severity.
-      'tab-bar': [
-        {
-          id: 'nav-icon-size',
-          label: 'Icon size',
-          optionA: '24px',
-          optionB: '20px',
-          recommended: 'A',
-          reason: 'Redesigned tab bar uses 24px icons with the same 44px tap area',
-        },
-        {
-          id: 'nav-icon-hit-area',
-          label: 'Tap area',
-          optionA: '44px',
-          optionB: '44px',
-          recommended: 'A',
-          reason: 'Unchanged — only the icon glyph grows, not the hit target',
-        },
-      ],
-    },
-    layerCodeMap: {
-      'tab-bar': { fileId: 'app', line: 10, span: 2 },
-    },
-  },
   'merge-flowbank': {
     layerDiffs: {
       'hero-heading': [
@@ -1060,12 +988,6 @@ export const codeMergeVariants = {
   },
   'merge-checkout-shipping-icon': {
     shipping: [{ id: 'shipping-icon-stroke', line: 4, incoming: '      <Truck className="size-4" />' }],
-  },
-  'merge-mobile-nav-icon': {
-    app: [
-      { id: 'nav-icon-size', line: 10, incoming: '          <Icon className="size-6" strokeWidth={1.75} />' },
-      { id: 'nav-tab-label', line: 11, incoming: '          <span className="text-[11px] font-medium">{label}</span>' },
-    ],
   },
   'merge-flowbank': {
     app: [
@@ -1426,75 +1348,6 @@ export const projectFileSets = {
       id: 'checkout-tabs', name: 'CheckoutTabs.jsx', path: 'src/components/checkout/CheckoutTabs.jsx',
       language: 'jsx', iconName: 'FileCode',
       lines: ['export function CheckoutTabs() {', '  return (', '    <TabIcon className="size-5" />', '  )', '}'],
-    },
-  ],
-  'mobile-nav-revamp': [
-    {
-      ...openFiles[0],
-      name: 'BottomNav.jsx',
-      path: 'src/components/BottomNav.jsx',
-      lines: [
-        "import { Home, Search, Bell, User } from 'lucide-react'",
-        "import { Badge } from './Badge'",
-        '',
-        "const TABS = [{ Icon: Home, label: 'Home' }, { Icon: Search, label: 'Search' }, { Icon: Bell, label: 'Alerts' }, { Icon: User, label: 'Profile' }]",
-        'export function BottomNav({ active, onChange, badges = {} }) {',
-        '  return (',
-        '    <nav className="bottom-nav">',
-        '      {TABS.map(({ Icon, label }, i) => (',
-        '        <button key={label} onClick={() => onChange(i)} data-active={active === i}>',
-        '          <Icon className="size-5" aria-hidden />',
-        '          <span className="sr-only">{label}</span>{badges[label] > 0 && <Badge count={badges[label]} />}',
-        '        </button>',
-        '      ))}',
-        '    </nav>',
-        '  )',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[1],
-      name: 'nav.css',
-      path: 'src/styles/nav.css',
-      lines: [
-        '.bottom-nav {',
-        '  display: flex;',
-        '  justify-content: space-around;',
-        '  padding: 12px 0;',
-        '  border-top: 1px solid var(--border);',
-        '}',
-        '',
-        '.bottom-nav button[data-active="true"] {',
-        '  color: var(--primary);',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[2],
-      name: 'nav_config.json',
-      path: 'src/design/nav_config.json',
-      lines: [
-        '{',
-        '  "tabs": ["home", "search", "notifications", "profile"],',
-        '  "gestureSwipeEnabled": true,',
-        '  "hapticFeedback": true',
-        '}',
-      ],
-    },
-    {
-      ...openFiles[3],
-      name: 'gesture_sync.py',
-      path: 'scripts/gesture_sync.py',
-      lines: [
-        "# Reconciles the Figma prototype's swipe-gesture spec with the",
-        '# native gesture handler config shipped in the app.',
-        '',
-        'def reconcile(figma_spec: dict, native_config: dict) -> bool:',
-        '    return figma_spec.get("swipeThreshold") == native_config.get("swipeThreshold")',
-        '',
-        'if __name__ == "__main__":',
-        '    print(reconcile({"swipeThreshold": 40}, {"swipeThreshold": 40}))',
-      ],
     },
   ],
   'marketing-site-refresh': [
@@ -2216,37 +2069,6 @@ export const chatSuggestions = [
       '**What happens after an AI edit:**\n\n- It creates a **draft** and a **History checkpoint** — it does not merge automatically.\n- Inspect the visual comparison and code diff before approving.\n- **Request review** and collect the required approvals, then merge.\n- Use **History** to inspect or roll back the saved checkpoint anytime.',
   },
   {
-    id: 'developer-start',
-    projectId: 'mobile-nav-revamp',
-    label: 'Guide me through code review',
-    prompt: 'Guide me through code review',
-    iconName: 'Sparkles',
-    summary: 'Nav Icon / Size → History evidence → approve the 24px change → merge.',
-    reply:
-      '**Follow these steps:**\n\n1. In **Mobile Nav Revamp**, open **Workspace → Conflict Points** and select **Nav Icon / Size**.\n2. Check **Overview** and **Diff**: BottomNav currently renders 20px icons while the navigation design specifies 24px, with the 44px tap target unchanged.\n3. Open **History** and select the Nav Icon / Size issue to replay the earlier 20px implementation and the review checkpoint. Use that evidence to confirm the intended change.\n4. Return to the issue, approve the 24px change as a reviewer, and wait for the other reviewer’s approval.\n5. Merge after approvals and verify the merged checkpoint in **History**.',
-  },
-  { id: 'developer-fix', projectId: 'mobile-nav-revamp', label: 'Use 24px navigation icons', prompt: 'Set the bottom navigation icons to 24px and keep the 44px tap area', iconName: 'Sparkles', targetLayerId: 'tab-bar' },
-  {
-    id: 'developer-impact',
-    projectId: 'mobile-nav-revamp',
-    label: 'Why use a shared token?',
-    prompt: 'Why should navigation icons be 24px?',
-    iconName: 'MessageCircle',
-    summary: 'The shared bottom navigation appears on every mobile screen — check the history and impact before merging.',
-    reply:
-      '**Why this change matters:**\n\n- `BottomNav` appears on every mobile screen, so the icon size needs to match the navigation design consistently.\n- The change grows the icon from 20px to 24px while preserving the 44px touch area.\n- Check the earlier implementation in **History** and review the affected component before approving and merging.',
-  },
-  {
-    id: 'developer-history',
-    projectId: 'mobile-nav-revamp',
-    label: 'How do I verify and roll back?',
-    prompt: 'How do I verify and roll back the change?',
-    iconName: 'MessageCircle',
-    summary: 'Verify in Merge Changes, then use History → Rollback if something looks wrong.',
-    reply:
-      '**How to verify and roll back:**\n\n1. Check the final code and visual preview in **Merge Changes**.\n2. Note that **approval** and **merge** are separate steps.\n3. Once merged, open **History**, select the new checkpoint, and inspect its changed files.\n4. Use **Rollback** to restore a previous checkpoint if the result is wrong.',
-  },
-  {
     id: 'general-start',
     label: 'What can you help me with?',
     prompt: 'What can you help me with?',
@@ -2321,78 +2143,7 @@ function checkoutFormCheckpoints() {
   ]
 }
 
-// BottomNav.jsx as it stood at a checkpoint, whole — written from the same
-// values its preview is drawn with, so the code and the preview can't
-// disagree: the icon's size class, the tap area, and the unread badge
-// (none, the raw count, or the count capped).
-function navSnapshot({ iconSize, hitArea, badgeCount = 0, badgeCap, expectedIconSize }) {
-  const badge = !badgeCount ? '' : badgeCap ? ` badge={Math.min(unread, ${badgeCap})}` : ' badge={unread}'
-  return {
-    activeFileId: 'app',
-    fileId: 'app',
-    lines: [
-      'export function BottomNav({ items' + (badgeCount ? ', unread' : '') + ' }) {',
-      '  return <nav className="bottom-nav">',
-      '    {items.map((item) => (',
-      `      <NavItem key={item.id} {...item} iconClassName="size-${iconSize / 4}" hitArea="${hitArea}px"${badge} />`,
-      '    ))}',
-      '  </nav>',
-      '}',
-    ],
-    previewProps: { iconSize, hitArea, badgeCount, ...(badgeCap && { badgeCap }), ...(expectedIconSize && { expectedIconSize }) },
-    conflicts: [],
-    selectedLayerId: 'tab-bar',
-  }
-}
-
-function navCheckpoint({ id, label, branch, actorId, target, timestamp, ...values }) {
-  return { id, label, kind: 'edit', branch, ...(actorId && { actorId }), target, timestamp, archived: false, snapshot: navSnapshot(values) }
-}
-
 export const projectHistorySeeds = {
-  // Mobile Nav Revamp — the sample History playback runs on. Every
-  // checkpoint keeps the whole file as it was then (`snapshot.lines`, via
-  // navSnapshot) *and* the values the preview draws from
-  // (`snapshot.previewProps`: iconSize, hitArea, badgeCount / badgeCap), and
-  // each one changes something you can see — 16px icons → 20px, no badge →
-  // 3 → 99+, 24px on the hotfix — so stepping through it moves the code and
-  // the preview together.
-  //
-  // It also branches, for the graph: main forks into feature/nav-badge and
-  // hotfix/mobile-nav-icon (Conflict Point CON-020's branch — still in
-  // progress, like its review); the feature merges back into main while the
-  // hotfix carries on. The feature is CON-021's, the project's reference: its
-  // badge cap is the fix applied and checked by itself, and its merge is
-  // CON-021's merge — at the times its record says. `branch` puts a checkpoint on its lane; a merge names
-  // what it brings in with `mergedBranches`. Labels are short enough to
-  // read whole in the list. The conflict's own checkpoint isn't a node — it
-  // shows as a warning mark on the version it was found on (the one before).
-  'mobile-nav-revamp': [
-    navCheckpoint({ id: 'history-nav-1', label: '하단 내비게이션 추가', branch: 'main', actorId: 'james', target: 'BottomNav.jsx', timestamp: 'Yesterday, 9:10 AM', iconSize: 16, hitArea: 36 }),
-    navCheckpoint({ id: 'history-nav-2', label: '아이콘 20px로 변경', branch: 'main', actorId: 'jane', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 9:42 AM', iconSize: 20, hitArea: 44 }),
-    {
-      ...navCheckpoint({ id: 'history-conflict-con-020', label: '탭 아이콘이 디자인(24px)보다 작아요', branch: 'hotfix/mobile-nav-icon', target: 'BottomNav.jsx · Icon size', timestamp: stepTimeOf('CON-020', 'detected'), iconSize: 20, hitArea: 44, expectedIconSize: 24 }),
-      kind: 'conflict',
-      conflictId: 'CON-020',
-      actorLabel: 'Devsign design ↔ code sync',
-    },
-    navCheckpoint({ id: 'history-nav-feature-1', label: '읽지 않음 배지 추가', branch: 'feature/nav-badge', actorId: 'min', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 10:25 AM', iconSize: 20, hitArea: 44, badgeCount: 3 }),
-    {
-      ...navCheckpoint({ id: 'history-conflict-con-021', label: '배지가 알림 수를 제한 없이 보여 줘요', branch: 'feature/nav-badge', target: 'BottomNav.jsx · Badge count', timestamp: stepTimeOf('CON-021', 'detected'), iconSize: 20, hitArea: 44, badgeCount: 3 }),
-      kind: 'conflict',
-      conflictId: 'CON-021',
-      actorLabel: 'Devsign design ↔ code sync',
-    },
-    {
-      ...navCheckpoint({ id: 'history-nav-feature-2', label: 'CON-021 수정 · 99+ 제한', branch: 'feature/nav-badge', target: 'BottomNav.jsx · line 4', timestamp: stepTimeOf('CON-021', 'verified'), iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }),
-      conflictId: 'CON-021',
-      actorLabel: 'Devsign 자동 수정',
-      reason: seededChangeOf('CON-021').steps.decided.reason,
-    },
-    navCheckpoint({ id: 'history-nav-hotfix-2', label: '24px 아이콘 초안', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 1:40 PM', iconSize: 24, hitArea: 44 }),
-    { ...navCheckpoint({ id: 'history-nav-merge-badge', label: 'CON-021 병합 · 반영 완료', branch: 'main', actorId: seededChangeOf('CON-021').steps.merged.by, target: 'BottomNav.jsx', timestamp: stepTimeOf('CON-021', 'merged'), iconSize: 20, hitArea: 44, badgeCount: 128, badgeCap: 99 }), kind: 'merge', mergedBranches: ['feature/nav-badge'], conflictId: 'CON-021', conflictIds: ['CON-021'], reason: '변경 승인 — 검증 완료' },
-    navCheckpoint({ id: 'history-nav-hotfix-3', label: '터치 영역 48px로 변경', branch: 'hotfix/mobile-nav-icon', actorId: 'james', target: 'BottomNav.jsx · line 7', timestamp: 'Yesterday, 4:30 PM', iconSize: 24, hitArea: 48 }),
-  ],
   // Dashboard Redesign — its saved versions, from the seed (mocks/derive):
   // the AI drafts and the responsive grid that brought the overlap in.
   // CON-002's fix and merge are saved as the walkthrough plays them.
@@ -3527,18 +3278,6 @@ export const conflictNotifications = [
     timeLabel: stepTimeOf('CON-014', 'requested'),
     unread: true,
     target: { conflictId: 'CON-014', label: titleOf('CON-014') },
-  },
-  {
-    id: 'n-con-020',
-    projectId: 'mobile-nav-revamp',
-    // (Taylor's to decide; on Jordan's Inbox it's Alex asking about the merge.)
-    kind: 'comment',
-    authorId: 'min',
-    text: '아이콘 줄이 main의 배지 줄과 겹쳐요. Taylor가 결정하기 전에 병합안 한번 봐 줄래요?',
-    timeLabel: stepTimeOf('CON-020', 'requested'),
-    unread: true,
-    target: { conflictId: 'CON-020', label: titleOf('CON-020') },
-    replies: [],
   },
   {
     id: 'n-con-015',

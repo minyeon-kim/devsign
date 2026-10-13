@@ -48,7 +48,7 @@ try {
   // ── The merged ones: every step done, each with who and when, as CON-002's are ──
   const { eventsOf, progressOf } = await server.ssrLoadModule('/src/lib/conflictEvents.js')
   const { fixPhaseOf, decisionOutcomeOf } = await server.ssrLoadModule('/src/lib/designDecisions.js')
-  for (const id of ['CON-012', 'CON-021']) {
+  for (const id of ['CON-012']) {
     const record = byId(id)
     const steps = derive.seededChangeOf(id).steps
     const events = eventsOf(record)
@@ -72,7 +72,7 @@ try {
 
   // ── The merge conflicts: numbered and timed like the rest, resolved as before ──
   const code = PROJECT_SEEDS.flatMap((seed) => seed.changes).filter((change) => change.kind === 'code').map((change) => byId(change.id))
-  assert.deepEqual(code.map((record) => record.id), ['CON-022', 'CON-023', 'CON-025', 'CON-024'])
+  assert.deepEqual(code.map((record) => record.id), ['CON-022', 'CON-023', 'CON-025'])
   assert.ok(code.every((record) => record.kind === 'code-conflict' && record.diff.before.some((line) => line.startsWith('<<<<<<<')) && record.codeComparison.resolution))
 
   // ── What points at a change finds it, by its title ──

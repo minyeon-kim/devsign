@@ -39,17 +39,6 @@ export function readDemo(key, fallback) {
     // A seeded draft (an already-adjusted sample) reaches a session that
     // has drafts saved but none for that item; a draft it has is kept as is.
     if (key.endsWith(':mergeDrafts') && value && fallback && !Array.isArray(value)) return { ...fallback, ...value }
-    // History's branch-graph samples (see projectHistorySeeds): a session
-    // saved before them gets the missing seed checkpoints put back in seed
-    // order, ahead of whatever it recorded since — nothing it has is
-    // dropped — and seeded checkpoints take the seed's current wording and
-    // branch (a label reworded in the seed shouldn't stay stale forever).
-    if (key === 'project:mobile-nav-revamp:historyEntries' && Array.isArray(value) && Array.isArray(fallback)) {
-      const seeded = new Set(fallback.map((row) => row.id))
-      // (the seed's code and preview values too — only `archived` is the session's)
-      const fresh = (seed, saved) => (saved ? { ...seed, archived: saved.archived } : seed)
-      return [...fallback.map((seed) => fresh(seed, value.find((row) => row.id === seed.id))), ...value.filter((row) => !seeded.has(row.id))]
-    }
     return value
   } catch {
     return fallback
