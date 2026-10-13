@@ -193,11 +193,14 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, version,
             key={`outline:${pin.id}`}
             aria-hidden
             data-pin-outline={picked ? 'selected' : 'hover'}
-            className="absolute"
+            // (Picked — the change open beside the canvas: a heavier outline with a halo, so the element
+            // reads at a glance from the detail; it comes in with a short zoom.)
+            className={cn('absolute', picked && 'animate-in zoom-in-105 fade-in duration-300 motion-reduce:animate-none')}
             style={{
               left: rect.left, top: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top, borderRadius: radius,
-              border: picked ? '1.5px solid var(--color-orange-500)' : '1.5px solid color-mix(in srgb, var(--color-amber-400) 70%, transparent)',
-              background: picked ? 'color-mix(in srgb, var(--color-orange-500) 10%, transparent)' : 'color-mix(in srgb, var(--color-amber-400) 12%, transparent)',
+              border: picked ? '2px solid var(--color-orange-500)' : '1.5px solid color-mix(in srgb, var(--color-amber-400) 70%, transparent)',
+              background: picked ? 'color-mix(in srgb, var(--color-orange-500) 12%, transparent)' : 'color-mix(in srgb, var(--color-amber-400) 12%, transparent)',
+              boxShadow: picked ? '0 0 0 4px color-mix(in srgb, var(--color-orange-500) 28%, transparent), 0 0 24px 4px color-mix(in srgb, var(--color-orange-500) 30%, transparent)' : undefined,
             }}
           />
         )

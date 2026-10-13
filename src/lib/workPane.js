@@ -10,7 +10,9 @@
 // (Files · Layers · Assets · Inspect, Terminal and Console are the side
 // panel's views — lib/panelPrefs — and stay as narrow as they are.)
 export const PANELS = {
-  conflicts: { kind: 'split', label: 'Conflict Points' },
+  // (The changes to check are read against the canvas — the element each is about lit there — so the
+  // canvas keeps two thirds: the pane is one column, a third wide, until it's dragged wider.)
+  conflicts: { kind: 'split', label: 'Conflict Points', ratio: 0.34 },
   compare: { kind: 'split', label: 'Design Compare' },
   docs: { kind: 'list', label: 'Docs' },
   history: { kind: 'list', label: 'History' },
@@ -18,6 +20,8 @@ export const PANELS = {
 }
 export const isSplit = (panel) => PANELS[panel]?.kind === 'split'
 export const SPLIT_PANELS = Object.keys(PANELS).filter(isSplit)
+// A pane's own share to start with: its own, else half.
+export const defaultRatio = (panel) => PANELS[panel]?.ratio ?? SPLIT.ratio
 
 // The split's limits: the pane at least 360px, the Workspace at least 480px;
 // under 960px of room there's no halving — the pane takes it all.
@@ -36,14 +40,18 @@ export function paneWidth(room, ratio = SPLIT.ratio, { maximized = false } = {})
 export const ratioOf = (room, width) => (room > 0 ? paneWidth(room, width / room).width / room : SPLIT.ratio)
 
 const storageOf = (storage) => storage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
-// { ratio, last } — the share last dragged to, and what was last open at the left ('side' or a panel's id).
+// { ratio, ratios, last } — the share last dragged to, each pane's own (`ratios`, by panel), and what was
+// last open at the left ('side' or a panel's id).
+const shareOf = (value) => (Number.isFinite(value) && value > 0.1 && value < 0.9 ? value : null)
 export function readSplit(storage) {
   try {
     const saved = JSON.parse(storageOf(storage)?.getItem(SPLIT.key) ?? 'null') ?? {}
-    const ratio = Number.isFinite(saved.ratio) && saved.ratio > 0.1 && saved.ratio < 0.9 ? saved.ratio : SPLIT.ratio
-    return { ratio, last: saved.last === 'side' || isSplit(saved.last) ? saved.last : null }
-  } catch { return { ratio: SPLIT.ratio, last: null } }
+    const ratios = Object.fromEntries(SPLIT_PANELS.map((panel) => [panel, shareOf(saved.ratios?.[panel])]).filter(([, value]) => value != null))
+    return { ratio: shareOf(saved.ratio) ?? SPLIT.ratio, ratios, last: saved.last === 'side' || isSplit(saved.last) ? saved.last : null }
+  } catch { return { ratio: SPLIT.ratio, ratios: {}, last: null } }
 }
+// The share a pane opens at: the one it was last dragged to, else its own default.
+export const ratioFor = (panel, ratios = {}) => ratios[panel] ?? defaultRatio(panel)
 export function writeSplit(value, storage) {
   try { storageOf(storage)?.setItem(SPLIT.key, JSON.stringify(value)) } catch { /* not kept */ }
 }

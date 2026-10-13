@@ -4,7 +4,8 @@ import { clampZoom } from '@/lib/screensBoard'
 
 // The Screens board while a prototype plays in one of its cards: what each
 // other card is to the screen showing, where the camera goes once, and the
-// lines from the screen's hotspots to the cards they lead to. Pure.
+// lines from the screen's hotspots to the cards they lead to (no longer drawn
+// on the board). Pure.
 
 // The interactions of the screen showing, numbered as they're listed:
 //   [{ n, transition, layer, target }] — `layer`: the hotspot's layer on that screen.

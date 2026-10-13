@@ -114,6 +114,7 @@ function PrototypePreview(props) {
       <PreviewPanelContent
         {...props}
         toolbarExtra={toolbar}
+        devicePicker
         frameMotion={{ key: motion.key, className: cn('motion-reduce:animate-none', motion.how === 'slide' && 'animate-in fade-in slide-in-from-right-8 duration-200', motion.how === 'fade' && 'animate-in fade-in duration-200') }}
         frameOverlay={(frame) => frame.id === screen?.frame.id && (
           <>

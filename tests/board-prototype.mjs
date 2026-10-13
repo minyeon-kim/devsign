@@ -107,11 +107,16 @@ try {
   // Slow: the screen showing stays, with a mark; failed: it stays and says so.
   assert.ok(frame.includes('window.setTimeout(() => { if (!cancelled) setSlow(true) }, 800)') && frame.includes('data-play-loading') && frame.includes('data-play-failed'))
   // --- On the board ---
+  // No lines between the cards, or from a playing frame's hotspots; each flow is a region.
+  assert.ok(!boardSource.includes('<svg') && !boardSource.includes('data-screen-link') && !boardSource.includes('data-proto-line'))
+  assert.ok(boardSource.includes('data-flow-region'))
+  // ‹ › move the frame itself to the card before or after it, in board order.
+  assert.ok(boardSource.includes('const target = order[frameAt + direction]') && boardSource.includes('setProto({ frameId: target, session: startSession(target) })'))
   assert.ok(boardSource.includes('onDoubleClick={() => enter(card.id)}') && boardSource.includes('enter(activePageId)') && boardSource.includes("onClick={() => { if (!proto) { setActivePageId(card.id); rootRef.current?.focus() } }}"))
   assert.ok(boardSource.includes('if (!proto || frameRef.current?.busy()) return'), 'a press during a change is let go')
   assert.ok(boardSource.includes("if (event.target.closest('[data-proto-frame]') && !(event.ctrlKey || event.metaKey)) return"), 'a plain wheel over the frame never moves the board')
   assert.ok(boardSource.includes('onPointerDown={(event) => event.stopPropagation()}\n                  onClick={(event) => event.stopPropagation()}\n                  onDoubleClick={(event) => event.stopPropagation()}'))
-  for (const mark of ['data-proto-toolbar', 'data-proto-back', 'data-proto-restart', 'data-proto-marks', 'data-proto-preview', 'data-proto-exit', 'data-proto-panel', 'data-proto-row', 'data-proto-ahead', 'data-proto-end', 'data-proto-lines', 'data-proto-badge', 'data-proto-now', 'data-proto-leads']) assert.ok(boardSource.includes(mark), mark)
+  for (const mark of ['data-proto-toolbar', 'data-proto-back', 'data-proto-restart', 'data-proto-marks', 'data-proto-preview', 'data-proto-exit', 'data-proto-panel', 'data-proto-row', 'data-proto-ahead', 'data-proto-end', 'data-proto-steps', 'data-proto-prev', 'data-proto-next', 'data-proto-badge', 'data-proto-now', 'data-proto-leads']) assert.ok(boardSource.includes(mark), mark)
   assert.ok(boardSource.includes("showScreenIn('preview', current)") && boardSource.includes("tier === 'later' && 'opacity-60', tier === 'rest' && 'opacity-25'"))
   assert.ok(boardSource.includes('{ el.blur(); return }') && boardSource.includes('exitNow.current()'), 'Esc: out of a field first, then out')
   assert.ok(boardSource.includes('role="status" aria-live="polite"') && boardSource.includes('aria-expanded={panelOpen}') && boardSource.includes('localStorage.setItem(PANEL_KEY'))

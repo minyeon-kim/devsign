@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Columns2, Crosshair, Diff, Maximize2, MoreHorizontal, Monitor, Smartphone, SquareSplitHorizontal, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronsLeftRight, Columns2, Crosshair, Diff, Maximize2, MoreHorizontal, Monitor, Smartphone, SquareSplitHorizontal, Tablet, TriangleAlert, X } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
-import { DEVICES, focusBox, frameOnDevice, isPhoneFrame } from '@/lib/devicePreview'
+import { DEVICE_KINDS, DEVICES, focusBox, frameOnDevice, isPhoneFrame } from '@/lib/devicePreview'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import ChangePreview from '@/components/conflicts/ChangePreview'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
@@ -16,6 +16,7 @@ import CodeRender, { INSPECT_TONE } from '@/components/history/CodeRender'
 import { inspectionsFor, layoutAt, layoutChanged, screensChanged } from '@/lib/codeRender'
 import { BREAKPOINT_LABEL, DEVICE_PRESETS, referencePick, screenOf } from '@/lib/devicePresets'
 import DevicePicker from '@/components/history/DevicePicker'
+import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
 import { changedRegionAt, changedScale, viewOf } from '@/lib/changedView'
 
 // Space between frames, in px.
@@ -152,7 +153,7 @@ const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen
 const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, frameOverlay = null, frameMotion = null, canvasExtra = null, emphasizeMark = null, flush = false, narrowPane = false } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, devicePicker = false, frameOverlay = null, frameMotion = null, canvasExtra = null, emphasizeMark = null, flush = false, narrowPane = false } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -231,8 +232,9 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
     const withPadding = layer.id === 'primary-button' && buttonPadding ? { ...override, padding: buttonPadding } : override
     return layer.type === 'tabs' && previewProps?.iconSize ? { ...withPadding, nav: previewProps } : withPadding
   }
-  // On the phone picked (frames that aren't a phone's stay as drawn).
-  const phone = viewControls && frames.some(isPhoneFrame)
+  // On the device picked (frames that aren't a phone's stay as drawn) — History's phones, or (`devicePicker`,
+  // a prototype's Preview) any phone, tablet or browser, the layout re-laid for it (lib/devicePreview).
+  const phone = (viewControls || devicePicker) && frames.some(isPhoneFrame)
   const device = phone ? DEVICES.find((entry) => entry.id === deviceId) ?? DEVICES[0] : DEVICES[0]
   const shownFrames = phone ? frames.map((frame) => frameOnDevice(frame, device.id)) : frames
   // The changed element, when there's one to show — this version's, else
@@ -325,6 +327,35 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
     view === 'full' && { id: 'rings', label: 'Ring the changed elements', on: marking, disabled: !canMark, title: canMark ? undefined : noChangeTitle, onClick: () => setRingPick(!ringPick) },
   ].filter(Boolean)
 
+  // Which device the frame is drawn on, by kind — the device's own icon on the trigger.
+  const DeviceIcon = device.kind === 'browser' ? Monitor : device.kind === 'tablet' ? Tablet : Smartphone
+  const deviceMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger data-preview-device={device.id} data-toolbar-control className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
+        <DeviceIcon className="size-3.5 shrink-0 text-slate-400" />
+        <span className="min-w-0 truncate max-[1025px]:hidden"><LocalizedText text={device.label} /></span>
+        {device.width && <span className="shrink-0 text-slate-500 tabular-nums max-[1025px]:hidden">{device.width}</span>}
+        <ChevronDown className="size-3 shrink-0 text-slate-400" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-[70vh] min-w-56 overflow-y-auto">
+        {[{ id: null, label: null }, ...DEVICE_KINDS].map((kind) => {
+          const entries = DEVICES.filter((entry) => (entry.kind ?? null) === kind.id)
+          return entries.length > 0 && (
+            <div key={kind.id ?? 'design'} data-device-kind={kind.id ?? 'design'}>
+              {kind.label && <p className="px-2 pt-2 pb-1 text-[10.5px] font-medium tracking-wide text-slate-500 uppercase"><LocalizedText text={kind.label} /></p>}
+              {entries.map((entry) => (
+                <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
+                  <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
+                  <LocalizedText text={entry.label} />
+                  {entry.width && <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}×{entry.height}</span>}
+                </DropdownMenuItem>
+              ))}
+            </div>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
   const panel = (
     <div data-preview-panel className={cn('flex h-full flex-col overflow-hidden', !embedded && !fullscreen && 'bg-card', fullscreen && 'pt-3')}>
       {viewControls ? (
@@ -364,25 +395,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               </div>
             )}
             {rendering && <span data-toolbar-control className="flex min-w-0 shrink-0 items-center gap-1.5"><DevicePicker compact category={category} pick={devicePick} onPick={(next) => { setDevicePick(next); setOverview(false) }} screen={viewport} /></span>}
-            {phone && !rendering && (
-              <DropdownMenu>
-                <DropdownMenuTrigger data-preview-device={device.id} data-toolbar-control className="ds-intrinsic inline-flex h-7 min-w-0 items-center gap-1.5 rounded-md bg-white/[0.05] px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.09] hover:text-white">
-                  <Smartphone className="size-3.5 shrink-0 text-slate-400" />
-                  <span className="min-w-0 truncate max-[1025px]:hidden"><LocalizedText text={device.label} /></span>
-                  {device.width && <span className="shrink-0 text-slate-500 tabular-nums max-[1025px]:hidden">{device.width}</span>}
-                  <ChevronDown className="size-3 shrink-0 text-slate-400" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-52">
-                  {DEVICES.map((entry) => (
-                    <DropdownMenuItem key={entry.id} data-device-option={entry.id} onClick={() => setDeviceId(entry.id)} className="gap-2 text-xs">
-                      <Check className={cn('size-3.5', entry.id === device.id ? 'opacity-100' : 'opacity-0')} />
-                      <LocalizedText text={entry.label} />
-                      {entry.width && <span className="ml-auto pl-3 text-slate-500 tabular-nums">{entry.width}×{entry.height}</span>}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            {phone && !rendering && deviceMenu}
             {/* The switches, in one menu — a dot on it when any is on. */}
             {options.length > 0 && (
               <DropdownMenu>
@@ -414,15 +427,23 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
         <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded ? 'pt-0' : 'pt-3')}>
           {/* (A prototype's own controls lead the row; then full screen is offered too.) */}
           {toolbarExtra ?? <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>}
-          <div className="flex shrink-0 items-center gap-2">
-            {caption}
-            <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
-            {toolbarExtra && (
-              <button type="button" data-preview-fullscreen aria-pressed={fullscreen} aria-label={fullscreen ? 'Exit full screen' : 'View full screen'} title={fullscreen ? 'Exit full screen · Esc' : 'View full screen'} onClick={() => setFullscreen(!fullscreen)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-                {fullscreen ? <X className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-              </button>
-            )}
-          </div>
+          {/* The tools: a prototype's Preview (`devicePicker`) puts them up in its window's tab row, at its
+              right end — in place in full screen, where that row is out of sight. */}
+          {(() => {
+            const tools = (
+              <div data-preview-tools className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground">
+                {caption}
+                {phone && deviceMenu}
+                <CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />
+                {toolbarExtra && (
+                  <button type="button" data-preview-fullscreen aria-pressed={fullscreen} aria-label={fullscreen ? 'Exit full screen' : 'View full screen'} title={fullscreen ? 'Exit full screen · Esc' : 'View full screen'} onClick={() => setFullscreen(!fullscreen)} className="ds-intrinsic flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                    {fullscreen ? <X className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+                  </button>
+                )}
+              </div>
+            )
+            return devicePicker && !fullscreen ? <WindowHeaderPortal fallbackClassName="contents">{tools}</WindowHeaderPortal> : tools
+          })()}
         </div>
       )}
 
@@ -718,13 +739,21 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               <div
                 key={frameMotion ? `${frame.id}:${frameMotion.key}` : frame.id}
                 data-preview-frame={frame.id}
-                className={cn('relative shrink-0 overflow-hidden rounded-xl bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80', frameMotion?.className)}
+                data-preview-chrome={frame.chrome ? 'browser' : undefined}
+                className={cn('relative shrink-0 overflow-hidden bg-white shadow-xl shadow-black/40 ring-1 ring-slate-200/80', frame.chrome ? 'rounded-lg' : 'rounded-xl', frameMotion?.className)}
                 style={{ width: frame.width * scale, height: frame.height * scale }}
               >
                 <div
                   className="relative"
                   style={{ width: frame.width, height: frame.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}
                 >
+                  {/* A browser's own top: its window buttons and address bar, in the screen's units. */}
+                  {frame.chrome && (
+                    <div aria-hidden className="absolute inset-x-0 top-0 flex items-center gap-1.5 border-b border-slate-200 bg-slate-100 px-2.5" style={{ height: frame.chrome.height }}>
+                      {['bg-red-400', 'bg-amber-400', 'bg-green-400'].map((dot) => <span key={dot} className={cn('size-[7px] shrink-0 rounded-full', dot)} />)}
+                      <span className="ml-2 flex h-[60%] min-w-0 flex-1 items-center rounded bg-white px-2 text-[8px] text-slate-500 ring-1 ring-slate-200">localhost:3000</span>
+                    </div>
+                  )}
                   {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={layerOverride(layer)} onSelect={() => {}} />)}
                   {/* What the caller lays over the screen, in the screen's own units (a prototype's hotspots). */}
                   {frameOverlay?.(frame)}

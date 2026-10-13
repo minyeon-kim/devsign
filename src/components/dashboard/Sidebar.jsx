@@ -2,7 +2,7 @@ import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { PANELS, SPLIT, isSplit, paneWidth, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
+import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
@@ -439,12 +439,13 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   const resize = (w) => setWidth(Math.max(DRAWER_MIN, Math.min(DRAWER_MAX, w)))
 
   // A work pane (lib/workPane: the changes to check, Design Compare) is as
-  // wide as its share of the room — half, until its edge is dragged; the
-  // share is kept. The room is the window less the bar and an open AI Chat,
+  // wide as its share of the room — its own default (a third for the changes,
+  // half for Design Compare), until its edge is dragged; each pane's share is kept. The room is the window less the bar and an open AI Chat,
   // so the pane and the Workspace split what's left. With too little to
   // split, or maximized, the pane has it all.
   const split = isSplit(panel)
-  const [ratio, setRatio] = useState(() => readSplit().ratio)
+  const [ratios, setRatios] = useState(() => readSplit().ratios)
+  const ratio = ratioFor(panel, ratios)
   const [maximized, setMaximized] = useState(false)
   const [windowWidth, setWindowWidth] = useState(() => (typeof window === 'undefined' ? 1440 : window.innerWidth))
   useEffect(() => {
@@ -458,7 +459,8 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   const room = Math.max(0, windowWidth - RAIL_PX - chat)
   const pane = paneWidth(room, ratio, { maximized })
   const shownWidth = split ? pane.width : width
-  const setShare = (next, keep = false) => { setRatio(next); if (keep) writeSplit({ ...readSplit(), ratio: next }) }
+  const keepShare = (next) => { const saved = readSplit(); writeSplit({ ...saved, ratios: { ...saved.ratios, [panel]: next } }) }
+  const setShare = (next, keep = false) => { setRatios((prev) => ({ ...prev, [panel]: next })); if (keep) keepShare(next) }
   // (Maximizing is for the pane that's open: it doesn't outlast it.)
   if (!drawer && maximized) setMaximized(false)
   // Opened: the focus goes into it; closed with the focus inside: back to its icon.
@@ -503,9 +505,9 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
                 className="absolute inset-y-0 -right-1 z-10"
                 onResizeStart={() => { dragStart.current = pane.width; setResizing(true) }}
                 onResize={(dx) => setShare(ratioOf(room, dragStart.current + dx))}
-                onResizeEnd={() => { setResizing(false); writeSplit({ ...readSplit(), ratio }) }}
+                onResizeEnd={() => { setResizing(false); keepShare(ratio) }}
                 onStep={(d) => setShare(ratioOf(room, pane.width + d), true)}
-                onReset={() => setShare(SPLIT.ratio, true)}
+                onReset={() => setShare(defaultRatio(panel), true)}
               />
             )
           ) : (

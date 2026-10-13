@@ -794,6 +794,13 @@ Changed element|바뀐 요소
 Full screen|전체 화면
 Whole screen|화면 전체
 Showing now|지금 보는 화면
+Previous screen|이전 화면
+Next screen|다음 화면
+Browser|브라우저
+Browser · small|브라우저 · 작은 화면
+Browser · laptop|브라우저 · 노트북
+Browser · desktop|브라우저 · 데스크톱
+iPad Air · landscape|iPad Air · 가로
 Next interactions|다음 인터랙션
 Show interactions|인터랙션 표시
 Open this screen in Preview|미리보기에서 이 화면 열기
@@ -1427,6 +1434,7 @@ Checks passed|통과한 검사
 Merge impact|병합 영향
 All automated checks pass|모든 자동 검사 통과
 Impact|영향
+Impact & evidence|영향 / 근거
 Proposed fix|제안 수정안
 Resolve|해결
 Merged result|병합 결과

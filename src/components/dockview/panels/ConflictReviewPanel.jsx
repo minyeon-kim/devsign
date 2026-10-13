@@ -73,6 +73,7 @@ import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
 import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
+import { ReviewHeaderPortal } from '@/components/conflicts/ReviewHeaderSlot'
 import {
   ACCENT_CTA,
 } from '@/components/mergestudio/floatingStyles'
@@ -110,7 +111,6 @@ const REVIEWER_STATUS = {
 
 const REVIEW_GUTTER = 'gap-4 xl:gap-5'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
-const REVIEW_CONTEXT_CARD = cn(REVIEW_CARD, 'ds-review-context')
 const REVIEW_INFO_LABEL = 'text-xs leading-[18px] font-medium text-slate-400'
 
 function EmptyNote({ children }) {
@@ -539,11 +539,13 @@ function Row({ label, children, ...rest }) {
   )
 }
 
-function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, children, className }) {
+// (`gist`: what a folded section holds, in a line beside its title — enough to judge by without opening it.)
+function InfoSection({ title, count, gist = null, open, onToggle, toggleProps, sectionRef, children, className }) {
   const heading = title && (
     <>
-      <span className={INFO_TITLE}><LocalizedText text={title} /></span>
+      <span className={cn(INFO_TITLE, 'shrink-0')}><LocalizedText text={title} /></span>
       {count != null && <span data-info-count className="text-[11px] leading-4 text-slate-200 tabular-nums">{count}</span>}
+      {gist != null && !open && <span data-info-gist className="min-w-0 truncate text-[11px] leading-4 text-slate-500">{gist}</span>}
     </>
   )
   return (
@@ -556,6 +558,16 @@ function InfoSection({ title, count, open, onToggle, toggleProps, sectionRef, ch
       ) : <div className="mb-1 flex items-center gap-1.5">{heading}</div>)}
       {children}
     </section>
+  )
+}
+
+// A section folded until it's asked for — its title and a line of what's in it (`gist`).
+function FoldSection({ title, gist, count, defaultOpen = false, className, children, ...rest }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <InfoSection title={title} count={count} gist={gist} open={open} onToggle={() => setOpen((value) => !value)} toggleProps={{ 'data-fold-toggle': title, ...rest }} className={className}>
+      {open && children}
+    </InfoSection>
   )
 }
 
@@ -639,9 +651,14 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
       {/* 2 · Problem: why it conflicts — with a small link to the version
           it came in with, right under — and what goes wrong if it stays. */}
       {/* (The page: the screen it's on comes first, the first thing under the tabs.) */}
-      {page && !mix && !conflict.rollback && designLink && <section data-info-section="Screen" className={INFO_SECTION}><ScreenLocation conflict={conflict} /></section>}
+      {/* (Where it is on the screen: the canvas beside the pane lights the element itself — so here it's folded.) */}
+      {page && !mix && !conflict.rollback && designLink && (
+        <FoldSection title="Where on the screen" gist={conflict.layerName ?? conflict.title?.split(' / ')[0]} className="border-t-0 pt-0">
+          <ScreenLocation conflict={conflict} />
+        </FoldSection>
+      )}
       {!mix && !conflict.rollback && (cause_text || cause || why || standard || (designLink && !page)) && (
-        <InfoSection title="Conflict information" className="border-t-0 pt-1">
+        <InfoSection title="Conflict information">
           <dl data-info-problem className={GRID}>
             {designLink && !page && (
               <Row label="Where on the screen" data-summary-row="Screen">
@@ -682,8 +699,9 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           link to where it's defined, its grade a quiet tag), where it comes
           from (the Figma frame a link) and what it's for. No chip list, no
           count; comments are the Comments tab's. */}
+      {/* (Folded: the rule's name says enough to judge by; its source and purpose are there when opened.) */}
       {!conflict.rollback && standard && (
-        <InfoSection title="Standard">
+        <FoldSection title="Standard" gist={<>{standard.rules.map((rule, index) => <Fragment key={rule.id}>{index > 0 && ' · '}<LocalizedText text={rule.name} /></Fragment>)}</>}>
           <dl data-info-standard className={GRID}>
             <Row label="Rule">
               {standard.rules.map((rule, index) => (
@@ -705,7 +723,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
             </Row>
             <Row label="What it’s for">{list(standard.purpose)}</Row>
           </dl>
-        </InfoSection>
+        </FoldSection>
       )}
 
       {/* (The page: who reviews it, after what it is — before the details.) */}
@@ -826,7 +844,8 @@ function CodeDiffColumns({ rows, codeConflict = false }) {
     <div className="min-w-0 space-y-2">
       <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
         {!codeConflict && <><Sparkles className="size-3 shrink-0 text-emerald-300" /><LocalizedText text="AI suggestion" /></>}
-        <DiffLayoutTabs className="ml-auto" />
+        {/* (How the diff is laid out is a view control: up in the detail's header, beside Close.) */}
+        <ReviewHeaderPortal fallbackClassName="ml-auto"><DiffLayoutTabs /></ReviewHeaderPortal>
       </div>
       <div className="scroll-fade-bottom min-w-0 overflow-auto rounded-md bg-black/20 py-1">
         <DiffView rows={rows} lit={!codeConflict} labels={codeConflict ? ['Conflicting code', 'Proposed resolution'] : ['Before', 'After']} />
@@ -3489,8 +3508,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     </div>
                   )
   // Who reviews it: before the rest in the panel; on the page, after what the change is.
+  // (Folded, with who and how far in a line — open only while there's no one to review it: one has to be picked.)
+  const reviewerNames = conflict && !conflict.rollback ? conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name).filter(Boolean) : []
+  const reviewersApproved = conflict && !conflict.rollback ? conflict.reviewers.filter((reviewer) => reviewer.status === 'approved').length : 0
   const reviewersSection = conflict && !conflict.rollback ? (
-    <InfoSection title="Reviewers" className="mb-5">
+    <FoldSection key={`reviewers:${conflict.id}`} title="Reviewers" count={conflict.reviewers.length || null} defaultOpen={!conflict.reviewers.length}
+      gist={conflict.reviewers.length ? `${reviewerNames.join(', ')} · ${reviewersApproved}/${conflict.reviewers.length}` : null} className="mb-5">
       <ReviewersSection
         conflict={conflict}
         onUpdate={onUpdate ? update : undefined}
@@ -3499,7 +3522,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         quiet={page && Boolean(conflict.decisionFlow)}
       />
       <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
-    </InfoSection>
+    </FoldSection>
   ) : null
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
@@ -3573,27 +3596,26 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 </div>
               )
             })()}
-            {/* Shared outer padding aligns the header and content cards. */}
-            {/* The header and the tabs above stay put. On a wide panel the
-                three areas — comparison and diff, reasoning, reviewers and
-                comments — each scroll on their own, so none of these
-                wrappers scrolls; narrower, where they stack, the page does. */}
-            <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-auto xl:overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
-              <div className={cn(
-                'grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-auto pt-1 xl:grid-cols-[minmax(0,1fr)_320px] xl:overflow-hidden',
+            {/* Shared outer padding aligns the header and content. */}
+            {/* One column that scrolls as a whole, under the header: what to decide first, then — at its
+                foot — its impact and evidence, the comments and the activity (no column of its own beside
+                it: the pane stays narrow, so the canvas next to it keeps its room). */}
+            <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
+              <div data-review-scroll="main" className={cn(
+                'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto pt-1',
                 REVIEW_GUTTER
               )}>
                 {/* (Stacked, a replay keeps its height — the page scrolls —
                     rather than sharing the window with the sidebar below:
                     its preview would shrink to nothing.) */}
-                <div className={cn('flex min-h-0 min-w-0 flex-col overflow-auto', replayId ? 'max-xl:min-h-[576px]' : 'xl:overflow-hidden')}>
+                <div className={cn('flex min-w-0 shrink-0 flex-col', replayId && 'min-h-[576px]')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
                   {!conflict.decisionFlow && !mergeRequest && mergedBanner}
                   {!replayId && conflict.decisionFlow ? (
                     // A structural drift: a design decision to ask for and
                     // make, not values to pick (DesignDecisionFlow).
-                    <div data-review-scroll="decision" className="min-h-0 min-w-0 flex-1 overflow-auto">
+                    <div data-review-section="decision" className="min-w-0">
                       {/* (Keyed by the change: what's being picked for one is never carried to the next.) */}
                       <DesignDecisionFlow key={conflict.id} conflict={conflict} workspace={workspace} viewer={currentUserFor(conflict.projectId)} banner={mergedBanner} onReplay={activity.entries.length ? (key) => openReplay(replayEntryFor(key), { autoplay: key === 'start' }) : undefined} />
                     </div>
@@ -3601,7 +3623,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     // (On the page: one column that scrolls as a whole, 12px
                     // between its cards — status, what differs, the ways
                     // forward, then the record — as a design decision's is.)
-                    <div data-review-scroll={page ? 'main' : undefined} className={page ? 'flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-auto' : 'contents'}>
+                    <div className={page ? 'flex min-w-0 flex-col gap-3' : 'contents'}>
                     {/* What's needed now, first (the page's status block): the
                         next action in words — what to act on is right under it. */}
                     {/* Approved, the fix under way or checked: the status and the
@@ -3641,14 +3663,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     )}
                     {/* What was found, in a card of its own (the page). */}
                     {actionInCard && conflict.comparisonFields?.length > 0 && (
-                      <section data-difference-section data-detected-summary aria-label="Conflict summary" className={cn(REVIEW_CARD, 'min-w-0 shrink-0 px-4 py-3 ring-1 ring-amber-400/25 ring-inset')}>
+                      <section data-difference-section data-detected-summary aria-label="Conflict summary" className="min-w-0 shrink-0 border-t border-white/[0.07] pt-4">
                         <DifferenceSummary compact className="bg-transparent !px-0 !py-0" conflict={conflict} resolved={stage === 'resolved'} mergedSide={mergedSide} />
                       </section>
                     )}
                     <div className={page ? 'min-w-0 shrink-0' : 'grid min-h-0 min-w-0 flex-1 grid-cols-1 items-stretch gap-3 xl:flex xl:items-stretch xl:overflow-hidden'}>
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
-                      <section data-review-diff className={cn('flex min-w-0 flex-col', REVIEW_CARD, page ? 'p-4 ring-1 ring-white/[0.06] ring-inset' : 'min-h-0 overflow-hidden p-4 sm:p-5 xl:flex-1')}>
+                      {/* (A section under a hairline on the page — no card around it, so nothing inside is a card in a card.) */}
+                      <section data-review-diff className={cn('flex min-w-0 flex-col', page ? 'border-t border-white/[0.07] pt-5' : cn(REVIEW_CARD, 'min-h-0 overflow-hidden p-4 sm:p-5 xl:flex-1'))}>
                         {/* ① What's different: the summary, under the same kind
                             of title as the sections below it. */}
                         {!actionInCard && !conflict.rollback && !(driftItem && draftColumns(driftItem)) && conflict.comparisonFields?.length > 0 && (
@@ -3753,11 +3776,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     comparison beside it takes all the rest. */}
                 {/* (In the grid's own row beside the main view: its top is the first container's top,
                     whatever the header's height. Each scrolls on its own, so it stays put.) */}
-                <aside data-review-sidebar className={cn('flex h-full min-h-0 min-w-0 flex-col', REVIEW_CONTEXT_CARD, page && 'xl:!pt-3')}>
+                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className="flex min-w-0 shrink-0 flex-col border-t border-white/[0.07] pt-4">
                   <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
                     {/* A design decision keeps one record — its History — in
                         place of separate Comments and Activity. */}
-                    {(conflict.decisionFlow ? [['info', 'Info'], ['history', '활동']] : [['info', 'Info'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]).map(([value, label]) => (
+                    {(conflict.decisionFlow ? [['info', 'Impact & evidence'], ['history', '활동']] : [['info', 'Impact & evidence'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]).map(([value, label]) => (
                       <button
                         key={value}
                         type="button"
@@ -3782,7 +3805,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     ))}
                   </div>
                   {sideTab === 'info' ? (
-                    <div data-review-scroll="info" role="tabpanel" className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3')}>
+                    <div data-review-tab="info" role="tabpanel" className={cn('min-w-0', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3')}>
                       {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
                       {/* (On the page the steps are the record in the main view.) */}
                       {!page && !conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
@@ -3809,7 +3832,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       />
                     </div>
                   ) : sideTab === 'history' && conflict.decisionFlow ? (
-                    <div role="tabpanel" className="flex min-h-0 flex-1 flex-col">
+                    <div role="tabpanel" className="flex h-[480px] min-h-0 flex-col">
                       <ConflictHistory
                         key={conflict.id}
                         events={historyEvents}
@@ -3825,15 +3848,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       />
                     </div>
                   ) : sideTab === 'activity' ? (
-                    <div data-review-scroll="activity" role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                    <div data-review-tab="activity" role="tabpanel" className="min-w-0">
                       <ConflictActivityList conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onOpenProjectHistory={openProjectHistory} />
                     </div>
                   ) : (
-                    <div role="tabpanel" className="flex min-h-0 flex-1 flex-col">
+                    <div role="tabpanel" className="flex h-[480px] min-h-0 flex-col">
                       <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
                     </div>
                   )}
-                </aside>
+                </section>
               </div>
             </div>
           </>

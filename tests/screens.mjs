@@ -69,10 +69,12 @@ try {
     const row = flow.screenIds.map(at)
     assert.ok(row.every((card, i) => card.row === 0 && card.col === i && card.y === row[0].y && (i === 0 || card.x > row[i - 1].x + row[i - 1].width)), `${flow.id} runs left to right`)
   }
-  // A branch: on the row under, below the screen it leaves from.
-  assert.deepEqual([at('page-login-error').row, at('page-login-error').x], [1, at('page-login').x])
-  assert.ok(at('page-login-error').y > at('page-login').y + at('page-login').height)
-  assert.equal(at('page-payment-failed').x, at('page-checkout').x)
+  // A branch: on the same row, after the flow's own screens — a flow is one row.
+  const onboarding = shop.flows.find((flow) => flow.id === 'onboarding')
+  assert.deepEqual([at('page-login-error').row, at('page-login-error').col], [0, onboarding.screenIds.length])
+  assert.ok(layout.cards.every((card) => card.row === 0), 'every flow is one row')
+  assert.equal(at('page-login-error').y, at('page-login').y)
+  assert.ok(at('page-payment-failed').x > at('page-checkout').x && at('page-payment-failed').y === at('page-checkout').y)
   // Flows are groups, one under the other, each named; what's in no flow comes last as "Other screens".
   assert.deepEqual(layout.groups.map((group) => group.name), ['Onboarding', 'Purchase', 'Other screens'])
   assert.ok(layout.groups.every((group, i) => i === 0 || group.y > layout.groups[i - 1].y + layout.groups[i - 1].height))
@@ -96,7 +98,7 @@ try {
   const kind = (from, to) => links.find((link) => link.from === from && link.to === to)?.kind
   assert.equal(kind('page-splash', 'page-onboarding-1'), 'next')
   assert.equal(kind('page-onboarding-1', 'page-login'), 'branch', 'a skip ahead isn’t the next screen')
-  assert.equal(kind('page-login', 'page-login-error'), 'branch')
+  assert.equal(kind('page-login', 'page-login-error'), 'next', 'a branch is the next card on its flow’s row')
   assert.equal(kind('page-login-error', 'page-login'), 'back')
   assert.equal(kind('page-order-complete', 'page-home'), 'back')
   assert.equal(kind('page-login', 'page-home'), 'branch', 'on to the next flow')

@@ -2788,14 +2788,15 @@ export function WorkspaceProvider({ children, projectId }) {
     if (!changeParam) { openedChange.current = null; return }
     if (openedChange.current === changeParam) return
     const record = conflicts.find((candidate) => candidate.id === changeParam)
-    if (!record) return
+    // (Not before the layout is up: the canvas has to be there to bring the element up on it — a reload, a link.)
+    if (!record || !dockApi) return
     openedChange.current = changeParam
     exitMergeStudio()
     // (The bottom panel's list folds in the same step the left one is asked for — one list at a time, never a moment with both.)
     setBottomPanelState((prev) => (prev.open && prev.tab === 'conflict' ? { ...prev, open: false } : prev))
     requestConflictDrawer(record.id)
     focusConflictPin(record)
-  }, [changeParam, conflicts, exitMergeStudio, requestConflictDrawer, focusConflictPin])
+  }, [changeParam, conflicts, exitMergeStudio, requestConflictDrawer, focusConflictPin, dockApi])
 
   // The docs layer open is always the same screen too: the Workspace's own view
   // with the Docs drawer (the category tree) beside the document — however it

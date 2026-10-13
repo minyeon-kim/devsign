@@ -8,7 +8,7 @@ import { createServer } from 'vite'
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8')
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
-  const { PANELS, SPLIT, SPLIT_PANELS, isSplit, paneWidth, ratioOf, readSplit, writeSplit, readPanel, withPanel } = await server.ssrLoadModule('/src/lib/workPane.js')
+  const { PANELS, SPLIT, SPLIT_PANELS, isSplit, paneWidth, ratioOf, readSplit, writeSplit, readPanel, withPanel, defaultRatio, ratioFor } = await server.ssrLoadModule('/src/lib/workPane.js')
 
   // Which menu opens how is said in one place.
   assert.deepEqual(SPLIT_PANELS, ['conflicts', 'compare'])
@@ -30,12 +30,18 @@ try {
   assert.equal(ratioOf(1512, 5000), (1512 - 480) / 1512)
   // The share and what was last open at the left are kept; anything else there is read as the default.
   const map = new Map(); const storage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) }
-  assert.deepEqual(readSplit(storage), { ratio: 0.5, last: null })
-  writeSplit({ ratio: 0.37, last: 'compare' }, storage)
-  assert.deepEqual(readSplit(storage), { ratio: 0.37, last: 'compare' })
-  map.set(SPLIT.key, '{"ratio":7,"last":"docs"}')
-  assert.deepEqual(readSplit(storage), { ratio: 0.5, last: null })
-  assert.deepEqual(readSplit({ getItem() { throw new Error('blocked') } }), { ratio: 0.5, last: null })
+  assert.deepEqual(readSplit(storage), { ratio: 0.5, ratios: {}, last: null })
+  writeSplit({ ratio: 0.37, ratios: { conflicts: 0.3, docs: 0.6 }, last: 'compare' }, storage)
+  assert.deepEqual(readSplit(storage), { ratio: 0.37, ratios: { conflicts: 0.3 }, last: 'compare' })
+  map.set(SPLIT.key, '{"ratio":7,"ratios":{"compare":2},"last":"docs"}')
+  assert.deepEqual(readSplit(storage), { ratio: 0.5, ratios: {}, last: null })
+  assert.deepEqual(readSplit({ getItem() { throw new Error('blocked') } }), { ratio: 0.5, ratios: {}, last: null })
+  // Each pane its own share: the changes a third (the canvas keeps the rest), Design Compare half — until dragged.
+  assert.equal(defaultRatio('conflicts'), 0.34)
+  assert.equal(defaultRatio('compare'), 0.5)
+  assert.equal(ratioFor('conflicts', {}), 0.34)
+  assert.equal(ratioFor('conflicts', { conflicts: 0.42 }), 0.42)
+  assert.ok(paneWidth(1392, defaultRatio('conflicts')).width < 1392 / 2.5, 'the canvas keeps most of the room')
 
   // The address.
   assert.equal(readPanel('?view=screens&panel=compare'), 'compare')
@@ -62,7 +68,7 @@ try {
   assert.ok(topBar.includes('const { leftOpen: open, toggleLeft } = useWorkspace()') && provider.includes('const leftOpen = sidePanel.open || Boolean(workPane)') && provider.includes('if (isSplit(last)) setWorkPane(last)'))
   // The pane: a named region, as wide as its share; its edge a separator that says where it stands, resets on a double press.
   assert.ok(sidebar.includes("role={split ? 'region' : undefined}") && sidebar.includes('const pane = paneWidth(room, ratio, { maximized })'))
-  assert.ok(sidebar.includes('value={Math.round((pane.width / Math.max(1, room)) * 100)}') && sidebar.includes('onReset={() => setShare(SPLIT.ratio, true)}') && read('components/layout/SplitHandle.jsx').includes('aria-valuenow={value}'))
+  assert.ok(sidebar.includes('value={Math.round((pane.width / Math.max(1, room)) * 100)}') && sidebar.includes('onReset={() => setShare(defaultRatio(panel), true)}') && read('components/layout/SplitHandle.jsx').includes('aria-valuenow={value}'))
   assert.ok(sidebar.includes('data-pane-maximize') && sidebar.includes('data-pane-workspace') && sidebar.includes('if (!frame) frame = requestAnimationFrame('), 'maximize, the way back when it has the window, one resize a frame')
   assert.ok(sidebar.includes("{panel === 'compare' && project && context && <WorkspaceDesignCompare />}") && sidebar.includes('data-work-pane-layer'))
   // A change's detail is shown in the pane, the Workspace still in use beside it.

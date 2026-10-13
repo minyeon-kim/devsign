@@ -1,23 +1,42 @@
-// A design frame shown on another phone, and the part of it that changed.
+// A design frame shown on another phone, a tablet or in a browser, and the
+// part of it that changed.
 //
 // Frames are drawn at a design scale — a phone frame is ~280 wide for a
-// 390pt-wide screen — with absolutely placed layers. On another phone the
-// frame takes that phone's proportions at the same scale, and each layer
-// keeps to the edge it's laid out against:
+// 390pt-wide screen — with absolutely placed layers. On another device the
+// frame takes that device's proportions at the same scale.
+// On a phone each layer keeps to the edge it's laid out against:
 //   · spanning the width (inset the same, or nearly, on both sides) → stretches
 //   · centered → stays centered
 //   · nearer the right edge → keeps its right inset
 //   · flush with the bottom (a tab bar) → stays at the bottom
 //   · anything else → where it was
-// A shorter screen cuts the rest off below the fold, as the phone would.
+// On a tablet or in a browser the layout is fluid instead: the content sits
+// in a centred column (the whole width up to `column`), every layer keeps its
+// place and share of it, a full-bleed layer spans the whole screen, and the
+// bottom-flush ones stay at the bottom. A browser has no status bar — its
+// own address bar instead (`chrome`), drawn over the top of the frame.
+// A shorter screen cuts the rest off below the fold, as the device would.
+export const DEVICE_KINDS = [
+  { id: 'phone', label: 'Mobile' },
+  { id: 'tablet', label: 'Tablet' },
+  { id: 'browser', label: 'Browser' },
+]
 export const DEVICES = [
   { id: 'design', label: 'Design frame' },
-  { id: 'iphone-se', label: 'iPhone SE', width: 375, height: 667 },
-  { id: 'iphone-15', label: 'iPhone 15', width: 393, height: 852 },
-  { id: 'iphone-15-pro-max', label: 'iPhone 15 Pro Max', width: 430, height: 932 },
-  { id: 'galaxy-s24', label: 'Galaxy S24', width: 360, height: 780 },
-  { id: 'pixel-8', label: 'Pixel 8', width: 412, height: 915 },
+  { id: 'iphone-se', kind: 'phone', label: 'iPhone SE', width: 375, height: 667 },
+  { id: 'iphone-15', kind: 'phone', label: 'iPhone 15', width: 393, height: 852 },
+  { id: 'iphone-15-pro-max', kind: 'phone', label: 'iPhone 15 Pro Max', width: 430, height: 932 },
+  { id: 'galaxy-s24', kind: 'phone', label: 'Galaxy S24', width: 360, height: 780 },
+  { id: 'pixel-8', kind: 'phone', label: 'Pixel 8', width: 412, height: 915 },
+  { id: 'ipad-mini', kind: 'tablet', label: 'iPad mini', width: 744, height: 1133, column: 600 },
+  { id: 'ipad-air', kind: 'tablet', label: 'iPad Air', width: 820, height: 1180, column: 640 },
+  { id: 'ipad-air-landscape', kind: 'tablet', label: 'iPad Air · landscape', width: 1180, height: 820, column: 720 },
+  { id: 'browser-1024', kind: 'browser', label: 'Browser · small', width: 1024, height: 700, column: 720 },
+  { id: 'browser-1280', kind: 'browser', label: 'Browser · laptop', width: 1280, height: 800, column: 760 },
+  { id: 'browser-1440', kind: 'browser', label: 'Browser · desktop', width: 1440, height: 900, column: 800 },
 ]
+// The address bar a browser draws over the frame, in screen px.
+export const BROWSER_CHROME = 40
 // The screen width a phone frame is drawn for.
 const DESIGN_WIDTH = 390
 // A frame this narrow or narrower is a phone's.
@@ -29,6 +48,7 @@ export function frameOnDevice(frame, deviceId) {
   const k = frame.width / DESIGN_WIDTH
   const width = Math.round(device.width * k)
   const height = Math.round(device.height * k)
+  if (device.kind === 'tablet' || device.kind === 'browser') return fluidFrame(frame, device, k, width, height)
   const layers = frame.layers.map((layer) => {
     const left = layer.x
     const right = frame.width - (layer.x + layer.width)
@@ -42,6 +62,26 @@ export function frameOnDevice(frame, deviceId) {
     return x === layer.x && w === layer.width && y === layer.y ? layer : { ...layer, x, y, width: w }
   })
   return { ...frame, width, height, layers }
+}
+
+// A phone's frame on a wider screen: a centred column, the layers fluid in it.
+// (The phone's status bar: a bar across the very top — said so, or by where it is.)
+const isStatusBar = (layer, frame) => layer.type === 'bar' && (layer.mock?.role === 'status' || (layer.y <= 2 && layer.height <= 32 && layer.width >= frame.width - 4))
+function fluidFrame(frame, device, k, width, height) {
+  const browser = device.kind === 'browser'
+  const chrome = browser ? Math.round(BROWSER_CHROME * k) : 0
+  const column = Math.min(width, Math.round((device.column ?? device.width) * k))
+  const ratio = column / frame.width
+  const offset = Math.round((width - column) / 2)
+  const layers = frame.layers.filter((layer) => !(browser && isStatusBar(layer, frame))).map((layer) => {
+    const bottom = frame.height - (layer.y + layer.height)
+    const fullBleed = layer.x <= 2 && layer.x + layer.width >= frame.width - 2
+    const x = fullBleed ? 0 : Math.round(offset + layer.x * ratio)
+    const w = fullBleed ? width : Math.round(layer.width * ratio)
+    const y = bottom <= 4 && layer.y > frame.height / 2 ? height - bottom - layer.height : layer.y + chrome
+    return { ...layer, x, y, width: w }
+  })
+  return { ...frame, width, height, layers, chrome: browser ? { height: chrome, label: device.label } : null }
 }
 
 // The box around `layerIds` in `frame`, with room around it — what the

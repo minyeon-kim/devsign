@@ -258,10 +258,11 @@ export function CodeDifferenceSummary({ conflict }) {
   const snippets = start >= 0 && middle > start && end > middle
     ? { local: lines.slice(start + 1, middle).join('\n'), remote: lines.slice(middle + 1, end).join('\n') } : {}
   return (
-    <div data-code-difference-summary className="min-w-0 space-y-3 rounded-xl bg-white/[0.025] p-4">
+    // (No box around it, and none around each side: the two branches are told apart by a line at their left.)
+    <div data-code-difference-summary className="min-w-0 space-y-3">
       <p className="text-xs leading-5 text-slate-300"><LocalizedText text={detail?.conflict ?? conflict.cause ?? conflict.message} /></p>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-        {['local', 'remote'].map((side) => <section key={side} data-branch-difference={side} className="min-w-0 rounded-lg border border-white/10 p-3">
+      <div className="grid min-w-0 gap-3">
+        {['local', 'remote'].map((side) => <section key={side} data-branch-difference={side} className="min-w-0 border-l-2 border-white/15 pl-3">
           <h4 className="text-xs font-medium text-slate-200"><LocalizedText text={detail?.[`${side}Title`] ?? (side === 'local' ? 'Local changes' : 'Remote changes')} /></h4>
           <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{conflict.branches?.[side]}</p>
           {detail?.[side] ? <p className="mt-2 text-xs leading-5 text-slate-200"><LocalizedText text={detail[side]} /></p>

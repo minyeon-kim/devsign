@@ -1,8 +1,8 @@
-import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Component, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PlayFrame from '@/components/screens/PlayFrame'
-import { cameraFor, hotspotLine, interactionsOf, pathAhead, readProto, tierOf, withProto } from '@/lib/boardPrototype'
+import { cameraFor, interactionsOf, pathAhead, readProto, tierOf, withProto } from '@/lib/boardPrototype'
 import { canStepBack, currentOf, follow, isEnd, positionOf, restart as restartSession, startSession, stepBack } from '@/lib/prototypeEngine'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -11,13 +11,15 @@ import { ConflictCountPin } from '@/components/conflicts/ConflictPins'
 import { useLanguage } from '@/i18n/language'
 import { conflictsByScreen, countLabel } from '@/lib/screenConflicts'
 import { LocalizedText } from '@/i18n/runtime'
-import { boardLayout, linksOf, screenOf, transitionsOf } from '@/lib/screens'
-import { boardFit, clampZoom, linkPath, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
+import { boardLayout, screenOf, transitionsOf } from '@/lib/screens'
+import { boardFit, clampZoom, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { WindowHeaderPortal, WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 
 // Screens — the project's screens on one board, in the order its flows say
-// (lib/screens' boardLayout), with the links between them and how many open
-// changes each has.
+// (lib/screens' boardLayout), each flow in one row, in a region of its own
+// under its name, with how many open changes each screen has. No lines between the cards:
+// where a screen leads is what playing it shows.
 //
 //   · The board pans (drag, the wheel, Space + drag) and zooms (pinch or
 //     ⌘/Ctrl + wheel, the toolbar) between 10% and 200%; it opens fitted.
@@ -27,9 +29,11 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 //   · A double press (or Enter) plays the prototype in that card's place:
 //     the card becomes the frame (PlayFrame), the camera moves once to show
 //     it and where it leads, and from then on only what's in the frame
-//     changes. Lines run from the screen's hotspots to the cards they lead
-//     to; those cards stay bright, the rest of the flow dims a little and
-//     everything else a lot. It's a session of its own (the same engine as
+//     changes. The cards it leads to stay bright, the rest of the flow dims a
+//     little and everything else a lot. ‹ ›, fixed at the board's bottom
+//     centre, move the frame itself to the card before or after it on the
+//     board (1 → 2 → 3 …), the camera gliding along, and play from there.
+//   · The board's tools sit in the main window's tab row, at its right end. It's a session of its own (the same engine as
 //     Preview — lib/prototypeEngine — but not Preview's session), in the
 //     address as ?proto=<card>&at=<screen>. Esc ends it.
 //   · A screen with open changes carries the change pin with their number,
@@ -44,6 +48,10 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-md px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
 const BAR = 'flex items-center gap-0.5 rounded-lg border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
 const PANEL_KEY = 'devsign.protoPanel'
+// The ‹ › at the bottom of the board while a prototype plays.
+const STEP = 'flex size-10 items-center justify-center rounded-xl border border-white/10 bg-card/95 text-slate-200 shadow-lg transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-30'
+// How far a flow's region reaches past its cards, on the board's scale.
+const REGION_PAD = 40
 // ①②③… for the interactions, as they're numbered in the frame, on the lines and in the panel.
 const NUMERAL = (n) => (n >= 1 && n <= 20 ? String.fromCharCode(0x2460 + n - 1) : `(${n})`)
 const DOTS = { backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)', backgroundSize: '20px 20px' }
@@ -78,8 +86,8 @@ function ScreenDrawing({ frame }) {
 function ScreensBoard() {
   const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, requestConflictDrawer, setChangesOfScreenOnly } = useWorkspace()
   const language = useLanguage()
+  const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
-  const links = useMemo(() => linksOf(prototype, layout.cards), [prototype, layout])
   const order = layout.cards.map((card) => card.id)
   // The open changes, by screen (the workspace's own list: it changes as they're decided, and so does this).
   const changes = useMemo(() => conflictsByScreen(prototype, conflicts), [prototype, conflicts])
@@ -238,6 +246,21 @@ function ScreensBoard() {
     setProto({ ...proto, session })
     focusFrame()
   }
+  // ‹ ›: the frame moves to the card before or after it, in the board's order, and plays from that
+  // screen; the camera glides to it at the zoom it's at (clear of the panel, as when it started).
+  const [gliding, setGliding] = useState(false)
+  const frameAt = proto ? order.indexOf(proto.frameId) : -1
+  const moveFrame = (direction) => {
+    const target = order[frameAt + direction]
+    const card = cardOf(target)
+    if (!proto || !card || frameRef.current?.busy()) return
+    setProto({ frameId: target, session: startSession(target) })
+    setHot(null)
+    const inset = room.width >= 900 ? 312 : 0
+    setGliding(true)
+    window.setTimeout(() => setGliding(false), 360)
+    setView((prev) => { const zoom = prev?.zoom ?? 1; return { zoom, x: inset + (room.width - inset) / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y + card.height / 2) * zoom } })
+  }
   const exit = () => {
     if (!proto) return
     const last = current
@@ -319,52 +342,19 @@ function ScreensBoard() {
       className={cn('relative h-full w-full touch-none overflow-hidden outline-none select-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-inset', dragging ? 'cursor-grabbing' : spaceHeld ? 'cursor-grab' : 'cursor-default')}
       style={{ ...DOTS, backgroundPosition: `${shown.x}px ${shown.y}px` }}
     >
-      <div data-board-surface className="absolute top-0 left-0 origin-top-left" style={{ width: layout.width, height: layout.height, transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.zoom})` }}>
-        {/* The flows' names, over their rows. */}
-        {layout.groups.filter((group) => group.name).map((group) => (
-          <p key={group.id} data-flow-group={group.id} className="absolute m-0 text-[15px] font-semibold tracking-tight text-slate-200" style={{ left: group.x, top: group.y }}>
-            <LocalizedText text={group.name} />
-          </p>
+      <div data-board-surface className={cn('absolute top-0 left-0 origin-top-left', gliding && 'transition-transform duration-300 ease-out motion-reduce:transition-none')} style={{ width: layout.width, height: layout.height, transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.zoom})` }}>
+        {/* The flows, each a region of its own with its name above it (the board's pad and the gap
+            between flows leave the room). */}
+        {layout.groups.map((group) => (
+          <div key={group.id} data-flow-region={group.id} aria-hidden className="pointer-events-none absolute" style={{ left: group.x - REGION_PAD, top: group.y + 12, width: group.width + REGION_PAD * 2, height: group.height - 12 + REGION_PAD }}>
+            <div className="absolute inset-0 rounded-2xl border border-white/[0.06] bg-white/[0.035]" />
+            {group.name && (
+              <p data-flow-group={group.id} className="absolute -top-11 left-0 m-0 rounded-lg bg-white/[0.07] px-3 py-1.5 text-[15px] leading-5 font-semibold tracking-tight text-slate-200">
+                <LocalizedText text={group.name} />
+              </p>
+            )}
+          </div>
         ))}
-
-        {/* The links: a straight line to the next screen of a row, a curve for a branch or a way back; the selected screen's are lit. */}
-        <svg aria-hidden className="pointer-events-none absolute top-0 left-0 overflow-visible" width={layout.width} height={layout.height}>
-          <defs>
-            <marker id="screens-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="context-stroke" /></marker>
-          </defs>
-          {links.map((link) => {
-            const lit = link.from === activePageId || link.to === activePageId
-            const path = linkPath(link, cardOf(link.from), cardOf(link.to), layout)
-            return (
-              <g key={link.id} data-screen-link={link.kind} data-lit={lit ? '' : undefined} opacity={proto ? 0.12 : 1}>
-                <path d={path.d} fill="none" markerEnd="url(#screens-arrow)" stroke={lit ? '#6ee7b7' : '#64748b'} strokeWidth={lit ? 2.5 : 1.5} strokeDasharray={link.kind === 'back' ? '6 5' : undefined} opacity={lit ? 1 : 0.7} />
-                {lit && link.label && (
-                  <text x={path.label.x} y={path.label.y} textAnchor="middle" fontSize="12" fill="#d1fae5" stroke="#18181b" strokeWidth="4" paintOrder="stroke">{link.label}</text>
-                )}
-              </g>
-            )
-          })}
-          {/* Playing: from each hotspot of the screen showing to the card it leads to, numbered as in the
-              panel. Redrawn — faded in — as the screen changes; the one pointed at is lit. */}
-          {proto && marks && (
-            <g key={current} data-proto-lines className="animate-in fade-in duration-200 motion-reduce:animate-none">
-              {interactions.filter((entry) => entry.layer && entry.target && entry.target !== proto.frameId && cardOf(entry.target)).map((entry) => {
-                const path = hotspotLine(cardOf(proto.frameId), entry.layer, cardOf(entry.target))
-                const lit = hot === entry.transition.id
-                return (
-                  <g key={entry.transition.id} data-proto-line={entry.transition.id} data-lit={lit ? '' : undefined} style={{ pointerEvents: 'stroke' }} onMouseEnter={() => setHot(entry.transition.id)} onMouseLeave={() => setHot(null)}>
-                    <path d={path.d} fill="none" stroke="transparent" strokeWidth="14" />
-                    <path d={path.d} fill="none" markerEnd="url(#screens-arrow)" stroke={lit ? '#7dd3fc' : '#38bdf8'} strokeWidth={lit ? 3 : 2} opacity={lit ? 1 : 0.85} />
-                    <text x={path.label.x} y={path.label.y} textAnchor="middle" fontSize="12" fontWeight={lit ? 600 : 500} fill="#e0f2fe" stroke="#18181b" strokeWidth="4" paintOrder="stroke">
-                      {/* (Between neighbours there's only room for the number: the rest is in the panel, and on hover.) */}
-                      {path.short && !lit ? NUMERAL(entry.n) : `${NUMERAL(entry.n)} ${entry.transition.label ?? entry.layer.name} → ${screenOf(prototype, entry.target).name}`}
-                    </text>
-                  </g>
-                )
-              })}
-            </g>
-          )}
-        </svg>
 
         {layout.cards.map((card) => {
           const screen = screenOf(prototype, card.id)
@@ -541,7 +531,18 @@ function ScreensBoard() {
         </div>
       )}
 
-      <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn(BAR, 'absolute top-3 right-3 z-20')}>
+      {/* ‹ n / total ›: fixed at the board's bottom centre — the frame moves, they stay. */}
+      {proto && (
+        <div data-board-chrome data-proto-steps role="group" aria-label="Screens" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+          <button type="button" data-proto-prev title="Previous screen" aria-label="Previous screen" disabled={frameAt <= 0} onClick={() => moveFrame(-1)} className={STEP}><ChevronLeft className="size-5" /></button>
+          <span translate="no" className="min-w-12 text-center text-xs tabular-nums text-slate-400">{frameAt + 1} / {order.length}</span>
+          <button type="button" data-proto-next title="Next screen" aria-label="Next screen" disabled={frameAt === -1 || frameAt >= order.length - 1} onClick={() => moveFrame(1)} className={STEP}><ChevronRight className="size-5" /></button>
+        </div>
+      )}
+
+      {/* The board's tools: up in the window's tab row, at its right end (in place, over the board, outside a window). */}
+      <WindowHeaderPortal fallbackClassName="absolute top-3 right-3 z-20">
+      <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('flex items-center gap-0.5', !inHeader && BAR)}>
         {/* The project's open changes: pressed, the screens without any step back; ‹ › walk the ones with. */}
         {changes.total > 0 && (
           <>
@@ -569,6 +570,7 @@ function ScreensBoard() {
         <button type="button" data-board-zoom title="Zoom to 100%" aria-label="Zoom to 100%" onClick={() => zoomTo(1)} className={cn(TOOL, 'w-11 tabular-nums')}>{Math.round(shown.zoom * 100)}%</button>
         <button type="button" title="Zoom in" aria-label="Zoom in" disabled={shown.zoom >= ZOOM_MAX} onClick={() => zoomBy(1.25)} className={TOOL}><Plus className="size-3.5" /></button>
       </div>
+      </WindowHeaderPortal>
 
     </div>
   )

@@ -589,6 +589,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             // The main window's row starts with the Workspace's views.
             viewTabs={!mergeStudio && group.id === mainGroupId ? <WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /> : null}
             viewPanel={!mergeStudio && group.id === mainGroupId ? { id: VIEW_PANEL_ID, labelledBy: viewTabId(workspaceView) } : null}
+            headerEnd={!mergeStudio && group.id === mainGroupId ? chatPill : null}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.
             sideToggle={mergeStudio ? null
               : group.id === sideGroupId ? { label: 'Collapse panel', hint: SIDE_SHORTCUT, controls: SIDE_ID, onToggle: () => setSidePanel({ open: false }) }
@@ -604,6 +605,28 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} floating={mergeStudio} fixed={fixed} />
   }
 
+  // AI Chat, folded: its pill at the main window's tab row, top right — with a dot when an answer finished unseen.
+  const chatPill = !mergeStudio && chatGroup && !aiChat.open ? (
+    <button
+      type="button"
+      data-chat-toggle
+      aria-expanded={false}
+      aria-controls={CHAT_ID}
+      aria-label={chatAwaitingApproval ? 'Expand AI Chat · Awaiting approval' : chatUnread ? 'Expand AI Chat · New reply' : 'Expand AI Chat'}
+      title={`Expand AI Chat · ${CHAT_SHORTCUT}`}
+      onClick={() => setAiChat({ open: true })}
+      onPointerDown={(event) => event.stopPropagation()}
+      className="flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.06] px-2.5 text-[12px] font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+    >
+      <Sparkles className="size-3.5 shrink-0" />
+      AI Chat
+      {/* A request waiting says so in words; a finished answer is a dot. */}
+      {chatAwaitingApproval
+        ? <span data-chat-awaiting aria-hidden className="shrink-0 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-amber-200">Awaiting approval</span>
+        : chatUnread && <span data-chat-unread aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />}
+    </button>
+  ) : null
+
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
     <MergeDeckSlotContext.Provider value={{ element: deckElement, setElement: setDeckElement }}>
@@ -615,27 +638,6 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
           {store.layout ? renderNode(store.layout, 'row') : <EmptyFrame dockApi={dockApi} />}
         </div>
 
-        {/* AI Chat, folded: its pill at the work area's bottom right, over
-            where it folded to — with a dot when an answer finished unseen. */}
-        {!mergeStudio && chatGroup && !aiChat.open && (
-          <button
-            type="button"
-            data-chat-toggle
-            aria-expanded={false}
-            aria-controls={CHAT_ID}
-            aria-label={chatAwaitingApproval ? 'Expand AI Chat · Awaiting approval' : chatUnread ? 'Expand AI Chat · New reply' : 'Expand AI Chat'}
-            title={`Expand AI Chat · ${CHAT_SHORTCUT}`}
-            onClick={() => setAiChat({ open: true })}
-            className={cn('absolute right-4 bottom-4 z-40 flex h-8 items-center gap-2 px-3.5 text-[12px] font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', PANEL_RADIUS, FLOATING_PANEL)}
-          >
-            <Sparkles className="size-4 shrink-0" />
-            AI Chat
-            {/* A request waiting says so in words; a finished answer is a dot. */}
-            {chatAwaitingApproval
-              ? <span data-chat-awaiting aria-hidden className="shrink-0 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-amber-200">Awaiting approval</span>
-              : chatUnread && <span data-chat-unread aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />}
-          </button>
-        )}
         {/* (Said once, politely, when it appears.) */}
         <span role="status" aria-live="polite" className="sr-only">{mergeStudio || aiChat.open ? '' : chatAwaitingApproval ? 'Approval requested' : chatUnread ? 'New reply in AI Chat' : ''}</span>
 

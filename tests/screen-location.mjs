@@ -1,6 +1,7 @@
-// The full-page detail's side panel: where the change is on the screen comes
-// first — a block across the panel, right under the tabs — then what it is,
-// who reviews it, the details; and the panel's top is the main view's first container's.
+// The full-page detail's "영향 / 근거" (at the foot of its one column — no side
+// column): where the change is on the screen comes first, folded (the canvas
+// beside the pane lights the element itself) — then what it is, open; the
+// standard and the reviewers folded with a line of what's in them; the details.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
@@ -10,9 +11,12 @@ const thumb = read('src/components/conflicts/DesignLinkThumb.jsx')
 
 // The order on the page: screen → what it is → reviewers → developer details.
 const overview = panel.slice(panel.indexOf('function OverviewTab('), panel.indexOf('function ReviewersSection('))
-const order = ['data-info-section="Screen"', 'title="Conflict information"', '{reviewers}', 'title="Developer details"'].map((mark) => overview.indexOf(mark))
+const order = ['title="Where on the screen"', 'title="Conflict information"', 'title="Standard"', '{reviewers}', 'title="Developer details"'].map((mark) => overview.indexOf(mark))
 assert.ok(order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), `the page's order (${order})`)
-assert.ok(overview.includes('{page && !mix && !conflict.rollback && designLink && <section data-info-section="Screen"'), 'the screen is its own first block — on the page')
+assert.ok(overview.includes('<FoldSection title="Where on the screen"') && overview.includes('<ScreenLocation conflict={conflict} />'), 'the screen is the first block — folded, on the page')
+assert.ok(overview.includes('<FoldSection title="Standard" gist='), 'the standard: folded, its rule named in a line')
+assert.ok(panel.includes('<FoldSection key={`reviewers:${conflict.id}`} title="Reviewers"') && panel.includes('defaultOpen={!conflict.reviewers.length}'), 'reviewers: folded unless one has to be picked')
+assert.ok(panel.includes('{gist != null && !open && <span data-info-gist'), 'a folded section says what it holds')
 assert.ok(overview.includes('{designLink && !page && (') && overview.includes('<Row label="Where on the screen" data-summary-row="Screen">'), 'the panel (not full page) keeps its row as it was')
 assert.ok(panel.includes('{!page && reviewersSection}') && panel.includes('reviewers={page ? reviewersSection : null}'), 'reviewers: first in the panel, after the change\'s information on the page')
 
@@ -25,10 +29,10 @@ assert.ok(block.includes('Math.min(1, (width - 32) / size.width, (SCREEN_MAX_HEI
 assert.ok(block.includes('data-screen-location-mark className="absolute rounded-[2px] border-[1.5px] border-emerald-400"'), 'the changed area: a 1.5px accent box')
 assert.ok(block.includes('workspace.revealConflictOnCanvas(conflict)') && block.includes('workspace.openConflictReview?.(null)'), 'pressed: to that frame on the canvas')
 
-// The panel on the page: in the grid's row beside the main view — its top is the first container's top
-// (measured in the browser: 0px apart); never lifted out of the row.
-assert.ok(panel.includes("REVIEW_CONTEXT_CARD, page && 'xl:!pt-3')}>") && !/data-review-sidebar[^>]*xl:absolute/.test(panel) && !panel.includes('data-review-sidebar-space'))
-assert.ok(panel.includes('xl:grid-cols-[minmax(0,1fr)_320px]'), 'the panel\'s width is as it was')
+// No side column: one column that scrolls as a whole, the impact and evidence at its foot, under a hairline.
+assert.ok(!panel.includes('xl:grid-cols-[minmax(0,1fr)_320px]') && !panel.includes('REVIEW_CONTEXT_CARD'), 'no column beside the main view')
+assert.ok(panel.includes('<section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className="flex min-w-0 shrink-0 flex-col border-t border-white/[0.07] pt-4">'))
+assert.ok(panel.includes("[['info', 'Impact & evidence']"), 'its first tab: 영향 / 근거')
 // Sections: the existing divider and its 12px either side (24px between) — no larger gap.
 assert.ok(panel.includes("page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3'") && !panel.includes('[data-info-section]+[data-info-section]]:mt-8'))
 console.log('screen-location: ok')

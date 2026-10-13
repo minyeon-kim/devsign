@@ -37,9 +37,11 @@ const DRAG_THRESHOLD = 4
 // `sideToggle`: on a side panel's window — { label, hint, controls, mirrored, onToggle } — the button
 // at its tab row's right end that folds the right panel away and back.
 // `viewTabs`: on the Workspace's main window — its Preview · Screens · Code tabs (WorkspaceViewTabs), first
-// in the row. With them the row draws no tab for the views themselves, and the canvas's pages and the
-// editor's files only while they're what's showing; `viewPanel`: { id, labelledBy } for the area under it.
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null }) {
+// in the row. With them the row draws no tab for the views themselves, nor for the canvas's pages or the
+// editor's files — the three views are the row; `viewPanel`: { id, labelledBy } for the area under it.
+// That row draws no line under it, and the active view's tools (through the header slot) sit at its right end,
+// then `headerEnd` (AI Chat's pill, while it's folded).
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -123,7 +125,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
         <div
           onPointerDown={beginDrag}
           data-window-header={docked ? group.id : undefined}
-          className="@container/nav flex h-10 shrink-0 cursor-grab items-center gap-0.5 border-b border-white/[0.06] px-2 active:cursor-grabbing"
+          className={cn('@container/nav flex h-10 shrink-0 cursor-grab items-center gap-0.5 px-2 active:cursor-grabbing', !viewTabs && 'border-b border-white/[0.06]')}
         >
           {docked || isNavigatorGroup ? (
             // The real tabs — open files, canvas pages, the navigator's
@@ -134,7 +136,8 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
               {viewTabs}
               <div role={isNavigatorGroup ? 'tablist' : undefined} aria-label={isNavigatorGroup ? 'Side panel views' : undefined} className={cn("flex min-w-0 items-center gap-1", isNavigatorGroup ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
                 {group.panelIds.map((pid) =>
-                  panelsById[pid] && !(viewTabs && (['preview', 'screens'].includes(panelsById[pid].component) || (['canvas', 'editor'].includes(panelsById[pid].component) && group.activeId !== pid))) ? (
+                  // (The main window's row is its three views and nothing else: no tab for a canvas page or an open file.)
+                  panelsById[pid] && !(viewTabs && ['preview', 'screens', 'canvas', 'editor'].includes(panelsById[pid].component)) ? (
                     <PanelTabs
                       key={pid}
                       pid={pid}
@@ -183,8 +186,9 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
           )}
           <div
             ref={setHeaderSlot}
-            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden"
+            className={cn('flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] empty:hidden', viewTabs && 'justify-end')}
           />
+          {headerEnd && <div className="ml-auto flex shrink-0 items-center pl-1.5">{headerEnd}</div>}
           {isNavigatorGroup && !docked && !isMaximized ? (
             // Floating (Merge Studio), the navigator folds away to a pill
             // at its corner, so the canvas gets the room; the pill unfolds it.

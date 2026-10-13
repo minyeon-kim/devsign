@@ -671,9 +671,9 @@ function CanvasPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasFocus?.nonce, activePage?.id])
 
-  // The panel coming up shortens the canvas: if the picked pin or its element
-  // ended up under it (or off an edge), the canvas glides by just enough to
-  // bring them back into view.
+  // The panel coming up shortens the canvas (and a pane beside it narrows it):
+  // if the picked pin or its element ended up under it (or off an edge), the
+  // canvas glides by just enough to bring them back into view.
   const pickedLayerId = conflictPin.selected?.layerId
   useEffect(() => {
     const viewport = scrollRef.current
@@ -689,12 +689,16 @@ function CanvasPanel() {
     let dy = 0
     if (bottom > canvasHeight - margin) dy = canvasHeight - margin - bottom
     if (top + dy < margin) dy = margin - top
-    if (!dy) return
+    // (Sideways too — a pane opening beside the canvas narrows it: off an edge, the element comes back to the middle.)
+    const left = box.left - origin.left
+    const right = box.right - origin.left
+    const dx = canvasWidth && (left < margin || right > canvasWidth - margin) ? Math.round(canvasWidth / 2 - (left + right) / 2) : 0
+    if (!dy && !dx) return
     setGliding(true)
-    setView((v) => ({ ...v, y: v.y + dy }))
+    setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }))
     window.setTimeout(() => setGliding(false), 300)
     // (Only when the pick or the canvas's height changes — not on every pan.)
-  }, [pickedLayerId, canvasHeight])
+  }, [pickedLayerId, canvasHeight, canvasWidth])
 
   const pinsForPage = comments.filter(
     (c) => c.target?.type === 'canvas' && c.target.pageId === activePage?.id

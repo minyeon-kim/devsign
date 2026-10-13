@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { conflictListRecord } from '@/lib/conflicts'
@@ -7,6 +7,7 @@ import { useLanguage } from '@/i18n/language'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
+import { ReviewHeaderSlotContext } from '@/components/conflicts/ReviewHeaderSlot'
 
 // A conflict's detail, full-screen: it covers the whole work area (editor,
 // canvas and bottom panel) while the activity bar and its sidebar stay, so
@@ -19,6 +20,8 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   const { conflicts, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost } = useWorkspace()
   const conflict = reviewView === 'overlay' ? conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null : null
   const closeRef = useRef(null)
+  // (The header's slot for the detail's view controls — 원안 보기, 전체 화면 — beside Close.)
+  const [actionsSlot, setActionsSlot] = useState(null)
   const language = useLanguage()
   const open = Boolean(conflict)
 
@@ -61,6 +64,8 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
           Close centred in it. The bar's place is still 64px, so everything under it is where it was.) */}
       <BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">
         <Breadcrumb items={[{ label: 'Workspace', onClick: () => openConflictReview(null) }, { label: 'Conflicts', onClick: () => requestConflictDrawer(conflict.id) }]} />
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div ref={setActionsSlot} data-review-actions className="flex shrink-0 items-center gap-0.5 empty:hidden" />
         <button
           ref={closeRef}
           type="button"
@@ -72,9 +77,12 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
         >
           <X className="size-4" />
         </button>
+        </div>
       </BreadcrumbBar>
       <div className="min-h-0 flex-1">
-        <ReviewDetail page conflict={conflict} inMergeStudio={inMergeStudio} />
+        <ReviewHeaderSlotContext.Provider value={actionsSlot}>
+          <ReviewDetail page conflict={conflict} inMergeStudio={inMergeStudio} />
+        </ReviewHeaderSlotContext.Provider>
       </div>
     </div>
   )

@@ -108,20 +108,10 @@ export function boardLayout(prototype) {
     cards.push({ id, n, x: BOARD.pad + col * (cellW + BOARD.gapX), y: top + BOARD.label, width: screen.size.width, height: screen.size.height, group, groupIndex, row, col, start: id === prototype.startScreenId })
   }
 
+  // A flow's screens in one row: its own, then its branches' (each screen once).
   const rowsOf = (flow) => {
-    // (Branches off the same screen stack; branches that don't overlap share a row.)
-    const rows = [{ row: 0, items: flow.screenIds.map((id, col) => ({ id, col })) }]
-    const taken = []
-    for (const branch of flow.branches) {
-      const from = flow.screenIds.indexOf(branch.fromScreenId)
-      const start = Math.max(0, from)
-      const end = start + branch.screenIds.length - 1
-      let row = 0
-      while (taken[row]?.some(([a, b]) => start <= b && end >= a)) row += 1
-      ;(taken[row] ??= []).push([start, end])
-      ;(rows[row + 1] ??= { row: row + 1, items: [] }).items.push(...branch.screenIds.map((id, i) => ({ id, col: start + i })))
-    }
-    return rows.filter(Boolean)
+    const ids = [...new Set([...flow.screenIds, ...flow.branches.flatMap((branch) => branch.screenIds)])]
+    return [{ row: 0, items: ids.map((id, col) => ({ id, col })) }]
   }
 
   const addGroup = (id, name, rows) => {

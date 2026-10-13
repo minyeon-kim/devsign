@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck,  TriangleAlert, GitMerge } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, Eye, Maximize2 } from 'lucide-react'
 import { cn } from 'cn'
+import { ReviewHeaderPortal } from '@/components/conflicts/ReviewHeaderSlot'
 import { RECORD_ROWS, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
@@ -33,7 +34,10 @@ import { layoutAt } from '@/lib/codeRender'
 //     and sees it go back to the developer, on the record.
 // Every step is saved on the conflict and as a History checkpoint.
 
-const CARD = 'rounded-xl bg-white/[0.03] p-4 ring-1 ring-white/[0.06] ring-inset'
+// (A section of the detail, not a card: a hairline above it and room — never a box with more boxes inside.)
+const CARD = 'border-t border-white/[0.07] pt-5'
+// An icon button in the detail's header (원안 보기, 전체 화면으로 보기).
+const HEADER_ICON = 'ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 aria-pressed:bg-white/[0.1] aria-pressed:text-white'
 const LABEL = 'text-[11px] leading-4 font-medium text-slate-400'
 const CARD_ROWS = 'grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-3 text-xs leading-[18px]'
 // (Exported: a value change's page puts its merge in the same button — ConflictReviewPanel.)
@@ -547,39 +551,46 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         {readOnly
           ? modeChip && <span data-proposal-state className={cn('inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>
           : <span className="text-xs text-slate-500">{conflict.layouts ? '768px에서 어떻게 바꿀지 골라 주세요' : '어떤 값으로 맞출지 골라 주세요'}</span>}
+        {/* The view controls — 원안 보기, 전체 화면으로 보기 — are icons in the detail's header (beside
+            Close), not words in this section's title row. */}
+        <ReviewHeaderPortal fallbackClassName="ml-auto flex items-center gap-0.5">
         {valueChange ? (
           // Held, not toggled: the design for as long as it's pressed (pointer, or Space / Enter).
           <button
             type="button"
             data-show-design="hold"
             aria-pressed={holding}
-            title="누르고 있는 동안 원안을 보여 줘요"
+            aria-label="원안 보기"
+            title="원안 보기 · 누르고 있는 동안 원안을 보여 줘요"
             onPointerDown={() => setHolding(true)}
             onPointerUp={() => setHolding(false)}
             onPointerLeave={() => setHolding(false)}
             onBlur={() => setHolding(false)}
             onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); setHolding(true) } }}
             onKeyUp={() => setHolding(false)}
-            className={cn('ds-intrinsic ml-auto rounded-md px-2 py-1 text-[11px] transition-colors select-none hover:text-white', holding ? 'bg-white/[0.08] text-white' : 'text-slate-400')}
+            className={cn(HEADER_ICON, 'select-none', holding && 'bg-white/[0.1] text-white')}
           >
-            원안 보기
+            <Eye className="size-4" />
           </button>
         ) : (
         <button
           type="button"
           data-show-design
           aria-pressed={showDesign}
+          aria-label="원안 보기"
+          title="원안 보기"
           onClick={() => setShowDesign((value) => !value)}
-          className={cn('ds-intrinsic ml-auto rounded-md px-2 py-1 text-[11px] transition-colors hover:text-white', showDesign ? 'bg-white/[0.08] text-white' : 'text-slate-400')}
+          className={cn(HEADER_ICON, showDesign && 'bg-white/[0.1] text-white')}
         >
-          원안 보기
+          <Eye className="size-4" />
         </button>
         )}
         {onFullscreen && (
-          <button type="button" data-proposal-fullscreen onClick={onFullscreen} className="ds-intrinsic rounded-md px-2 py-1 text-[11px] text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-            전체 화면으로 보기
+          <button type="button" data-proposal-fullscreen aria-label="전체 화면으로 보기" title="전체 화면으로 보기" onClick={onFullscreen} className={HEADER_ICON}>
+            <Maximize2 className="size-4" />
           </button>
         )}
+        </ReviewHeaderPortal>
       </div>
       {/* What was found, in a line — under the title, where it's read first. */}
       {(conflict.summary ?? conflict.message) && <p data-proposal-about className="-mt-1 mb-4 text-[13px] leading-5 text-slate-300">{conflict.summary ?? conflict.message}</p>}
@@ -1190,7 +1201,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   )
 
   return (
-    <div data-design-decision-flow={developer ? 'developer' : 'designer'} data-step-live={reveal.live ? '' : undefined} className="flex min-w-0 flex-col gap-3">
+    <div data-design-decision-flow={developer ? 'developer' : 'designer'} data-step-live={reveal.live ? '' : undefined} className="flex min-w-0 flex-col gap-5">
       {/* (The merge banner is the list's first item: the same gap as between cards.) */}
       {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
       {viewerOpen && <ElementPreviewDialog conflict={conflict} link={link} open startFullscreen onOpenChange={setViewerOpen} />}
