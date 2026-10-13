@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { changeHref } from '@/lib/changeLink'
 import { RecentTime } from '@/components/ui/RecentTime'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, CircleCheck } from 'lucide-react'
@@ -97,7 +98,7 @@ function ConflictsDrawer({ project }) {
     // as the detail is closed: the pin rings once).
     focusConflictPin(conflict)
     if (onWorkspace) open(conflict.id)
-    else navigate(workspacePath, { state: { openConflictId: conflict.id, reviewView: 'overlay' } })
+    else navigate(changeHref(project.id, conflict.id))
   }
 
   if (conflicts.length === 0) {

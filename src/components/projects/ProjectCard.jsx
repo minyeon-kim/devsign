@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { changesHref } from '@/lib/changeLink'
 import { Check, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
 import { PAGE_CARD } from '@/components/mergestudio/floatingStyles'
@@ -68,7 +69,7 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
     if (selectable) onToggleSelect(project.id)
     else navigate(`/projects/${project.id}`)
   }
-  const openList = (conflictFilter) => navigate(`/projects/${project.id}/workspace`, { state: { conflictFilter } })
+  const openList = (conflictFilter) => navigate(changesHref(project.id, conflictFilter))
   const badges = !selectable && (
     <>
       <CountBadge accent label="Review requests" count={counts?.needsMyReview} onClick={() => openList('mine')} />

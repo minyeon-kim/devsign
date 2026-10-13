@@ -1,4 +1,6 @@
 import ConflictReviewOverlay from '@/components/conflicts/ConflictReviewOverlay'
+import { readChangeParams, sourceKeyOf } from '@/lib/changeLink'
+import { checkpointRationale } from '@/lib/rationale'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import TopBar from '@/components/layout/TopBar'
@@ -30,30 +32,33 @@ function WorkspacePage() {
     setBottomPanel,
     focusChange,
     openConflictReview,
-    openConflictFromNotification,
+    requestConflictDrawer,
+    historyEntries,
+    comments,
   } = useWorkspace()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [workspaceRoot, setWorkspaceRoot] = useState(null)
 
-  // Arriving with an intent in router state:
+  // Arriving with an intent.
+  // In the address (lib/changeLink) — kept, so a reload or a shared link opens the same thing:
+  //  · `?change=<id>` — that change's detail, full screen (the provider shows
+  //    it); arriving by a link, its place in the left list, its element and file too;
+  //  · `?changes=<filter>` (a project card's badge) — the change list on that filter.
+  // In router state — used once, then dropped:
   //  · `openMergeStudio` (a Conflict Point's "Open in Merge Studio") — Merge
   //    Studio on that conflict's item, its element (or line) focused, and
   //    the conflict's review kept open in the bottom panel (`conflictId`);
   //    with no linked item nothing is pre-selected (never an unrelated
-  //    default);
-  //  · `conflictFilter` (a Dashboard project card's badge) — the Conflict
-  //    Points tab on that filter;
-  //  · `openConflictId` (Dashboard / overview links) — the Conflict Points
-  //    tab, that conflict's review window, and its element and file.
+  //    default).
   // Handled once per navigation (location.key).
   const handledNav = useRef(null)
   useEffect(() => {
     const state = location.state
-    if (!state || handledNav.current === location.key) return
+    if (!state?.openMergeStudio || handledNav.current === location.key) return
     handledNav.current = location.key
     // Consume it, so a later remount (e.g. back from History) doesn't
     // replay it; Back still returns to where the link was clicked.
-    navigate(location.pathname, { replace: true, state: null })
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null })
     if (state.openMergeStudio) {
       const item = state.mergeItemId && mergeItems.find((i) => i.id === state.mergeItemId)
       setSelectedMergeItemId(item ? item.id : null)
@@ -75,31 +80,6 @@ function WorkspacePage() {
       }
       return
     }
-    // A project card's badge ("Needs your review 2", "Conflicts 3"): the
-    // Conflict list, already on that filter.
-    if (state.conflictFilter) {
-      exitMergeStudio()
-      setBottomPanel({ open: true, tab: 'conflict', conflictFilter: state.conflictFilter })
-      return
-    }
-    if (state.openConflictId) {
-      const conflict = conflicts.find((c) => c.id === state.openConflictId)
-      if (!conflict) return
-      exitMergeStudio()
-      // (From a notification on another page: the sidebar's Conflicts
-      // drawer, as the Workspace's own notifications open it.)
-      if (state.fromNotification) {
-        focusChange(conflict)
-        openConflictFromNotification(conflict.id)
-        return
-      }
-      // (From the sidebar's list on another page: straight into the
-      // full-screen viewer, the bottom panel left as it was.)
-      const view = state.reviewView === 'overlay' ? 'overlay' : 'panel'
-      setBottomPanel({ ...(view === 'panel' ? { open: true, tab: 'conflict' } : {}), evidence: state.evidence ? { ...state.evidence, conflictId: conflict.id } : null })
-      focusChange(conflict)
-      openConflictReview(conflict.id, { view })
-    }
   }, [
     location.key,
     location.pathname,
@@ -114,8 +94,38 @@ function WorkspacePage() {
     setBottomPanel,
     focusChange,
     openConflictReview,
-    openConflictFromNotification,
   ])
+
+  // `?changes=<filter>`: the change list, on that filter — each time the address names one.
+  const { change: changeId, evidence: evidenceId, source: sourceKey, changes: listFilter } = readChangeParams(location.search)
+  const handledFilter = useRef(null)
+  useEffect(() => {
+    if (!listFilter || handledFilter.current === `${location.key}:${listFilter}`) return
+    handledFilter.current = `${location.key}:${listFilter}`
+    exitMergeStudio()
+    setBottomPanel({ open: true, tab: 'conflict', conflictFilter: listFilter })
+  }, [listFilter, location.key, exitMergeStudio, setBottomPanel])
+
+  // `?change=<id>` reached by a link (another page, a reload, a shared address —
+  // not opened here a moment ago): the Workspace itself, the change's place in
+  // the left list, and its element and file. With a History source
+  // (`&evidence=<checkpoint>`), that source is found again and brought up.
+  const handledChange = useRef(null)
+  useEffect(() => {
+    if (!changeId || handledChange.current === `${location.key}:${changeId}`) return
+    const conflict = conflicts.find((c) => c.id === changeId)
+    if (!conflict) return
+    handledChange.current = `${location.key}:${changeId}`
+    if (location.state?.changePushed) return
+    exitMergeStudio()
+    focusChange(conflict)
+    requestConflictDrawer(conflict.id)
+    if (evidenceId) {
+      const entry = historyEntries.find((candidate) => candidate.id === evidenceId)
+      const item = entry ? checkpointRationale(entry, [conflict], comments).evidence.find((candidate) => sourceKeyOf(candidate) === sourceKey) ?? null : null
+      setBottomPanel({ evidence: item ? { ...item, conflictId: conflict.id } : null })
+    }
+  }, [changeId, evidenceId, sourceKey, location.key, location.state, conflicts, historyEntries, comments, exitMergeStudio, focusChange, requestConflictDrawer, setBottomPanel])
 
   const inMergeStudio = activeView === 'mergeStudio'
 

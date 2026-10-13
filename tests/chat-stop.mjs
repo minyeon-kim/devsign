@@ -2,13 +2,15 @@ import assert from 'node:assert/strict'
 import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 try {
   const { WorkspaceProvider, useWorkspace } = await server.ssrLoadModule('/src/state/WorkspaceProvider.jsx')
   const { ConflictStoreProvider } = await server.ssrLoadModule('/src/state/ConflictStore.jsx')
   let workspace
   function Capture() { workspace = useWorkspace(); return null }
-  renderToString(createElement(ConflictStoreProvider, null, createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Capture))))
+  // (The provider reads the address — a change's detail is /workspace?change=<id> — so it's rendered in a router.)
+  renderToString(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null, createElement(WorkspaceProvider, { projectId: 'checkout-redesign' }, createElement(Capture)))))
   let nextId = 0
   const timers = new Map()
   globalThis.window = {

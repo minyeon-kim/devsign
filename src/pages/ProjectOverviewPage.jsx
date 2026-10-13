@@ -1,4 +1,5 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
+import { changeHref, changesHref } from '@/lib/changeLink'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen } from 'lucide-react'
 import Breadcrumb, { projectCrumbs } from '@/components/layout/Breadcrumb'
@@ -232,7 +233,7 @@ function Person({ id }) {
 function ProjectOverviewPage() {
   const { project } = useOutletContext()
   const navigate = useNavigate()
-  const { conflicts, mergeItems, historyEntries, referenceDocs, setBottomPanel, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { conflicts, mergeItems, historyEntries, referenceDocs, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
   const { events } = useConflictStore()
   const workspacePath = `/projects/${project.id}/workspace`
   const docsPath = `/projects/${project.id}/docs`
@@ -264,13 +265,12 @@ function ProjectOverviewPage() {
   // A conflict opens in the Workspace: Conflict Points tab, its review
   // window, and its element and file selected (see WorkspacePage).
   function openConflict(conflict) {
-    navigate(workspacePath, { state: { openConflictId: conflict.id } })
+    navigate(changeHref(project.id, conflict.id))
   }
 
   // A stat opens the Workspace's Conflict Points list with the matching filter.
   function openList(filter) {
-    setBottomPanel({ tab: 'conflict', open: true, conflictFilter: filter })
-    navigate(workspacePath)
+    navigate(changesHref(project.id, filter))
   }
   const recentHistory = [...historyEntries].filter((entry) => !entry.archived).reverse().slice(0, 6)
   const projectActivities = activities.filter((activity) => activity.projectId === project.id)
@@ -428,9 +428,8 @@ function ProjectOverviewPage() {
             const destination = notificationDestination(n.target, conflicts, mergeItems)
             if (!destination) return
             setMergeDrawer(null)
-            navigate(workspacePath, { state: destination.conflictId
-              ? { openConflictId: destination.conflictId, fromNotification: true }
-              : { ...destination.mergeTarget, openMergeStudio: true, mergeItemId: destination.mergeTarget.itemId } })
+            if (destination.conflictId) navigate(changeHref(project.id, destination.conflictId))
+            else navigate(workspacePath, { state: { ...destination.mergeTarget, openMergeStudio: true, mergeItemId: destination.mergeTarget.itemId } })
           }}
           onClose={() => setMergeDrawer(null)}
         />

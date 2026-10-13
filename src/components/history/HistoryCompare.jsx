@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { changeHref, sourceKeyOf } from '@/lib/changeLink'
 import { Archive, ArchiveRestore, ChevronRight, MoreHorizontal, Code2, MessageSquareText, RotateCcw, Sparkles, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
@@ -254,7 +255,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     if (item.kind === 'wcag') { window.open(item.url, '_blank', 'noopener'); return }
     setRuleFocus(null)
     const conflictId = item.conflictId ?? [...relatedIds][0]
-    if (conflictId) navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: conflictId, evidence: item, reviewView: 'overlay' } })
+    // (The source goes by id — this checkpoint's, and which of its sources — and is found again there.)
+    if (conflictId) navigate(changeHref(projectId, conflictId, item.kind === 'conflict' ? {} : { evidence: entry.id, source: sourceKeyOf(item) }))
   }
   const propChanges = diffBase
     ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { changeHref } from '@/lib/changeLink'
 import { useNavigate } from 'react-router-dom'
 import { Bell, ChevronRight, MessageSquare } from 'lucide-react'
 import { cn } from 'cn'
@@ -19,9 +20,9 @@ const recentNotifications = activities.slice(0, 6)
 // project's activity, not one project's own notification store, which
 // isn't reachable without that project's own workspace loaded), not a
 // separate, simpler notifications widget. Clicking an item jumps straight
-// into its project's Conflict Point review, the same nav-state contract
-// the Workspace's own Inbox items use (see WorkspacePage's `openConflictId`
-// handling) — not just a link to the Activity feed.
+// into its project's Conflict Point review — the change's own address
+// (lib/changeLink: /projects/:id/workspace?change=<id>) — not just a link
+// to the Activity feed.
 function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -31,7 +32,7 @@ function NotificationsMenu({ className, iconClassName = 'size-[18px]' }) {
   function openItem(activity) {
     setOpen(false)
     if (activity.conflictId && activity.projectId) {
-      navigate(`/projects/${activity.projectId}/workspace`, { state: { openConflictId: activity.conflictId, fromNotification: true } })
+      navigate(changeHref(activity.projectId, activity.conflictId))
       return
     }
     navigate('/activity')

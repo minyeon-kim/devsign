@@ -28,6 +28,8 @@ import { useDemoState } from '@/state/useDemoState'
 import useNotificationThumbs from '@/state/useNotificationThumbs'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { closeHowOf, readChangeParams, withChange, workspacePathOf } from '@/lib/changeLink'
 import { toast } from '@/i18n/toast'
 import { translateText } from '@/i18n/translate'
 import {
@@ -234,15 +236,50 @@ export function WorkspaceProvider({ children, projectId }) {
   const [bottomPanel, setBottomPanelState] = useState(() => ({ ...readDemo(bottomPanelKey, { tab: 'conflict' }), open: false, maximized: false }))
   useEffect(() => { writeDemo(bottomPanelKey, bottomPanel) }, [bottomPanelKey, bottomPanel])
   const setBottomPanel = useCallback((patch) => setBottomPanelState((prev) => ({ ...prev, ...patch })), [])
-  const openConflictReview = useCallback((id, { view = 'panel' } = {}) => {
+  // The full-screen detail is the address's: /projects/:id/workspace?change=<id>
+  // (lib/changeLink). Opening one goes there and closing one leaves — so it
+  // survives a reload, can be shared, and Back closes it. What's shown follows
+  // the address (the effect below); nothing else sets it.
+  //   · opened here, in this session: pushed — Back closes it, Forward opens it again;
+  //   · another change while one is open: replaced — one step back still closes;
+  //   · closed: back, when it was pushed; else the parameter is taken off in place.
+  // The bottom panel's own detail ('panel' — Merge Studio's) is not an address.
+  const navigate = useNavigate()
+  const location = useLocation()
+  const workspacePath = workspacePathOf(projectId)
+  const onWorkspace = location.pathname.replace(/\/$/, '') === workspacePath
+  const changeParam = onWorkspace ? readChangeParams(location.search).change : null
+  const route = useRef({ location, onWorkspace, changeParam })
+  route.current = { location, onWorkspace, changeParam }
+  const reviewViewNow = useRef(reviewView)
+  reviewViewNow.current = reviewView
+  useEffect(() => {
+    if (changeParam) { setReviewConflictId(changeParam); setReviewView('overlay') }
+    // (The address no longer names one: the full-screen detail is closed.)
+    else if (reviewViewNow.current === 'overlay') setReviewConflictId(null)
+  }, [changeParam])
+  const openConflictReview = useCallback((id, { view = 'panel', evidence = null, source = null } = {}) => {
+    const { location: at, onWorkspace: here, changeParam: shown } = route.current
+    if (!id) {
+      if (here && shown) {
+        if (closeHowOf(at.state) === 'back') navigate(-1)
+        else navigate({ pathname: at.pathname, search: withChange(at.search, null) }, { replace: true, state: null })
+        return
+      }
+      setReviewConflictId(null)
+      return
+    }
+    if (view === 'overlay') {
+      if (here) navigate({ pathname: at.pathname, search: withChange(at.search, id, { evidence, source }) }, shown ? { replace: true, state: at.state } : { state: { changePushed: true } })
+      // (From another page of the project: to the Workspace — and closing it stays there, it doesn't go back.)
+      else navigate({ pathname: workspacePath, search: withChange('', id, { evidence, source }) })
+      return
+    }
     setReviewConflictId(id)
-    if (!id) return
     setReviewView(view)
-    // (Full-screen, the bottom panel is left as it is — the viewer covers it.)
-    if (view === 'overlay') return
     const record = conflicts.find(candidate => candidate.id === id) ?? { id }
     setBottomPanel({ tab: reviewTabFor(record), open: true, ...(reviewTabFor(record) === 'design-compare' && record.mergeItemId ? { designCompareItemId: record.mergeItemId } : {}) })
-  }, [conflicts, setBottomPanel])
+  }, [conflicts, setBottomPanel, navigate, workspacePath])
   // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
   // not, and which tab it shows. Open from the start, at the left: the
   // file tree is where files are opened.
@@ -684,11 +721,14 @@ export function WorkspaceProvider({ children, projectId }) {
   // drawer (AppShell opens it, folding the bottom panel's list) and the
   // conflict's review in the full-screen viewer, as a row of that drawer
   // opens it.
+  const requestConflictDrawer = useCallback((id) => {
+    setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
+  }, [])
   const openConflictFromNotification = useCallback((id) => {
     if (!id) return
-    setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
+    requestConflictDrawer(id)
     openConflictReview(id, { view: 'overlay' })
-  }, [openConflictReview])
+  }, [openConflictReview, requestConflictDrawer])
 
   const markNotificationRead = useCallback((id, unread = false) => {
     // (Read is when it was read — nothing leaves the list. `unread`: back to unread.)
@@ -2646,6 +2686,7 @@ export function WorkspaceProvider({ children, projectId }) {
     requestHistoryDrawer,
     conflictDrawerRequest,
     openConflictFromNotification,
+    requestConflictDrawer,
     mergePreviewOpen,
     setMergePreviewOpen,
     followingMe,

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { changeHref } from '@/lib/changeLink'
 import { ReasonPicker } from '@/components/conflicts/Rationale'
 import { useNavigate } from 'react-router-dom'
 import { Bot, Check, ChevronDown, FileCode2, GitBranch, RotateCcw, Sparkles, Users, X } from 'lucide-react'
@@ -93,7 +94,7 @@ function RollbackCheckpointModal({ entryId, onOpenChange, onDone }) {
       toast('Rollback sent for agreement', {
         description: 'It’s on the Conflict list — it runs once everyone affected has confirmed.',
         // From anywhere (History included): the Workspace opens on its review.
-        action: { label: 'View in Conflict list', onClick: () => navigate(`/projects/${projectId}/workspace`, { state: { openConflictId: record.id } }) },
+        action: { label: 'View in Conflict list', onClick: () => navigate(changeHref(projectId, record.id)) },
       })
       return
     }
