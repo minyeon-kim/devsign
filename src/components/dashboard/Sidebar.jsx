@@ -1,4 +1,5 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
+import { readDocParams } from '@/lib/docLink'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, BookOpen, ChevronLeft, ChevronRight, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, TriangleAlert, Users } from 'lucide-react'
@@ -82,10 +83,12 @@ function ProjectsMark({ project }) {
 //     list as the Workspace's bottom panel, as a second way in.
 // Settings is pinned to the bottom.
 function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0 }) {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const base = project ? `/projects/${project.id}` : null
-  const onDocs = !!base && path.startsWith(`${base}/docs`)
+  // (Docs are a layer over the Workspace: on, when the address names a document or a docs view — lib/docLink.)
+  const docLayer = readDocParams(search)
+  const onDocs = !!base && path === `${base}/workspace` && Boolean(docLayer.doc || docLayer.docs)
   const onHistory = !!base && path.startsWith(`${base}/history`)
 
   return (

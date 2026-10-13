@@ -30,6 +30,7 @@ import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { closeHowOf, readChangeParams, withChange, workspacePathOf } from '@/lib/changeLink'
+import { readDocParams, withDoc, withoutDoc } from '@/lib/docLink'
 import { toast } from '@/i18n/toast'
 import { translateText } from '@/i18n/translate'
 import {
@@ -250,8 +251,15 @@ export function WorkspaceProvider({ children, projectId }) {
   const workspacePath = workspacePathOf(projectId)
   const onWorkspace = location.pathname.replace(/\/$/, '') === workspacePath
   const changeParam = onWorkspace ? readChangeParams(location.search).change : null
-  const route = useRef({ location, onWorkspace, changeParam })
-  route.current = { location, onWorkspace, changeParam }
+  // Docs are the same kind of layer, at the same kind of address (lib/docLink):
+  // ?doc=<id>, ?docs=index, ?docs=updates. One layer at a time — a change's
+  // detail wins when an address names both.
+  const docLayer = onWorkspace && !changeParam ? readDocParams(location.search) : { doc: null, docs: null }
+  const docParam = docLayer.doc
+  const docsParam = docLayer.docs
+  const layerShown = Boolean(changeParam || docParam || docsParam)
+  const route = useRef({ location, onWorkspace, changeParam, layerShown })
+  route.current = { location, onWorkspace, changeParam, layerShown }
   const reviewViewNow = useRef(reviewView)
   reviewViewNow.current = reviewView
   useEffect(() => {
@@ -260,7 +268,7 @@ export function WorkspaceProvider({ children, projectId }) {
     else if (reviewViewNow.current === 'overlay') setReviewConflictId(null)
   }, [changeParam])
   const openConflictReview = useCallback((id, { view = 'overlay', evidence = null, source = null } = {}) => {
-    const { location: at, onWorkspace: here, changeParam: shown } = route.current
+    const { location: at, onWorkspace: here, changeParam: shown, layerShown: anyLayer } = route.current
     if (!id) {
       if (here && shown) {
         if (closeHowOf(at.state) === 'back') navigate(-1)
@@ -271,7 +279,9 @@ export function WorkspaceProvider({ children, projectId }) {
       return
     }
     if (view === 'overlay') {
-      if (here) navigate({ pathname: at.pathname, search: withChange(at.search, id, { evidence, source }) }, shown ? { replace: true, state: at.state } : { state: { changePushed: true } })
+      // (Over a layer that's already open — another change, or a document — it takes its place: one step back still closes.
+      // The docs layer comes off the address with it: never both.)
+      if (here) navigate({ pathname: at.pathname, search: withChange(withoutDoc(at.search), id, { evidence, source }) }, anyLayer ? { replace: true, state: at.state } : { state: { changePushed: true } })
       // (From another page of the project: to the Workspace — and closing it stays there, it doesn't go back.)
       else navigate({ pathname: workspacePath, search: withChange('', id, { evidence, source }) })
       return
@@ -281,6 +291,23 @@ export function WorkspaceProvider({ children, projectId }) {
     const record = conflicts.find(candidate => candidate.id === id) ?? { id }
     setBottomPanel({ tab: reviewTabFor(record), open: true, ...(reviewTabFor(record) === 'design-compare' && record.mergeItemId ? { designCompareItemId: record.mergeItemId } : {}) })
   }, [conflicts, setBottomPanel, navigate, workspacePath])
+  // The docs layer, opened and closed by the same rule:
+  //   target: { doc: id } | { docs: 'index' | 'updates' } — or null to close.
+  const openDocs = useCallback((target) => {
+    const { location: at, onWorkspace: here, layerShown: anyLayer } = route.current
+    const shown = here ? readDocParams(at.search) : { doc: null, docs: null }
+    if (!target) {
+      if (!here || !(shown.doc || shown.docs)) return
+      if (closeHowOf(at.state) === 'back') navigate(-1)
+      else navigate({ pathname: at.pathname, search: withDoc(at.search, null) }, { replace: true, state: null })
+      return
+    }
+    if (here) navigate({ pathname: at.pathname, search: withDoc(at.search, target) }, anyLayer ? { replace: true, state: at.state } : { state: { changePushed: true } })
+    // (From another page of the project: to the Workspace — and closing it stays there.)
+    else navigate({ pathname: workspacePath, search: withDoc('', target) })
+  }, [navigate, workspacePath])
+  const openDoc = useCallback((docId) => openDocs(docId ? { doc: docId } : null), [openDocs])
+  const closeDocs = useCallback(() => openDocs(null), [openDocs])
   // The navigator pane (Files / Layers / Assets — NavigatorPanel): open or
   // not, and which tab it shows. Open from the start, at the left: the
   // file tree is where files are opened.
@@ -2704,6 +2731,11 @@ export function WorkspaceProvider({ children, projectId }) {
     conflictDrawerRequest,
     openConflictFromNotification,
     requestConflictDrawer,
+    docParam,
+    docsParam,
+    openDoc,
+    openDocs,
+    closeDocs,
     mergePreviewOpen,
     setMergePreviewOpen,
     followingMe,

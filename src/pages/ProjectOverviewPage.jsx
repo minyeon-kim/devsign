@@ -1,4 +1,5 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
+import { docHref, docsHref } from '@/lib/docLink'
 import { changeHref, changesHref } from '@/lib/changeLink'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen } from 'lucide-react'
@@ -236,7 +237,6 @@ function ProjectOverviewPage() {
   const { conflicts, mergeItems, historyEntries, referenceDocs, currentUser, mergeDrawer, setMergeDrawer } = useWorkspace()
   const { events } = useConflictStore()
   const workspacePath = `/projects/${project.id}/workspace`
-  const docsPath = `/projects/${project.id}/docs`
   const historyPath = `/projects/${project.id}/history`
   // The same Inbox bell + drawer as the Workspace/Merge Studio header
   // (MergeInboxDrawer) — Project home had no notifications at all before,
@@ -405,11 +405,11 @@ function ProjectOverviewPage() {
             </Section>
 
             {referenceDocs.length > 0 && (
-              <Section title="Reference docs" action={<SectionLink to={docsPath}>All docs</SectionLink>}>
+              <Section title="Reference docs" action={<SectionLink to={docsHref(project.id, 'index')}>All docs</SectionLink>}>
                 <ul className="divide-y divide-white/[0.06]">
                   {referenceDocs.slice(0, 4).map((doc) => (
                     <li key={doc.id}>
-                      <Link to={docsPath} state={{ docId: doc.id }} className="flex min-w-0 items-center gap-2 py-2 text-xs text-slate-300 transition-colors hover:text-white">
+                      <Link to={docHref(project.id, doc.id)} className="flex min-w-0 items-center gap-2 py-2 text-xs text-slate-300 transition-colors hover:text-white">
                         <BookOpen aria-hidden className="size-3.5 shrink-0 text-slate-500" />
                         <span title={doc.title} className="min-w-0 flex-1 truncate"><LocalizedText text={doc.title} /></span>
                         <span className="shrink-0 text-[10px] text-slate-500"><LocalizedText text={doc.updatedAtLabel} /></span>

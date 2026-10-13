@@ -1,4 +1,5 @@
 import ConflictReviewOverlay from '@/components/conflicts/ConflictReviewOverlay'
+import DocsOverlay from '@/components/docs/DocsOverlay'
 import { readChangeParams, sourceKeyOf } from '@/lib/changeLink'
 import { checkpointRationale } from '@/lib/rationale'
 import { useEffect, useRef, useState } from 'react'
@@ -173,6 +174,8 @@ function WorkspacePage() {
       {!inMergeStudio && <WorkspaceBottomPanel />}
       {/* A conflict's detail, full-screen over all of the above. */}
       <ConflictReviewOverlay inMergeStudio={inMergeStudio} />
+      {/* (Docs: the same kind of layer, at ?doc / ?docs.) */}
+      <DocsOverlay />
     </div>
     </WorkspaceBottomPanelPortalContext.Provider>
   )

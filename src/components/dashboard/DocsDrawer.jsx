@@ -1,8 +1,9 @@
 import { DOCUMENT_DRAG_TYPE } from '@/lib/workspaceDocuments'
+import { docHref, docsHref } from '@/lib/docLink'
 import { useState } from 'react'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { ChevronRight, FileText, Folder, FolderOpen, Library, BookOpen, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { buildDocTree, countDocs, docPath, searchDocs } from '@/lib/docCategories'
@@ -13,26 +14,25 @@ const activeClass = 'bg-muted text-foreground'
 // left of its children so the parent → child structure reads at a glance.
 const GUIDE = 'ml-[15px] border-l border-white/[0.06] pl-1.5'
 
-// The docs route keeps its view in `location.state` (one URL); a Link to
-// the same URL replaces the history entry by default — `replace={false}`
-// makes each pick a real step for the header's ‹ › buttons.
-function DocLink({ doc, docsPath, active, onToggle }) {
+// A document's row. It is a link to the document's address (lib/docLink:
+// /workspace?doc=<id>) — so it can be opened in a new tab — and, pressed here,
+// opens it by the layer's own rule (`onOpen`: pushed the first time, replaced
+// when a document is already open; `onToggle` closes the one that's open).
+function DocLink({ doc, href, active, onOpen, onToggle }) {
   return (
     <Link
       draggable
       onClick={(event) => {
-        if (active) {
-          event.preventDefault()
-          onToggle()
-        }
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+        event.preventDefault()
+        if (active) onToggle()
+        else onOpen(doc.id)
       }}
       onDragStart={(event) => {
         event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id)
         event.dataTransfer.effectAllowed = 'copy'
       }}
-      to={docsPath}
-      state={{ docId: doc.id }}
-      replace={false}
+      to={href}
       aria-current={active ? 'page' : undefined}
       title={`${doc.title} · 워크스페이스 작업창으로 드래그`}
       className={cn(
@@ -48,7 +48,7 @@ function DocLink({ doc, docsPath, active, onToggle }) {
 
 // A category (or sub-category): a header row that expands / collapses its
 // contents in place, then its docs and sub-categories one level in.
-function Category({ node, depth, open, onToggle, docsPath, activeDocId, onToggleViewer }) {
+function Category({ node, depth, open, onToggle, hrefOf, activeDocId, onOpenDoc, onToggleViewer }) {
   const expanded = open.has(node.id)
   const FolderIcon = expanded ? FolderOpen : Folder
 
@@ -79,13 +79,14 @@ function Category({ node, depth, open, onToggle, docsPath, activeDocId, onToggle
               depth={depth + 1}
               open={open}
               onToggle={onToggle}
-              docsPath={docsPath}
+              hrefOf={hrefOf}
+              onOpenDoc={onOpenDoc}
               activeDocId={activeDocId}
               onToggleViewer={onToggleViewer}
             />
           ))}
           {node.docs.map((doc) => (
-            <DocLink key={doc.id} doc={doc} docsPath={docsPath} active={doc.id === activeDocId} onToggle={onToggleViewer} />
+            <DocLink key={doc.id} doc={doc} href={hrefOf(doc.id)} active={doc.id === activeDocId} onOpen={onOpenDoc} onToggle={onToggleViewer} />
           ))}
         </div>
       )}
@@ -100,14 +101,21 @@ function Category({ node, depth, open, onToggle, docsPath, activeDocId, onToggle
 // Categories on the path to the open doc start expanded.
 function DocsDrawer({ project }) {
   const language = useLanguage()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { referenceDocs, dsUpdates } = useWorkspace()
-  const docsPath = `/projects/${project.id}/docs`
-  const onDocs = location.pathname.startsWith(docsPath)
-  const state = onDocs ? (location.state ?? {}) : {}
-  const activeDocId = onDocs ? state.docId : null
-  const closeViewer = () => navigate(`/projects/${project.id}/workspace`, { state: { keepDrawer: 'docs' } })
+  // What's open is the address's (?doc, ?docs — the Workspace's docs layer): the row for
+  // it is marked, and pressing that row again closes the layer.
+  const { referenceDocs, dsUpdates, docParam, docsParam, openDoc, openDocs, closeDocs } = useWorkspace()
+  const activeDocId = docParam
+  const onIndex = !docParam && docsParam === 'index'
+  const onUpdates = !docParam && docsParam === 'updates'
+  const hrefOf = (docId) => docHref(project.id, docId)
+  const closeViewer = closeDocs
+  // (A plain press opens by the layer's rule; with a modifier the link is the browser's.)
+  const press = (active, target) => (event) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+    event.preventDefault()
+    if (active) closeDocs()
+    else openDocs(target)
+  }
   const [query, setQuery] = useState('')
   const tree = buildDocTree(referenceDocs)
   const searchableDocs = language === 'ko' ? referenceDocs.map((doc) => ({
@@ -175,33 +183,20 @@ function DocsDrawer({ project }) {
         {query && <button type="button" aria-label="Clear docs search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
       </div>
       <Link
-        to={docsPath}
-        replace={false}
-        aria-current={onDocs && !activeDocId && state.tab !== 'dsUpdates' ? 'page' : undefined}
-        onClick={(event) => {
-          if (onDocs && !activeDocId && state.tab !== 'dsUpdates') {
-            event.preventDefault()
-            closeViewer()
-          }
-        }}
-        className={cn(rowClass, onDocs && !activeDocId && state.tab !== 'dsUpdates' && activeClass)}
+        to={docsHref(project.id, 'index')}
+        aria-current={onIndex ? 'page' : undefined}
+        onClick={press(onIndex, { docs: 'index' })}
+        className={cn(rowClass, onIndex && activeClass)}
       >
         <Library className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate">All docs</span>
         <span className="text-[11px] text-muted-foreground/60 tabular-nums">{referenceDocs.length}</span>
       </Link>
       <Link
-        to={docsPath}
-        state={{ tab: 'dsUpdates' }}
-        replace={false}
-        aria-current={state.tab === 'dsUpdates' ? 'page' : undefined}
-        onClick={(event) => {
-          if (onDocs && state.tab === 'dsUpdates') {
-            event.preventDefault()
-            closeViewer()
-          }
-        }}
-        className={cn(rowClass, 'mb-2', state.tab === 'dsUpdates' && activeClass)}
+        to={docsHref(project.id, 'updates')}
+        aria-current={onUpdates ? 'page' : undefined}
+        onClick={press(onUpdates, { docs: 'updates' })}
+        className={cn(rowClass, 'mb-2', onUpdates && activeClass)}
       >
         <BookOpen className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate">Document updates</span>
@@ -212,7 +207,7 @@ function DocsDrawer({ project }) {
 
       {query.trim() && <p role="status" className="px-2 py-1 text-[11px] text-muted-foreground">{matches.length ? `${matches.length} docs found` : 'No matching docs'}</p>}
       {visibleTree.map((node) => (
-        <Category key={node.id} node={node} depth={0} open={visibleOpen} onToggle={toggle} docsPath={docsPath} activeDocId={activeDocId} onToggleViewer={closeViewer} />
+        <Category key={node.id} node={node} depth={0} open={visibleOpen} onToggle={toggle} hrefOf={hrefOf} activeDocId={activeDocId} onOpenDoc={openDoc} onToggleViewer={closeViewer} />
       ))}
     </nav>
   )

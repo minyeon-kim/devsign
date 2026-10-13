@@ -1,4 +1,3 @@
-import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { cn } from 'cn'
 import Breadcrumb, { BreadcrumbBar, projectCrumbs } from '@/components/layout/Breadcrumb'
@@ -7,7 +6,8 @@ import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocVi
 import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
 import { buildDocTree, docPath } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import { allPeople } from '@/data/mockData'
+import { allPeople, projects } from '@/data/mockData'
+import { useNavigate } from 'react-router-dom'
 
 // One doc in the index — a borderless row that opens it.
 function DocRow({ doc, onOpen }) {
@@ -72,35 +72,36 @@ function DocsIndex({ tree, onOpen }) {
   )
 }
 
-// Which view to show, from the link that opened it (`location.state`):
-// `{ docId }` a doc, `{ tab: 'dsUpdates' }` the Document updates
-// pipeline, nothing the categorized index.
-function resolveView(state, referenceDocs) {
-  const doc = state?.docId && referenceDocs.find((d) => d.id === state.docId)
+// Which view the address names (lib/docLink): `?doc=<id>` a document,
+// `?docs=updates` the Document updates pipeline, `?docs=index` the
+// categorized list. A document that isn't there (an old or mistyped id) is
+// the list.
+function resolveView(docId, docsView, referenceDocs) {
+  const doc = docId && referenceDocs.find((d) => d.id === docId)
   if (doc) return { kind: 'doc', doc }
-  if (state?.tab === 'dsUpdates') return { kind: 'dsUpdates' }
-  return { kind: 'index' }
+  if (docId) return { kind: 'index' }
+  if (docsView === 'updates') return { kind: 'dsUpdates' }
+  return docsView ? { kind: 'index' } : null
 }
 
-// Docs — the project's Reference Docs (its own activity bar icon, with the
-// category tree in the drawer) and the Document updates pipeline that
-// generates new ones. The header is the only place the path is shown:
-// Project / Docs / category / … / doc.
-function DocsPage() {
-  const { project } = useOutletContext()
-  const location = useLocation()
+// Docs — the project's Reference Docs and the Document updates pipeline that
+// generates new ones — as a layer over the Workspace: it covers the work area
+// while the activity bar and the Docs drawer (the category tree) stay. What's
+// shown is the address's (`?doc`, `?docs`), so it survives a reload, can be
+// shared, and Back closes it — the same way a change's detail works
+// (ConflictReviewOverlay).
+function DocsOverlay() {
+  const { projectId, referenceDocs, docParam, docsParam, openDoc, openDocs } = useWorkspace()
   const navigate = useNavigate()
-  const { referenceDocs } = useWorkspace()
+  const view = resolveView(docParam, docsParam, referenceDocs)
+  if (!view) return null
+  const project = projects.find((candidate) => candidate.id === projectId) ?? { id: projectId, name: projectId }
   const tree = buildDocTree(referenceDocs)
-  const view = resolveView(location.state, referenceDocs)
-  const docsPath = `/projects/${project.id}/docs`
-
-  const openDoc = (docId) => navigate(docsPath, { state: { docId } })
-  const openIndex = () => navigate(docsPath)
-  const openHistory = (highlightId) => navigate(`/projects/${project.id}/history`, { state: { highlightId } })
+  const openIndex = () => openDocs({ docs: 'index' })
+  const openHistory = (highlightId) => navigate(`/projects/${projectId}/history`, { state: { highlightId } })
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+    <div data-docs-overlay={view.kind} role="dialog" aria-label="Docs" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
       <BreadcrumbBar>
         <Breadcrumb
           items={[
@@ -112,14 +113,8 @@ function DocsPage() {
           ]}
         />
       </BreadcrumbBar>
-
-      {/* Keyed by the navigation so a fresh deep link re-applies its view,
-          fading the content in rather than hard-swapping it. */}
-      <div
-        key={location.key}
-        className="min-h-0 flex-1 animate-in overflow-y-auto fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
-      >
-        {view.kind === 'doc' && <ReferenceDocView doc={view.doc} />}
+      <div data-docs-scroll className="min-h-0 flex-1 overflow-y-auto">
+        {view.kind === 'doc' && <ReferenceDocView key={view.doc.id} doc={view.doc} />}
         {view.kind === 'dsUpdates' && <DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} />}
         {view.kind === 'index' && <DocsIndex tree={tree} onOpen={openDoc} />}
       </div>
@@ -127,4 +122,4 @@ function DocsPage() {
   )
 }
 
-export default DocsPage
+export default DocsOverlay

@@ -1,6 +1,7 @@
 import ControlTooltips from '@/components/layout/ControlTooltips'
 import LanguageProvider from '@/i18n/LanguageProvider'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { legacyDocsHref } from '@/lib/docLink'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { useResetUndoToast } from '@/components/workspace/DemoTools'
@@ -11,18 +12,28 @@ import { lazy, Suspense } from 'react'
 import PageSkeleton from '@/components/layout/PageSkeleton'
 // A project's pages load on demand (and ahead of the click, from a project
 // card's hover) — see lib/projectPages.
-import { DocsPage, HistoryPage, ImportPage, ProjectLayout, ProjectOverviewPage, WorkspacePage } from '@/lib/projectPages'
+import { HistoryPage, ImportPage, ProjectLayout, ProjectOverviewPage, WorkspacePage } from '@/lib/projectPages'
 
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ActivityPage = lazy(() => import('@/pages/ActivityPage'))
 const TeamPage = lazy(() => import('@/pages/TeamPage'))
 
+// Docs are a layer over the Workspace now (lib/docLink): an old /docs link —
+// its view in `location.state` ({ docId }, { tab: 'dsUpdates' }) — lands on
+// the address that means the same.
+function DocsRedirect() {
+  const { projectId } = useParams()
+  const { state } = useLocation()
+  return <Navigate to={legacyDocsHref(projectId, state)} replace />
+}
+
 // The Archive was split into Docs and History: old /archive links (and
 // their `location.state`) land on whichever of the two they pointed at.
 function ArchiveRedirect() {
+  const { projectId } = useParams()
   const { state } = useLocation()
   const toHistory = state?.tab === 'history' || state?.highlightId
-  return <Navigate to={toHistory ? '../history' : '../docs'} state={state} replace relative="path" />
+  return toHistory ? <Navigate to="../history" state={state} replace relative="path" /> : <Navigate to={legacyDocsHref(projectId, state)} replace />
 }
 
 function App() {
@@ -49,7 +60,7 @@ function App() {
           <Route path="/projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<ProjectOverviewPage />} />
             <Route path="workspace" element={<WorkspacePage />} />
-            <Route path="docs" element={<DocsPage />} />
+            <Route path="docs" element={<DocsRedirect />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="archive" element={<ArchiveRedirect />} />

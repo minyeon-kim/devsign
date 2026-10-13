@@ -34,7 +34,8 @@ for (const file of sources.slice(1)) assert.ok(/changeHref\(|changesHref\(/.test
 // The provider: the address is what's shown; pushed here, replaced when switching, back or replace to close.
 const provider = read('src/state/WorkspaceProvider.jsx')
 assert.ok(provider.includes("if (changeParam) { setReviewConflictId(changeParam); setReviewView('overlay') }"))
-assert.ok(provider.includes("shown ? { replace: true, state: at.state } : { state: { changePushed: true } }"))
+// (Replaced over any layer that's already open — another change, or a document: tests/doc-link.mjs.)
+assert.ok(provider.includes("search: withChange(withoutDoc(at.search), id, { evidence, source }) }, anyLayer ? { replace: true, state: at.state } : { state: { changePushed: true } }"))
 assert.ok(provider.includes("if (closeHowOf(at.state) === 'back') navigate(-1)") && provider.includes('search: withChange(at.search, null) }, { replace: true, state: null }'))
 // The Workspace reads it: the filter, and a link's arrival (with a History source found again by id).
 const page = read('src/pages/WorkspacePage.jsx')
