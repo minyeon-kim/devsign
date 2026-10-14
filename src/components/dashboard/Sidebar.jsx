@@ -3,7 +3,7 @@ import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
-import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
+import { AI_CHAT, clampCompareWidth, clampWidth, readCompareWidth, writeCompareWidth, COMPARE_LIST_WIDTH, COMPARE_NARROW } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
@@ -18,7 +18,7 @@ import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer, { HistoryCount } from '@/components/dashboard/HistoryDrawer'
 import ImportDrawer from '@/components/dashboard/ImportDrawer'
 import ConflictsDrawer, { ConflictCount } from '@/components/dashboard/ConflictsDrawer'
-import CompareDrawer, { CompareCount } from '@/components/dashboard/CompareDrawer'
+import ComparePanel from '@/components/dashboard/ComparePanel'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
@@ -438,7 +438,17 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   const chat = workspace && context?.aiChat?.open ? clampWidth(AI_CHAT, context.aiChat.width, windowWidth) + 8 : 0
   const room = Math.max(0, windowWidth - RAIL_PX - chat)
   const pane = paneWidth(room, ratio, { maximized })
-  const shownWidth = split ? pane.width : width
+  // Design Compare: the list alone at 360px, or — with a set picked — widened into list + detail (960px to start,
+  // 55% of the window at most, 720px at least; dragged by its edge, kept). Where that would leave the canvas under
+  // 480px (or on a window of 1280px or less) it opens over the canvas instead, with a scrim.
+  const comparing = panel === 'compare'
+  const compareOpen = comparing && Boolean(context?.compareItemId)
+  const [compareWidth, setCompareWidth] = useState(() => readCompareWidth())
+  const expandedWidth = clampCompareWidth(compareWidth, windowWidth)
+  const compareWidthNow = useRef(expandedWidth)
+  compareWidthNow.current = expandedWidth
+  const shownWidth = split ? pane.width : comparing ? (compareOpen ? expandedWidth : COMPARE_LIST_WIDTH) : width
+  const overlay = compareOpen && (windowWidth <= COMPARE_NARROW || windowWidth - RAIL_PX - chat - shownWidth - 8 < 480)
   const keepShare = (next) => { const saved = readSplit(); writeSplit({ ...saved, ratios: { ...saved.ratios, [panel]: next } }) }
   const setShare = (next, keep = false) => { setRatios((prev) => ({ ...prev, [panel]: next })); if (keep) keepShare(next) }
   // (Maximizing is for the pane that's open: it doesn't outlast it.)
@@ -453,13 +463,13 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-sidebar-toggle]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
-  const targetWidth = drawer ? shownWidth + 8 : 0
+  const targetWidth = drawer ? (overlay ? COMPARE_LIST_WIDTH : shownWidth) + 8 : 0
   const easedWidth = useAfterPaint(targetWidth)
   // (Dragged by its edge: it follows the pointer at once.)
   const openWidth = resizing ? targetWidth : easedWidth
 
   return (
-    <div className="z-10 flex h-full shrink-0">
+    <div className={cn('flex h-full shrink-0', overlay ? 'z-40' : 'z-10')}>
       <ActivityBar project={project} drawer={drawer} onToggleDrawer={onToggleDrawer} openConflicts={openConflicts} workspace={workspace} />
 
       <div
@@ -469,10 +479,13 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
         // for, so what it shows is drawn first and the motion starts from where it is: lib/useAfterPaint.)
         style={{ width: openWidth }}
         className={cn(
-          'h-full shrink-0 overflow-hidden motion-reduce:transition-none',
-          !resizing && cn('transition-[width]', PANE_MOTION)
+          'relative h-full shrink-0 motion-reduce:transition-none',
+          overlay ? 'overflow-visible' : 'overflow-hidden',
+          !resizing && cn('transition-[width]', comparing ? 'duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)]' : PANE_MOTION)
         )}
       >
+        {/* (Over the canvas, in a narrow window: the canvas behind it is dimmed; pressing it puts the detail away.) */}
+        {overlay && <div aria-hidden data-compare-scrim onClick={() => context.closeCompareView()} className="fixed inset-y-0 right-0 z-40 bg-black/50 animate-in fade-in duration-200 motion-reduce:animate-none" style={{ left: RAIL_PX + COMPARE_LIST_WIDTH + 8 }} />}
         <aside
           ref={asideRef}
           id="work-pane"
@@ -481,7 +494,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
           data-pane-full={split && pane.full ? '' : undefined}
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
           style={{ width: shownWidth }}
-          className="relative flex h-full flex-col bg-background pb-2"
+          className={cn('relative flex h-full flex-col bg-background pb-2', overlay && 'absolute top-0 left-0 z-50 border-r border-border shadow-2xl shadow-black/40', overlay && !resizing && 'transition-[width] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none')}
         >
           {split ? (
             !pane.full && (
@@ -494,6 +507,19 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
                 onResizeEnd={() => { setResizing(false); keepShare(ratio) }}
                 onStep={(d) => setShare(ratioOf(room, pane.width + d), true)}
                 onReset={() => setShare(defaultRatio(panel), true)}
+              />
+            )
+          ) : comparing ? (
+            compareOpen && (
+              <SplitHandle
+                label="Resize detail"
+                value={Math.round((expandedWidth / Math.max(1, windowWidth)) * 100)}
+                className="absolute inset-y-0 -right-1 z-10"
+                onResizeStart={() => { dragStart.current = expandedWidth; setResizing(true) }}
+                onResize={(dx) => setCompareWidth(clampCompareWidth(dragStart.current + dx, windowWidth))}
+                onResizeEnd={() => { setResizing(false); writeCompareWidth(compareWidthNow.current) }}
+                onStep={(d) => { const next = clampCompareWidth(expandedWidth + d, windowWidth); setCompareWidth(next); writeCompareWidth(next) }}
+                onReset={() => { setCompareWidth(clampCompareWidth(undefined, windowWidth)); writeCompareWidth(undefined) }}
               />
             )
           ) : (
@@ -509,12 +535,14 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
               onStep={(d) => resize(width + d)}
             />
           )}
+          {comparing && project && context ? (
+            <ComparePanel project={project} expanded={compareOpen} overlay={overlay} closeButton={<CloseButton onClose={onCloseDrawer} />} />
+          ) : (<>
           <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
               {DRAWER_TITLES[panel]}
               {panel === 'history' && project && <HistoryCount />}
               {panel === 'conflicts' && project && <ConflictCount />}
-              {panel === 'compare' && project && context && <CompareCount />}
             </p>
             {split ? (
               <>
@@ -542,8 +570,8 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
             {panel === 'history' && project && <HistoryDrawer project={project} />}
             {panel === 'import' && project && <ImportDrawer project={project} />}
             {panel === 'conflicts' && project && <ConflictsDrawer project={project} />}
-            {panel === 'compare' && project && context && <CompareDrawer project={project} />}
           </div>
+          </>)}
           {/* A change's detail opens here, over the list it was picked from (ConflictReviewOverlay). */}
           {panel === 'conflicts' && <div ref={setHost} data-work-pane-layer className="pointer-events-none absolute inset-0 z-20 [&>*]:pointer-events-auto" />}
         </aside>
