@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { RECORD_ROWS, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { RECORD_ROWS, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { appendEvent, eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
 import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
@@ -1101,7 +1101,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const current = askingNow ? 'request' : stage === 'requested' ? 'decision' : post && stage !== 'resolved' ? 'fix' : null
   const isOpen = (key) => folds.get(key, key === current)
   const allOpen = FOLD_STEPS.every(isOpen)
-  const toggle = (key) => folds.set(key, !isOpen(key))
+  // (One step open at a time; the one under way stays open until it's folded by hand.)
+  const toggle = accordionToggle(folds, FOLD_STEPS, isOpen, current)
   const breakpoint = conflict.breakpoint ?? 768
   const components = conflict.impact?.components ?? []
   // (A value change's detection says its value: the first one that differs.)

@@ -55,7 +55,7 @@ import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, ScreenLocation, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY } from '@/components/conflicts/DesignDecisionFlow'
-import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
 import { useFoldState } from '@/components/conflicts/Fold'
@@ -2557,7 +2557,9 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
   if (!steps.length) return null
   const host = (steps.find((step) => step.state === 'current') ?? steps.at(-1))?.key
   const foldable = steps.filter((step) => hasBody(step) || (current && step.key === host)).map((step) => step.key)
-  const isOpen = (key) => folds.get(key, Boolean(current) && key === host)
+  // (The step under way is open to start with — the others folded — and one step is open at a time.)
+  const isOpen = (key) => folds.get(key, key === host && (Boolean(current) || steps.find((step) => step.key === host)?.state !== 'done'))
+  const toggle = accordionToggle(folds, foldable, isOpen, host)
   const allOpen = foldable.length > 0 && foldable.every(isOpen)
   return (
     // (40px under what's above it; 24px to the first step; 48px from step to step.)
@@ -2582,7 +2584,7 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
             summary={step.summary}
             time={step.time}
             open={isOpen(step.key)}
-            onToggle={() => folds.set(step.key, !isOpen(step.key))}
+            onToggle={() => toggle(step.key)}
             last={index === steps.length - 1}
             moves={stepMoves(reveal, index)}
             anim={stepMoves(reveal, index) ? reveal.phase : undefined}

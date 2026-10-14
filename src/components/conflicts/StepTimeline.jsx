@@ -1,6 +1,7 @@
-import { Children, useEffect, useState } from 'react'
+import { Children, useEffect, useId, useRef, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { cn } from 'cn'
-import { Chevron, FoldBody } from '@/components/conflicts/Fold'
+import { FoldBody } from '@/components/conflicts/Fold'
 import { IDLE, STEP_STATE_WORD, countDone, firstView, liveView, progressLabel, readSeen, writeSeen } from '@/lib/stepProgress'
 
 // The record's label / value rows: 8px between rows, an 80px label column in grey 12px, values at 12.5px.
@@ -51,6 +52,19 @@ export function useStepReveal(conflictId, states) {
 
 const WORD = (state) => STEP_STATE_WORD[state]
 
+// The record's steps open one at a time: opening a step folds every other —
+// except the step under way, which stays open until it's folded by hand.
+// (`folds`: useFoldState; `isOpen(key)`: with the caller's own defaults;
+// `keep`: the step under way.) "Fold all / open all" is the caller's, as before.
+export function accordionToggle(folds, keys, isOpen, keep) {
+  return (key) => {
+    if (isOpen(key)) { folds.set(key, false); return }
+    const others = keys.filter((other) => other !== key && other !== keep && isOpen(other))
+    if (others.length) folds.setMany(others, false)
+    folds.set(key, true)
+  }
+}
+
 // A step's mark. Done: a soft success disc with the check in the success
 // colour (drawn when new); under way: an outlined disc with a slow pulse
 // ring; waiting: an empty grey outline; needs a person: a warning disc and
@@ -68,7 +82,8 @@ export function StepDot({ state, moves: animate = false, arrive = false }) {
   }
   if (state === 'current') {
     return (
-      <span aria-hidden data-step-dot="current" className={cn(base, 'border-[1.5px] border-sky-300', arrive && 'ds-step-arrive')} />
+      // (The accent, with a soft ring around it.)
+      <span aria-hidden data-step-dot="current" className={cn(base, 'border-[1.5px] border-sky-300 shadow-[0_0_0_3px_rgb(125_211_252/0.14)]', arrive && 'ds-step-arrive')} />
     )
   }
   if (state === 'problem') {
@@ -109,11 +124,35 @@ export function StepLine({ filled, strong = false, moves: animate = false, class
 // `children`) has no fold: its head is all there is.
 export function StepRow({ state, title, who: _who, summary: _summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
   const pending = state === 'pending'
+  const current = state === 'current' || state === 'problem'
   // (Nothing inside — or only conditions that didn't hold: no fold.)
   const foldable = Children.toArray(children).length > 0
+  const bodyId = useId()
+  // Opened and partly out of view: brought into view once it has grown (it grows over 220ms).
+  const rowRef = useRef(null)
+  const wasOpen = useRef(open)
+  useEffect(() => {
+    const opened = open && !wasOpen.current
+    wasOpen.current = open
+    if (!opened) return undefined
+    const timer = window.setTimeout(() => rowRef.current?.scrollIntoView({ block: 'nearest', behavior: motionOk() ? 'smooth' : 'auto' }), 230)
+    return () => window.clearTimeout(timer)
+  }, [open])
+  // One line, folded or not: the step's name, where it stands, when — and the chevron.
+  const head = (
+    <>
+      <span data-step-title className={cn('min-w-0 truncate text-[13px] leading-5', pending ? 'text-slate-500' : state === 'done' ? 'font-medium text-slate-300' : 'font-semibold text-white')}>{title}</span>
+      <span data-step-state className={cn('shrink-0 text-[11px] leading-5', current ? 'text-sky-200' : 'text-slate-500')}>{WORD(state)}</span>
+      <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5">
+        {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
+        {foldable && <ChevronRight aria-hidden data-step-chevron className={cn('size-3.5 shrink-0 text-slate-400 transition-transform duration-[180ms] ease-out motion-reduce:transition-none', open && 'rotate-90')} />}
+      </span>
+    </>
+  )
   return (
     <li
-      className="group/step relative pl-6"
+      ref={rowRef}
+      className="group/step relative scroll-my-3 pl-6"
       aria-label={`${title} · ${STEP_STATE_WORD[state]}`}
       data-step-anim={anim}
       style={{ '--d': `${delay}ms` }}
@@ -121,37 +160,33 @@ export function StepRow({ state, title, who: _who, summary: _summary, time, open
       onMouseLeave={onHover && (() => onHover(false))}
       {...rest}
     >
-      {/* (The line runs on to the next step's dot, 16px on; the last one ends at its own.) */}
+      {/* (The line runs on to the next step's dot, whatever the height of this one — it's drawn from the row's top to past its bottom.) */}
       {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-[18px] bottom-[-18px] left-[5.5px]" />}
       {/* (12px from the mark to the step's name; the mark centred on the name's line.) */}
       <span className="absolute top-1 left-0"><StepDot state={state} moves={moves} arrive={arrive} /></span>
-      {/* (16px from step to step, no hairline: the line and the marks carry it.) */}
-      <div data-step-row={state} data-open={open}>
-        <div data-step-head className="flex min-w-0 items-start gap-3">
-          {(() => {
-            const text = (
-              <>
-                {/* The step's name alone, bold… */}
-                <span data-step-title className={cn('text-[13px] leading-5 whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'font-medium text-slate-300' : 'font-semibold text-white')}>{title}</span>
-
-              </>
-            )
-            return foldable
-              ? <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer flex-col items-start rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">{text}</button>
-              : <div className="flex min-w-0 flex-1 flex-col items-start">{text}</div>
-          })()}
-          <div className="flex h-5 shrink-0 items-center gap-1.5">
-            {onReplay && (
-              <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
-                이 단계부터 보기
-              </button>
-            )}
-            {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
-            {foldable && <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-5 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3" /></button>}
-          </div>
+      {/* The step under way is set apart: a faint accent behind it (no change to where anything sits). */}
+      <div data-step-row={state} data-open={open} className={cn('-mx-2 rounded-lg px-2', current && 'bg-sky-400/[0.05] ring-1 ring-sky-300/15')}>
+        <div data-step-head className="flex min-w-0 items-start gap-1">
+          {foldable ? (
+            // The whole head is the switch: Enter or Space folds and opens it.
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-controls={bodyId}
+              onClick={onToggle}
+              className={cn('ds-intrinsic -mx-2 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-emerald-300', !open && 'hover:bg-white/[0.05]')}
+            >
+              {head}
+            </button>
+          ) : <div className="flex min-w-0 flex-1 items-center gap-2">{head}</div>}
+          {onReplay && (
+            <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic h-5 shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
+              이 단계부터 보기
+            </button>
+          )}
         </div>
         {/* Opened: 12px under its head, from the name's own left edge; 16px between its blocks, a readable measure. */}
-        {foldable && <FoldBody open={open}><div data-step-body className="flex flex-col gap-4 pt-3 pb-1 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>}
+        {foldable && <div id={bodyId} role="region" aria-label={title}><FoldBody open={open}><div data-step-body className="flex flex-col gap-4 pt-3 pb-2 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody></div>}
       </div>
     </li>
   )
