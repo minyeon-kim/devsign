@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Check, ChevronDown, Layers3, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Layers3 } from 'lucide-react'
 import { cn } from 'cn'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { LocalizedText } from '@/i18n/runtime'
@@ -67,7 +67,7 @@ const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-ce
 // `host`: where it's docked (BoardDockSlot's element). `marked`: the change another view has picked (Design
 // Compare's) — its row is marked as the picked one is. `compareItem`/`onOpenCompare`: the picked change's design
 // set, and the way into its comparison (the icon in the detail's header).
-export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose, focusScreenId = null, currentScreenId = null, host = null, docked = false, marked = null, compareItem = null, onOpenCompare = null }) {
+export default function BoardConflicts({ groups, picked, onPick, onBack, focusScreenId = null, currentScreenId = null, host = null, docked = false, marked = null, compareItem = null, onOpenCompare = null }) {
   const language = useLanguage()
   const listRef = useRef(null)
   // (The row whose detail was last open stays marked once back on the list — and takes the focus.)
@@ -104,22 +104,17 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
         : 'absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none'}
       style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host || docked ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
-      <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
+      {/* (The list has no header: the tab row's end over it — Conflict · Merge and × — is. A change's detail
+          keeps a row for the way back to the list.) */}
+      {picked && <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
         {/* (On a change: the way back to the list — its title is the detail's own, right under.) */}
-        {picked ? (
-          <button type="button" data-board-conflicts-back onClick={onBack} className="ds-intrinsic flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-full px-2 text-left text-xs font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-            <ArrowLeft className="size-4 shrink-0" /><LocalizedText text="Back to the list" />
-          </button>
-        ) : (
-          <h2 className="min-w-0 flex-1 truncate pl-1.5 text-[13px] font-semibold text-slate-100">
-            <LocalizedText text="Conflicts" /> <span className="font-normal text-slate-500 tabular-nums">{total}</span>
-          </h2>
-        )}
+        <button type="button" data-board-conflicts-back onClick={onBack} className="ds-intrinsic flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-full px-2 text-left text-xs font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <ArrowLeft className="size-4 shrink-0" /><LocalizedText text="Back to the list" />
+        </button>
         {picked && compareItem && onOpenCompare && (
           <button type="button" data-board-conflicts-compare onClick={() => onOpenCompare(compareItem)} aria-label={translateText('Open in Design Compare', language)} title={translateText('Open in Design Compare', language)} className={HEADER_BUTTON}><Layers3 className="size-4" /></button>
         )}
-        <button type="button" data-board-conflicts-close onClick={onClose} aria-label="Close" title="Close" className={HEADER_BUTTON}><X className="size-4" /></button>
-      </header>
+      </header>}
       {picked ? (
         // (The change's own detail — the same as the pane's, in this panel's column.)
         <div data-board-conflict-detail className="min-h-0 flex-1 overflow-hidden">
@@ -129,7 +124,7 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
         // The list, as an issue list: a group per screen (its name, then its number and how many — folding,
         // its header held at the top while its rows scroll by), and rows on fixed columns — status · title ·
         // due — over a second line of what kind of clash it is, with the risk as a chip when it's medium or high.
-        <div ref={listRef} data-board-conflicts-list onKeyDown={onListKey} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+        <div ref={listRef} data-board-conflicts-list onKeyDown={onListKey} className="min-h-0 flex-1 overflow-y-auto px-1.5 pt-1 pb-2">
           {groups.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500"><LocalizedText text="No open changes on these screens." /></p>}
           {groups.map((group) => {
             const key = group.id ?? 'none'

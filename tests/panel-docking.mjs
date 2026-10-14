@@ -66,7 +66,7 @@ try {
   assert.ok(!views.includes('CanvasComparePanel') && !views.includes('CompareWorkView') && !layout.includes('CompareWorkView') && !shell.includes('setCompareOpen'), 'the canvas is never covered or replaced')
   assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes('COMPARE_DETAIL_WIDTH : COMPARE_LIST_WIDTH') && sidebar.includes('overlay'), 'one sidebar, two widths, an overlay only when the canvas would be under 480')
   const canvasCompare = read('components/workspace/WorkspaceDesignComparePanel.jsx')
-  assert.ok(!shell.includes("setDrawer('compare')") && canvasCompare.includes('data-canvas-design-compare') && canvasCompare.includes('closeCompareView()'), 'comparison list and detail now live together inside the canvas')
+  assert.ok(!shell.includes("setDrawer('compare')") && canvasCompare.includes('data-canvas-design-compare') && layout.includes('closeCompareView()') && layout.includes('data-design-compare-close'), 'comparison list and detail now live together inside the canvas (put away by the tab row\'s ×)')
   assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === 'Escape'") && panel.includes("event.key === '['") && panel.includes("'ArrowDown'") && panel.includes('closeCompareView') && panel.includes('inert={expanded}'), 'a named region; the list kept (inert), the keys')
   assert.ok(panel.includes('translate-x-4') && panel.includes('duration-200') && panel.includes('motion-reduce:transition-none'), '16px slide + fade, 200ms, none when reduced')
   // The list is made of the change list's own parts (one row component), grouped by screen, searchable.

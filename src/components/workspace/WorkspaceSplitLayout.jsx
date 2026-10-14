@@ -3,7 +3,9 @@ import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
-import { TriangleAlert } from 'lucide-react'
+import { TriangleAlert, X } from 'lucide-react'
+import { BOARD_DETAIL_WIDTH, BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
+import { designComparePanelWidth } from '@/components/workspace/WorkspaceDesignComparePanel'
 import { designSetsOf } from '@/lib/designSets'
 import { conflictCounts } from '@/lib/conflicts'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
@@ -161,7 +163,7 @@ function zoneRect(rect, zone) {
 // `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
 // stays mounted under it).
 function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing, mixBridge, comparePanelMode } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -628,19 +630,42 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
 
   const conflictCount = conflictCounts(conflicts).open
   const mergeCount = designSetsOf(mergeItems).length
+  // The tab row's right end: Conflict · Merge as one segmented capsule (iOS). While either's panel is open at
+  // the canvas's right it's that panel's header: it takes the panel's width (so the board's tools end at the
+  // panel's left edge, over the canvas), the open one on the raised thumb, and × at the end puts it away.
+  const openPanel = boardConflicts.open ? 'conflicts' : designComparePanelOpen ? 'merge' : null
+  const panelWidth = openPanel === 'conflicts' ? (boardConflicts.conflictId ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
+    : openPanel === 'merge' ? designComparePanelWidth({ compareItemId, compositionEditing, mixBridge, comparePanelMode }) : null
+  const closePanel = () => {
+    if (openPanel === 'conflicts') setBoardConflicts({ open: false, conflictId: null })
+    else { if (!compositionEditing) closeCompareView(); setDesignComparePanelOpen(false) }
+  }
+  const SEGMENT = 'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300'
+  const RAISED = 'bg-white/[0.16] shadow-[0_1px_2px_rgb(0_0_0/0.35)]'
   const conflictPill = (
-    <div className="flex shrink-0 items-center gap-0.5" onPointerDown={(event) => event.stopPropagation()}>
-    <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
-      onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
-      onPointerDown={(event) => event.stopPropagation()}
-      className={cn('flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', conflictCount > 0 ? 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/20' : 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1] hover:text-white')}>
-      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
-      Conflict
-      {conflictCount > 0 && <span className="text-xs tabular-nums text-amber-300">{conflictCount}</span>}
-    </button>
-    <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
-    <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
-      className={cn('flex h-7 shrink-0 items-center rounded-full px-3 text-[12px] font-medium transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', activeView === 'mergeStudio' ? 'bg-white/[0.12] text-white' : 'bg-white/[0.06] text-slate-300')}>병합 <span data-merge-count className="ml-1.5 text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
+    // (Its width: the panel's, less the row's 8px at the right — so its left edge is the panel's.)
+    <div data-panel-tabs={openPanel ?? undefined} onPointerDown={(event) => event.stopPropagation()}
+      style={panelWidth ? { width: panelWidth - 8 } : undefined}
+      className={cn('flex shrink-0 items-center gap-1 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'pl-2')}>
+      <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
+        <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
+          onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
+          onPointerDown={(event) => event.stopPropagation()}
+          className={cn(SEGMENT, openPanel === 'conflicts' && RAISED, conflictCount > 0 ? 'text-amber-300 hover:text-amber-200' : openPanel === 'conflicts' ? 'text-white' : 'text-slate-400 hover:text-slate-200', openPanel === 'conflicts' && 'font-semibold')}>
+          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+          Conflict
+          {conflictCount > 0 && <span className="text-xs tabular-nums">{conflictCount}</span>}
+        </button>
+        <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-expanded={designComparePanelOpen} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
+          className={cn(SEGMENT, openPanel === 'merge' ? cn(RAISED, 'font-semibold text-white') : 'text-slate-400 hover:text-slate-200')}>병합 <span data-merge-count className="text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
+      </div>
+      {openPanel && (
+        <button type="button" data-panel-close data-board-conflicts-close={openPanel === 'conflicts' ? '' : undefined} data-design-compare-close={openPanel === 'merge' ? '' : undefined}
+          aria-label={openPanel === 'conflicts' ? '변경확인 닫기' : '디자인 비교 닫기'} onClick={closePanel}
+          className="ds-intrinsic ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <X className="size-4" />
+        </button>
+      )}
     </div>
   )
 
