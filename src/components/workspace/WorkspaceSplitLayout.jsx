@@ -62,9 +62,7 @@ const MIN_PANE = 200
 const NAVIGATOR_W = 240
 // The side panel (Files · Layers · Assets · Inspect, Terminal, Console — at
 // the left) and AI Chat (at the right) fold away; whether they're open and
-// how wide is kept for the browser (lib/panelPrefs). Their shortcuts:
-const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
-const CHAT_SHORTCUT = MAC ? '⌘L' : 'Ctrl+L'
+// how wide is kept for the browser (lib/panelPrefs).
 // (The ids their toggles name with `aria-controls`.)
 const SIDE_ID = 'workspace-side-panel'
 const CHAT_ID = 'workspace-ai-chat'
@@ -614,10 +612,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
             viewCovered={!mergeStudio && group.id === mainGroupId && Boolean(studio)}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
-            // AI Chat's tab row carries its fold button; the side panel folds from the top bar's sidebar toggle only.
-            sideToggle={mergeStudio ? null
-              : group.id === chatGroupId ? { label: 'Collapse AI Chat', hint: CHAT_SHORTCUT, controls: CHAT_ID, mirrored: true, onToggle: () => setAiChat({ open: false }) }
-              : null}
+            // (No fold button in either side's own row: the side panel folds from the top bar's sidebar toggle, AI Chat from its button there.)
+            sideToggle={null}
           />
           </div>
           {showStudio && <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden">{children}</div>}
@@ -646,8 +642,9 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     // (Its width: the panel's, less the row's 8px at the right — so its left edge is the panel's.)
     <div data-panel-tabs={openPanel ?? undefined} onPointerDown={(event) => event.stopPropagation()}
       style={panelWidth ? { width: panelWidth - 8 } : undefined}
-      className={cn('flex shrink-0 items-center gap-1 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'pl-2')}>
-      <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
+      className={cn('flex shrink-0 items-center gap-1.5 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'pl-2')}>
+      {/* (Open: the tabs at the right, beside ×.) */}
+      <div className={cn('flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5', openPanel && 'ml-auto')}>
         <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
           onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
           onPointerDown={(event) => event.stopPropagation()}
@@ -662,7 +659,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
       {openPanel && (
         <button type="button" data-panel-close data-board-conflicts-close={openPanel === 'conflicts' ? '' : undefined} data-design-compare-close={openPanel === 'merge' ? '' : undefined}
           aria-label={openPanel === 'conflicts' ? '변경확인 닫기' : '디자인 비교 닫기'} onClick={closePanel}
-          className="ds-intrinsic ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+          className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
           <X className="size-4" />
         </button>
       )}
