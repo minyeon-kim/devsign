@@ -52,8 +52,8 @@ assert.match(css, /--duration-fast: 150ms;\s*--duration-base: 200ms;\s*--ease-ou
 assert.match(css, /\.ds-tone \{ transition: background-color var\(--duration-fast\)[^}]*border-color[^}]*color var\(--duration-fast\)/)
 assert.ok(css.includes('.ds-tone { transition: none; }'))
 for (const file of ['src/components/conflicts/DesignDecisionFlow.jsx', 'src/components/conflicts/ElementPreview.jsx', 'src/components/conflicts/ValueScale.jsx', 'src/components/dashboard/ConflictsDrawer.jsx']) assert.ok(!/transition-all|transition: all/.test(read(file)), `${file}: transition: all`)
-// No keyframes ring, glow or scale.
-const keyframes = [...css.matchAll(/@keyframes ([\w-]+) \{((?:[^{}]|\{[^{}]*\})*)\}/g)].filter(([, name]) => !/^(ai-gen|ai-layer-badge|history-row-(typein|flash))/.test(name))
+// No keyframes ring, glow or scale. (Except the Screens board's change count, asked to ripple: ds-ripple.)
+const keyframes = [...css.matchAll(/@keyframes ([\w-]+) \{((?:[^{}]|\{[^{}]*\})*)\}/g)].filter(([, name]) => !/^(ai-gen|ai-layer-badge|history-row-(typein|flash)|ds-ripple)/.test(name))
 const loud = keyframes.filter(([, , body]) => /box-shadow|outline|scale\(/.test(body)).map(([, name]) => name)
 assert.deepEqual(loud, [], `keyframes that ring, glow or scale: ${loud.join(', ')}`)
 
@@ -70,7 +70,8 @@ const loops = []
 for (const file of files) {
   readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
     if (!/animation[^;]*\binfinite\b|animate-(pulse|ping|bounce)|iteration-count|animation: [^;]* [2-9];/.test(line) || /^\s*(\/\/|\/?\*)/.test(line)) return
-    const allowed = LOADING.some(([path, what]) => file.endsWith(path) && what.test(line)) || (file.endsWith('src/index.css') && /ai-gen-|ai-layer-badge-in 1\.1s/.test(line))
+    // (Besides loading: the Screens board's change count, asked to keep rippling — ds-ripple, still under reduced motion.)
+    const allowed = LOADING.some(([path, what]) => file.endsWith(path) && what.test(line)) || (file.endsWith('src/index.css') && /ai-gen-|ai-layer-badge-in 1\.1s|ds-ripple/.test(line))
     if (!allowed) loops.push(`${file}:${index + 1}  ${line.trim().slice(0, 90)}`)
   })
 }

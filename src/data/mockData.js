@@ -1822,23 +1822,42 @@ export const canvasPages = [
       })(),
     ],
   },
+  // Checkout's two other states, at the shop's own screen size (280 × 560) and in its prototype — a branch
+  // off Checkout each (data/screenPages). The elements their changes are about keep their ids, places and
+  // sizes: the tab icon (CheckoutTabs / Icon size, 20 × 20) and the coupon's close button (Touch area, 20 × 20).
   {
     id: 'page-checkout-tabs', projectId: 'checkout-redesign', name: 'Checkout tabs',
     frames: [{
-      id: 'frame-checkout-tabs', name: 'Checkout tabs', kind: 'frame', x: 80, y: 40, width: 280, height: 200,
+      id: 'frame-checkout-tabs', name: 'Checkout tabs', kind: 'frame', x: 80, y: 40, width: 280, height: 560,
       layers: [
-        { id: 'tab-title', name: 'Checkout tabs', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Payment' },
+        { id: 'ctb-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24, mock: { role: 'status' } },
+        { id: 'tab-title', name: 'Checkout tabs', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Payment', mock: { text: 'Payment method', tone: 'strong', weight: 700 } },
+        { id: 'ctb-sub', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 64, width: 240, height: 12, mock: { text: 'Choose how you’d like to pay.', tone: 'muted' } },
+        { id: 'ctb-tab-card', name: 'Card tab', kind: 'component', type: 'chip', x: 20, y: 118, width: 72, height: 24, label: 'Card' },
         { id: 'tab-icon', name: 'Tab icon', kind: 'component', type: 'iconbtn', x: 130, y: 120, width: 20, height: 20, label: '⌂' },
+        { id: 'ctb-tab-bank', name: 'Bank tab', kind: 'component', type: 'chip', x: 188, y: 118, width: 72, height: 24, label: 'Bank' },
+        { id: 'ctb-saved', name: 'Saved card', kind: 'component', type: 'card', x: 20, y: 164, width: 240, height: 96, mock: { icon: 'shield', title: 'Visa ·· 3456', body: 'Expires 08/28 · default' } },
+        { id: 'ctb-card-input', name: 'Card number', kind: 'component', type: 'input', x: 20, y: 280, width: 240, height: 40, label: 'Add another card' },
+        { id: 'ctb-billing', name: 'Billing', kind: 'text', type: 'text', x: 20, y: 340, width: 240, height: 12, mock: { text: 'Billing address · same as shipping', tone: 'muted' } },
+        { id: 'ctb-total', name: 'Total', kind: 'text', type: 'text', x: 20, y: 448, width: 160, height: 14, mock: { text: 'Total $128.00', tone: 'strong', weight: 600 } },
+        { id: 'ctb-continue', name: 'Use this card button', kind: 'component', type: 'button', x: 20, y: 476, width: 240, height: 44, label: 'Use this card' },
       ],
     }],
   },
   {
     id: 'page-coupon-notice', projectId: 'checkout-redesign', name: 'Coupon notice',
     frames: [{
-      id: 'frame-coupon-notice', name: 'Coupon notice', kind: 'frame', x: 80, y: 40, width: 280, height: 240,
+      id: 'frame-coupon-notice', name: 'Coupon notice', kind: 'frame', x: 80, y: 40, width: 280, height: 560,
       layers: [
-        { id: 'coupon-title', name: 'Coupon notice', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Coupon applied' },
+        { id: 'cpn-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24, mock: { role: 'status' } },
+        { id: 'coupon-title', name: 'Coupon notice', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Coupon applied', mock: { text: 'Coupon applied', tone: 'strong', weight: 700 } },
         { id: 'coupon-close', name: 'Coupon close button', kind: 'component', type: 'iconbtn', x: 236, y: 36, width: 20, height: 20, label: '×' },
+        { id: 'cpn-art', name: 'Coupon', kind: 'vector', type: 'image', x: 20, y: 84, width: 240, height: 120, mock: { role: 'photo' } },
+        { id: 'cpn-code', name: 'Code', kind: 'text', type: 'text', x: 20, y: 222, width: 240, height: 18, mock: { text: 'MARU10 · 10% off', tone: 'strong', weight: 700 } },
+        { id: 'cpn-terms', name: 'Terms', kind: 'text', type: 'text', x: 20, y: 250, width: 240, height: 12, mock: { text: 'On orders over $100 · until Oct 31', tone: 'muted' } },
+        { id: 'cpn-summary', name: 'Savings', kind: 'component', type: 'card', x: 20, y: 284, width: 240, height: 96, mock: { icon: 'shield', title: 'You save $12.80', body: 'New total $115.20' } },
+        { id: 'cpn-note', name: 'Note', kind: 'text', type: 'text', x: 20, y: 400, width: 240, height: 12, mock: { text: 'One coupon per order.', tone: 'subtle' } },
+        { id: 'cpn-back', name: 'Back to checkout button', kind: 'component', type: 'button', x: 20, y: 476, width: 240, height: 44, label: 'Back to checkout' },
       ],
     }],
   },

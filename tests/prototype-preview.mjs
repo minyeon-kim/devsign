@@ -41,7 +41,10 @@ try {
   assert.equal(flowOf(shop, 'page-login').id, 'onboarding')
   assert.equal(flowOf(shop, currentOf(follow(shop, login, t('page-login', 'page-home')).session)).id, 'purchase')
   assert.equal(flowOf(shop, 'page-login-error').id, 'onboarding', 'a branch is part of its flow')
-  assert.equal(flowOf(shop, 'page-coupon-notice'), null)
+  // (A shop where Checkout's two other states are in no flow, for what's said of such screens.)
+  const loose = { ...shop, flows: shop.flows.map((flow) => (flow.id === 'purchase' ? { ...flow, branches: flow.branches.slice(0, 1) } : flow)), screens: shop.screens.map((s) => (['page-checkout-tabs', 'page-coupon-notice'].includes(s.id) ? { ...s, transitions: [] } : s)) }
+  assert.equal(flowOf(loose, 'page-coupon-notice'), null)
+  assert.equal(flowOf(shop, 'page-coupon-notice').id, 'purchase', 'Checkout’s branches are Purchase’s')
   // A link that can't be followed: nothing moves, and it's said so.
   const nowhere = { id: 'ghost', hotspotId: 'hm-search', targetScreenId: 'page-missing' }
   assert.deepEqual([follow(shop, login, nowhere).moved, follow(shop, login, nowhere).broken, follow(shop, login, nowhere).session], [false, true, login])
@@ -50,14 +53,15 @@ try {
   // Start over: from the first screen of the flow it's in (or the one asked for, or the project's start).
   assert.deepEqual(restart(shop, session).history, ['page-home'])
   assert.deepEqual(restart(shop, session, 'onboarding').history, ['page-splash'])
-  assert.deepEqual(restart(shop, startSession('page-coupon-notice')).history, ['page-splash'])
+  assert.deepEqual(restart(loose, startSession('page-coupon-notice')).history, ['page-splash'])
   // Where it stands: a step of its flow's row; on a branch, no step; outside any flow, nothing.
   assert.deepEqual([positionOf(shop, 'page-product').step, positionOf(shop, 'page-product').total], [3, 6])
   assert.deepEqual([positionOf(shop, 'page-payment-failed').flow.id, positionOf(shop, 'page-payment-failed').step], ['purchase', null])
-  assert.deepEqual(positionOf(shop, 'page-checkout-tabs'), { flow: null, step: null, total: null })
-  // The end of a flow: a screen with nowhere to go. (None of the shop's flow screens is one; its component states are.)
+  assert.deepEqual(positionOf(loose, 'page-checkout-tabs'), { flow: null, step: null, total: null })
+  // The end of a flow: a screen with nowhere to go. (None of the shop's screens is one.)
   assert.equal(isEnd(shop, 'page-order-complete'), false)
-  assert.equal(isEnd(shop, 'page-coupon-notice'), true)
+  assert.equal(isEnd(shop, 'page-coupon-notice'), false)
+  assert.equal(isEnd(loose, 'page-coupon-notice'), true)
   // A page's own links: nothing moves — the section to scroll to is named.
   const anchor = landing.screens[0].transitions[0]
   const jumped = follow(landing, startSession('page-landing'), anchor)
@@ -111,9 +115,10 @@ try {
   // Screens and addresses move in one step, replacing — the browser's Back isn't the prototype's.
   assert.ok(provider.includes("sayView({ view, screen: id })") && provider.includes('{ replace: true, state: at.state }'))
   // The board's changes, by distance: far (under 55%) "+N" on the card; near, a marker (the canvas's pin) on every element
-  // a change is about — pointed at, the element outlined; pressed, the change opens (several: listed) — and "+N" for the rest.
+  // a change is about — pointed at, the element outlined; pressed, a popover — and no count. The count keeps rippling (ds-ripple).
+  assert.ok(board.includes('ds-ripple pointer-events-none') && board.includes('ds-ripple ds-ripple-late') && read('index.css').includes('.ds-ripple { animation: ds-ripple 2s'))
   assert.ok(board.includes('const DETAIL_ZOOM = 0.55') && board.includes('const detailed = shown.zoom >= DETAIL_ZOOM'))
-  assert.ok(board.includes('<CountBubble compact={corner} count={countLabel(rest.length)}') && board.includes('+{count}</span>') && board.includes('const rest = detailed && !proto ? open.filter((conflict) => !onElements.has(conflict.id)) : open'))
+  assert.ok(board.includes('<CountBubble count={countLabel(rest.length)}') && board.includes('+{count}</span>') && board.includes('const rest = detailed && !proto ? [] : open'), 'near: only the markers')
   assert.ok(board.includes('function markersOf(screen, conflicts)') && board.includes('data-screen-marker') && board.includes('data-marker-outline') && board.includes('onOpen={(conflict) => openConflictReview(conflict.id)}'))
   assert.ok(board.includes('<PinShape head=') && read('components/conflicts/ConflictPins.jsx').includes('export function PinShape('), 'the same pin as the canvas’s')
   // Pressed, a marker's popover — right there: each change's risk, status, a line of it, and a way to its detail.

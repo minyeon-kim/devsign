@@ -25,15 +25,20 @@ try {
   }
   for (const id of Object.keys(PROTOTYPES)) assert.ok(projects.some((project) => project.id === id), `${id} is a project`)
 
-  // The shop: twelve screens in two flows, a branch off each that leads back, and a way back Home.
+  // The shop: fourteen screens in two flows — a branch off Login, three off Checkout (a declined card, the
+  // payment methods, a coupon), each leading back — and a way back Home.
   const shop = prototypeOf('checkout-redesign')
   assert.equal(shop.kind, 'multi-screen')
   assert.equal(shop.startScreenId, 'page-splash')
-  assert.deepEqual(shop.flows.map((flow) => [flow.id, flow.screenIds.length, flow.branches.length]), [['onboarding', 4, 1], ['purchase', 6, 1]])
-  assert.equal(shop.flows.reduce((n, flow) => n + flow.screenIds.length + flow.branches.reduce((m, b) => m + b.screenIds.length, 0), 0), 12)
+  assert.deepEqual(shop.flows.map((flow) => [flow.id, flow.screenIds.length, flow.branches.length]), [['onboarding', 4, 1], ['purchase', 6, 3]])
+  assert.equal(shop.flows.reduce((n, flow) => n + flow.screenIds.length + flow.branches.reduce((m, b) => m + b.screenIds.length, 0), 0), 14)
+  assert.equal(shop.screens.length, 14, 'every screen is a step of a flow')
   const goes = (from, to) => shop.screens.find((s) => s.id === from).transitions.some((t) => t.targetScreenId === to)
   assert.ok(goes('page-login', 'page-login-error') && goes('page-login-error', 'page-login'), 'a wrong password, and back')
   assert.ok(goes('page-checkout', 'page-payment-failed') && goes('page-payment-failed', 'page-checkout'), 'a declined card, and back')
+  assert.ok(goes('page-checkout', 'page-checkout-tabs') && goes('page-checkout-tabs', 'page-checkout'), 'the payment methods, and back')
+  assert.ok(goes('page-checkout', 'page-coupon-notice') && goes('page-coupon-notice', 'page-checkout'), 'a coupon, and back')
+  assert.ok(shop.screens.every((s) => s.size.width === 280 && s.size.height === 560), 'every screen the same size')
   assert.ok(goes('page-order-complete', 'page-home'), 'the end leads back Home')
   assert.ok(shop.screens.every((s) => s.codeFile && files.has(s.codeFile)), 'every screen has its code file')
   // (The Checkout screen CON-014 is about is the same page as before.)
@@ -76,9 +81,12 @@ try {
   assert.equal(at('page-login-error').y, at('page-login').y)
   assert.ok(at('page-payment-failed').x > at('page-checkout').x && at('page-payment-failed').y === at('page-checkout').y)
   // Flows are groups, one under the other, each named; what's in no flow comes last as "Other screens".
-  assert.deepEqual(layout.groups.map((group) => group.name), ['Onboarding', 'Purchase', 'Other screens'])
+  assert.deepEqual(layout.groups.map((group) => group.name), ['Onboarding', 'Purchase'])
   assert.ok(layout.groups.every((group, i) => i === 0 || group.y > layout.groups[i - 1].y + layout.groups[i - 1].height))
-  assert.deepEqual(layout.cards.filter((card) => card.group === 'other').map((card) => card.id), ['page-checkout-tabs', 'page-coupon-notice'])
+  // (A shop where Checkout's two other states are in no flow, for what's said of such screens.)
+  const loose = { ...shop, flows: shop.flows.map((flow) => (flow.id === 'purchase' ? { ...flow, branches: flow.branches.slice(0, 1) } : flow)), screens: shop.screens.map((s) => (['page-checkout-tabs', 'page-coupon-notice'].includes(s.id) ? { ...s, transitions: [] } : s)) }
+  assert.deepEqual(boardLayout(loose).groups.map((group) => group.name), ['Onboarding', 'Purchase', 'Other screens'])
+  assert.deepEqual(boardLayout(loose).cards.filter((card) => card.group === 'other').map((card) => card.id), ['page-checkout-tabs', 'page-coupon-notice'])
   assert.deepEqual(layout.cards.filter((card) => card.start).map((card) => card.id), ['page-splash'])
   assert.deepEqual(layout.cards.map((card) => card.n), layout.cards.map((_, i) => i + 1), 'numbered as placed')
   assert.deepEqual(screenOrder(shop).slice(0, 5), ['page-splash', 'page-onboarding-1', 'page-onboarding-2', 'page-login', 'page-login-error'])

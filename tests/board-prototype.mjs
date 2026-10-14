@@ -39,13 +39,15 @@ try {
   assert.equal(tierOf(shop, at, 'page-checkout'), 'later')
   assert.equal(tierOf(shop, at, 'page-order-complete'), 'later')
   assert.equal(tierOf(shop, at, 'page-splash'), 'rest', 'another flow')
-  assert.equal(tierOf(shop, at, 'page-coupon-notice'), 'rest')
+  // (A shop where Checkout's two other states are in no flow, for what's said of such screens.)
+  const loose = { ...shop, flows: shop.flows.map((flow) => (flow.id === 'purchase' ? { ...flow, branches: flow.branches.slice(0, 1) } : flow)), screens: shop.screens.map((s) => (['page-checkout-tabs', 'page-coupon-notice'].includes(s.id) ? { ...s, transitions: [] } : s)) }
+  assert.equal(tierOf(loose, at, 'page-coupon-notice'), 'rest', 'in no flow')
   // On a branch, "later" is what follows the screen it branched from.
   assert.equal(tierOf(shop, { frameId: 'page-home', current: 'page-payment-failed' }, 'page-order-complete'), 'later')
   assert.equal(tierOf(shop, { frameId: 'page-home', current: 'page-payment-failed' }, 'page-checkout'), 'next')
   assert.deepEqual(pathAhead(shop, 'page-product'), ['page-cart', 'page-checkout', 'page-order-complete'])
   assert.deepEqual(pathAhead(shop, 'page-order-complete'), [])
-  assert.deepEqual(pathAhead(shop, 'page-coupon-notice'), [])
+  assert.deepEqual(pathAhead(loose, 'page-coupon-notice'), [])
 
   // The camera: the frame readable (50%–100%), with where it leads in view when that fits; whole pixels.
   const room = { width: 1200, height: 800 }

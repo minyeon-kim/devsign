@@ -223,9 +223,10 @@ export const PROTOTYPES = {
     startScreenId: 'page-splash',
     flows: [
       { id: 'onboarding', name: 'Onboarding', screenIds: ['page-splash', 'page-onboarding-1', 'page-onboarding-2', 'page-login'], branches: [{ fromScreenId: 'page-login', screenIds: ['page-login-error'] }] },
-      { id: 'purchase', name: 'Purchase', screenIds: ['page-home', 'page-products', 'page-product', 'page-cart', 'page-checkout', 'page-order-complete'], branches: [{ fromScreenId: 'page-checkout', screenIds: ['page-payment-failed'] }] },
+      // (Checkout's branches: a declined card, the payment methods, a coupon — each back to Checkout.)
+      { id: 'purchase', name: 'Purchase', screenIds: ['page-home', 'page-products', 'page-product', 'page-cart', 'page-checkout', 'page-order-complete'], branches: [{ fromScreenId: 'page-checkout', screenIds: ['page-payment-failed'] }, { fromScreenId: 'page-checkout', screenIds: ['page-checkout-tabs'] }, { fromScreenId: 'page-checkout', screenIds: ['page-coupon-notice'] }] },
     ],
-    standalone: ['page-checkout-tabs', 'page-coupon-notice'],
+    standalone: [],
     screens: {
       'page-splash': { route: '/', transitions: [go('t-splash-start', 'sp-start', 'page-onboarding-1', 'Get started', 'fade')] },
       'page-onboarding-1': { route: '/welcome/1', transitions: [go('t-o1-next', 'o1-next', 'page-onboarding-2', 'Next'), go('t-o1-skip', 'o1-skip', 'page-login', 'Skip')] },
@@ -236,11 +237,11 @@ export const PROTOTYPES = {
       'page-products': { route: '/products', transitions: [go('t-products-item', 'pl-item-1', 'page-product', 'Oak desk lamp'), go('t-products-back', 'pl-back', 'page-home', 'Back')] },
       'page-product': { route: '/products/:id', transitions: [go('t-product-add', 'pd-add', 'page-cart', 'Add to cart'), go('t-product-back', 'pd-back', 'page-products', 'Back')] },
       'page-cart': { route: '/cart', transitions: [go('t-cart-checkout', 'ct-checkout', 'page-checkout', 'Checkout'), go('t-cart-back', 'ct-back', 'page-product', 'Back')] },
-      'page-checkout': { route: '/checkout', transitions: [go('t-checkout-pay', 'place-order', 'page-order-complete', 'Place order', 'fade'), go('t-checkout-declined', 'card-input', 'page-payment-failed', 'Card declined', 'none')] },
+      'page-checkout': { route: '/checkout', transitions: [go('t-checkout-pay', 'place-order', 'page-order-complete', 'Place order', 'fade'), go('t-checkout-declined', 'card-input', 'page-payment-failed', 'Card declined', 'none'), go('t-checkout-method', 'payment-label', 'page-checkout-tabs', 'Payment method'), go('t-checkout-coupon', 'order-summary', 'page-coupon-notice', 'Coupon', 'fade')] },
       'page-payment-failed': { route: '/checkout?error=declined', transitions: [go('t-failed-retry', 'pf-retry', 'page-checkout', 'Try another card', 'none')] },
       'page-order-complete': { route: '/orders/:id/complete', transitions: [go('t-complete-home', 'oc-home', 'page-home', 'Back to Home', 'fade')] },
-      'page-checkout-tabs': { route: '/checkout#tabs', transitions: [] },
-      'page-coupon-notice': { route: '/checkout#coupon', transitions: [] },
+      'page-checkout-tabs': { route: '/checkout/payment', transitions: [go('t-tabs-use', 'ctb-continue', 'page-checkout', 'Use this card')] },
+      'page-coupon-notice': { route: '/checkout/coupon', transitions: [go('t-coupon-back', 'cpn-back', 'page-checkout', 'Back to checkout', 'fade'), go('t-coupon-close', 'coupon-close', 'page-checkout', 'Close', 'fade')] },
     },
   },
   [LANDING_PROJECT_ID]: {

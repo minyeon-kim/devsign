@@ -131,8 +131,7 @@ function MarkerButton({ marker, lit, onHover, onOpen }) {
 
 // Far: how many changes a screen has, as a soft spreading circle over where they are (their elements'
 // middle — the screen's, when none is on an element), the same size on screen at any zoom.
-// (`compact`: near, beside the markers — only the changes about the screen as a whole: smaller, at the card's corner.)
-function CountBubble({ count, label, onOpen, cardId, compact = false }) {
+function CountBubble({ count, label, onOpen, cardId }) {
   return (
     <button
       type="button"
@@ -142,14 +141,15 @@ function CountBubble({ count, label, onOpen, cardId, compact = false }) {
       title={label}
       translate="no"
       onClick={onOpen}
-      className={cn('ds-intrinsic group/bubble relative flex cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300', compact ? 'size-7' : 'size-11')}
+      className="ds-intrinsic group/bubble relative flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300"
     >
-      {/* The rings it spreads into: two soft halos, opening out once as it appears (nothing loops but
-          loading — and none of it under reduced motion). */}
-      <span aria-hidden className={cn('pointer-events-none absolute rounded-full bg-[#F04E5A]/[0.12] animate-in fade-in zoom-in-50 duration-700 motion-reduce:animate-none', compact ? '-inset-2' : '-inset-6')} />
-      <span aria-hidden className={cn('pointer-events-none absolute rounded-full bg-[#F04E5A]/25 animate-in fade-in zoom-in-75 duration-500 motion-reduce:animate-none', compact ? '-inset-1' : '-inset-2.5')} />
-      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A] shadow-lg shadow-[#F04E5A]/40 transition-transform group-hover/bubble:scale-105" />
-      <span className={cn('relative leading-none font-bold text-white tabular-nums', compact ? 'text-[11px]' : 'text-[15px]')}>+{count}</span>
+      {/* Its halo, and ripples that keep spreading out to its edge and fading (ds-ripple: two, half a beat
+          apart) — still under reduced motion. */}
+      <span aria-hidden className="pointer-events-none absolute -inset-4 rounded-full bg-[#F04E5A]/[0.12]" />
+      <span aria-hidden data-ripple className="ds-ripple pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A]/40" />
+      <span aria-hidden data-ripple className="ds-ripple ds-ripple-late pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A]/40" />
+      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A] shadow-md shadow-[#F04E5A]/40 transition-transform group-hover/bubble:scale-105" />
+      <span className="relative text-[12px] leading-none font-bold text-white tabular-nums">+{count}</span>
     </button>
   )
 }
@@ -568,8 +568,8 @@ function ScreensBoard() {
               {(() => {
                 if (!open.length) return null
                 const markers = detailed && !proto ? markersOf(screen, open) : []
-                const onElements = new Set(markers.flatMap((marker) => marker.conflicts.map((conflict) => conflict.id)))
-                const rest = detailed && !proto ? open.filter((conflict) => !onElements.has(conflict.id)) : open
+                // (Near, only the markers: the count is the far view's.)
+                const rest = detailed && !proto ? [] : open
                 const stop = { onPointerDown: (event) => event.stopPropagation(), onDoubleClick: (event) => event.stopPropagation() }
                 return (
                   <>
@@ -591,14 +591,12 @@ function ScreensBoard() {
                     })}
                     {rest.length > 0 && (() => {
                       // (Over where they are: the middle of their elements on this screen — the screen's middle when none is.)
-                      // (Near, beside the markers: at the card's top right corner, out of their way.)
                       const boxes = markersOf(screen, rest).map((marker) => marker.layer)
-                      const corner = detailed && !proto
-                      const cx = corner ? card.width : boxes.length ? boxes.reduce((sum, b) => sum + b.x + b.width / 2, 0) / boxes.length : card.width / 2
-                      const cy = corner ? 0 : boxes.length ? boxes.reduce((sum, b) => sum + b.y + b.height / 2, 0) / boxes.length : card.height / 2
+                      const cx = boxes.length ? boxes.reduce((sum, b) => sum + b.x + b.width / 2, 0) / boxes.length : card.width / 2
+                      const cy = boxes.length ? boxes.reduce((sum, b) => sum + b.y + b.height / 2, 0) / boxes.length : card.height / 2
                       return (
                         <div data-board-chrome className="absolute z-10" style={{ left: cx, top: 32 + cy, transform: `translate(-50%, -50%) scale(${1 / shown.zoom})`, transformOrigin: 'center' }} {...stop}>
-                          <CountBubble compact={corner} count={countLabel(rest.length)} label={openLabel(rest.length)} cardId={card.id}
+                          <CountBubble count={countLabel(rest.length)} label={openLabel(rest.length)} cardId={card.id}
                             // (Its changes, in the pane beside the Workspace — the list narrowed to this screen.)
                             onOpen={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }} />
                         </div>
