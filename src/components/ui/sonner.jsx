@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { Toaster as Sonner } from "sonner";
+import { Toaster as Sonner, toast } from "sonner";
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 import { useLanguage } from "@/i18n/language"
 import { translateText } from "@/i18n/translate"
@@ -20,7 +20,14 @@ const Toaster = ({
       toast.querySelector("[data-close-button]")?.click()
     }
     document.addEventListener("click", onPress)
-    return () => document.removeEventListener("click", onPress)
+    // …and by pressing anywhere else: a notice up on the screen goes when the person goes on with something
+    // else. (On the press, before the click — a notice the click itself raises isn't put away by that click.)
+    function onPressElsewhere(event) {
+      if (event.target.closest?.("[data-sonner-toast], [data-sonner-toaster]")) return
+      toast.dismiss()
+    }
+    document.addEventListener("pointerdown", onPressElsewhere, true)
+    return () => { document.removeEventListener("click", onPress); document.removeEventListener("pointerdown", onPressElsewhere, true) }
   }, [])
   return (
     <Sonner
