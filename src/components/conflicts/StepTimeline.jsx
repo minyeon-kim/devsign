@@ -158,7 +158,9 @@ const CARD = {
 }
 const HOVER = { done: 'hover:bg-white/[0.055]', current: 'hover:bg-white/[0.085]', problem: 'hover:bg-white/[0.085]', pending: '' }
 // (`last`, `arrive`, `strong`: kept for the callers — the record has no line between its cards any more.)
-export function StepRow({ state, title, who, summary: _summary, time, open, onToggle, onReplay, last: _last, moves = false, arrive: _arrive = false, delay = 0, anim, strong: _strong = false, onHover, children, ...rest }) {
+// A card that's a section rather than a step (the detail's impact & evidence): `icon` in place of the
+// step's icon, `chip` — what to judge by without opening it — in place of its badge, and lighter while open.
+export function StepRow({ state, title, who, summary: _summary, time, open, onToggle, onReplay, last: _last, moves = false, arrive: _arrive = false, delay = 0, anim, strong: _strong = false, onHover, icon = null, chip, section = false, children, ...rest }) {
   const pending = state === 'pending'
   // (Nothing inside — or only conditions that didn't hold: no fold.)
   const foldable = Children.toArray(children).length > 0
@@ -177,13 +179,13 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
   const aside = time ?? who ?? null
   const head = (
     <>
-      <StepIcon state={state} moves={moves} />
+      {icon ? <span aria-hidden data-step-section-icon className="flex size-4 shrink-0 items-center justify-center text-slate-400 [&>svg]:size-4">{icon}</span> : <StepIcon state={state} moves={moves} />}
       <span data-step-title className={cn('min-w-0 truncate text-[13.5px] leading-5 font-semibold', state === 'done' ? 'text-slate-200' : pending ? 'text-slate-300' : 'text-white')}>{title}</span>
-      <span data-step-state className={cn('inline-flex h-[18px] shrink-0 items-center gap-1 rounded-full px-1.5 text-[11px] leading-none font-medium', BADGE[state] ?? BADGE.pending)}>
+      {section ? chip != null && chip !== '' && <span data-step-chip className="inline-flex h-[18px] min-w-0 items-center truncate rounded-full bg-white/[0.06] px-1.5 text-[11px] leading-none font-medium text-slate-300 tabular-nums">{chip}</span> : <span data-step-state className={cn('inline-flex h-[18px] shrink-0 items-center gap-1 rounded-full px-1.5 text-[11px] leading-none font-medium', BADGE[state] ?? BADGE.pending)}>
         {/* (Under way: the accent's 6px dot, breathing softly — still under reduced motion.) */}
         {(state === 'current' || state === 'problem') && <span aria-hidden data-step-live className="size-1.5 shrink-0 rounded-full bg-[var(--ds-accent)] ds-step-breathe motion-reduce:animate-none" />}
         {WORD(state)}
-      </span>
+      </span>}
       <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5 pl-2">
         {aside && (time ? <time data-step-time className="shrink-0 text-[12px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time> : <span data-step-who className="shrink-0 truncate text-[12px] text-slate-500">{who}</span>)}
         {foldable && <ChevronRight aria-hidden data-step-chevron className={cn('size-3.5 shrink-0 text-slate-400 transition-transform duration-[180ms] ease-out motion-reduce:transition-none', open && 'rotate-90')} />}
@@ -194,14 +196,14 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
     <li
       ref={rowRef}
       className="group/step relative scroll-my-3"
-      aria-label={`${title} · ${STEP_STATE_WORD[state]}`}
+      aria-label={section ? (typeof title === 'string' ? title : undefined) : `${title} · ${STEP_STATE_WORD[state]}`}
       data-step-anim={anim}
       style={{ '--d': `${delay}ms` }}
       onMouseEnter={onHover && (() => onHover(true))}
       onMouseLeave={onHover && (() => onHover(false))}
       {...rest}
     >
-      <div data-step-row={state} data-open={open} className={cn('rounded-[10px] border transition-colors duration-150', CARD[state] ?? CARD.pending, foldable && HOVER[state])}>
+      <div data-step-row={section ? 'section' : state} data-open={open} className={cn('rounded-[10px] border transition-colors duration-150', section ? cn('border-[var(--ds-border-subtle)]', open ? 'bg-[var(--ds-surface-2)]' : 'bg-[var(--ds-surface-1)] hover:bg-white/[0.055]') : cn(CARD[state] ?? CARD.pending, foldable && HOVER[state]))}>
         <div data-step-head className={cn('flex min-w-0 items-center gap-1', pending && 'opacity-50')}>
           {foldable ? (
             // The whole head is the switch: a press, Enter or Space folds and opens it.

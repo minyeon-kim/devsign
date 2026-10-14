@@ -794,6 +794,7 @@ After restoring|복원 후
 Changed element|바뀐 요소
 Full screen|전체 화면
 Whole screen|화면 전체
+None yet|아직 없음
 Showing now|지금 보는 화면
 Previous screen|이전 화면
 Next screen|다음 화면

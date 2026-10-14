@@ -18,7 +18,7 @@ assert.ok(overview.includes('<FoldSection title="Standard" gist='), 'the standar
 assert.ok(panel.includes('<FoldSection key={`reviewers:${conflict.id}`} title="Reviewers"') && panel.includes('defaultOpen={!conflict.reviewers.length}'), 'reviewers: folded unless one has to be picked')
 assert.ok(panel.includes('{gist != null && !open && <span data-info-gist'), 'a folded section says what it holds')
 assert.ok(overview.includes('{designLink && !page && (') && overview.includes('<Row label="Where on the screen" data-summary-row="Screen">'), 'the panel (not full page) keeps its row as it was')
-assert.ok(panel.includes('{!page && reviewersSection}') && panel.includes('reviewers={page ? reviewersSection : null}'), 'reviewers: first in the panel, after the change\'s information on the page')
+assert.ok(panel.includes('{!page && reviewersSection}') && panel.includes('reviewers={page && reviewersBody ? { body: reviewersBody,') && panel.includes("reviewers && { key: 'reviewers'"), 'reviewers: first in the panel, after the change\'s information on the page')
 
 // The block: label in a line, the screen across the panel, no taller than 240, on the dark surface, hairline, 8px.
 const block = thumb.slice(thumb.indexOf('export function ScreenLocation('))

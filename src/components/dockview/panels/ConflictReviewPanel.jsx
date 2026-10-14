@@ -6,7 +6,7 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Ban, Bell, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Ban, Bell, BookCheck, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitCompareArrows, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, Users, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
@@ -616,6 +616,121 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   // same x, and so does every value.
   const GRID = 'grid min-w-0 grid-cols-[minmax(64px,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2'
   const list = (items) => items.map((text, index) => <Fragment key={text}>{index > 0 && ' · '}<LocalizedText text={text} /></Fragment>)
+  // What each section says — the same rows whether it's laid out as the panel's sections or the page's cards.
+  const problemRows = (<>
+            {designLink && !page && (
+              <Row label="Where on the screen" data-summary-row="Screen">
+                {conflict.decisionFlow && conflict.layouts ? <BreakpointScreen conflict={conflict} /> : (
+                  <div className="flex min-w-0 flex-col items-start gap-1.5">
+                    <DesignLinkChip conflict={conflict} />
+                    <DesignLinkThumb conflict={conflict} size="md" placeholder />
+                  </div>
+                )}
+              </Row>
+            )}
+            {(cause_text || cause) && (
+              <Row label="Cause" data-summary-row="Cause">
+                {cause_text && <LocalizedText text={cause_text} />}
+                {cause && (
+                  <button
+                    type="button"
+                    data-cause-version
+                    data-open-cause-history
+                    onClick={onOpenCause}
+                    title="View the version where this conflict started"
+                    className="ds-intrinsic group mt-1 flex w-fit cursor-pointer items-center gap-1 rounded py-0.5 text-left text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                  >
+                    <span className="text-[11px] font-medium leading-4"><LocalizedText text="View the version where this conflict started" /></span>
+                    <ArrowRight className="size-3 shrink-0" />
+                  </button>
+                )}
+              </Row>
+            )}
+            {(why || standard) && <Row label="Impact" data-summary-row="Impact">{list(why ? [why] : standard.consequence)}</Row>}
+            {/* (What was proposed and decided is the main view's — the status
+                block and the record under it — not repeated here.) */}
+</>)
+  const standardRows = standard ? (<>
+            <Row label="Rule">
+              {standard.rules.map((rule, index) => (
+                <Fragment key={rule.id}>
+                  {index > 0 && ' · '}
+                  <LocalizedText text={rule.name} />
+                  {rule.tokens.map((token) => (
+                    <Fragment key={token.label}>{' '}<InfoLink item={token} onOpen={onOpenEvidence} literal /></Fragment>
+                  ))}
+                </Fragment>
+              ))}
+              <span data-rule-grade className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] leading-none whitespace-nowrap text-slate-400">
+                <LocalizedText text={standard.required || blockedCount > 0 ? 'Required rule' : 'Recommended rule'} />
+              </span>
+            </Row>
+            <Row label="Source">
+              {[...standard.origins.map((text) => <LocalizedText key={text} text={text} />), ...standard.links.map((link) => <InfoLink key={link.label} item={link} onOpen={onOpenEvidence} literal={link.kind === 'wcag'} />)]
+                .flatMap((node, index) => (index ? [' · ', node] : [node]))}
+            </Row>
+            <Row label="What it’s for">{list(standard.purpose)}</Row>
+</>) : null
+  const detailsRows = (<>
+            {conflict.rollback ? [
+              ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all">{conflict.rollback.target}</span>],
+              ['Roll back to', <><LocalizedText text={conflict.rollback.label} />{conflict.rollback.timestamp && <span className="text-slate-400"> · <LocalizedText text={conflict.rollback.timestamp} /></span>}</>],
+              requester && ['Requested by', <>{requester.name}<span className="text-slate-400"> · <LocalizedText text={requester.role} /></span></>],
+            ].filter(Boolean).map(([label, value]) => <Row key={label} label={label}>{value}</Row>) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
+</>)
+
+  // The page's impact & evidence: each section a card — the record's own (StepRow) — its head saying
+  // enough to judge by without opening it (a chip). The one that decides it is open to start with (what
+  // conflicts, and what it does); any can be opened alongside the others, and the cards stay as they're
+  // left when the tab is left.
+  const folds = useFoldState(`evidence:${conflict.id}`)
+  if (page) {
+    const differs = (conflict.comparisonFields ?? []).find((field) => field.current !== field.expected)
+    const short = (value) => String(value ?? '').replace(/\s*\(.*\)\s*$/, '')
+    const cards = [
+      !mix && !conflict.rollback && designLink && { key: 'where', title: 'Where on the screen', icon: <MapPin />, chip: conflict.layerName ?? conflict.title?.split(' / ')[0], body: <ScreenLocation conflict={conflict} /> },
+      !mix && !conflict.rollback && (cause_text || cause || why || standard) && { key: 'problem', title: 'Conflict information', icon: <GitCompareArrows />, chip: differs ? `${short(differs.current)} → ${short(differs.expected)}` : null, body: <dl data-info-problem className={RECORD_ROWS}>{problemRows}</dl>, open: true },
+      !conflict.rollback && standard && { key: 'standard', title: 'Standard', icon: <BookCheck />, chip: standard.rules.map((rule) => tr(rule.name)).join(' · '), body: <dl data-info-standard className={RECORD_ROWS}>{standardRows}</dl> },
+      reviewers && { key: 'reviewers', title: 'Reviewers', icon: <Users />, chip: reviewers.count ? `${reviewers.approved}/${reviewers.count} ${tr('approved')}` : tr('None yet'), body: reviewers.body, open: reviewers.open },
+      { key: 'details', title: 'Developer details', icon: <FileCode2 />, chip: conflict.rollback ? conflict.rollback.target?.split('/').pop() : conflict.file ? `${conflict.file.split('/').pop()}${conflict.line ? `:${conflict.line}` : ''}` : null, body: <dl data-review-summary className={RECORD_ROWS}>{detailsRows}</dl> },
+    ].filter(Boolean)
+    const isOpen = (key) => folds.get(key, Boolean(cards.find((card) => card.key === key)?.open))
+    const allOpen = cards.every((card) => isOpen(card.key))
+    return (
+      <div data-review-info className="flex min-h-full flex-col">
+        {(conflict.rollback || isAiDraft || todo) && <InfoSection>
+          <div data-status-badges className="flex flex-wrap items-center gap-1.5">
+            {conflict.rollback && (
+              <span data-status-badge className={cn(INFO_BADGE, STATUS_TEXT[status.id])}>
+                <span className={cn('size-1.5 shrink-0 rounded-full', status.dot)} />
+                <LocalizedText text={ROLLBACK_STAGE_LABEL[stage]} />
+              </span>
+            )}
+            {isAiDraft && <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Sparkles className="size-3 shrink-0" aria-hidden /><LocalizedText text="AI draft" /></span>}
+          </div>
+          {todo && <p data-next-step className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={todo} /></p>}
+          {conflict.rollback && open && shortDue(conflict.dueLabel) && <p className={cn(INFO_VALUE, 'mt-1 text-slate-400')}><DueDate label={conflict.dueLabel} /></p>}
+          {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
+        </InfoSection>}
+        <section data-step-record data-evidence-record aria-label={tr('Impact & evidence')} className="shrink-0 pb-2">
+          <div data-step-list-head className="mb-3 flex items-center gap-2">
+            <h3 className="text-[12px] font-semibold tracking-wide text-slate-400"><LocalizedText text="Impact & evidence" /></h3>
+            <span data-evidence-count className="text-xs text-slate-400 tabular-nums">· {cards.length}</span>
+            <button type="button" data-fold-all onClick={() => folds.setMany(cards.map((card) => card.key), !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
+              {allOpen ? '모두 접기' : '모두 펼치기'}
+            </button>
+          </div>
+          <ol data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
+            {cards.map((card) => (
+              <StepRow key={card.key} data-fold={card.key} data-evidence={card.key} section state="done" title={tr(card.title)} icon={card.icon} chip={card.chip} open={isOpen(card.key)} onToggle={() => folds.set(card.key, !isOpen(card.key))} last={false}>
+                {card.body}
+              </StepRow>
+            ))}
+          </ol>
+        </section>
+      </div>
+    )
+  }
 
   return (
     // The sidebar's Info tab, as four groups under equal hairlines — Status,
@@ -658,39 +773,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
       )}
       {!mix && !conflict.rollback && (cause_text || cause || why || standard || (designLink && !page)) && (
         <InfoSection title="Conflict information">
-          <dl data-info-problem className={GRID}>
-            {designLink && !page && (
-              <Row label="Where on the screen" data-summary-row="Screen">
-                {conflict.decisionFlow && conflict.layouts ? <BreakpointScreen conflict={conflict} /> : (
-                  <div className="flex min-w-0 flex-col items-start gap-1.5">
-                    <DesignLinkChip conflict={conflict} />
-                    <DesignLinkThumb conflict={conflict} size="md" placeholder />
-                  </div>
-                )}
-              </Row>
-            )}
-            {(cause_text || cause) && (
-              <Row label="Cause" data-summary-row="Cause">
-                {cause_text && <LocalizedText text={cause_text} />}
-                {cause && (
-                  <button
-                    type="button"
-                    data-cause-version
-                    data-open-cause-history
-                    onClick={onOpenCause}
-                    title="View the version where this conflict started"
-                    className="ds-intrinsic group mt-1 flex w-fit cursor-pointer items-center gap-1 rounded py-0.5 text-left text-slate-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                  >
-                    <span className="text-[11px] font-medium leading-4"><LocalizedText text="View the version where this conflict started" /></span>
-                    <ArrowRight className="size-3 shrink-0" />
-                  </button>
-                )}
-              </Row>
-            )}
-            {(why || standard) && <Row label="Impact" data-summary-row="Impact">{list(why ? [why] : standard.consequence)}</Row>}
-            {/* (What was proposed and decided is the main view's — the status
-                block and the record under it — not repeated here.) */}
-          </dl>
+          <dl data-info-problem className={GRID}>{problemRows}</dl>
         </InfoSection>
       )}
 
@@ -701,27 +784,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
       {/* (Folded: the rule's name says enough to judge by; its source and purpose are there when opened.) */}
       {!conflict.rollback && standard && (
         <FoldSection title="Standard" gist={<>{standard.rules.map((rule, index) => <Fragment key={rule.id}>{index > 0 && ' · '}<LocalizedText text={rule.name} /></Fragment>)}</>}>
-          <dl data-info-standard className={GRID}>
-            <Row label="Rule">
-              {standard.rules.map((rule, index) => (
-                <Fragment key={rule.id}>
-                  {index > 0 && ' · '}
-                  <LocalizedText text={rule.name} />
-                  {rule.tokens.map((token) => (
-                    <Fragment key={token.label}>{' '}<InfoLink item={token} onOpen={onOpenEvidence} literal /></Fragment>
-                  ))}
-                </Fragment>
-              ))}
-              <span data-rule-grade className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] leading-none whitespace-nowrap text-slate-400">
-                <LocalizedText text={standard.required || blockedCount > 0 ? 'Required rule' : 'Recommended rule'} />
-              </span>
-            </Row>
-            <Row label="Source">
-              {[...standard.origins.map((text) => <LocalizedText key={text} text={text} />), ...standard.links.map((link) => <InfoLink key={link.label} item={link} onOpen={onOpenEvidence} literal={link.kind === 'wcag'} />)]
-                .flatMap((node, index) => (index ? [' · ', node] : [node]))}
-            </Row>
-            <Row label="What it’s for">{list(standard.purpose)}</Row>
-          </dl>
+          <dl data-info-standard className={GRID}>{standardRows}</dl>
         </FoldSection>
       )}
 
@@ -730,13 +793,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
       {/* Details: folded; its rows share the same label column. */}
       <InfoSection sectionRef={detailsRef} title="Developer details" open={showDetails} onToggle={() => setShowDetails((value) => !value)} toggleProps={{ 'data-details-toggle': '' }}>
         {showDetails && (
-          <dl data-review-summary className={GRID}>
-            {conflict.rollback ? [
-              ['Target file', <span key="f" translate="no" className="font-mono text-[11.5px] break-all">{conflict.rollback.target}</span>],
-              ['Roll back to', <><LocalizedText text={conflict.rollback.label} />{conflict.rollback.timestamp && <span className="text-slate-400"> · <LocalizedText text={conflict.rollback.timestamp} /></span>}</>],
-              requester && ['Requested by', <>{requester.name}<span className="text-slate-400"> · <LocalizedText text={requester.role} /></span></>],
-            ].filter(Boolean).map(([label, value]) => <Row key={label} label={label}>{value}</Row>) : <ReviewDetails conflict={conflict} showProject={showProject} open={open} />}
-          </dl>
+          <dl data-review-summary className={GRID}>{detailsRows}</dl>
         )}
       </InfoSection>
     </div>
@@ -3541,9 +3598,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // (Folded, with who and how far in a line — open only while there's no one to review it: one has to be picked.)
   const reviewerNames = conflict && !conflict.rollback ? conflict.reviewers.map((reviewer) => allPeople.find((person) => person.id === reviewer.id)?.name).filter(Boolean) : []
   const reviewersApproved = conflict && !conflict.rollback ? conflict.reviewers.filter((reviewer) => reviewer.status === 'approved').length : 0
-  const reviewersSection = conflict && !conflict.rollback ? (
-    <FoldSection key={`reviewers:${conflict.id}`} title="Reviewers" count={conflict.reviewers.length || null} defaultOpen={!conflict.reviewers.length}
-      gist={conflict.reviewers.length ? `${reviewerNames.join(', ')} · ${reviewersApproved}/${conflict.reviewers.length}` : null} className="mb-5">
+  const reviewersBody = conflict && !conflict.rollback ? (
+    <>
       <ReviewersSection
         conflict={conflict}
         onUpdate={onUpdate ? update : undefined}
@@ -3552,6 +3608,12 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
         quiet={page && Boolean(conflict.decisionFlow)}
       />
       <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
+    </>
+  ) : null
+  const reviewersGist = conflict?.reviewers?.length ? `${reviewerNames.join(', ')} · ${reviewersApproved}/${conflict.reviewers.length}` : null
+  const reviewersSection = reviewersBody ? (
+    <FoldSection key={`reviewers:${conflict.id}`} title="Reviewers" count={conflict.reviewers.length || null} defaultOpen={!conflict.reviewers.length} gist={reviewersGist} className="mb-5">
+      {reviewersBody}
     </FoldSection>
   ) : null
   // The ways forward (the comparison, the diff, the choices and their action): in the page's record, in
@@ -3842,7 +3904,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       <OverviewTab
                         key={`overview:${conflict.id}`}
                         page={page}
-                        reviewers={page ? reviewersSection : null}
+                        reviewers={page && reviewersBody ? { body: reviewersBody, count: conflict.reviewers.length, approved: reviewersApproved, open: !conflict.reviewers.length } : null}
                         rationale={rationale}
                         onOpenEvidence={openEvidence}
                         checks={checks}
