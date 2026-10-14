@@ -12,7 +12,7 @@ assert.ok(!flow.includes('<ValueScale') && !flow.includes('data-proposal-scale')
 for (const text of ['캔버스에서 미리보는 중', '원안과 다른 수정안이라 승인이 필요해요', '원안대로 맞추는 거라 승인 없이 바로 적용돼요', 'data-request-note']) assert.ok(!flow.includes(text), `"${text}" is gone`)
 // The reason: compact (one line growing to three), its one suggestion unlabelled, only for a way that asks.
 assert.ok(flow.includes('<ReasonField\n            compact') && flow.includes('placeholder="이 값을 고른 이유"') && flow.includes('<FoldBody open={asking}>'))
-assert.ok(flow.includes('Math.min(Math.max(node.scrollHeight, 36), 76)') && flow.includes('.slice(0, compact ? 1 : undefined)'))
+assert.ok(flow.includes('Math.min(Math.max(node.scrollHeight, 36), 76)') && flow.includes('compact ? (value.trim() ? [] : suggestions.slice(0, 1))'))
 // One action bar: a rule, 나란히 비교 (ghost, one line, its tooltip the Space hint) at the left, the action at the right.
 assert.ok(flow.includes('border-t border-white/[0.06] pt-4') && flow.includes('title="Space: 현재와 비교"') && flow.includes('whitespace-nowrap'))
 assert.ok(flow.includes("'변경 사유를 입력해 주세요'") && flow.includes('disabled={Boolean(missing)}'), 'asking without a reason waits')

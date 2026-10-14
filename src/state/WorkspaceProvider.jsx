@@ -1675,7 +1675,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setConflicts((prev) => prev.map((c) => (c.id !== conflictId ? c : { ...c, decisionDraft: draft })))
   }, [setConflicts])
 
-  // 원안대로 맞추기: the way forward is the design itself, so there is nothing
+  // 원안으로 맞추기: the way forward is the design itself, so there is nothing
   // to ask — the developer goes straight to the fix, and the designer is told.
   const startDirectFix = useCallback((conflictId, request) => {
     const conflict = conflicts.find((c) => c.id === conflictId)

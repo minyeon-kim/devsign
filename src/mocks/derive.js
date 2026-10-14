@@ -117,7 +117,7 @@ const KEPT = ['fileId', 'line', 'sample', 'changeType', 'tokens', 'mergeItemId',
 // A value that differs from the design: the property (or properties), the
 // built value, the design's — reviewed the way the reference (CON-002) is: a
 // design decision (`decisionFlow`). The developer follows the design at once
-// (원안대로 맞추기) or asks for something else with a reason; the designer
+// (원안으로 맞추기) or asks for something else with a reason; the designer
 // keeps the design, approves, or asks again; the fix is applied and checked
 // by itself; the developer merges. As far as it's come, each of those is on
 // the record with who and when. (An accessibility check, where the design
@@ -203,7 +203,7 @@ function designDecisionOf(project, change, fields, ms) {
     attachmentName: `${change.file.split('/').pop().replace(/\.[a-z]+$/i, '')}-구현화면.png`,
     // The ways forward, each with the side of the preview it draws.
     proposals: [
-      { id: 'original', name: '원안대로 맞추기', spec: designSpec, side: 'after', result: '디자인 원안' },
+      { id: 'original', name: '원안으로 맞추기', spec: designSpec, side: 'after', result: '디자인 원안' },
       { id: 'current', name: '현재 값 유지', spec: builtSpec, side: 'before', result: `현재 값 유지(${builtSpec})` },
       { id: 'other', name: '다른 값', spec: '직접 입력', values: {} },
     ],
@@ -211,11 +211,12 @@ function designDecisionOf(project, change, fields, ms) {
     // seed's for keeping the code's value); the designer's, by decision.
     reasonChips: {
       current: change.reasons ?? [],
-      other: [`원안(${designSpec})과 현재(${builtSpec})의 절충값`],
+      // (Its values are the table's: a suggestion names them, never says them again.)
+      other: ['원안과 현재의 절충값'],
     },
     decisionChips: {
-      keep: `디자인 기준(${designSpec})으로 맞춰요`,
-      approve: `원안도 ${steps.requested?.proposal === 'other' ? '제안한 값' : builtSpec}${/[가-힣]$/.test(builtSpec) ? '으로' : '로'} 바꿀게요.`,
+      keep: '디자인 기준으로 맞춰요',
+      approve: '원안도 요청한 값으로 바꿀게요.',
       rework: '다른 값을 제안해 주세요',
     },
     // 다른 값's one field: the value, starting from what the code has.

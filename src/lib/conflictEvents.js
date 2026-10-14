@@ -226,7 +226,7 @@ export function stepActionOf(event) {
     return { system: true, text: '자동 처리' }
   }
   const name = event.actor.name
-  if (type === 'decided') return { system: false, name, text: decisionLineOf(event).text.split(' · ')[0] === '승인' ? '변경 승인' : decisionLineOf(event).text.split(' · ')[0] }
+  if (type === 'decided') return { system: false, name, text: decisionLineOf(event).text.split(' · ')[0] === '승인' ? '승인' : decisionLineOf(event).text.split(' · ')[0] }
   if (type === 'resolved') return { system: false, name, text: '병합' }
   return { system: false, name, text: null }
 }
@@ -266,12 +266,12 @@ export function sampleHistoryForCon002({ day = new Date(), rejected = false } = 
     return [
       ...head,
       make(5, 'decided', 'jane', at(14, 40), { result: 'rejected', reason: '1열은 스크롤이 너무 길어요. 2열을 유지하는 수정안으로 다시 요청해 주세요.' }, id(2, 'requested')),
-      make(6, 'requested', 'min', at(15, 10), { proposal: 'original', proposalName: '원안대로 맞추기', reason: '그리드를 화면 폭 기준으로 바꿔 원안 2열을 유지해요.', reviewerId: 'jane' }),
+      make(6, 'requested', 'min', at(15, 10), { proposal: 'original', proposalName: '원안으로 맞추기', reason: '그리드를 화면 폭 기준으로 바꿔 원안 2열을 유지해요.', reviewerId: 'jane' }),
     ]
   }
   return [
     ...head,
-    make(5, 'decided', 'jane', at(14, 40), { result: 'changed', previousName: '1열로 변경', proposalName: '원안대로 맞추기', reason: '원안 2열을 유지할 수 있다면 그 방향으로 가요.' }, id(2, 'requested')),
+    make(5, 'decided', 'jane', at(14, 40), { result: 'changed', previousName: '1열로 변경', proposalName: '원안으로 맞추기', reason: '원안 2열을 유지할 수 있다면 그 방향으로 가요.' }, id(2, 'requested')),
     make(6, 'fixed', 'min', at(16, 15), { pr: { number: 482, title: 'DashboardGrid: 컬럼 폭을 화면 기준으로 변경' }, files: 2 }, id(5, 'decided')),
     make(7, 'verified', null, at(16, 22), { match: true, width: 768 }, id(6, 'fixed')),
     make(8, 'resolved', 'min', at(16, 30), { how: 'fix' }, id(7, 'verified')),

@@ -25,7 +25,7 @@ try {
   assert.equal(referenceNameOf(byType('requested')), '승인 요청')
   assert.equal(referenceNameOf(byType('commented')), 'Taylor 의견')
   // The decision reads result first, with the proposal it moved from.
-  assert.deepEqual(decisionLineOf(byType('decided')), { text: '다른 수정안으로 변경 · 원안대로 맞추기', changed: ['1열로 변경', '원안대로 맞추기'], warn: false })
+  assert.deepEqual(decisionLineOf(byType('decided')), { text: '다른 수정안으로 변경 · 원안으로 맞추기', changed: ['1열로 변경', '원안으로 맞추기'], warn: false })
 
   // Progress is the events': 5/5, each step with who did it last and when.
   const progress = progressOf(history)

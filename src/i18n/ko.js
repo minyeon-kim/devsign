@@ -823,6 +823,8 @@ Previous screen with changes|충돌이 있는 이전 화면
 Next screen with changes|충돌이 있는 다음 화면
 Previous conflict · K|이전 충돌 · K
 Behavior conflict|동작 충돌
+fixed hex|고정 hex
+default size|기본 크기
 Calculation conflict|계산 충돌
 Code merge conflict|병합 충돌
 Risk high|높음

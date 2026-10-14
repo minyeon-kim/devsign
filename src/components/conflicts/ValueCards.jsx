@@ -14,7 +14,7 @@ import { overridesFor, previewTargetsOf } from '@/lib/canvasPreview'
 //     differs is the value, never the size it's drawn at. Scaled with a transform about the middle, so
 //     lines stay sharp.
 //   · The card's shape follows the crop's: 1:1 for a near-square one (an icon), 4:3 for a wide one (a
-//     button, a line). The drawing sits on the product's light grey; the label and the value under it.
+//     button, a line). The drawing sits on the product's light grey; its label under it (the values are the table's).
 
 export const CROP_PAD = 16
 export const CARD_PAD = 12
@@ -108,8 +108,7 @@ export default function ValueCards({ conflict, pages, sides }) {
           </FitArea>
           <figcaption className="mt-2 flex min-w-0 items-baseline justify-center gap-1.5 text-center">
             <span {...(side.id === 'before' ? { 'data-before-title': '' } : { 'data-after-title': '' })} className="shrink-0 text-[12.5px] font-medium text-slate-200">{side.title}</span>
-            {valueChipOf(conflict, side.values) && <span data-card-value className="min-w-0 truncate font-mono text-[11px] text-slate-400 tabular-nums">{valueChipOf(conflict, side.values)}</span>}
-            {side.sub && <span data-after-sub className="truncate text-[11px] text-slate-500">{side.sub}</span>}
+            {/* (No values here: they're the table's, above.) */}
           </figcaption>
         </FigureCard>
       ))}

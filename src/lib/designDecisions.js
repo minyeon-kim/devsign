@@ -1,7 +1,7 @@
 import { eventsOf, progressOf } from '@/lib/conflictEvents'
 // The words of a design decision (a `decisionFlow` conflict, e.g. CON-002),
 // shared by the workspace's actions and the review's DesignDecisionFlow.
-export const DECISION_LABEL = { keep: '원안 유지', approve: '변경 승인', rework: '재검토 요청' }
+export const DECISION_LABEL = { keep: '원안으로 수정', approve: '승인', rework: '재검토 요청' }
 export const TIMING_LABEL = { now: '지금', 'before-release': '출시 전', 'next-version': '다음 버전' }
 // When an approved change goes in. Approving *is* the start of it — the fix
 // and its check run at once — so "now" is the default and is never said.
@@ -14,7 +14,7 @@ export const isDeferred = (decision) => Boolean(decision && decision.choice !== 
 export const scheduleWordOf = (timing, release) => (timing === 'before-release' ? `${release?.name ? `${release.name} ` : ''}출시 전` : timing === 'next-version' ? '다음 버전' : null)
 // "v2.4 출시 전 반영 예정" — null when it goes in at once.
 export const scheduleOf = (conflict, release) => (isDeferred(conflict?.designDecision) ? `${scheduleWordOf(conflict.designDecision.timing, release)} 반영 예정` : null)
-export const PROPOSAL_LABEL = { original: '원안대로 맞추기', 'one-column': '1열로 변경', 'narrow-cards': '2열 유지 · 카드 폭 줄이기', other: '다른 수정안' }
+export const PROPOSAL_LABEL = { original: '원안으로 맞추기', 'one-column': '1열로 변경', 'narrow-cards': '2열 유지 · 카드 폭 줄이기', other: '다른 수정안' }
 // What the screen is now, said the way a proposal's spec is.
 export const IMPLEMENTATION_SPEC = '360px 고정 2열'
 // The ways forward a developer can propose. Each carries the values it stands
@@ -22,7 +22,7 @@ export const IMPLEMENTATION_SPEC = '360px 고정 2열'
 // from them and says itself in one line.
 // values: { columns, cardWidth: { mode: 'fit' | 'fixed', px }, gap, range }
 export const PROPOSALS = [
-  { id: 'original', name: '원안대로 맞추기', spec: '화면 폭 맞춤 2열', values: { columns: 2, cardWidth: { mode: 'fit' }, range: '~768px' } },
+  { id: 'original', name: '원안으로 맞추기', spec: '화면 폭 맞춤 2열', values: { columns: 2, cardWidth: { mode: 'fit' }, range: '~768px' } },
   { id: 'one-column', name: '1열로 변경', spec: '768px 이하 카드 1열', values: { columns: 1, cardWidth: { mode: 'fit' }, range: '~768px' } },
   { id: 'narrow-cards', name: '2열 유지 · 카드 폭 줄이기', spec: '2열 · 카드 폭을 줄여 맞춤', values: { columns: 2, cardWidth: { mode: 'fixed', px: 320 }, range: '~768px' } },
   { id: 'other', name: '다른 수정안', spec: '직접 입력', values: {} },
@@ -37,7 +37,7 @@ const DEFAULT_PROPS = [
 ]
 export const controlsOf = (conflict) => conflict?.driftProps ?? DEFAULT_PROPS
 // A conflict's own ways forward. A structural drift's are the layouts above;
-// a value change carries its own (`conflict.proposals`: 원안대로 맞추기, 현재 값
+// a value change carries its own (`conflict.proposals`: 원안으로 맞추기, 현재 값
 // 유지, 다른 값 — each with the side of its preview it draws, `side`).
 export const proposalsOf = (conflict) => conflict?.proposals ?? PROPOSALS
 // Whether a way has something to draw: a layout's columns, or a value's side.
