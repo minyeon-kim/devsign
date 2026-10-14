@@ -4,7 +4,9 @@ import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/panelPrefs'
+import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
+import { CanvasViewPanel, CanvasViewRail } from '@/components/workspace/CanvasSideViews'
+import { inCanvasViewOf, AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/panelPrefs'
 import WorkspaceViewTabs, { VIEW_PANEL_ID, viewTabId } from '@/components/workspace/WorkspaceViewTabs'
 import ScreensBoard from '@/components/screens/ScreensBoard'
 import PrototypePreview from '@/components/screens/PrototypePreview'
@@ -444,13 +446,16 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   const chatGroup = groupOf(panelById.chat.id)
   const sideGroupId = sideGroup?.id ?? null
   const chatGroupId = chatGroup?.id ?? null
+  // (Files · Layers · Assets · Inspect open in the main window, over the canvas — CanvasSideViews: the
+  // side panel's window opens only for Terminal and Console.)
+  const sideSplitOpen = sidePanel.open && !inCanvasViewOf(sidePanel, filesWindow.tab)
   useLayoutEffect(() => {
     if (mergeStudio) { applied.current = {}; return }
-    if (sideGroup && Boolean(sideGroup.minimized) === sidePanel.open) dockApi.minimizeGroup(sideGroup.id, !sidePanel.open, { byUser: true })
+    if (sideGroup && Boolean(sideGroup.minimized) === sideSplitOpen) dockApi.minimizeGroup(sideGroup.id, !sideSplitOpen, { byUser: true })
     if (chatGroup && Boolean(chatGroup.minimized) === aiChat.open) dockApi.minimizeGroup(chatGroup.id, !aiChat.open)
     applied.current = { side: sideGroupId, chat: chatGroupId }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mergeStudio, sideGroupId, chatGroupId, sidePanel.open, aiChat.open])
+  }, [mergeStudio, sideGroupId, chatGroupId, sideSplitOpen, aiChat.open])
 
   // The Workspace's view (Preview · Screens · Code — the address's `?view`)
   // is which panel of the main window shows; put on it before paint, and
@@ -494,18 +499,18 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     return () => document.removeEventListener('focusin', onFocus)
   }, [])
   const sideByKey = useRef(false)
-  const shown = useRef({ side: sidePanel.open, chat: aiChat.open })
+  const shown = useRef({ side: sideSplitOpen, chat: aiChat.open })
   useEffect(() => {
     const before = shown.current
-    shown.current = { side: sidePanel.open, chat: aiChat.open }
+    shown.current = { side: sideSplitOpen, chat: aiChat.open }
     if (mergeStudio) return
     const leaf = (name) => rootRef.current?.querySelector(`[data-side-leaf="${name}"]`)
     // (The focus was in it: still there, or already let go of as it folded.)
     const held = (name) => focusWithin.current === name && (!document.activeElement || document.activeElement === document.body || leaf(name)?.contains(document.activeElement))
     let opened = null
-    if (before.side !== sidePanel.open) {
+    if (before.side !== sideSplitOpen) {
       // (A frame later: the window has stopped being inert by then.)
-      if (sidePanel.open) { opened = 'side'; if (sideByKey.current) requestAnimationFrame(() => (leaf('side')?.querySelector('[role="tab"][aria-selected="true"]') ?? leaf('side')?.querySelector('button'))?.focus()) }
+      if (sideSplitOpen) { opened = 'side'; if (sideByKey.current) requestAnimationFrame(() => (leaf('side')?.querySelector('[role="tab"][aria-selected="true"]') ?? leaf('side')?.querySelector('button'))?.focus()) }
       else if (held('side')) (document.querySelector('[data-sidebar-toggle]') ?? document.querySelector(`[data-side-view="${filesWindow.tab}"]`) ?? document.querySelector('[data-side-view]'))?.focus()
       sideByKey.current = false
     }
@@ -514,11 +519,11 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
       else if (held('chat')) rootRef.current?.querySelector('[data-chat-toggle]')?.focus()
     }
     if (!opened) return
-    const fold = panelToFold({ room: rootRef.current?.clientWidth ?? Infinity, side: { open: sidePanel.open, width: sideWidth }, chat: { open: aiChat.open, width: chatWidth }, opened })
+    const fold = panelToFold({ room: rootRef.current?.clientWidth ?? Infinity, side: { open: sideSplitOpen, width: sideWidth }, chat: { open: aiChat.open, width: chatWidth }, opened })
     if (fold === 'side') setSidePanel({ open: false })
     if (fold === 'chat') setAiChat({ open: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sidePanel.open, aiChat.open, mergeStudio])
+  }, [sideSplitOpen, aiChat.open, mergeStudio])
 
   // ⌘/Ctrl+B (or ⌘/Ctrl+\) folds and unfolds the side panel — not while
   // typing; ⌘/Ctrl+L, AI Chat — while typing only from inside the chat itself.
@@ -590,6 +595,10 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             viewTabs={!mergeStudio && group.id === mainGroupId ? <WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /> : null}
             viewPanel={!mergeStudio && group.id === mainGroupId ? { id: VIEW_PANEL_ID, labelledBy: viewTabId(workspaceView) } : null}
             headerEnd={!mergeStudio && group.id === mainGroupId ? chatPill : null}
+            // (Files · Layers · Assets · Inspect: a column of icons at the main window's left, under its tabs,
+            // each opening its view over the canvas's left.)
+            viewRail={!mergeStudio && group.id === mainGroupId ? <CanvasViewRail /> : null}
+            viewOverlay={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.
             sideToggle={mergeStudio ? null
               : group.id === sideGroupId ? { label: 'Collapse panel', hint: SIDE_SHORTCUT, controls: SIDE_ID, onToggle: () => setSidePanel({ open: false }) }
@@ -746,6 +755,12 @@ function SplitNode({ node, dockApi, store, renderNode, floating = false, fixed =
   // while a splitter is being dragged); anything else folded takes no room.
   const collapses = foldsAway
   const takesRoom = (child) => !isMinimized(child) || collapses(child)
+  // (How folded each looks — a painted frame after it's folded or unfolded: what it shows is drawn
+  // first, then its width eases, from where it is — lib/useAfterPaint. What it is — inert, hidden
+  // from assistive tech — changes at once.)
+  const foldedNow = visible.filter(collapses).map((child) => child.id).join(' ')
+  const foldedShown = useAfterPaint(foldedNow)
+  const looksFolded = (child) => (resizing ? collapses(child) : foldedShown.split(' ').includes(child.id))
   return (
     <div ref={ref} className={floating ? 'contents' : cn('flex size-full min-h-0 min-w-0', row ? 'flex-row' : 'flex-col')}>
       {visible.map((child, i) => {
@@ -775,7 +790,7 @@ function SplitNode({ node, dockApi, store, renderNode, floating = false, fixed =
                 />
               ) : (
                 // (The gap goes with a folded panel.)
-                <span className={cn('shrink-0 transition-[width,height] duration-200 ease-out motion-reduce:transition-none', folded || collapses(prev) ? 'size-0' : row ? 'w-2' : 'h-2')} />
+                <span className={cn('shrink-0 transition-[width,height] motion-reduce:transition-none', PANE_MOTION, looksFolded(child) || looksFolded(prev) ? 'size-0' : row ? 'w-2' : 'h-2')} />
               ))}
             {isMinimized(child) && !folded ? (
               renderNode(child, node.dir)
@@ -787,10 +802,10 @@ function SplitNode({ node, dockApi, store, renderNode, floating = false, fixed =
                 id={own?.id}
                 inert={folded || undefined}
                 aria-hidden={folded || undefined}
-                className={floating ? "contents" : cn("flex min-h-0 min-w-0", !resizing && "transition-[flex-grow,flex-basis,min-width,opacity] duration-200 ease-out motion-reduce:transition-none", (folded || own) && "overflow-hidden", folded && "opacity-0", own && index > 0 && "justify-end")}
+                className={floating ? "contents" : cn("flex min-h-0 min-w-0", !resizing && cn("transition-[flex-grow,flex-basis,min-width,opacity] motion-reduce:transition-none", PANE_MOTION), (looksFolded(child) || own) && "overflow-hidden", looksFolded(child) && "opacity-0", own && index > 0 && "justify-end")}
                 style={floating ? undefined : own
-                  ? { flex: `0 0 ${folded ? 0 : own.width}px`, minWidth: 0, minHeight: 0 }
-                  : folded
+                  ? { flex: `0 0 ${looksFolded(child) ? 0 : own.width}px`, minWidth: 0, minHeight: 0 }
+                  : looksFolded(child)
                   ? { flex: '0 1 0px', minWidth: 0, minHeight: 0 }
                   : { flex: `${(((node.sizes[index] ?? 1) + (absorbed.get(child.id) ?? 0)) / total) * 100} 1 0px`, [row ? 'minWidth' : 'minHeight']: MIN_PANE }}
               >

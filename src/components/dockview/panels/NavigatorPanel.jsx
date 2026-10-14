@@ -6,6 +6,7 @@ import AssetsPanel, { WorkspaceProperties } from '@/components/dockview/panels/A
 import TerminalPanel from '@/components/dockview/panels/TerminalPanel'
 import ConsolePanel from '@/components/dockview/panels/ConsolePanel'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { SIDE_TABS } from '@/lib/panelPrefs'
 
 // The project's navigator as a pane — the file tree (Files), the canvas's
 // layer tree (Layers) and its Assets, switched by the window header's tabs
@@ -15,9 +16,13 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // Terminal and Console show here too (from the activity bar) — they used
 // to be the bottom panel's; what they list is the workspace's, so it keeps
 // coming in whether they're showing or not.
-function NavigatorPanel() {
+// `inCanvas`: the copy in the main window (CanvasSideViews), for Files · Layers · Assets · Inspect. The
+// side panel's own copy then shows only Terminal and Console — except in Merge Studio, whose navigator
+// floats on its own and shows them all.
+function NavigatorPanel({ inCanvas = false }) {
   const { filesWindow, activeView, selectedMergeItemId } = useWorkspace()
   const { setElement } = useContext(MergeDeckSlotContext)
+  if (!inCanvas && activeView !== 'mergeStudio' && SIDE_TABS.includes(filesWindow.tab === 'blockDeck' ? 'inspect' : filesWindow.tab)) return null
   const deckActive = activeView === 'mergeStudio' && ['inspect', 'blockDeck', 'assets'].includes(filesWindow.tab)
   return (
     <div role="tabpanel" aria-label={filesWindow.tab} className="flex h-full min-h-0 flex-col font-sans [&_.bg-card]:bg-transparent">

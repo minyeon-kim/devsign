@@ -54,6 +54,15 @@ export const writeAiChat = (state, storage) => write(AI_CHAT, { open: Boolean(st
 
 // An activity bar icon pressed: another view opens the panel on it (or
 // swaps what it shows); the view that's showing folds the panel.
+// Which of the navigator's views is open in the main window (Files · Layers · Assets · Inspect open
+// there, over the canvas's left — CanvasSideViews), or null; Terminal and Console still open the side panel.
+// (`blockDeck` is Inspect's, in Merge Studio.)
+export function inCanvasViewOf(sidePanel, tab) {
+  if (!sidePanel?.open) return null
+  const view = tab === 'blockDeck' ? 'inspect' : tab
+  return SIDE_TABS.includes(view) ? view : null
+}
+
 export function pressSideView(state, view) {
   if (!SIDE_VIEWS.includes(view)) return state
   return state.open && state.tab === view ? { ...state, open: false } : { ...state, open: true, tab: view }

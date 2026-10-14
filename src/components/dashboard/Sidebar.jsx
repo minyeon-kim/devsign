@@ -7,7 +7,7 @@ import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompar
 import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Component, Ellipsis, Maximize2, Minimize2, Files, History, House, Import, Layers, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, ScanEye, ScrollText, SquareTerminal, TriangleAlert, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, ScrollText, SquareTerminal, TriangleAlert, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -21,6 +21,7 @@ import ImportDrawer from '@/components/dashboard/ImportDrawer'
 import ConflictsDrawer, { ConflictCount } from '@/components/dashboard/ConflictsDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
+import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
 import { projectTone } from '@/lib/projectTone'
 import { CONFLICT_DOT } from '@/lib/conflicts'
 
@@ -62,20 +63,17 @@ export function RailButton({ label, icon: Icon, className, iconClassName, side =
   )
 }
 
-// The Workspace's own views, on the activity bar under the project's: the
-// side panel's — Files · Layers · Assets · Inspect — then, past a hairline,
-// what used to be the bottom panel's: Design Compare (a tab beside the
-// canvas: it needs the width), Terminal and Console (in the side panel).
+// The Workspace's own views, on the activity bar under the project's, past a
+// hairline: Design Compare (a work pane beside the canvas: it needs the
+// width), Terminal and Console (in the side panel).
 // A side panel icon opens the panel on its view, swaps the view, or — the
 // one that's showing — folds it. What doesn't fit the bar's height goes to
 // "More" at the end, so the bar itself never scrolls.
 const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
+// (Files · Layers · Assets · Inspect aren't here: they're icons in the main window, under its tabs,
+// opening over the canvas — CanvasSideViews.)
 const WORKSPACE_VIEWS = [
-  { id: 'files', label: 'Files', icon: Files, side: true },
-  { id: 'layers', label: 'Layers', icon: Layers, side: true },
-  { id: 'assets', label: 'Assets', icon: Component, side: true },
-  { id: 'inspect', label: 'Inspect', icon: ScanEye, side: true },
-  { id: 'design-compare', label: 'Design Compare', icon: Layers3, rule: true },
+  { id: 'design-compare', label: 'Design Compare', icon: Layers3 },
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, side: true },
   { id: 'console', label: 'Console', icon: ScrollText, side: true },
 ]
@@ -473,6 +471,10 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     else if (!drawer && isSplit(before) && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-conflicts-entry]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
+  const targetWidth = drawer ? shownWidth + 8 : 0
+  const easedWidth = useAfterPaint(targetWidth)
+  // (Dragged by its edge: it follows the pointer at once.)
+  const openWidth = resizing ? targetWidth : easedWidth
 
   return (
     <div className="z-10 flex h-full shrink-0">
@@ -481,10 +483,12 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
       <div
         inert={!drawer}
         aria-hidden={!drawer}
-        style={{ width: drawer ? shownWidth : 0 }}
+        // (As wide as the drawer and the 8px after it — eased together, a painted frame after it's asked
+        // for, so what it shows is drawn first and the motion starts from where it is: lib/useAfterPaint.)
+        style={{ width: openWidth }}
         className={cn(
           'h-full shrink-0 overflow-hidden motion-reduce:transition-none',
-          !resizing && 'transition-[width] duration-200 ease-out'
+          !resizing && cn('transition-[width]', PANE_MOTION)
         )}
       >
         <aside

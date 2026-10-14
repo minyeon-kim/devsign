@@ -94,7 +94,8 @@ function AppShell({ topBar, project, children }) {
         workspace={workspace && workspace.activeView === 'workspace' && pathname.replace(/\/$/, '').endsWith('/workspace') && !LAYER_PARAMS.some((key) => new URLSearchParams(search).has(key)) ? workspace : null}
       />
 
-      <div className={`flex min-w-0 flex-1 flex-col overflow-hidden ${shown ? 'pl-2' : ''}`}>
+      {/* (The 8px between the drawer and the work area is the drawer's own — it opens and shuts with it, never at once.) */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {topBar}
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
       </div>

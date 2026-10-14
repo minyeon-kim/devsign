@@ -79,8 +79,12 @@ try {
   // --- The side panel: at the left, on the activity bar ---
   assert.ok(layout.includes('addDockPanel(dockApi, panelById.navigator, { share, atStart: true })'), 'docked at the row’s left end')
   assert.ok(dock.includes('if (atStart) { root.children.unshift(leaf); root.sizes.unshift(size) }'))
-  for (const view of ['files', 'layers', 'assets', 'inspect', 'design-compare', 'terminal', 'console']) assert.ok(sidebar.includes(`{ id: '${view}', label:`), `${view} is on the bar`)
-  assert.ok(sidebar.indexOf("id: 'inspect'") < sidebar.indexOf("id: 'design-compare'") && sidebar.includes("id: 'design-compare', label: 'Design Compare', icon: Layers3, rule: true"), 'the bottom panel’s views come after a hairline')
+  for (const view of ['design-compare', 'terminal', 'console']) assert.ok(sidebar.includes(`{ id: '${view}', label:`), `${view} is on the bar`)
+  // Files · Layers · Assets · Inspect: icons in the main window under its tabs, opening over the canvas — not on the bar.
+  for (const view of ['files', 'layers', 'assets', 'inspect']) {
+    assert.ok(!sidebar.includes(`{ id: '${view}', label:`), `${view} isn’t on the bar`)
+    assert.ok(read('components/workspace/CanvasSideViews.jsx').includes(`{ id: '${view}', label:`), `${view} is in the main window`)
+  }
   assert.ok(sidebar.includes('aria-expanded={showing(view)}') && sidebar.includes("aria-controls={view.side ? 'workspace-side-panel' : 'work-pane'}"))
   assert.ok(sidebar.includes('data-views-more') && sidebar.includes('railSplit(WORKSPACE_VIEWS, slots)') && sidebar.includes('onKeyDown={railArrowKeys}'))
   assert.ok(sidebar.includes('data-view-badge'), 'Design Compare’s count sits on its icon')
@@ -90,16 +94,17 @@ try {
   assert.ok(navigator.includes("filesWindow.tab === 'terminal' && <TerminalPanel />") && navigator.includes("filesWindow.tab === 'console' && <ConsolePanel />"))
   assert.ok(layout.includes('if (!SIDE_TABS.includes(filesTab.current)) return'), 'focus moving to an editor doesn’t take Terminal away')
 
-  // --- Folded: mounted at no width, out of the focus order; eased, not under reduced motion, not while dragged ---
-  assert.ok(layout.includes('? { flex: `0 0 ${folded ? 0 : own.width}px`, minWidth: 0, minHeight: 0 }'))
-  assert.ok(layout.includes('inert={folded || undefined}') && layout.includes('aria-hidden={folded || undefined}'))
-  assert.match(layout, /!resizing && "transition-\[flex-grow,flex-basis,min-width,opacity\] duration-200 ease-out motion-reduce:transition-none"/)
-  assert.ok(layout.includes("folded || collapses(prev) ? 'size-0'"), 'the gap goes with it')
+  // --- Folded: mounted at no width, out of the focus order; eased (a painted frame after it's asked for — lib/useAfterPaint — so the motion starts from where it is), not under reduced motion, not while dragged ---
+  assert.ok(layout.includes('? { flex: `0 0 ${looksFolded(child) ? 0 : own.width}px`, minWidth: 0, minHeight: 0 }'))
+  assert.ok(layout.includes('inert={folded || undefined}') && layout.includes('aria-hidden={folded || undefined}'), 'what it is changes at once')
+  assert.ok(layout.includes('const foldedShown = useAfterPaint(foldedNow)') && layout.includes('resizing ? collapses(child) : foldedShown.split'))
+  assert.ok(layout.includes('cn("transition-[flex-grow,flex-basis,min-width,opacity] motion-reduce:transition-none", PANE_MOTION)') && layout.includes('!resizing && cn('))
+  assert.ok(layout.includes("looksFolded(child) || looksFolded(prev) ? 'size-0'"), 'the gap goes with it')
   // Read before the first paint, and put on the windows before it.
   assert.ok(provider.includes('useState(() => { const { open, width } = readSidePanel(); return { open, width } })') && provider.includes('useState(readAiChat)'))
   assert.match(layout, /useLayoutEffect\(\(\) => \{\n    if \(mergeStudio\) \{ applied\.current = \{\}; return \}/)
   // Opened by the person only: folded on purpose, raising one of its tabs leaves it folded.
-  assert.ok(layout.includes('dockApi.minimizeGroup(sideGroup.id, !sidePanel.open, { byUser: true })'))
+  assert.ok(layout.includes('dockApi.minimizeGroup(sideGroup.id, !sideSplitOpen, { byUser: true })') && layout.includes('const sideSplitOpen = sidePanel.open && !inCanvasViewOf(sidePanel, filesWindow.tab)'), 'the side panel’s window opens for Terminal and Console only')
   assert.ok(dock.includes('if (!g.userFolded) g.minimized = false') && dock.includes('g.userFolded = minimized && byUser'))
   // Resized from its right edge, inside its limits; a double click goes back to its own width.
   assert.ok(layout.includes('if (before) { before.onWidth(measured[a] + delta); return }') && layout.includes('if (after) { after.onWidth(measured[b] - delta); return }'))
