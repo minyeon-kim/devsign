@@ -332,7 +332,10 @@ function cardOf(group, conflicts, mergeItems) {
 // a one-line summary, the time. Clicking opens it in place (the box grows
 // downward) with what it's about: the description and file, the thread and
 // its reply box, and the button that goes there.
-function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump }) {
+// Under 오늘 / 어제 the day is already said: just the time ("10월 14일 오후 6:40" → "오후 6:40").
+const timeIn = (label, day) => (day === 'today' || day === 'yesterday' ? String(label).replace(/^(\d{1,2}월 \d{1,2}일|[A-Z][a-z]{2} \d{1,2},?)\s*/, '') : label)
+
+function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJump }) {
   const card = cardOf(group, conflicts, mergeItems)
   const openChange = (change) => onJump({ target: { conflictId: change.id, label: change.title } })
   const first = group.notifications[0]
@@ -362,16 +365,16 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   return (
     // (A flat list: no box per notification — only the open one, and the one under the pointer, are lit.)
     <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-xl transition-colors', expanded && 'bg-white/[0.04]')}>
-      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-xl py-2.5 pr-3 pl-2 text-left transition-colors', !expanded && 'hover:bg-white/[0.03]')}>
+      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-xl py-3 pr-3 pl-2 text-left transition-colors', !expanded && 'hover:bg-white/[0.03]')}>
         {/* Unread: a dot at the left (its place is kept when read, so the rows line up). */}
         <span aria-label={group.unread ? 'Unread' : undefined} data-inbox-dot={group.unread ? '' : undefined} className={cn('mt-2 size-1.5 shrink-0 rounded-full', group.unread ? 'bg-[#5EEAB5]' : 'bg-transparent')} />
-        {!openThread && <span className="mt-0.5 flex w-6 shrink-0 justify-center">
+        {!openThread && <span className="mt-0.5 flex w-5 shrink-0 justify-center">
           {/* A person's avatar, or — from the app — an icon in a circle the same size, so every row lines up. */}
-          {card.authorId ? <Person id={card.authorId} /> : (
-            <span data-inbox-system-icon={card.severity ?? 'low'} aria-label={card.severity ? translateText(RISK_LABEL[card.severity], getLanguage()) : undefined} className="flex size-6 items-center justify-center rounded-full bg-white/[0.06]">
+          {card.authorId ? <Person id={card.authorId} size="xs" /> : (
+            <span data-inbox-system-icon={card.severity ?? 'low'} aria-label={card.severity ? translateText(RISK_LABEL[card.severity], getLanguage()) : undefined} className="flex size-5 items-center justify-center rounded-full bg-white/[0.06]">
               {card.severity === 'high'
-                ? <TriangleAlert aria-hidden className="size-3 text-rose-300" />
-                : <Bell aria-hidden className={cn('size-3', card.severity === 'medium' ? 'text-amber-300' : 'text-slate-400')} />}
+                ? <TriangleAlert aria-hidden className="size-2.5 text-rose-300" />
+                : <Bell aria-hidden className={cn('size-2.5', card.severity === 'medium' ? 'text-amber-300' : 'text-slate-400')} />}
             </span>
           )}
         </span>}
@@ -386,7 +389,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
             ) : (
               <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium', group.unread || expanded ? 'text-white' : 'text-slate-300', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
             )}
-            <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={group.timeLabel} /></span>
+            <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={timeIn(group.timeLabel, day)} /></span>
           </span>
           {notice && (
             // The closed card's second line gives way to the full text below as it opens (a collapsing row, so nothing pops).
@@ -426,7 +429,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
           slide down instead of jumping. */}
       <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
         <div className="min-h-0 overflow-hidden" inert={!expanded}>
-          <div className={cn('space-y-3.5 pr-3 pb-3', card.type === 'thread' ? 'pl-3 pt-1' : notice ? 'pl-[54px]' : 'pl-[46px]')}>
+          <div className={cn('space-y-3.5 pr-3 pb-3', card.type === 'thread' ? 'pl-3 pt-1' : notice ? 'pl-[50px]' : 'pl-[42px]')}>
             {notice && <NoticeBody card={card} thumb={thumbOf(notificationThumbs, first.id)} destination={destination && { ...destination, label: '변경 검토하기' }} />}
             {card.type === 'change' && (
               <>
@@ -533,7 +536,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
       </div>
       <div
         data-inbox-list
-        className="scroll-fade-bottom min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3"
+        className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3"
         onScroll={(event) => { const list = event.currentTarget; if (limit < matching.length && list.scrollTop + list.clientHeight >= list.scrollHeight - 80) setLimit((count) => count + PAGE) }}
       >
         {visible.map((group, index) => {
@@ -543,7 +546,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
               {/* 오늘 / 어제 / 이번 주 / 이전 — said once, over the first of each. */}
               {(index === 0 || dayOf(visible[index - 1]) !== day) && <h3 data-inbox-day={day} className="px-1 pt-2 pb-0.5 text-[11px] font-medium text-slate-500 first:pt-0">{DAY_GROUP_LABEL[day]}</h3>}
               <div className="group/inbox relative">
-                <InboxCard group={group} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
+                <InboxCard group={group} day={day} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
                 {/* On hover or focus: read ↔ unread, without opening it. */}
                 <button
                   type="button"
@@ -551,7 +554,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
                   aria-label={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
                   title={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
                   onClick={(event) => { event.stopPropagation(); setRead(group, group.unread) }}
-                  className="ds-intrinsic absolute top-2 right-8 flex h-6 items-center rounded-md bg-[#1c1e22] px-1.5 text-[10.5px] whitespace-nowrap text-slate-300 opacity-0 ring-1 ring-white/10 transition-opacity hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-300 group-hover/inbox:opacity-100"
+                  className="ds-intrinsic absolute top-2.5 right-8 flex h-6 items-center rounded-md bg-[#1c1e22] px-1.5 text-[10.5px] whitespace-nowrap text-slate-300 opacity-0 ring-1 ring-white/10 transition-opacity hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-300 group-hover/inbox:opacity-100"
                 >
                   {group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
                 </button>

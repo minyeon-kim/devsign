@@ -55,7 +55,7 @@ assert.ok(thumbs.includes('className="flex gap-2"') && thumbs.includes('min-w-0 
 assert.ok(thumbs.includes("side === 'after' && <span aria-hidden className=\"size-1.5 shrink-0 rounded-full bg-emerald-400\""), 'the accent dot is the proposal\'s alone')
 assert.ok(thumbs.includes('text-xs leading-4 text-slate-400'), 'labels: 12px, secondary text')
 // A notice's body starts on the title's text line; other cards are as they were.
-assert.ok(drawer.includes("card.type === 'thread' ? 'pl-3 pt-1' : notice ? 'pl-[54px]' : 'pl-[46px]'"))
+assert.ok(drawer.includes("card.type === 'thread' ? 'pl-3 pt-1' : notice ? 'pl-[50px]' : 'pl-[42px]'"))
 // A stale "Today" is said as its date and time.
 assert.ok(read('src/state/WorkspaceProvider.jsx').includes("['Just now', 'Today', 'Now'].includes(n.timeLabel)"))
 console.log('notice-redline: ok')

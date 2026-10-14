@@ -4,10 +4,11 @@ import { LocalizedText } from '@/i18n/runtime'
 
 // The one notification: every card that announces something is this, with
 // only its `type` changed — success, warning, error or info (none: no
-// accent). Its look is the notification tokens' (index.css): the dark
-// floating surface, the type's accent on the icon and its round chip, the
-// title and body type, the dismiss button at the top right and the actions
-// at the bottom right. Toasts (Sonner) and the bell's
+// accent). Its look is the notification tokens' (index.css), laid out as the
+// system's own: a dark frosted card, the type's icon on a rounded square,
+// the title and body beside it, the action at the right of that row (under
+// it when the card lists something) and a round × on the top-left corner,
+// shown on hover. Toasts (Sonner) and the bell's
 // dropdown read the same tokens, so they match without sharing markup.
 const TYPE_ICON = { success: CircleCheck, warning: TriangleAlert, error: OctagonX, info: Info }
 const text = (value) => (typeof value === 'string' ? <LocalizedText text={value} /> : value)
@@ -38,6 +39,18 @@ export function Notification({ type, icon, title, body, bodyClassName, children,
     onDismiss()
     queueMicrotask(() => beside?.isConnected && beside.focus())
   }
+  // (A dismissible card is put away by pressing it or its ×: its quiet "Later" would say it a third time.)
+  const shown = dismissible ? actions.filter((action) => !action.quiet) : actions
+  const inline = !children
+  const actionRow = shown.length > 0 && (
+    <div className={cn('ds-notification-actions', inline && 'ds-notification-actions-inline')}>
+      {shown.map(({ label, quiet, ...button }, index) => (
+        <button key={index} type="button" {...button} className={cn('ds-intrinsic', quiet ? 'ds-notification-action-quiet' : 'ds-notification-action')}>
+          {text(label)}
+        </button>
+      ))}
+    </div>
+  )
   return (
     <Tag
       data-notification
@@ -55,23 +68,16 @@ export function Notification({ type, icon, title, body, bodyClassName, children,
           <X aria-hidden />
         </button>
       )}
-      <div className={cn('flex items-start gap-3', onDismiss && 'pr-8')}>
+      <div data-inline={inline && shown.length > 0 ? '' : undefined} className="ds-notification-head flex items-center gap-3">
         <span className="ds-notification-icon"><Icon aria-hidden /></span>
         <div className="min-w-0 flex-1">
           <p className="ds-notification-title">{text(title)}</p>
           {body && <p className={cn('ds-notification-body', bodyClassName)}>{text(body)}</p>}
         </div>
+        {inline && actionRow}
       </div>
       {children}
-      {actions.length > 0 && (
-        <div className="ds-notification-actions">
-          {actions.map(({ label, quiet, ...button }, index) => (
-            <button key={index} type="button" {...button} className={cn('ds-intrinsic', quiet ? 'ds-notification-action-quiet' : 'ds-notification-action')}>
-              {text(label)}
-            </button>
-          ))}
-        </div>
-      )}
+      {!inline && actionRow}
     </Tag>
   )
 }

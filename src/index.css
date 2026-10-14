@@ -100,10 +100,10 @@
     --ds-control-height: 32px;
     --ds-chat-submit-radius: 50%;
     --ds-primary: #5EEAB5;
-    /* The bottom notifications' card (toasts too): one light grey, and its
-       hover a step darker. */
-    --ds-notice-surface: #DFDFDF;
-    --ds-notice-surface-hover: #D2D2D2;
+    /* The notifications' card (toasts too): a dark grey, laid over the
+       app as frosted glass (see .ds-notification), and its hover a step lighter. */
+    --ds-notice-surface: #2B2B2B;
+    --ds-notice-surface-hover: #333333;
     --ds-primary-foreground: #0A0A0A;
     --ds-primary-violet: #8B5CF6;
     /* The green tint of something that's yours or picked — your chat
@@ -729,41 +729,40 @@ button.editor-line-comment {
        accents  the mint of the main CTA for success and info, the amber of
                 the "Deployed" badge for warnings, the destructive red for
                 errors. No blue, indigo or violet. */
-  /* A light card on the dark app (#DFDFDF — --ds-notice-surface), so it
-     reads at a glance over any panel — with dark text, and each accent a
-     shade deep enough to hold AA on that grey. */
+  /* A dark frosted card over the app, as the system's own notifications
+     (--ds-notice-surface, at 82% with the blur behind it): light text, and
+     each accent the light shade that holds AA on that grey. */
   --notification-bg: var(--ds-notice-surface);
   --notification-bg-hover: var(--ds-notice-surface-hover);
-  --notification-border: rgb(0 0 0 / 8%);
+  --notification-border: rgb(255 255 255 / 10%);
   --notification-shadow: 0 16px 40px rgb(0 0 0 / 55%), 0 2px 8px rgb(0 0 0 / 35%);
-  --notification-text: var(--ds-bg-base);
-  --notification-text-secondary: var(--color-slate-600);
-  --notification-text-meta: var(--color-slate-600);
-  --notification-control: var(--color-slate-500);
-  --notification-control-hover-bg: rgb(0 0 0 / 6%);
-  --notification-success: var(--color-emerald-800);
-  --notification-success-bg: color-mix(in srgb, var(--color-emerald-500) 16%, transparent);
-  --notification-info: var(--color-emerald-800);
-  --notification-info-bg: color-mix(in srgb, var(--color-emerald-500) 16%, transparent);
-  --notification-warning: var(--color-amber-800);
-  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 24%, transparent);
-  --notification-error: var(--color-red-800);
-  --notification-error-bg: color-mix(in srgb, var(--color-red-500) 14%, transparent);
-  /* The filled action: a solid green (deep enough for its white label to
-     hold AA) and a step darker on hover. */
-  --notification-action-bg: var(--color-emerald-700);
-  --notification-action-bg-hover: var(--color-emerald-800);
+  --notification-text: var(--foreground);
+  --notification-text-secondary: var(--color-slate-300);
+  --notification-text-meta: var(--color-slate-400);
+  --notification-control: var(--color-slate-300);
+  --notification-control-hover-bg: rgb(255 255 255 / 8%);
+  --notification-success: var(--color-emerald-300);
+  --notification-success-bg: color-mix(in srgb, var(--color-emerald-400) 18%, transparent);
+  --notification-info: var(--color-emerald-300);
+  --notification-info-bg: color-mix(in srgb, var(--color-emerald-400) 18%, transparent);
+  --notification-warning: var(--color-amber-300);
+  --notification-warning-bg: color-mix(in srgb, var(--color-amber-400) 18%, transparent);
+  --notification-error: var(--color-red-300);
+  --notification-error-bg: color-mix(in srgb, var(--color-red-400) 18%, transparent);
+  /* The action: a grey pill a step above the card, as the system's "Mark as read". */
+  --notification-action-bg: var(--color-slate-700);
+  --notification-action-bg-hover: var(--color-slate-600);
   --notification-action-text: var(--foreground);
   /* (The windows' and floating panels' radius.) */
   --notification-radius: 20px;
-  --notification-padding: 14px 16px;
+  --notification-padding: 12px 14px;
   /* Where the floating ones sit: under the header, off the right edge. */
   /* Always at the bottom: just above the Workspace's bottom bar (its strip
      — WorkspaceBottomPanel publishes its height), whether or not the panel
      is open, so a notice never floats up the middle of the screen. */
   --notification-bottom: calc(max(24px, env(safe-area-inset-bottom)) + var(--ds-bottom-panel-offset, 0px));
   --notification-right: 24px;
-  --notification-width: 360px;
+  --notification-width: 380px;
   --notification-gap: 8px;
 }
 
@@ -776,13 +775,15 @@ button.editor-line-comment {
   padding: var(--notification-padding);
   border: 1px solid var(--notification-border);
   border-radius: var(--notification-radius);
-  background: var(--notification-bg);
+  background: color-mix(in srgb, var(--notification-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
   box-shadow: var(--notification-shadow);
   color: var(--notification-text);
 }
 /* A card that is put away by pressing it: says so (pointer, one tone up on hover, a ring on focus). */
 .ds-notification[data-dismissible] { cursor: pointer; transition: background-color 140ms; }
-.ds-notification[data-dismissible]:hover { background: var(--notification-bg-hover); }
+.ds-notification[data-dismissible]:hover { background: color-mix(in srgb, var(--notification-bg-hover) 88%, transparent); }
 .ds-notification[data-dismissible]:focus-visible { outline: 2px solid var(--notification-text-secondary); outline-offset: 2px; }
 .ds-notification[data-type='success'] { --notification-accent: var(--notification-success); --notification-accent-bg: var(--notification-success-bg); }
 .ds-notification[data-type='info'] { --notification-accent: var(--notification-info); --notification-accent-bg: var(--notification-info-bg); }
@@ -799,19 +800,19 @@ button.editor-line-comment {
 @media (prefers-reduced-motion: reduce) {
   .ds-notification-enter { animation: ds-notification-fade 180ms ease-out; }
 }
-/* The type, as a 28px round chip with a 16px icon. */
+/* The type, as an app's icon: a 36px rounded square with an 18px icon. */
 .ds-notification-icon {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   background: var(--notification-accent-bg);
   color: var(--notification-accent);
 }
-.ds-notification-icon svg { width: 16px; height: 16px; }
+.ds-notification-icon svg { width: 18px; height: 18px; }
 .ds-notification-title {
   font-size: 14px;
   font-weight: 600;
@@ -832,15 +833,20 @@ button.editor-line-comment {
 .ds-notification-meta { font-size: 12px; line-height: 16px; color: var(--notification-text-meta); }
 /* Actions: at the bottom right, one filled, the rest quiet. */
 .ds-notification-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+/* (With the action beside them, the title and the body keep to a line each, cut short, as the system's.) */
+.ds-notification-head[data-inline] .ds-notification-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-notification-head[data-inline] .ds-notification-body { -webkit-line-clamp: 1; }
+/* …or, on a card with nothing under its text, in its row at the right. */
+.ds-notification-actions.ds-notification-actions-inline { flex: none; margin-top: 0; }
 .ds-notification-action,
 .ds-notification-action-quiet {
   display: inline-flex;
   flex: none;
   align-items: center;
-  height: 32px;
-  padding-inline: 12px;
+  height: 30px;
+  padding-inline: 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9999px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
@@ -851,27 +857,28 @@ button.editor-line-comment {
 .ds-notification-action:hover { background: var(--notification-action-bg-hover); }
 .ds-notification-action-quiet { background: transparent; color: var(--notification-text-secondary); }
 .ds-notification-action-quiet:hover { background: var(--notification-control-hover-bg); color: var(--notification-text); }
-/* Dismiss: at the card's top right, inside its padding — never a negative
-   offset, never past the card's edge. A 16px icon in a 28px target. Content
-   beside it keeps clear with a right inset (the component's `pr-8`). */
+/* Dismiss: a small round × on the card's top-left corner, half over its
+   edge, as the system's — shown while the card is pointed at or focused. */
 .ds-notification-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: -7px;
+  left: -7px;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--notification-border);
+  border-radius: 9999px;
+  background: var(--notification-bg);
   color: var(--notification-control);
-  transition: background-color 140ms, color 140ms;
+  opacity: 0;
+  transition: opacity 140ms, background-color 140ms, color 140ms;
 }
-.ds-notification-close:hover { background: var(--notification-control-hover-bg); color: var(--notification-text); }
-.ds-notification-close svg { width: 16px; height: 16px; }
+.ds-notification:is(:hover, :focus-within) > .ds-notification-close { opacity: 1; }
+.ds-notification-close:hover { background: var(--notification-bg-hover); color: var(--notification-text); }
+.ds-notification-close svg { width: 12px; height: 12px; }
 /* A row inside a notification (a conflict to open, an item of the bell's
    list): the hover is one step lighter than the card. */
 .ds-notification-row {
@@ -945,7 +952,9 @@ button.editor-line-comment {
   padding: var(--notification-padding) !important;
   border: 1px solid var(--notification-border) !important;
   border-radius: var(--notification-radius) !important;
-  background: var(--notification-bg) !important;
+  background: color-mix(in srgb, var(--notification-bg) 82%, transparent) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
   box-shadow: var(--notification-shadow) !important;
   color: var(--notification-text) !important;
 }
@@ -964,22 +973,25 @@ button.editor-line-comment {
 }
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-icon] svg { width: 16px; height: 16px; margin: 0; }
 /* (Room for the dismiss button, so a long title never runs under it.) */
-[data-sonner-toaster] [data-sonner-toast].cn-toast:has([data-close-button]) { padding-right: 44px !important; }
+/* (Its × as the cards': on the top-left corner, shown on hover or focus.) */
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button] {
-  top: 10px !important;
-  right: 10px !important;
-  left: auto !important;
+  top: -7px !important;
+  left: -7px !important;
+  right: auto !important;
   transform: none !important;
-  width: 28px !important;
-  height: 28px !important;
-  border: 0 !important;
-  border-radius: 8px !important;
-  background: transparent !important;
+  width: 22px !important;
+  height: 22px !important;
+  border: 1px solid var(--notification-border) !important;
+  border-radius: 9999px !important;
+  background: var(--notification-bg) !important;
   color: var(--notification-control) !important;
+  opacity: 0;
+  transition: opacity 140ms;
 }
-[data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button] svg { width: 16px; height: 16px; }
+[data-sonner-toaster] [data-sonner-toast].cn-toast:is(:hover, :focus-within) [data-close-button] { opacity: 1; }
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button] svg { width: 12px; height: 12px; }
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button]:hover {
-  background: var(--notification-control-hover-bg) !important;
+  background: var(--notification-bg-hover) !important;
   color: var(--notification-text) !important;
 }
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button]:focus-visible {

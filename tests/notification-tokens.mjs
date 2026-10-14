@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-// The notification tokens (src/index.css): a light grey card (#DFDFDF)
-// floating over the dark app whose text reads at
+// The notification tokens (src/index.css): a dark frosted card (#2B2B2B,
+// as the system's own notifications) floating over the app whose text reads at
 // WCAG AA (4.5:1) — on the surface and on its hover step — and whose
 // accents and controls are visible on it.
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
@@ -58,12 +58,12 @@ for (const name of ['text', 'text-secondary', 'text-meta', 'success', 'info', 'w
 }
 // The dismiss icon is a control, not text: 3:1.
 assert.ok(contrast(token('notification-control'), bg) >= 3, 'the dismiss icon is visible on the surface')
-// The filled action is a solid green; its label reads on it, and on its hover.
+// The action is a grey pill a step above the card; its label reads on it, and on its hover.
 const action = contrast(token('notification-action-text'), token('notification-action-bg'))
 report.push(`action ${action.toFixed(2)}`)
 assert.ok(action >= 4.5, `the action label is ${action.toFixed(2)}:1 (needs 4.5)`)
 assert.ok(contrast(token('notification-action-text'), token('notification-action-bg-hover')) >= 4.5, 'the label reads on the hover too')
-assert.match(css, /--notification-action-bg:\s*var\(--color-emerald-\d+\)/)
+assert.match(css, /--notification-action-bg:\s*var\(--color-slate-\d+\)/)
 // Greys are neutral — no blue cast — for the surface, its hover, the text and the dismiss icon.
 for (const name of ['notification-bg', 'notification-bg-hover', 'notification-text', 'notification-text-secondary', 'notification-text-meta', 'notification-control']) {
   assert.ok(neutral(token(name)), `--${name} (${token(name)}) is a neutral grey`)
@@ -75,27 +75,27 @@ assert.ok(!/indigo|blue|violet|purple|sky/.test(block), 'no blue, indigo or viol
 // Success and info are the mint's family, a shade deep enough for the grey.
 assert.match(css, /--notification-success:\s*var\(--color-emerald-\d+\)/)
 assert.equal(token('notification-info'), token('notification-success'))
-// A light grey surface (#DFDFDF, the project's --ds-notice-surface) and the
-// hover a step darker.
+// A dark grey surface (#2B2B2B, the project's --ds-notice-surface), laid
+// over the app as frosted glass, and the hover a step lighter.
 assert.match(css, /--notification-bg:\s*var\(--ds-notice-surface\)/)
-assert.equal(bg.toUpperCase(), '#DFDFDF', 'the surface is #DFDFDF')
-assert.ok(luminance(bg) > 0.7, 'a light surface')
-assert.ok(luminance(hover) < luminance(bg), 'the hover is a step darker')
+assert.equal(bg.toUpperCase(), '#2B2B2B', 'the surface is #2B2B2B')
+assert.ok(luminance(bg) < 0.05, 'a dark surface')
+assert.ok(luminance(hover) > luminance(bg), 'the hover is a step lighter')
 
 const section = css.slice(css.indexOf('/* ── Notifications'), css.indexOf('/* Inline decision reasons'))
 const rules = section.slice(section.indexOf('.ds-notification {'))
 // Nothing in the notification rules sets a color of its own…
 assert.deepEqual(rules.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [], [], 'notification rules use the tokens, not their own colors')
-// …the dismiss button sits inside the card (no negative offset), 28px to hit…
+// …the dismiss button is a round × on the top-left corner, half over its edge, shown on hover or focus…
 const close = /\.ds-notification-close \{([^}]*)\}/.exec(rules)[1]
-assert.match(close, /top: 10px;[\s\S]*right: 10px;[\s\S]*width: 28px;[\s\S]*height: 28px;/)
-assert.ok(!/:\s*-\d/.test(close), 'no negative offsets on the dismiss button')
+assert.match(close, /top: -7px;[\s\S]*left: -7px;[\s\S]*width: 22px;[\s\S]*height: 22px;[\s\S]*border-radius: 9999px;[\s\S]*opacity: 0;/)
+assert.ok(rules.includes('.ds-notification:is(:hover, :focus-within) > .ds-notification-close { opacity: 1; }'))
 // …the card doesn't clip its own contents, and there's no side line…
 const surface = /\.ds-notification \{([^}]*)\}/.exec(rules)[1]
 assert.ok(!/overflow:\s*hidden/.test(surface), 'the card doesn’t clip what’s in it')
 assert.ok(!rules.includes('.ds-notification::before'), 'no left accent line')
 // …and the toast overrides outrank Sonner's own stylesheet, pinning its close button inside the toast.
 const toastClose = /\[data-sonner-toaster\] \[data-sonner-toast\]\.cn-toast \[data-close-button\] \{([^}]*)\}/.exec(rules)[1]
-for (const pinned of ['top: 10px !important', 'right: 10px !important', 'left: auto !important', 'transform: none !important']) assert.ok(toastClose.includes(pinned), `toast close button: ${pinned}`)
+for (const pinned of ['top: -7px !important', 'left: -7px !important', 'right: auto !important', 'transform: none !important']) assert.ok(toastClose.includes(pinned), `toast close button: ${pinned}`)
 assert.match(rules, /\[data-sonner-toaster\] \[data-sonner-toast\]\.cn-toast \[data-description\] \{[^}]*color: var\(--notification-text-secondary\) !important/)
-console.log(`Passed: notification tokens meet AA on the light surface (${report.join(' · ')}).`)
+console.log(`Passed: notification tokens meet AA on the dark surface (${report.join(' · ')}).`)
