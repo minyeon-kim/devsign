@@ -94,7 +94,7 @@ export default function HighReviewNotifications() {
   const developer = currentUserFor(projectId).jobRole === 'Developer'
   const requestTitle = projectId === 'dashboard-redesign'
     ? (developer
-      ? (requestConflict?.designDecision ? `${allPeople.find((person) => person.id === requestConflict.designDecision.by)?.name}님이 결정했어요: ${DECISION_LABEL[requestConflict.designDecision.choice]}` : `새 변경 확인이 자동 감지됐어요 · ${request?.conflictId}`)
+      ? (requestConflict?.designDecision ? `${allPeople.find((person) => person.id === requestConflict.designDecision.by)?.name}님이 결정했어요: ${DECISION_LABEL[requestConflict.designDecision.choice]}` : `새 변경확인이 자동 감지됐어요 · ${request?.conflictId}`)
       : `${requester} requested your review`)
     : `${requester} requested your review`
   const showRequest = onWorkspace && !requestDismissed && ((projectId === 'dashboard-redesign' && requestConflict?.reviewStage !== 'resolved') || (projectId !== 'dashboard-redesign' && awaitingYou))

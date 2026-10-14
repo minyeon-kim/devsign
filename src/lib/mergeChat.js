@@ -80,7 +80,7 @@ export function mergeChatAnswer(item, related, text, viewerId) {
       ...related.map((c) => `- **${tr(c.title)}** (${tr(c.severity === 'high' ? 'High' : c.severity === 'low' ? 'Low' : 'Medium')})${c.message ? ` — ${tr(c.message)}` : ''}`),
       '',
       isKo()
-        ? '각 변경점의 코드는 아래 **확인할 변경점**의 리뷰에서 볼 수 있고, 머지 전에 거기서 직접 고칠 수 있어요.'
+        ? '각 변경점의 코드는 아래 **변경확인**의 리뷰에서 볼 수 있고, 머지 전에 거기서 직접 고칠 수 있어요.'
         : 'Each conflict’s code is in its review in **Conflict Points** below — you can edit it there before it merges.',
     ].join('\n')
   }

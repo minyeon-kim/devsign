@@ -101,7 +101,7 @@ function MergeHelp({ inline = false, compact = false }) {
         aria-expanded={open}
         onClick={() => setOpen(true)}
         className={compact
-          ? cn('ds-intrinsic flex size-9 items-center justify-center rounded-lg bg-white/[0.05] text-[13px] font-semibold text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1]', open && 'bg-white/[0.1]')
+          ? cn('ds-intrinsic flex size-7 items-center justify-center rounded-md text-[12px] font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', open && 'bg-white/[0.08] text-white')
           : cn(inline && 'merge-help-inline', 'flex size-10 items-center justify-center rounded-full text-[13px] font-semibold text-foreground transition-colors hover:bg-muted', open && 'bg-muted', FLOATING_PILL)}
       >
         <span aria-hidden>?</span>

@@ -467,7 +467,7 @@ function CanvasPanel() {
   } = useWorkspace()
   watched.current = [conflictPin.selected?.layerId, selectedLayerId]
   // The change pins on this page: one per element a change is about,
-  // numbered as the "확인할 변경점" list numbers them.
+  // numbered as the "변경확인" list numbers them.
   const pagePins = useMemo(() => {
     const onPage = new Set((projectPages.find((p) => p.id === activePageId) ?? projectPages[0])?.frames.flatMap((frame) => frame.layers.map((layer) => layer.id)) ?? [])
     return pinsFor(conflicts, conflictNumbersOf(conflicts)).filter((pin) => onPage.has(pin.layerId))

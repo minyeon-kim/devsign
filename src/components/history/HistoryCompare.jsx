@@ -344,7 +344,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
               {KIND_LABEL[entry.kind] && <><span aria-hidden className="text-slate-600">·</span><span data-checkpoint-kind className="shrink-0"><LocalizedText text={KIND_LABEL[entry.kind]} /></span></>}
             </span>
             {/* The one thing to check — the whole sentence on hover, and the
-                canvas marks where. Narrow: "⚠ 변경 확인". */}
+                canvas marks where. Narrow: "⚠ 변경확인". */}
             {problemConflict && (
               <button type="button" data-checkpoint-alert title={problemSentence ?? problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic ml-1 inline-flex shrink-0 items-center gap-1 rounded text-amber-300 transition-colors hover:text-amber-200">
                 <TriangleAlert aria-hidden className="size-3" />
@@ -398,7 +398,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           {problemConflict && (
             <>
               <span aria-hidden className="text-amber-200/50">·</span>
-              <button type="button" data-problem-open={problemConflict.id} title={problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic rounded text-amber-50 underline underline-offset-4 transition-colors hover:text-white">변경 확인 열기</button>
+              <button type="button" data-problem-open={problemConflict.id} title={problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic rounded text-amber-50 underline underline-offset-4 transition-colors hover:text-white">변경확인 열기</button>
             </>
           )}
         </p>

@@ -6,10 +6,10 @@ import MergeStudioWorkspace from '@/components/mergestudio/MergeStudioWorkspace'
 // WorkspaceProvider says is open (`openMergeItem`: the selection, or the next unmerged item) — the same one
 // AI Chat's thread follows. Its way out is the tab row (the other three tabs): there's no header of its own.
 function MergeStudioView() {
-  const { openMergeItem: selected, startedMergeItemId, designCompareRequest } = useWorkspace()
+  const { openMergeItem: selected, startedMergeItemId, designCompareRequest, compositionEditing } = useWorkspace()
   const composition = selected && designCompareRequest?.itemId === selected.id && designCompareRequest.keys?.length >= 2
   // A selected sample or old started flag cannot restore missing composition data.
-  const started = selected && (draftScreens[selected.id] ? composition : startedMergeItemId === selected.id)
+  const started = selected && (draftScreens[selected.id] ? compositionEditing && composition : startedMergeItemId === selected.id)
 
   if (!started) return <div data-merge-empty-canvas className="min-h-0 min-w-0 flex-1 bg-[#1C1C1C]" style={{ backgroundImage: 'radial-gradient(rgb(255 255 255 / 14%) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
 

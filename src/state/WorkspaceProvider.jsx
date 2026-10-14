@@ -386,6 +386,8 @@ export function WorkspaceProvider({ children, projectId }) {
   // shows, or null for the list, screenId: the screen it was opened for }. (Files · Layers · Assets · Inspect
   // float at the left: the two can be open together.)
   const [designComparePanelOpen, setDesignComparePanelOpen] = useState(false)
+  const [compositionEditing, setCompositionEditing] = useState(false)
+  const [comparePanelMode, setComparePanelMode] = useState('regions')
   const [boardConflicts, setBoardConflictsState] = useState({ open: false, conflictId: null, screenId: null })
   const setBoardConflicts = useCallback((patch) => {
     if (patch.open) setDesignComparePanelOpen(false)
@@ -400,6 +402,7 @@ export function WorkspaceProvider({ children, projectId }) {
     const { location: at } = route.current
     // (The address as it is now — a step before this one may have changed it, and `route` hears of it only on the next render.)
     const now = typeof window !== 'undefined' ? window.location.search : at.search
+    if (id && id !== readCompare(now)) setCompositionEditing(false)
     const search = withCompare(now, id)
     if (search === now) return
     navigate({ pathname: at.pathname, search }, { replace: !(id && !readCompare(now)), state: at.state })
@@ -1010,16 +1013,21 @@ export function WorkspaceProvider({ children, projectId }) {
   )
 
   const openMergeStudio = useCallback((itemId = selectedMergeItemId) => {
+    setCompositionEditing(true)
     if (itemId) setStartedMergeItemId(itemId)
     setActiveView('mergeStudio')
   }, [selectedMergeItemId, setStartedMergeItemId, setActiveView])
 
   const openMergeTab = useCallback(() => {
     requestCompareDrawer()
-    // A selected demo item isn't a started task. The empty Merge view is just a grid.
-    setSelectedMergeItemId(startedMergeItemId)
+    // Every entry begins at the draft list; composition starts only with 조합하기.
+    setCompositionEditing(false)
+    setMixBridge(null)
+    setComparePanelMode('regions')
+    setCompareItemId(null)
+    setSelectedMergeItemId(null)
     setActiveView('mergeStudio')
-  }, [startedMergeItemId, setSelectedMergeItemId, requestCompareDrawer, setActiveView])
+  }, [setCompareItemId, setSelectedMergeItemId, requestCompareDrawer, setActiveView])
 
   const exitMergeStudio = useCallback(() => {
     setActiveView('workspace')
@@ -2766,7 +2774,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // to the spot (CanvasPanel). A comment gets its pin there, carrying the
   // comment and its replies, so the canvas can open the thread.
   const [canvasFocus, setCanvasFocus] = useState(null)
-  // The change pins on the canvas and the "확인할 변경점" list are one
+  // The change pins on the canvas and the "변경확인" list are one
   // selection, shown in both: which change is under the pointer (in either
   // place), which one is picked — and on which of its elements — and a
   // nonce that rings the picked pin once when it's picked from the list.
@@ -2984,6 +2992,9 @@ export function WorkspaceProvider({ children, projectId }) {
     closeCompareView,
     compareDrawerRequest,
     designComparePanelOpen,
+    compositionEditing,
+    comparePanelMode,
+    setComparePanelMode,
     setDesignComparePanelOpen,
     requestCompareDrawer,
     toolPanelWidth,

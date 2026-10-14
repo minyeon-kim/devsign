@@ -62,7 +62,7 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   const inPane = !inMergeStudio && workPane === 'conflicts' && workPaneHost
   const layer = (
     <div data-review-overlay data-in-pane={inPane ? '' : undefined} role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-background">
-      {/* Where this is: a layer over the Workspace — 워크스페이스 › 확인할 변경점. The
+      {/* Where this is: a layer over the Workspace — 워크스페이스 › 변경확인. The
           path's first item goes where Close goes (it closes the detail: back to
           the Workspace's canvas); the last is where you are — the change list —
           and pressing it brings the left list up when it's been closed. The

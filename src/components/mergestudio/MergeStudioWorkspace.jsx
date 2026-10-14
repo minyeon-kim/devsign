@@ -588,20 +588,6 @@ function defaultLineFor(item) {
 
 // Deck width plus its 16px right inset and 16px breathing room.
 
-// The Merge tab's row, middle: the open item's name. Switching to another change is done in the Design Compare
-// sidebar (its list), not here.
-function MergeItemSwitcher({ item, readOnly }) {
-  if (!item) return null
-  return (
-    <div data-merge-switcher className="mr-auto ml-3 flex min-w-0 items-center gap-2">
-      <span data-merge-item className="flex h-7 min-w-0 max-w-[320px] items-center px-2 text-[13px] font-medium text-slate-100">
-        <span className="min-w-0 truncate"><LocalizedText text={item.title} /></span>
-      </span>
-      {readOnly && <span data-merge-readonly className="shrink-0 text-xs text-slate-500">읽기 전용</span>}
-    </div>
-  )
-}
-
 // Before the three areas are drawn: where they will be.
 function StudioSkeleton() {
   // (Just the canvas's own ground: what's drawn on it comes in without the screen changing shape first.)
@@ -633,6 +619,8 @@ function MergeStudioWorkspace({ item }) {
     openConflictReview,
     openConflictFromNotification,
     setMixBridge,
+    setComparePanelMode,
+    requestCompareDrawer,
     mergeDrafts,
     saveMergeDraft,
     setStudioDecisions,
@@ -655,6 +643,16 @@ function MergeStudioWorkspace({ item }) {
   useEffect(() => { const timer = window.setTimeout(() => setReady(true), 240); return () => window.clearTimeout(timer) }, [])
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
   const [syncSelection, setSyncSelection] = useState(null)
+  const [elementPanelOpen, setElementPanelOpen] = useState(false)
+  const [focusedMixRegion, setFocusedMixRegion] = useState(null)
+  const [previewRegion, setPreviewRegion] = useState(null)
+  const [hoveredMixRegion, setHoveredMixRegion] = useState(null)
+  const [regionApplied, setRegionApplied] = useState(null)
+  useEffect(() => {
+    if (!regionApplied) return
+    const timer = window.setTimeout(() => setRegionApplied(null), 1300)
+    return () => window.clearTimeout(timer)
+  }, [regionApplied])
   const [appliedPreset, setAppliedPreset] = useState(savedDraft.appliedPreset ?? null)
   // The Block Deck collapses into a toggle pill in the canvas header (next
   // to Share); any fresh selection re-expands it.
@@ -816,14 +814,13 @@ function MergeStudioWorkspace({ item }) {
     ? conflicts.find((c) => c.reviewStage !== 'resolved' && !c.rollback && (c.mergeItemId === item.id || c.id === item.conflictId)) ?? null
     : null
   const adjustmentCount = studioAdjustmentsOf(item, { [item?.id]: { assemblies } }).reduce((sum, entry) => sum + entry.changes.length, 0)
-  const mixRows = designComparison && item ? draftRows({}, item, resolutions).filter((row) => row.options.some((option) => designComparison.options.some((entry) => entry.key === option.key))) : []
+  const mixRows = designComparison && item ? draftRows({}, item, resolutions).filter((row) => !regionLayout(item.id, resolutions).removed.includes(row.region?.id) && row.options.some((option) => designComparison.options.some((entry) => entry.key === option.key))) : []
   const mixPicked = mixRows.filter((row) => row.decided).length
   // Its request, once asked for: waiting on the reviewers.
   const mixConflict = item ? conflicts.find((c) => c.mergeItemId === item.id || c.id === item.conflictId) ?? null : null
   // ('in_review' until the reviewers have all signed off, then 'approved'.)
   const mixRequested = mixConflict?.mixRequest && ['in_review', 'approved'].includes(mixConflict.reviewStage) ? mixConflict.reviewStage : null
   // (The title's status pressed: the parts bar unfolds on the next part to pick.)
-  const [mixNudge, setMixNudge] = useState(0)
   // Design Compare's selected drafts, reshaped as frames for
   // MergeInfiniteCanvas's own pan/zoom space — the same "one shared frame
   // + per-option overrides" shape Option A/B already use there, so the
@@ -857,13 +854,16 @@ function MergeStudioWorkspace({ item }) {
   bridgeActions.current = {
     onTakeAll: item && item.tag !== 'Merged' && !mixRequested ? takeWholeDraft : undefined,
     onPick: (regionId, draftKey) => {
+      setPreviewRegion(null)
+      setFocusedMixRegion(regionId)
+      setRegionApplied({ regionId, draftKey, at: Date.now() })
       decideMix(regionKey(regionId), draftKey ? { custom: draftKey } : null)
       // …and it's taken (selected) there, so where it went shows.
       const firstLayer = draftKey && draftScreens[item.id]?.drafts[draftKey]?.[regionId]?.layers[0]
       if (firstLayer) setSyncSelection({ layerId: `${draftKey}--${regionId}--${firstLayer.id}` })
     },
   }
-  const canTakeAll = Boolean(item && item.tag !== 'Merged' && !mixRequested)
+  const canTakeAll = Boolean(item && !readOnly && item.tag !== 'Merged' && !mixRequested)
   useEffect(() => {
     if (!item || !designComparison || !designCompare) return undefined
     setMixBridge({
@@ -871,11 +871,27 @@ function MergeStudioWorkspace({ item }) {
       options: designComparison.options,
       frame: designCompare.frame,
       decisions: resolutions,
+      regionId: focusedMixRegion ?? layerSource(syncSelection?.layerId)?.regionId ?? null,
+      onFocusRegion: (regionId) => {
+        if (regionId === (focusedMixRegion ?? layerSource(syncSelection?.layerId)?.regionId)) {
+          setFocusedMixRegion(null)
+          setSyncSelection(null)
+          setPreviewRegion(null)
+          return
+        }
+        setFocusedMixRegion(regionId)
+        setPreviewRegion(null)
+        const first = frame0?.layers.find((layer) => layer.regionId === regionId)
+        if (first) setSyncSelection({ layerId: first.id })
+      },
+      onPreviewRegion: setPreviewRegion,
+      onHoverRegion: setHoveredMixRegion,
+      getFinish: () => bridgeActions.current.finish,
       onTakeAll: canTakeAll ? (key) => bridgeActions.current.onTakeAll?.(key) : undefined,
-      onPick: (regionId, draftKey) => bridgeActions.current.onPick(regionId, draftKey),
+      onPick: canTakeAll ? (regionId, draftKey) => bridgeActions.current.onPick(regionId, draftKey) : undefined,
     })
     return () => setMixBridge(null)
-  }, [item?.id, designComparison, designCompare, resolutions, canTakeAll]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [item?.id, designComparison, designCompare, resolutions, canTakeAll, focusedMixRegion, syncSelection?.layerId]) // eslint-disable-line react-hooks/exhaustive-deps
   // The line being typed in the code window right now ({ key, text }), so
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
@@ -894,11 +910,7 @@ function MergeStudioWorkspace({ item }) {
 
   useEffect(() => {
     if (!item) return
-    const defLayer = defaultLayerFor(item)
-    const t = designMergeVariants[item.id]?.layerCodeMap?.[defLayer]
-    setSyncSelection(savedDraft.syncSelection ?? (defLayer
-      ? { layerId: defLayer, fileId: t?.fileId, line: t?.line, endLine: t ? t.line + (t.span ?? 1) - 1 : undefined }
-      : defaultLineFor(item)))
+    setSyncSelection(null)
     if (item.fileIds?.[0]) setActiveFileId(item.fileIds[0])
     if (item.hasDesign && item.designPageId) setActivePageId(item.designPageId)
     // This workspace is keyed by item; switching items mounts its saved draft.
@@ -922,10 +934,17 @@ function MergeStudioWorkspace({ item }) {
     const regionId = layerSource(layerId)?.regionId
     // (An element added to the Result — a duplicate — is taken on its own.)
     if (designComparison && draftScreens[item.id] && !regionId) {
-      if (addedLayers.some((layer) => layer.id === layerId)) setSyncSelection({ layerId, element: true })
+      if (addedLayers.some((layer) => layer.id === layerId)) {
+        setElementPanelOpen(true)
+        setSyncSelection({ layerId, element: true })
+      }
       return
     }
+    setElementPanelOpen(Boolean(layerId))
     if (designComparison && regionId) {
+      setComparePanelMode('regions')
+      requestCompareDrawer()
+      setFocusedMixRegion(regionId)
       // A click takes the whole part (to swap, move or remove it — it snaps
       // into the stack, or into another part, where it's dropped); going
       // into it (a double-click on the part taken — RegionTools) takes one
@@ -952,8 +971,8 @@ function MergeStudioWorkspace({ item }) {
   }
 
   function selectFrame() {
-    // Keep the current selection so the Block Deck still has a target.
-    setFilesWindow({ open: true, tab: 'inspect' })
+    setElementPanelOpen(false)
+    setSyncSelection(null)
   }
 
   function selectLine(fileId, line, { openDeck = true } = {}) {
@@ -1350,6 +1369,10 @@ function MergeStudioWorkspace({ item }) {
     ? frameWithLayers(composeDraftFrame(item.id, baseFrame, regionPicks(item.id, resolutions), item.authorAId, regionLayout(item.id, resolutions)), addedLayers)
     : frameWithLayers(baseFrame, addedLayers)
 
+  const previewResultFrame = previewRegion && baseFrame && draftScreens[item?.id]
+    ? frameWithLayers(composeDraftFrame(item.id, baseFrame, { ...regionPicks(item.id, resolutions), [previewRegion.regionId]: previewRegion.draftKey }, item.authorAId, regionLayout(item.id, resolutions)), addedLayers)
+    : frame0
+
   // Direct manipulation of the selected canvas element (LayerTransformHandles).
   // - A layer added from the Library is ours: moves / resizes are written
   //   into the layer itself (it shows on both artboards), and it can be
@@ -1517,9 +1540,17 @@ function MergeStudioWorkspace({ item }) {
   // This item's checks, live: from the choices on screen right now (not the
   // saved draft), so deciding a drift or editing updates them at once.
   const liveChecks = item ? checksFor(item, { resolutions, annotations: annotationsSnap, assemblies, addedLayers, manualCode, appliedPreset }, linesOfFile) : null
+  bridgeActions.current.finish = {
+    kind: item?.saveOnFinish ? 'save' : 'request', requested: mixRequested, done: item?.tag === 'Merged',
+    picked: mixPicked, total: mixRows.length, checks: liveChecks, readOnly,
+    reviewers: (otherMembers ?? []).map((member) => ({ id: member.id, name: member.name })),
+    defaultReviewerIds: (mixConflict?.reviewers?.length ? mixConflict.reviewers.map((reviewer) => reviewer.id) : (otherMembers ?? []).slice(0, 1).map((member) => member.id)),
+    onSend: sendMixRequest, onSave: saveMix,
+  }
+
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
-  const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
+  const deckLayerId = syncSelection?.layerId ?? null
   // A fresh selection re-expands a collapsed Block Deck, so its
   // context-aware content is visible right away.
   const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
@@ -1547,7 +1578,6 @@ function MergeStudioWorkspace({ item }) {
       {/* The header row's right side: the canvas's session controls
           (presence, Share, Preview, Inbox) land here, left of the files pill. */}
       {/* The tab row carries the item switcher (and, from the canvas, the tools); a read-only reader is told so. */}
-      {headerSlot && createPortal(<MergeItemSwitcher item={item} readOnly={readOnly} />, headerSlot)}
       {/* The canvas is a panel like the Workspace's: under the header row,
           rounded and bordered, ending where the bottom panel begins — not
           a full-bleed sheet the bottom panel slices across. */}
@@ -1600,45 +1630,6 @@ function MergeStudioWorkspace({ item }) {
             </button>
           </div>
         )}
-        {designComparison && (
-          // Docked at the Result's foot, centred under it — not floating over it.
-          <div className="pointer-events-none absolute bottom-4 z-40 flex justify-center" style={{ left: 12, right: 12 }} data-mix-pane>
-          <MixPanel
-            paneShare={1}
-            nudge={mixNudge}
-            finish={{
-              kind: item.saveOnFinish ? 'save' : 'request',
-              requested: mixRequested,
-              done: item.tag === 'Merged',
-              reviewers: (otherMembers ?? []).map((member) => ({ id: member.id, name: member.name })),
-              defaultReviewerIds: (mixConflict?.reviewers?.length ? mixConflict.reviewers.map((reviewer) => reviewer.id) : (otherMembers ?? []).slice(0, 1).map((member) => member.id)).filter((id) => (otherMembers ?? []).some((member) => member.id === id)),
-              onSend: sendMixRequest,
-              onSave: saveMix,
-            }}
-            // A part picked from the list is outlined on the Result too.
-            onShowRegion={(regionId) => {
-              const first = frame0?.layers.find((layer) => layer.regionId === regionId)
-              if (first) setSyncSelection({ layerId: first.id })
-            }}
-            item={item}
-            options={designComparison.options}
-            decisions={resolutions}
-            selectedLayerId={syncSelection?.layerId}
-            onDecide={decideMix}
-            removedRegions={mixLayout?.removed ?? []}
-            checks={liveChecks}
-            requestedRegion={designCompareRequest?.regionId}
-            onFix={(check) => {
-              if (check.fileId) { openReviewFor(item); return }
-              const layerId = check.layerId ?? defaultLayerFor(item)
-              // Says what to change and to what: the element marked on the
-              // canvas, its size fields lit, the steps to finish.
-              setCheckGuide({ itemId: item.id, check })
-              if (layerId) { selectLayer(layerId); requestMergeFocus({ itemId: item.id, layerId, keepDeck: true, pulse: true }) }
-            }}
-          />
-          </div>
-        )}
         <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
         <div className="flex min-h-0 min-w-0 flex-1" data-result-pane>
         {/* (Comparing drafts, the drafts are the Design Compare sidebar's — the Result has the whole canvas.) */}
@@ -1654,12 +1645,14 @@ function MergeStudioWorkspace({ item }) {
           checks={liveChecks}
           designCompare={designCompare}
           compareOverrides={designCompare ? { result: resolvedEffects(item, resolutions) } : null}
-          compareFrames={designCompare && draftScreens[item.id] ? { result: frame0 } : null}
+          compareFrames={designCompare && draftScreens[item.id] ? { result: previewResultFrame } : null}
           frameOverrideA={baseFrame && draftScreens[item.id] ? draftFrame(item.id, baseFrame, item.authorAId) : null}
           frameOverrideB={draftScreens[item.id] ? frame0 : null}
           composedResult={Boolean(draftScreens[item.id])}
           regionTools={designComparison && mixLayout && item.tag !== 'Merged' ? {
             selected: selectedRegion,
+            hovered: hoveredMixRegion,
+            onFocus: (regionId) => { setFocusedMixRegion(regionId); setPreviewRegion(null); setComparePanelMode('regions'); requestCompareDrawer() },
             onMove: moveRegion,
             onRemove: removeRegion,
             onDuplicate: duplicateRegion,
@@ -1725,7 +1718,7 @@ function MergeStudioWorkspace({ item }) {
         </div>
       )}
 
-      {item && deckElement && createPortal(
+      {item && elementPanelOpen && deckLayerId && deckElement && createPortal(
         <BlockDeckPanel
           embedded
           fieldGuide={checkGuide && (checkGuide.itemId === item.id || conflicts.some((conflict) => conflict.id === checkGuide.conflictId && (conflict.mergeItemId === item.id || item.conflictId === conflict.id)))

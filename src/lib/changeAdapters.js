@@ -1,6 +1,6 @@
 import { BREAKPOINT_TOKENS, COLOR_TOKENS, SIZE_TOKENS, SPACE_TOKENS, WEIGHT_TOKENS } from '@/lib/designTokens'
 
-// The kinds of change a 변경 확인 can be — and, for each, the only two things
+// The kinds of change a 변경확인 can be — and, for each, the only two things
 // that differ on the shared 해결 방법 card (DesignDecisionFlow's
 // ProposalSection): what's put into the picture, and the scale another value
 // is picked from. Everything else on the card is the same for every kind.

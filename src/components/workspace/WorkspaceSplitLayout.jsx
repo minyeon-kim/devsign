@@ -632,7 +632,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
   const mergeCount = designSetsOf(mergeItems).length
   const conflictPill = (
     <div className="flex shrink-0 items-center gap-0.5" onPointerDown={(event) => event.stopPropagation()}>
-    <button type="button" data-conflict-toggle aria-label="변경 확인" aria-expanded={boardConflicts.open}
+    <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
       onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
       onPointerDown={(event) => event.stopPropagation()}
       className={cn('flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', conflictCount > 0 ? 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/20' : 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1] hover:text-white')}>

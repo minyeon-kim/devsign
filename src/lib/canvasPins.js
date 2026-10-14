@@ -3,7 +3,7 @@ import { layerIdsOf } from '@/lib/conflictInsight'
 
 // The canvas's change pins: one map-style pin per change, however many
 // elements it's about (four cards → one pin, with a "4" on it), numbered like
-// the "확인할 변경점" list — pick one in either place and the other follows.
+// the "변경확인" list — pick one in either place and the other follows.
 // This file is the arithmetic (which pins, where their tips point, what to do
 // when pins collide); ConflictPins draws them.
 

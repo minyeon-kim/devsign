@@ -65,7 +65,8 @@ try {
   const panel = read('components/dashboard/ComparePanel.jsx')
   assert.ok(!views.includes('CanvasComparePanel') && !views.includes('CompareWorkView') && !layout.includes('CompareWorkView') && !shell.includes('setCompareOpen'), 'the canvas is never covered or replaced')
   assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes('COMPARE_DETAIL_WIDTH : COMPARE_LIST_WIDTH') && sidebar.includes('overlay'), 'one sidebar, two widths, an overlay only when the canvas would be under 480')
-  assert.ok(shell.includes("setDrawer('compare')") && shell.includes('setCompareItemId(null)'), 'the detail goes with the list')
+  const canvasCompare = read('components/workspace/WorkspaceDesignComparePanel.jsx')
+  assert.ok(!shell.includes("setDrawer('compare')") && canvasCompare.includes('data-canvas-design-compare') && canvasCompare.includes('closeCompareView()'), 'comparison list and detail now live together inside the canvas')
   assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === 'Escape'") && panel.includes("event.key === '['") && panel.includes("'ArrowDown'") && panel.includes('closeCompareView') && panel.includes('inert={expanded}'), 'a named region; the list kept (inert), the keys')
   assert.ok(panel.includes('translate-x-4') && panel.includes('duration-200') && panel.includes('motion-reduce:transition-none'), '16px slide + fade, 200ms, none when reduced')
   // The list is made of the change list's own parts (one row component), grouped by screen, searchable.
@@ -74,7 +75,7 @@ try {
   assert.ok(compare.includes('data-compare-skeleton') && compare.includes('data-compare-error') && compare.includes('boardConflicts') && compare.includes('conflictPin'), 'loading, error, and both lists’ picks')
   const dd = read('components/mergestudio/DesignDetail.jsx')
   // The detail: ← and the name only; two buttons in a bar; no boxes, no badge, no ⋯ ↑ ↓ ×, no segments / zoom / sync, no empty-comment line.
-  assert.ok(dd.includes('data-compare-back') && dd.includes('h-14') && dd.includes('data-detail-actions') && dd.includes('h-10') && dd.includes('grid-cols-2') && dd.includes('data-detail-overlay-toggle') && dd.includes('data-detail-diff-row') && dd.includes('aria-busy'), 'header, bottom bar, one overlay icon, rows, working')
+  assert.ok(dd.includes('data-compare-back') && dd.includes('h-12') && dd.includes('data-detail-actions') && dd.includes('h-8') && dd.includes('grid-cols-2') && dd.includes('data-detail-overlay-toggle') && !dd.includes('data-detail-diffs') && dd.includes('aria-busy'), 'header, bottom bar, one overlay icon, rows, working')
   assert.ok(!/Ellipsis|ArrowUp|ArrowDown|role="radio"|줌|동기화|차이 강조|아직 코멘트가 없어요/.test(dd), 'what was taken out stays out')
   assert.ok(read('components/conflicts/ConflictReviewOverlay.jsx').includes('data-review-open-compare') && read('components/screens/BoardConflicts.jsx').includes('data-board-conflicts-compare'), 'the change’s detail opens the comparison')
   // The right panel (the board’s change list) docks in the row too.

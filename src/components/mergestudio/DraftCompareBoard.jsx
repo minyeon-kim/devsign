@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { LayoutGrid, Minus, Plus } from 'lucide-react'
+import { Check, LayoutGrid, Minus, Plus } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { optionEffects } from '@/components/mergestudio/DesignComparison'
@@ -23,7 +23,7 @@ const GAP = 8
 const CAPTION = 28
 const DRAG_THRESHOLD = 4
 
-function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, onTakeAll, dragging = false }) {
+function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, cellRef, selected, onSelect, picks = {}, onPick, onTakeAll, draftSelection, dragging = false }) {
   const ko = getLanguage() === 'ko'
   const screen = draftScreens[item.id]
   const drawn = screen ? draftFrame(item.id, frame, option.key) : frame
@@ -59,6 +59,11 @@ function DraftCell({ item, option, letter, frame, view, usedParts, totalParts, c
         <span className={cn('flex size-4 shrink-0 items-center justify-center rounded text-[9.5px] font-semibold', usedParts ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.1] text-slate-200')}>{letter}</span>
         <span className="min-w-0 truncate font-medium text-slate-200">{option.label.replace(/^시안 [A-Z] · /, '')}</span>
         {/* The whole draft at once, on the title's hover or focus (not when it's all used already). */}
+        {draftSelection && <button type="button" role="checkbox" aria-checked={draftSelection.keys.includes(option.key)} aria-label={`${option.label} 선택`} data-detail-pick={option.key}
+          onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); draftSelection.toggle(option.key) }}
+          className={cn('ds-intrinsic ml-auto flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', draftSelection.keys.includes(option.key) ? 'border-emerald-300/60 text-emerald-300' : 'border-white/20 text-slate-500 hover:border-white/40')}>
+          {draftSelection.keys.includes(option.key) && <Check className="size-2.5" />}
+        </button>}
         {onTakeAll && !whole && (
           <button type="button" data-draft-take-all={option.key} onClick={(event) => { event.stopPropagation(); onTakeAll(option.key) }} className="ds-intrinsic ml-auto hidden h-5 shrink-0 items-center rounded px-1.5 text-[10.5px] font-medium text-slate-200 ring-1 ring-white/20 ring-inset transition-colors group-hover/draft:inline-flex hover:bg-white/[0.1] hover:text-white focus-visible:inline-flex focus-visible:outline-2 focus-visible:outline-emerald-300">
             {ko ? '이 시안으로 모두 선택' : 'Use this draft for all'}
@@ -168,7 +173,7 @@ const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ??
 // Result (null takes it back).
 // `onTakeAll(draftKey)`: one whole draft for every part (offered on each draft's title).
 // `embedded`: in the Design Compare sidebar's detail — the whole width of its place, no pane of its own to clear.
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onTakeAll, embedded = false }) {
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onTakeAll, draftSelection, embedded = false }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -284,7 +289,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   const picks = regionPicks(item.id, decisions)
   const totalParts = draftScreens[item.id]?.regions.length ?? 0
   const usedOf = (key) => Object.values(picks).filter((value) => value === key).length
-  const BUTTON = 'flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:opacity-40'
+  const BUTTON = 'ds-intrinsic flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white disabled:pointer-events-none disabled:opacity-40'
 
   return (
     <section
@@ -294,9 +299,13 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
       className={cn('flex h-full min-h-0 min-w-0 flex-col', embedded ? 'w-full' : 'shrink-0 px-3')}
       style={embedded ? undefined : { width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      <div className="mb-2 flex shrink-0 items-center gap-2">
+      {draftSelection && <div className="mb-1 flex h-5 shrink-0 items-center gap-2 text-[10px] text-slate-500">
+        <span data-detail-selection aria-live="polite">{draftSelection.count}/{draftSelection.total} 선택</span>
+        <button type="button" data-detail-select-all onClick={draftSelection.all} className="ds-intrinsic rounded px-1 text-[10px] transition-colors hover:text-slate-200">{draftSelection.allSelected ? '선택 해제' : '모두 선택'}</button>
+      </div>}
+      <div className="mb-3 flex shrink-0 items-center gap-1.5">
         {/* The view: all of them, or the drafts picked here, side by side. */}
-        <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
+        <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex h-7 shrink-0 items-center gap-0.5">
           <button
             type="button"
             role="tab"
@@ -304,10 +313,10 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             data-draft-view={ALL}
             title={ko ? `전체 한 번에 비교 · ${compared.length}개` : `Compare all · ${compared.length}`}
             onClick={() => setPicked(null)}
-            className={cn('flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors', !picked ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
+            className={cn('ds-intrinsic flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium transition-colors', !picked ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200')}
           >
-            <LayoutGrid className="size-3.5" />
-            {ko ? '전체 시안' : 'All drafts'}
+            <LayoutGrid className="size-3" />
+            {ko ? '전체' : 'All'}
           </button>
           {compared.map((option, index) => (
             <button
@@ -318,7 +327,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
               data-draft-view={option.key}
               title={ko ? `${option.label} · 눌러서 보기에 넣거나 빼기` : `${option.label} · press to add or take out of the view`}
               onClick={() => toggle(option.key)}
-              className={cn('flex size-8 items-center justify-center rounded-md text-[11px] font-semibold transition-colors', picked?.includes(option.key) ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200')}
+              className={cn('ds-intrinsic flex size-6 items-center justify-center rounded-md text-[10px] font-semibold transition-colors', picked?.includes(option.key) ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200')}
             >
               {letterOf(option, index)}
             </button>
@@ -326,11 +335,11 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
         </div>
         <span className="min-w-0 flex-1" />
         {/* One group: fit · zoom. */}
-        <div data-board-zoom className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
+        <div data-board-zoom className="flex h-7 shrink-0 items-center gap-0.5">
           <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
-          <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3.5" /></button>
-          <span data-board-percent className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(current.scale * 100)}%</span>
-          <button type="button" aria-label={ko ? '확대' : 'Zoom in'} disabled={current.scale >= MAX_SCALE} onClick={() => zoomAtCenter(ZOOM_STEP)} className={BUTTON}><Plus className="size-3.5" /></button>
+          <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3" /></button>
+          <span data-board-percent className="min-w-8 text-center text-[10px] text-slate-300 tabular-nums">{Math.round(current.scale * 100)}%</span>
+          <button type="button" aria-label={ko ? '확대' : 'Zoom in'} disabled={current.scale >= MAX_SCALE} onClick={() => zoomAtCenter(ZOOM_STEP)} className={BUTTON}><Plus className="size-3" /></button>
         </div>
       </div>
       <div
@@ -359,6 +368,7 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             dragging={dragging}
             onPick={onPick && ((region, on) => onPick(region, on ? option.key : null))}
             onTakeAll={onTakeAll}
+            draftSelection={draftSelection}
             onSelect={(id, { probe = false } = {}) => {
               // (A drag that ended here isn't a click.)
               if (draggedRef.current) { draggedRef.current = false; return false }

@@ -704,7 +704,7 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   const zoom = tools.zoom || 1
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div ref={bandRef} data-region-selected={region.id} onPointerDown={startDrag} onClick={stop} title={ko ? '끌어서 옮기기 · 다른 요소 위에 놓으면 그 안에 · 더블클릭: 안의 요소 하나' : 'Drag to move · drop on a part to put it inside · double-click for one element'} className={cn('pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing', drag && 'bg-sky-400/10 opacity-80 shadow-xl')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translate(${(offset.x + (drag?.dx ?? 0)) * scale}px, ${(drag?.dy ?? 0) * scale}px)` }} />
+      <div ref={bandRef} data-region-selected={region.id} onPointerDown={startDrag} onClick={(event) => { stop(event); tools.onFocus?.(region.id) }} title={ko ? '끌어서 옮기기 · 다른 요소 위에 놓으면 그 안에 · 더블클릭: 안의 요소 하나' : 'Drag to move · drop on a part to put it inside · double-click for one element'} className={cn('pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing', drag && 'bg-sky-400/10 opacity-80 shadow-xl')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translate(${(offset.x + (drag?.dx ?? 0)) * scale}px, ${(drag?.dy ?? 0) * scale}px)` }} />
       {/* Where it'll land: the line between the parts it snaps into, with the
           spacing it gets there — the layout's gap above and below, and the
           screen's side padding. */}
@@ -858,6 +858,10 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
               />
             )
           })}
+          {regionTools?.hovered && (() => {
+            const region = frame.regions?.find((entry) => entry.id === regionTools.hovered)
+            return region ? <span data-region-hover={region.id} className="pointer-events-none absolute inset-x-0 z-20 rounded-sm bg-sky-400/10 ring-1 ring-sky-300/70 ring-inset" style={{ top: region.y, height: region.height }} /> : null
+          })()}
           {measure && <SpacingOverlay container={measureBox} frame={frame} selectedId={regionTools?.selected ? null : selectedLayerId} hoverId={measureHover} version={`${scale}:${frame.id}`} />}
         </div>
         </div>
@@ -2213,23 +2217,23 @@ function MergeInfiniteCanvas({
             full preview. */}
         {designCompare && (() => {
           const ko = getLanguage() === 'ko'
-          const BUTTON = 'flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
-          return (
-            <div data-result-header className="pointer-events-none absolute top-3 right-4 left-4 z-30 flex items-center gap-2">
+          const BUTTON = 'flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
+          const tools = (
+            <div data-result-header className="pointer-events-auto flex h-7 shrink-0 items-center gap-0.5">
               {/* The frame: one icon (with the frame it's in); pressing it
                   slides the choices out beside it, and picking one — or the
                   icon again — folds them away. */}
               {/* (No title: the pane is the Result by its green-framed
                   screen; its tools sit at the right, clear of the merge
                   button above.) */}
-              <div data-view-frames className="pointer-events-auto ml-auto flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
+              <div data-view-frames className="pointer-events-auto ml-auto flex h-7 shrink-0 items-center gap-0.5 rounded-md p-0.5 ">
                 <button
                   type="button"
                   data-frame-toggle
                   aria-expanded={framesOpen}
                   title={ko ? '프레임 고르기' : 'Pick a frame'}
                   onClick={() => setFramesOpen((value) => !value)}
-                  className={cn('flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors', framesOpen ? 'bg-white/[0.12] text-white' : 'text-slate-300 hover:text-white')}
+                  className={cn('flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors', framesOpen ? 'bg-white/[0.12] text-white' : 'text-slate-300 hover:text-white')}
                 >
                   {resultDevice === 'ipad' ? <Tablet className="size-3.5" /> : resultDevice ? <Smartphone className="size-3.5" /> : <Monitor className="size-3.5" />}
                   {!framesOpen && <span>{RESULT_DEVICES.find((entry) => entry.id === resultDevice)?.short ?? (ko ? '전체' : 'Full')}</span>}
@@ -2247,7 +2251,7 @@ function MergeInfiniteCanvas({
                         data-view-frame={entry.id ?? 'full'}
                         title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
                         onClick={() => { pickResultFrame(entry.id); setFramesOpen(false) }}
-                        className={cn('flex h-8 shrink-0 items-center rounded-md px-2 text-[11px] font-medium whitespace-nowrap transition-colors', on ? 'bg-emerald-300/15 text-emerald-200' : 'text-slate-400 hover:text-slate-200')}
+                        className={cn('flex h-7 shrink-0 items-center rounded-md px-2 text-[11px] font-medium whitespace-nowrap transition-colors', on ? 'bg-emerald-300/15 text-emerald-200' : 'text-slate-400 hover:text-slate-200')}
                       >
                         {entry.short}
                       </button>
@@ -2256,7 +2260,7 @@ function MergeInfiniteCanvas({
                 </div>
               </div>
               {/* Its zoom and the full preview, at the pane's top right. */}
-              <div data-result-zoom className="pointer-events-auto flex h-9 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.05] p-0.5 ring-1 ring-white/10">
+              <div data-result-zoom className="pointer-events-auto flex h-7 shrink-0 items-center gap-0.5 rounded-md p-0.5 ">
                 <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
                 <button type="button" aria-label={ko ? '축소' : 'Zoom out'} onClick={() => zoomFromCenter(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
                 <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(view.zoom)}%</span>
@@ -2267,7 +2271,7 @@ function MergeInfiniteCanvas({
                 data-result-preview
                 title={ko ? '결과를 크게 미리보기 · 기기별 (Esc로 닫기)' : 'Preview the result large · per device (Esc closes)'}
                 onClick={() => setMergePreviewOpen(true)}
-                className="pointer-events-auto flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.05] px-3 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/[0.1] hover:text-white"
+                className="pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium text-slate-200  transition-colors hover:bg-white/[0.1] hover:text-white"
               >
                 <Play className="size-3" />
                 {ko ? '미리보기' : 'Preview'}
@@ -2277,6 +2281,7 @@ function MergeInfiniteCanvas({
               <MergeCanvasControls inline history={editHistory} showZoom={false} showHistory={false} />
             </div>
           )
+          return headerSlot ? createPortal(tools, headerSlot) : <div className="absolute top-2 right-4 z-30">{tools}</div>
         })()}
         {!frame && !designCompare && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">

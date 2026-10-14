@@ -38,9 +38,9 @@ try {
   assert.ok(!read('components/screens/ScreensBoard.jsx').includes('openMergeStudio()'), 'a change picked in the board’s list shows its detail in the panel — the Screens view stays')
   assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('openMergeStudio(candidate.id)'), '조합하기 starts the selected task explicitly')
   assert.ok(view.includes('data-merge-empty-canvas') && view.includes('startedMergeItemId === selected.id'), 'an unstarted or stale selection draws only an empty grid')
-  assert.ok(layout.includes('onClick={openMergeTab}') && provider.includes('setSelectedMergeItemId(startedMergeItemId)'), 'Merge opens the comparison and resumes only a started task')
+  assert.ok(layout.includes('onClick={openMergeTab}') && provider.includes('setCompositionEditing(false)') && provider.includes('setSelectedMergeItemId(null)'), 'Merge starts at the draft list; composing is an explicit step')
   // The studio's row: the item switcher, the tools; empty / loading / read-only.
-  assert.ok(work.includes('data-merge-switcher') && work.includes('data-merge-skeleton') && work.includes('병합할 변경점이 없어요') && work.includes('data-merge-empty-back') && work.includes('data-merge-readonly'))
+  assert.ok(read('components/workspace/MergeContextTitle.jsx').includes('data-merge-switcher') && work.includes('data-merge-skeleton') && work.includes('병합할 변경점이 없어요') && work.includes('data-merge-empty-back') && read('components/workspace/MergeContextTitle.jsx').includes('data-merge-readonly'))
   assert.ok(read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('data-merge-tools') && read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('useContext(WindowHeaderSlotContext)'))
   // The canvas is the Screens canvas's — the ground is #1C1C1C, flush with the tab row: no frame, no gap — and no pill says "n/m 선택" or "결정 n/m" beside what the parts bar says.
   assert.ok(work.includes('data-studio-stage') && work.includes('className="relative flex min-h-0 flex-1 overflow-hidden bg-[#1C1C1C]"') && !/mt-12|rounded-\[20px\]/.test(work.slice(work.indexOf('data-studio-stage'), work.indexOf('data-studio-stage') + 260)), 'flush, on the canvas ground')

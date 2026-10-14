@@ -1,10 +1,14 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Blend, Check, LoaderCircle, Send } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import MergeContextTitle from '@/components/workspace/MergeContextTitle'
+import VisualRegionPicker from '@/components/mergestudio/VisualRegionPicker'
+import MixFinishFooter from '@/components/mergestudio/MixFinishFooter'
 import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { allPeople } from '@/data/mockData'
+import { allPeople, canvasPages } from '@/data/mockData'
+import { draftScreens } from '@/data/draftScreens'
 import { toast } from '@/i18n/toast'
 import { MIX_ACTION_LABEL } from '@/lib/mixRecord'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -20,21 +24,22 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 const LABEL = (option, index) => (option.side === 'A' ? '원본' : option.side === 'B' ? '코드' : option.label ?? String.fromCharCode(65 + index))
 
 // A frame, as a thumbnail the width of its column (its layers drawn as they are; the picked ones outlined).
-function Frame({ frame, effects, marks, onPress, label }) {
+function Frame({ frame, effects, marks, onPress, label, fit = false }) {
   const ref = useRef(null)
   const [width, setWidth] = useState(0)
+  const [height, setHeight] = useState(0)
   useEffect(() => {
     if (!ref.current) return undefined
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => { setWidth(entry.contentRect.width); setHeight(entry.contentRect.height) })
     observer.observe(ref.current)
     return () => observer.disconnect()
   }, [])
   if (!frame) return <div className="flex h-28 items-center justify-center text-xs text-muted-foreground">No design preview</div>
-  const scale = width ? width / frame.width : 0
+  const scale = width ? Math.min(width / frame.width, fit ? height / frame.height : Infinity) : 0
   return (
     <button ref={ref} type="button" data-detail-frame onClick={onPress} aria-label={`${label} — 캔버스에서 보기`} title="캔버스에서 보기"
-      className="relative block w-full cursor-pointer overflow-hidden rounded-md bg-white text-left shadow-sm outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-primary" style={{ height: frame.height * scale }}>
-      <span aria-hidden className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
+      className={cn("relative block w-full cursor-pointer overflow-hidden rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-primary", fit ? "min-h-0 flex-1" : "bg-white shadow-sm ring-1 ring-border")} style={fit ? undefined : { height: frame.height * scale }}>
+      <span aria-hidden className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, background: "white", left: fit ? "50%" : 0, top: fit ? "50%" : 0, transform: fit ? `translate(-50%, -50%) scale(${scale})` : `scale(${scale})`, transformOrigin: fit ? "center" : "top left" }}>
         {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={effects[layer.id]} onSelect={() => {}} />)}
         <Marks frame={frame} marks={marks} />
       </span>
@@ -75,17 +80,16 @@ function Overlay({ drawn, opacity, marks, onPress }) {
   )
 }
 
-export default function DesignDetail({ item, drawn, diffRows, identical, conflict, status, compose, next, edit, selection = null, titleRef, group, onBack, readOnly = false, onDone }) {
-  const { comments, addComment, showScreenIn, focusConflictPin, mixBridge } = useWorkspace()
+export default function DesignDetail({ item, drawn, identical, conflict, status, compose, next, edit, selection = null, titleRef, onBack, readOnly = false, onDone }) {
+  const { comments, addComment, showScreenIn, focusConflictPin, mixBridge, compositionEditing, comparePanelMode: comparisonMode, setComparePanelMode: setComparisonMode } = useWorkspace()
   // While the studio is mixing this set's drafts, they're drawn live here — the place the picking is done from
   // (a part into the Result, one whole draft); otherwise they're thumbnails.
-  const live = mixBridge && item && mixBridge.itemId === item.id ? mixBridge : null
+  const live = compositionEditing && mixBridge && item && mixBridge.itemId === item.id ? mixBridge : null
   const [overlay, setOverlay] = useState(false)
   const [opacity, setOpacity] = useState(50)
-  const [hot, setHot] = useState(null)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(null)
-  const marks = hot ? new Set([hot]) : new Set()
+  const marks = new Set()
   const canOverlay = drawn.length >= 2
   const list = conflict ? comments.filter((comment) => comment.target?.conflictId === conflict.id) : []
 
@@ -109,47 +113,43 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
   const waiting = status?.id === 'in_review' || status?.id === 'requested'
   const composeReason = live ? '지금 이 시안들을 조합하고 있어요 — 캔버스에서 이어서 하세요' : readOnly ? '이 항목을 조합할 권한이 없어요' : waiting ? '검토 대기 중에는 조합할 수 없어요' : identical ? '두 버전이 동일해서 조합할 게 없어요' : composeAction?.disabled ? '비교할 시안을 2개 이상 골라 주세요' : !composeAction ? '지금은 조합할 수 없어요' : null
   const reviewReason = readOnly ? '이 항목을 검토할 권한이 없어요' : !next ? '검토할 변경이 아직 없어요' : null
-  const rootButton = 'ds-intrinsic inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45'
+  const rootButton = 'ds-intrinsic inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45'
 
   return (
     <div data-design-detail className="flex h-full min-h-0 flex-col bg-background text-[13px] text-foreground">
-      <header className="flex h-14 shrink-0 items-center gap-2 pr-5 pl-3">
+      <header className="flex h-12 shrink-0 items-center gap-1.5 pr-10 pl-2">
         <Tooltip>
-          <TooltipTrigger data-compare-back aria-label="목록으로 (Esc)" onClick={onBack} className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">
+          <TooltipTrigger ref={titleRef} data-compare-back aria-label="목록으로 (Esc)" onClick={onBack} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">
             <ArrowLeft className="size-4" />
           </TooltipTrigger>
           <TooltipContent side="bottom">목록으로 <span className="opacity-60">Esc</span></TooltipContent>
         </Tooltip>
-        <div className="min-w-0 flex-1">
-          <h2 ref={titleRef} tabIndex={-1} className="truncate rounded text-[15px] leading-5 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary">{item?.title}</h2>
-          <p className="truncate text-xs leading-4 text-muted-foreground">{[group, status?.label].filter(Boolean).join(' · ')}</p>
-        </div>
+        <MergeContextTitle item={item} />
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
-        <div className="flex flex-col gap-6">
-          <section aria-label="비교">
-            {canOverlay && !live && (
-              <div className="mb-2 flex h-8 items-center justify-end">
-                <Tooltip>
-                  <TooltipTrigger data-detail-overlay-toggle aria-pressed={overlay} aria-label="겹쳐보기" onClick={() => setOverlay((on) => !on)}
-                    className={cn('ds-intrinsic flex size-8 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary', overlay ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>
-                    <Blend className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">겹쳐보기</TooltipContent>
-                </Tooltip>
-              </div>
-            )}
-            {selection && !live && (
-              <div data-detail-selection className="mb-3 flex h-8 items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span aria-live="polite" className="tabular-nums">{selection.count}/{selection.total} 선택됨</span>
-                <button type="button" data-detail-select-all onClick={selection.all} className="ds-intrinsic rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">{selection.allSelected ? '선택 해제' : '모두 선택'}</button>
+      <div className="min-h-0 flex-1 overflow-hidden px-3 pb-2">
+        <div className="flex h-full min-h-0 flex-col gap-2">
+          <section aria-label="비교" className="flex min-h-0 flex-1 flex-col">
+            {!live && !draftScreens[item?.id] && (selection || canOverlay) && (
+              <div className="mb-2 flex h-6 shrink-0 items-center gap-2 text-[10px] text-slate-500">
+                {selection && <>
+                  <span data-detail-selection aria-live="polite" className="tabular-nums">{selection.count}/{selection.total} 선택</span>
+                  <button type="button" data-detail-select-all onClick={selection.all} className="ds-intrinsic rounded px-1 text-[10px] transition-colors hover:text-slate-200">{selection.allSelected ? '선택 해제' : '모두 선택'}</button>
+                </>}
+                {canOverlay && <Tooltip><TooltipTrigger data-detail-overlay-toggle aria-pressed={overlay} aria-label="겹쳐보기" onClick={() => setOverlay((on) => !on)} className={cn('ds-intrinsic ml-auto flex size-6 items-center justify-center rounded transition-colors hover:bg-white/[0.05]', overlay ? 'text-slate-200' : 'text-slate-500')}><Blend className="size-3.5" /></TooltipTrigger><TooltipContent side="bottom">겹쳐보기</TooltipContent></Tooltip>}
               </div>
             )}
             {live ? (
-              <div data-detail-live className="h-[520px] min-h-0">
-                <DraftCompareBoard embedded item={item} options={live.options} frame={live.frame} decisions={live.decisions} onPick={live.onPick} onTakeAll={live.onTakeAll} />
+              <div data-detail-live className="flex min-h-0 flex-1 flex-col">
+                <div className="mb-1 flex shrink-0 justify-end gap-1" role="tablist" aria-label="비교 방식">
+                  {[['regions', '요소 선택'], ['whole', '전체 시안 비교']].map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={comparisonMode === id} data-comparison-mode={id} onClick={() => setComparisonMode(id)} className={cn('ds-intrinsic h-6 rounded px-1.5 text-[10px] transition-colors', comparisonMode === id ? 'bg-white/[0.08] text-white' : 'text-slate-500 hover:text-slate-200')}>{label}</button>)}
+                </div>
+                <div className="min-h-0 flex-1">
+                  {comparisonMode === 'regions' ? <VisualRegionPicker item={item} live={live} /> : <DraftCompareBoard embedded item={item} options={live.options} frame={live.frame} decisions={live.decisions} onPick={live.onPick} onTakeAll={live.onTakeAll} />}
+                </div>
               </div>
+            ) : draftScreens[item?.id] ? (
+              <DraftCompareBoard embedded item={item} options={drawn.map(({ option }) => option)} frame={canvasPages.find((page) => page.id === item.designPageId)?.frames[0]} decisions={{}} draftSelection={selection} />
             ) : overlay && canOverlay ? (
               <div className="flex flex-col gap-3">
                 <Overlay drawn={drawn} opacity={opacity} marks={marks} onPress={seeOnCanvas} />
@@ -160,48 +160,28 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
                 </label>
               </div>
             ) : (
-              <div className={cn('grid gap-4', drawn.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+              <div className={cn('grid min-h-0 flex-1 gap-2 auto-rows-fr', drawn.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
                 {drawn.map(({ option, frame, effects }, index) => (
-                  <div key={option.key} data-detail-draft={option.key} className="flex min-w-0 flex-col gap-2">
-                    <span className="flex h-5 items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div key={option.key} data-detail-draft={option.key} className="flex min-h-0 min-w-0 flex-col gap-1">
+                    <span className="flex h-5 shrink-0 items-center justify-between gap-1.5 text-[10px] text-muted-foreground">
                       <span className="min-w-0 truncate">{LABEL(option, index)}</span>
                       {selection && (
                         <button type="button" role="checkbox" aria-checked={selection.keys.includes(option.key)} aria-label={`${LABEL(option, index)} 선택`} data-detail-pick={option.key} onClick={() => selection.toggle(option.key)}
-                          className={cn('flex size-4 shrink-0 items-center justify-center rounded-full outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-primary', selection.keys.includes(option.key) ? 'bg-primary text-primary-foreground ring-primary' : 'ring-border hover:ring-muted-foreground')}>
-                          {selection.keys.includes(option.key) && <Check className="size-3" />}
+                          className={cn('ds-intrinsic flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary', selection.keys.includes(option.key) ? 'border-emerald-300/60 text-emerald-300' : 'border-white/20 text-slate-500 hover:border-white/40')}>
+                          {selection.keys.includes(option.key) && <Check className="size-2.5" />}
                         </button>
                       )}
                     </span>
-                    <Frame frame={frame} effects={effects} marks={marks} onPress={seeOnCanvas} label={LABEL(option, index)} />
+                    <Frame fit frame={frame} effects={effects} marks={marks} onPress={seeOnCanvas} label={LABEL(option, index)} />
                   </div>
                 ))}
               </div>
             )}
           </section>
 
-          <section aria-label="변경" data-detail-diffs>
-            <h3 className="mb-2 text-xs font-normal text-muted-foreground">변경 {diffRows.length}</h3>
-            {identical && <p role="status" data-detail-identical className="py-1 text-[13px] text-muted-foreground">두 버전이 동일합니다.</p>}
-            <ul className="flex flex-col">
-              {diffRows.map((row) => (
-                <li key={row.key} data-detail-diff-row={row.key} tabIndex={row.layerId ? 0 : undefined}
-                  onMouseEnter={() => setHot(row.layerId)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(row.layerId)} onBlur={() => setHot(null)}
-                  className="flex h-8 items-center justify-between gap-4 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                  <span className="min-w-0 truncate text-[13px]">{row.label}</span>
-                  <span className="flex shrink-0 items-center gap-2 text-[13px] tabular-nums">
-                    {row.values.map((value, index) => (
-                      <Fragment key={index}>
-                        {index > 0 && <span aria-hidden className="text-muted-foreground">→</span>}
-                        <span className={index < row.values.length - 1 ? 'text-muted-foreground' : undefined}>{value}</span>
-                      </Fragment>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
 
-          {list.length > 0 && (
+
+          {!live && list.length > 0 && (
             <section aria-label="코멘트" data-detail-comments>
               <h3 className="mb-2 text-xs font-normal text-muted-foreground">코멘트 {list.length}</h3>
               <ul className="flex flex-col gap-4">
@@ -218,7 +198,7 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
             </section>
           )}
 
-          {conflict && (
+          {!live && conflict && (
             <form onSubmit={(event) => { event.preventDefault(); if (!draft.trim()) return; addComment(draft, { conflictId: conflict.id }); setDraft('') }} className="flex items-center gap-2 rounded-full bg-muted py-1 pr-1 pl-4">
               <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="코멘트 남기기" aria-label="코멘트 남기기" className="h-8 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
               <Tooltip>
@@ -231,7 +211,7 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
       </div>
 
       {/* The actions, always in reach: review (quiet) and compose (the one in green). */}
-      <div data-detail-actions className="grid shrink-0 grid-cols-2 gap-2 border-t border-border px-5 py-3">
+      {live ? <MixFinishFooter live={live} /> : <div data-detail-actions className="grid shrink-0 grid-cols-2 gap-2 border-t border-white/[0.06] px-3 py-2">
         <span title={reviewReason ?? undefined} className="block">
           <button type="button" data-design-next disabled={Boolean(reviewReason) || Boolean(busy)} aria-busy={busy === 'next' || undefined}
             onClick={() => run('next', next.run, next.label === MIX_ACTION_LABEL.request ? '병합 요청을 보냈어요' : null, next.label === MIX_ACTION_LABEL.request ? onDone : null)}
@@ -248,7 +228,7 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
             조합하기
           </button>
         </span>
-      </div>
+      </div>}
     </div>
   )
 }

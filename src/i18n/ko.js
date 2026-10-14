@@ -410,7 +410,7 @@ Review request not sent|검토 요청 전
 review pending|검토 대기
 complete|완료
 approved it|승인
-Conflict detail|변경 확인 상세
+Conflict detail|변경확인 상세
 Approval|승인
 The review hasn’t been requested yet|아직 검토 요청 전
 approval pending|승인 대기 중
@@ -777,7 +777,7 @@ Edit in Merge Studio|병합 스튜디오에서 수정
 Both branches changed the tab icon lines: feature/nav-badges added badges, main (the redesign) resized the icon and showed the label.|두 브랜치가 탭 아이콘 줄을 각각 바꿨어요. feature/nav-badges는 배지를, main(리디자인)은 아이콘 크기와 보이는 라벨을 바꿨어요.
 Keep both: the redesign’s 24px icon, 1.75 stroke and visible label, with the badge and aria-hidden from feature/nav-badges.|양쪽 모두 반영: 리디자인의 24px 아이콘·1.75 선 두께·보이는 라벨에 feature/nav-badges의 배지와 aria-hidden을 함께 유지해요.
 main · Nav tab bar (Figma sync)|main · 내비 탭 바 (Figma 동기화)
-Open the conflict|변경 확인 열기
+Open the conflict|변경확인 열기
 A high-risk change needs your review|위험도 높은 변경이 검토를 기다려요
 See it in the Inbox|받은 알림에서 보기
 Review the first one|첫 번째부터 검토
@@ -994,7 +994,7 @@ Resolved|해결됨
 High|높음
 Medium|보통
 Low|낮음
-Conflict Points|확인할 변경점
+Conflict Points|변경확인
 Assets|에셋
 Terminal|터미널
 Console|콘솔
@@ -1019,9 +1019,9 @@ Draft choice|시안 선택
 Last week|지난 주
 This month|이번 달
 Earlier|이전 히스토리
-Conflict|변경 확인
+Conflict|변경확인
 Comment|댓글
-Conflicts|확인할 변경점
+Conflicts|변경확인
 Updated|수정됨
 On this page|이 페이지의 항목
 Draft changes · Not merged|변경 초안 · 병합 전
@@ -1849,7 +1849,7 @@ Approve change|변경 승인
 Merge change|변경 병합
 Reopen|다시 열기
 Risk|위험도
-Conflict details|변경 확인 상세
+Conflict details|변경확인 상세
 Checkpoints and rollbacks for this project are in History.|이 프로젝트의 체크포인트와 되돌리기는 히스토리에서 확인할 수 있습니다.
 Open History|히스토리 열기
 Open in Merge Studio|병합 스튜디오에서 열기
@@ -2632,8 +2632,8 @@ Object.assign(ko, {
   'Couldn’t copy the link': '링크를 복사하지 못했어요',
   'Open in Workspace': '워크스페이스에서 열기',
   'Open change': '열기',
-  'Check change': '변경 확인',
-  'Change needs checking': '변경 확인 필요',
+  'Check change': '변경확인',
+  'Change needs checking': '변경확인 필요',
   'Details': '자세히',
   'Every other checkpoint is filtered out of this playback.': '필터에 걸리지 않은 체크포인트는 재생에서 빠져요.',
 })
