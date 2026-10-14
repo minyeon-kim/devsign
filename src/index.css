@@ -847,11 +847,12 @@ button.editor-line-comment {
   display: inline-flex;
   flex: none;
   align-items: center;
-  height: 30px;
-  padding-inline: 14px;
+  /* (Compact: the action is a small pill beside the text, not a block taking the row.) */
+  height: 26px;
+  padding-inline: 10px;
   border: 0;
   border-radius: 9999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;

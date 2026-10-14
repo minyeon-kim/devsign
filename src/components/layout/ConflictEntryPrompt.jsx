@@ -110,7 +110,8 @@ export function useConflictEntryPrompt() {
   return { prompt: visible, conflictIds, close, open }
 }
 
-const PROMPT_ACTION = { high: 'Review the first one', review: 'Start reviewing', intro: 'Open the first one' }
+// (Short: it sits on the title's line. Each row opens its own change.)
+const PROMPT_ACTION = { high: 'Start reviewing', review: 'Start reviewing', intro: 'Start reviewing' }
 
 export function ConflictEntryPromptCard({ prompt, onOpen, onClose }) {
   const rows = prompt.items.slice(0, MAX_ROWS)

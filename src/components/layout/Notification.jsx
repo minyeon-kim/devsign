@@ -6,8 +6,7 @@ import { LocalizedText } from '@/i18n/runtime'
 // only its `type` changed — success, warning, error or info (none: no
 // accent). Its look is the notification tokens' (index.css), laid out as the
 // system's own: a dark frosted card (no icon — the title says what it is),
-// the title and body, the action at the right of that row (under
-// it when the card lists something) and a round × on the top-left corner,
+// the title and body, the action at the right of that row and a round × on the top-left corner,
 // shown on hover. Toasts (Sonner) and the bell's
 // dropdown read the same tokens, so they match without sharing markup.
 const text = (value) => (typeof value === 'string' ? <LocalizedText text={value} /> : value)
@@ -39,9 +38,9 @@ export function Notification({ type, icon: _icon, title, body, bodyClassName, ch
   }
   // (A dismissible card is put away by pressing it or its ×: its quiet "Later" would say it a third time.)
   const shown = dismissible ? actions.filter((action) => !action.quiet) : actions
-  const inline = !children
+  // (The action is always on the title's line, at the right — a card that lists something keeps its list under it, no row of its own for the button.)
   const actionRow = shown.length > 0 && (
-    <div className={cn('ds-notification-actions', inline && 'ds-notification-actions-inline')}>
+    <div className="ds-notification-actions ds-notification-actions-inline">
       {shown.map(({ label, quiet, ...button }, index) => (
         <button key={index} type="button" {...button} className={cn('ds-intrinsic', quiet ? 'ds-notification-action-quiet' : 'ds-notification-action')}>
           {text(label)}
@@ -66,16 +65,15 @@ export function Notification({ type, icon: _icon, title, body, bodyClassName, ch
           <X aria-hidden />
         </button>
       )}
-      <div data-inline={inline && shown.length > 0 ? '' : undefined} className="ds-notification-head flex items-center gap-3">
+      <div data-inline={shown.length > 0 ? '' : undefined} className="ds-notification-head flex items-center gap-3">
         {/* (No icon: the title says what it is; the card gives its room to the text.) */}
         <div className="min-w-0 flex-1">
           <p className="ds-notification-title">{text(title)}</p>
           {body && <p className={cn('ds-notification-body', bodyClassName)}>{text(body)}</p>}
         </div>
-        {inline && actionRow}
+        {actionRow}
       </div>
       {children}
-      {!inline && actionRow}
     </Tag>
   )
 }
