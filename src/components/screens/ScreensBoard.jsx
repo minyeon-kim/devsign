@@ -403,16 +403,16 @@ function ScreensBoard() {
   }, [Boolean(proto)]) // eslint-disable-line react-hooks/exhaustive-deps
   // In on one screen, near enough to see its changes' markers: the whole card in view, never under the
   // markers' zoom (DETAIL_ZOOM) nor past 120% — gliding there, and the screen selected.
-  // (`inset`: what's floating over the board's left — the change list — so the card centres in what's clear of it.)
+  // (`inset`: what's floating over the board's right — the change list — so the card centres in what's clear of it.)
   const zoomToCard = (card, inset = 0) => {
     const width = room.width - inset
     const zoom = Math.min(1.2, Math.max(DETAIL_ZOOM + 0.1, Math.min((room.height - 120) / (card.height + 64), (width - 160) / card.width)))
     setActivePageId(card.id)
     setGliding(true)
     window.setTimeout(() => setGliding(false), 360)
-    setView({ zoom, x: inset + width / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y - 16 + card.height / 2) * zoom })
+    setView({ zoom, x: width / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y - 16 + card.height / 2) * zoom })
   }
-  // The change list floating over the board (Conflict Points, pressed while Screens shows — BoardConflicts):
+  // The change list floating over the board's right (Conflict Points, pressed while Screens shows — BoardConflicts):
   // screen by screen, in the board's order, then what's about no screen. Picking one glides in on its screen,
   // its element lit, and shows its detail in the panel.
   const listOpen = boardConflicts.open && !proto
@@ -629,7 +629,8 @@ function ScreensBoard() {
                         <div data-board-chrome className="absolute z-10" style={{ left: cx, top: 32 + cy, transform: `translate(-50%, -50%) scale(${1 / shown.zoom})`, transformOrigin: 'center' }} {...stop}>
                           <CountBubble count={countLabel(rest.length)} label={openLabel(rest.length)} cardId={card.id}
                             // (Pressed: the board glides in on that screen, near enough for its markers.)
-                            onOpen={(event) => { event.stopPropagation(); zoomToCard(card) }} />
+                            // (…and the change list comes up with it, on that screen's changes.)
+                            onOpen={(event) => { event.stopPropagation(); zoomToCard(card, BOARD_PANEL_WIDTH + 64); setBoardConflicts({ open: true, conflictId: null, screenId: card.id }) }} />
                         </div>
                       )
                     })()}
@@ -716,10 +717,27 @@ function ScreensBoard() {
         </div>
       )}
 
+      {/* The change list's own button, floating at the board's top right (as a map's "Show list"): it brings the
+          list up there; the list, once up, closes from its own ×. */}
+      {!listOpen && !proto && changes.total > 0 && (
+        <button
+          type="button"
+          data-board-chrome
+          data-board-conflicts-open
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => setBoardConflicts({ open: true, conflictId: null, screenId: null })}
+          className="absolute top-2 right-2 z-30 flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-card/95 pr-3.5 pl-3 text-[13px] font-semibold text-slate-100 shadow-lg shadow-black/40 backdrop-blur-sm transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300"
+        >
+          <ChevronLeft className="size-4 text-slate-300" />
+          <LocalizedText text="Conflict list" />
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F04E5A] px-1.5 text-[11px] leading-none font-bold text-white tabular-nums">{countLabel(changes.total)}</span>
+        </button>
+      )}
       {listOpen && (
         <BoardConflicts
           groups={boardGroups}
           total={changes.total}
+          focusScreenId={boardConflicts.screenId ?? null}
           picked={pickedConflict}
           onPick={pickBoardConflict}
           onBack={() => setBoardConflicts({ conflictId: null })}

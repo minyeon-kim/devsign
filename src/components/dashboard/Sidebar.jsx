@@ -7,7 +7,7 @@ import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompar
 import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, ScrollText, SquareTerminal, TriangleAlert, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, TriangleAlert, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -65,7 +65,7 @@ export function RailButton({ label, icon: Icon, className, iconClassName, side =
 
 // The Workspace's own views, on the activity bar under the project's, past a
 // hairline: Design Compare (a work pane beside the canvas: it needs the
-// width), Terminal and Console (in the side panel).
+// width). (Terminal and Console aren't on the bar.)
 // A side panel icon opens the panel on its view, swaps the view, or — the
 // one that's showing — folds it. What doesn't fit the bar's height goes to
 // "More" at the end, so the bar itself never scrolls.
@@ -74,8 +74,6 @@ const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.p
 // opening over the canvas — CanvasSideViews.)
 const WORKSPACE_VIEWS = [
   { id: 'design-compare', label: 'Design Compare', icon: Layers3 },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, side: true },
-  { id: 'console', label: 'Console', icon: ScrollText, side: true },
 ]
 function WorkspaceViews({ workspace, slots, drawer, onToggleDrawer }) {
   const { sidePanel, filesWindow, toggleSideView, mergeItems } = workspace

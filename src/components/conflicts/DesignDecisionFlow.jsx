@@ -1232,6 +1232,8 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           }}
         />
       )}
+      {/* What was asked (the request — who, why, what), before the ways forward it's about. */}
+      {request && !post && <RequestCard conflict={conflict} />}
       {/* The 해결 방법 card: always here, the same one — whatever the state around it. (Rendered from
           one place so a state changing never mounts it again.) */}
       {card}
@@ -1248,8 +1250,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
         </section>
         </>
       )}
-
-      {request && !post && <RequestCard conflict={conflict} />}
 
       {developer ? (
         <>

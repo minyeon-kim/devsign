@@ -2644,7 +2644,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const [flashComment, setFlashComment] = useState(null)
   // The sidebar's tab, and how many comments there were when Comments was
   // last looked at (more than that since puts a dot on the tab).
-  const [sideTab, setSideTab] = useState('info')
+  // (On the page the tabs are at its top, the change itself — 'details' — first and open.)
+  const [sideTab, setSideTab] = useState(page ? 'details' : 'info')
   // A design decision's History: its events, in order (lib/conflictEvents)
   // — and the step the progress card asked to see. `?historySeed` shows the
   // sample history for CON-002 in their place (`=rejected`: the decision
@@ -2672,6 +2673,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   if (conflict && conflict.id !== tabConflictId) {
     setTabConflictId(conflict.id)
     setReplayId(null)
+    if (page) setSideTab('details')
   }
 
   // Esc while the replay is open closes the replay, back to the review — not
@@ -2713,7 +2715,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     if (!id) return
     setReplayId(id)
     setReplayAutoplay(autoplay ? id : null)
-    setSideTab(conflict.decisionFlow ? 'history' : 'activity')
+    // (The replay is the change's own view: on the page it plays in Details.)
+    setSideTab(page ? 'details' : conflict.decisionFlow ? 'history' : 'activity')
     if (!conflict.historyInspected) update({ historyInspected: true })
   }
   // Which of the change's saved steps a part of its record is: its
@@ -3524,13 +3527,46 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       <p className="mt-1 text-[11px] leading-4 text-slate-500"><LocalizedText text="You can't assign yourself as a reviewer." /></p>
     </FoldSection>
   ) : null
+  // The detail's tabs: on the page, at its top — the change itself (Details) first, then its impact and
+  // evidence, comments, activity; in the bottom panel's review, over the sidebar as before.
+  const reviewTabs = !conflict ? [] : [
+    ...(page ? [['details', 'Change details']] : []),
+    ...(conflict.decisionFlow ? [['info', 'Impact & evidence'], ['history', '활동']] : [['info', 'Impact & evidence'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]),
+  ]
+  const reviewTabBar = (className) => (
+    <div role="tablist" aria-label="Conflict sidebar" data-review-tabs={page ? 'top' : 'side'} className={className}>
+      {reviewTabs.map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="tab"
+                        data-side-tab={value}
+                        aria-selected={sideTab === value}
+                        onClick={() => openSideTab(value)}
+                        className="ds-intrinsic -mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
+                      >
+                        <LocalizedText text={label} />
+                        {/* (What people did: the system's own notes aren't counted.) */}
+                        {value === 'history' && <span data-history-count className="text-[11px] font-normal text-slate-400 tabular-nums">{humanEventCount(historyEvents)}</span>}
+                        {value === 'activity' && <span data-activity-count className="text-[11px] font-normal text-slate-400 tabular-nums">{activity.timeline.length}</span>}
+                        {value === 'comments' && (
+                          <>
+                            <span data-comment-count className="text-[11px] font-normal text-slate-400 tabular-nums">{commentCount}</span>
+                            {/* Something new since the tab was last open. */}
+                            {commentCount > seenComments && sideTab !== 'comments' && <span data-comment-dot aria-label="New comments" className="size-1.5 rounded-full bg-emerald-300" />}
+                          </>
+                        )}
+                      </button>
+                    ))}
+    </div>
+  )
   return (
     <div className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
         {conflict && (
           <>
             <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3', page ? 'bg-background' : 'bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
               <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
-                <div className={cn('flex min-w-0 items-center gap-2.5', !page && 'flex-wrap')}>
+                <div className={cn('flex min-w-0 gap-2.5', page ? 'items-baseline' : 'flex-wrap items-center')}>
                   {!page && <button
                     type="button"
                     onClick={() => onOpenChange(false)}
@@ -3540,7 +3576,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   >
                     <ChevronLeft className="size-5" />
                   </button>}
-                  <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className="min-w-0 truncate text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl">
+                  {/* (On the page the whole title shows — over two lines when it needs them, never cut short.) */}
+                  <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className={cn('min-w-0 text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl', page ? 'break-words [overflow-wrap:anywhere]' : 'truncate')}>
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
                   </h2>
                   {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
@@ -3601,6 +3638,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 foot — its impact and evidence, the comments and the activity (no column of its own beside
                 it: the pane stays narrow, so the canvas next to it keeps its room). */}
             <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
+              {page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]')}
               <div data-review-scroll="main" className={cn(
                 'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto pt-1',
                 REVIEW_GUTTER
@@ -3608,7 +3646,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {/* (Stacked, a replay keeps its height — the page scrolls —
                     rather than sharing the window with the sidebar below:
                     its preview would shrink to nothing.) */}
-                <div className={cn('flex min-w-0 shrink-0 flex-col', replayId && 'min-h-[576px]')}>
+                <div data-review-tab-panel="details" className={cn('flex min-w-0 shrink-0 flex-col', replayId && 'min-h-[576px]', page && sideTab !== 'details' && 'hidden')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
                   {!conflict.decisionFlow && !mergeRequest && mergedBanner}
@@ -3776,34 +3814,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     comparison beside it takes all the rest. */}
                 {/* (In the grid's own row beside the main view: its top is the first container's top,
                     whatever the header's height. Each scrolls on its own, so it stays put.) */}
-                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className="flex min-w-0 shrink-0 flex-col border-t border-white/[0.07] pt-4">
-                  <div role="tablist" aria-label="Conflict sidebar" className="mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]">
-                    {/* A design decision keeps one record — its History — in
-                        place of separate Comments and Activity. */}
-                    {(conflict.decisionFlow ? [['info', 'Impact & evidence'], ['history', '활동']] : [['info', 'Impact & evidence'], ['comments', 'Comments'], ...(conflict.rollback ? [] : [['activity', 'Activity']])]).map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        role="tab"
-                        data-side-tab={value}
-                        aria-selected={sideTab === value}
-                        onClick={() => openSideTab(value)}
-                        className="ds-intrinsic -mb-px inline-flex h-8 items-center gap-1.5 border-b-2 border-transparent text-xs font-medium text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300 aria-selected:border-emerald-300 aria-selected:text-white"
-                      >
-                        <LocalizedText text={label} />
-                        {/* (What people did: the system's own notes aren't counted.) */}
-                        {value === 'history' && <span data-history-count className="text-[11px] font-normal text-slate-400 tabular-nums">{humanEventCount(historyEvents)}</span>}
-                        {value === 'activity' && <span data-activity-count className="text-[11px] font-normal text-slate-400 tabular-nums">{activity.timeline.length}</span>}
-                        {value === 'comments' && (
-                          <>
-                            <span data-comment-count className="text-[11px] font-normal text-slate-400 tabular-nums">{commentCount}</span>
-                            {/* Something new since the tab was last open. */}
-                            {commentCount > seenComments && sideTab !== 'comments' && <span data-comment-dot aria-label="New comments" className="size-1.5 rounded-full bg-emerald-300" />}
-                          </>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className={cn('flex min-w-0 shrink-0 flex-col', page ? (sideTab === 'details' ? 'hidden' : '') : 'border-t border-white/[0.07] pt-4')}>
+                  {/* (On the page the tabs are at its top — reviewTabBar — not here.) */}
+                  {!page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]')}
                   {sideTab === 'info' ? (
                     <div data-review-tab="info" role="tabpanel" className={cn('min-w-0', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3')}>
                       {/* (A design decision's steps are the cards in the main view — not repeated here.) */}

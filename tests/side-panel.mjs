@@ -79,7 +79,8 @@ try {
   // --- The side panel: at the left, on the activity bar ---
   assert.ok(layout.includes('addDockPanel(dockApi, panelById.navigator, { share, atStart: true })'), 'docked at the row’s left end')
   assert.ok(dock.includes('if (atStart) { root.children.unshift(leaf); root.sizes.unshift(size) }'))
-  for (const view of ['design-compare', 'terminal', 'console']) assert.ok(sidebar.includes(`{ id: '${view}', label:`), `${view} is on the bar`)
+  assert.ok(sidebar.includes("{ id: 'design-compare', label:"), 'design-compare is on the bar')
+  for (const view of ['terminal', 'console']) assert.ok(!sidebar.includes(`{ id: '${view}', label:`), `${view} isn’t on the bar`)
   // Files · Layers · Assets · Inspect: icons in the main window under its tabs, opening over the canvas — not on the bar.
   for (const view of ['files', 'layers', 'assets', 'inspect']) {
     assert.ok(!sidebar.includes(`{ id: '${view}', label:`), `${view} isn’t on the bar`)

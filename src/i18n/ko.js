@@ -798,6 +798,8 @@ Previous screen|이전 화면
 Next screen|다음 화면
 No open changes on these screens.|이 화면들에 열린 변경점이 없어요.
 Back to the list|목록으로
+Change details|상세
+Conflict list|변경점 목록
 Changes on these screens|이 화면들의 변경점
 Not on a screen|화면 밖
 Browser|브라우저

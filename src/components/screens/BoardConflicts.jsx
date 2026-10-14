@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { ArrowLeft, X } from 'lucide-react'
 import { cn } from 'cn'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
@@ -5,7 +6,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { RISK_LABEL, listStatusOf, shortDue } from '@/lib/conflicts'
 
 // The Screens board's change list (Conflict Points, pressed while Screens
-// shows): a panel floating over the board's left. It lists the open changes
+// shows): a panel floating over the board's right. It lists the open changes
 // screen by screen, in the board's order; pressing one glides the board in
 // on it (its element lit) and shows its detail here, in the same panel —
 // Back returns to the list.
@@ -16,7 +17,13 @@ export const BOARD_PANEL_WIDTH = 380
 const RISK_DOT = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-sky-300' }
 const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
-export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose }) {
+// `focusScreenId`: the screen it was opened for (its count, pressed) — its changes are brought into view and lit.
+export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose, focusScreenId = null }) {
+  const listRef = useRef(null)
+  useEffect(() => {
+    if (!focusScreenId || picked) return
+    listRef.current?.querySelector(`[data-board-conflicts-screen="${CSS.escape(focusScreenId)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [focusScreenId, picked])
   return (
     <section
       data-board-chrome
@@ -24,7 +31,7 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
       aria-label="Changes on these screens"
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      className="absolute inset-y-2 left-14 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none"
+      className="absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none"
       style={{ width: BOARD_PANEL_WIDTH }}
     >
       <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
@@ -46,10 +53,10 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
           <ReviewDetail page conflict={picked} />
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-1.5">
           {groups.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500"><LocalizedText text="No open changes on these screens." /></p>}
           {groups.map((group) => (
-            <section key={group.id ?? 'none'} data-board-conflicts-screen={group.id ?? 'none'} className="mb-1.5">
+            <section key={group.id ?? 'none'} data-board-conflicts-screen={group.id ?? 'none'} data-focus={group.id && group.id === focusScreenId ? '' : undefined} className={cn('mb-1.5 scroll-mt-1.5 rounded-lg', group.id && group.id === focusScreenId && 'bg-white/[0.04] ring-1 ring-[#F04E5A]/40 ring-inset')}>
               <h3 className="flex items-center gap-1.5 px-2.5 pt-2 pb-1 text-[11px] font-medium text-slate-500">
                 {group.n != null && <span className="tabular-nums">{group.n}</span>}
                 {group.n != null && <span aria-hidden>·</span>}
