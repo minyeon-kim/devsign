@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Blend, LoaderCircle, Send } from 'lucide-react'
+import { ArrowLeft, Blend, Check, LoaderCircle, Send } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -74,7 +74,7 @@ function Overlay({ drawn, opacity, marks, onPress }) {
   )
 }
 
-export default function DesignDetail({ item, drawn, diffRows, identical, conflict, status, compose, next, edit, titleRef, group, onBack, readOnly = false, onDone }) {
+export default function DesignDetail({ item, drawn, diffRows, identical, conflict, status, compose, next, edit, selection = null, titleRef, group, onBack, readOnly = false, onDone }) {
   const { comments, addComment, showScreenIn, focusConflictPin } = useWorkspace()
   const [overlay, setOverlay] = useState(false)
   const [opacity, setOpacity] = useState(50)
@@ -136,6 +136,12 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
                 </Tooltip>
               </div>
             )}
+            {selection && (
+              <div data-detail-selection className="mb-3 flex h-8 items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span aria-live="polite" className="tabular-nums">{selection.count}/{selection.total} 선택됨</span>
+                <button type="button" data-detail-select-all onClick={selection.all} className="ds-intrinsic rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">{selection.allSelected ? '선택 해제' : '모두 선택'}</button>
+              </div>
+            )}
             {overlay && canOverlay ? (
               <div className="flex flex-col gap-3">
                 <Overlay drawn={drawn} opacity={opacity} marks={marks} onPress={seeOnCanvas} />
@@ -149,7 +155,15 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
               <div className={cn('grid gap-4', drawn.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
                 {drawn.map(({ option, frame, effects }, index) => (
                   <div key={option.key} data-detail-draft={option.key} className="flex min-w-0 flex-col gap-2">
-                    <span className="truncate text-xs text-muted-foreground">{LABEL(option, index)}</span>
+                    <span className="flex h-5 items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate">{LABEL(option, index)}</span>
+                      {selection && (
+                        <button type="button" role="checkbox" aria-checked={selection.keys.includes(option.key)} aria-label={`${LABEL(option, index)} 선택`} data-detail-pick={option.key} onClick={() => selection.toggle(option.key)}
+                          className={cn('flex size-4 shrink-0 items-center justify-center rounded-full outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-primary', selection.keys.includes(option.key) ? 'bg-primary text-primary-foreground ring-primary' : 'ring-border hover:ring-muted-foreground')}>
+                          {selection.keys.includes(option.key) && <Check className="size-3" />}
+                        </button>
+                      )}
+                    </span>
                     <Frame frame={frame} effects={effects} marks={marks} onPress={seeOnCanvas} label={LABEL(option, index)} />
                   </div>
                 ))}

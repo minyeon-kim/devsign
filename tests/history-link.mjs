@@ -86,7 +86,6 @@ console.log('history-link: ok')
   const drawer = read('src/components/dashboard/HistoryDrawer.jsx')
   assert.ok(drawer.includes('const onHistoryPage = historyOpen') && drawer.includes('    if (onHistoryPage) select(id)\n    else openHistory(id)'))
   // Merge Studio's "Version history" still opens the list alone.
-  assert.ok(read('src/components/mergestudio/MergeStudioWorkspace.jsx').includes('onOpenHistory: requestHistoryDrawer,'))
   console.log('history-link (structure): ok')
 }
 

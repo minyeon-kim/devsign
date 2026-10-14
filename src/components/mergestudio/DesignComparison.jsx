@@ -151,8 +151,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
     const layerDiffs = (item && designMergeVariants[item.id]?.layerDiffs) ?? {}
     const rows = Object.entries(layerDiffs).flatMap(([layerId, list]) => list.map((diff) => ({ key: `${layerId}:${diff.id}`, layerId, label: diff.label, values: [diff.optionA, diff.optionB] })))
     const diffRows = rows.length ? rows : (item?.differences ?? []).map((difference) => ({ key: difference.id, layerId: null, label: difference.label, values: difference.values }))
-    return <DesignDetail {...detail} item={item} drawn={drawn} diffRows={diffRows} identical={Boolean(item) && options.length >= 2 && diffRows.length === 0}
-      conflict={conflict} status={status} compose={compose} next={next} edit={edit} />
+    return <DesignDetail {...detail} item={item} drawn={drawn} diffRows={diffRows} identical={Boolean(item) && !mixSet && options.length >= 2 && diffRows.length === 0}
+      conflict={conflict} status={status} compose={compose} next={next} edit={edit}
+      selection={selectable ? { keys: selectedKeys, count: selectedOptions.length, total: options.length, toggle: onToggleVariant, all: toggleAll, allSelected } : null} />
   }
 
   return (

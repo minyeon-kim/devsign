@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'vite'
 
 // The Workspace's two side panels: the side panel at the left (Files ·
@@ -17,7 +17,6 @@ const dock = read('components/workspace/floatingDockApi.js')
 const panels = read('components/dockview/dockPanels.js')
 const provider = read('state/WorkspaceProvider.jsx')
 const page = read('pages/WorkspacePage.jsx')
-const bottom = read('components/workspace/WorkspaceBottomPanel.jsx')
 const navigator = read('components/dockview/panels/NavigatorPanel.jsx')
 const palette = read('components/layout/CommandPalette.jsx')
 
@@ -124,7 +123,7 @@ try {
 
   // --- No bottom panel in the Workspace: what opened it opens that view where it lives now ---
   assert.ok(!/<WorkspaceBottomPanel[ \/>]/.test(page) && !page.includes("from '@/components/workspace/WorkspaceBottomPanel'"), 'not mounted by the Workspace')
-  assert.ok(!/DEFAULT_TABS|TerminalPanel|ConsolePanel/.test(bottom), 'Merge Studio’s only: no Workspace tabs left in it')
+  assert.ok(!existsSync(new URL('../src/components/workspace/WorkspaceBottomPanel.jsx', import.meta.url)), 'nor in Merge Studio: the bottom panel is gone')
   assert.ok(provider.includes("if (patch.open === true && activeViewNow.current !== 'mergeStudio') {") && provider.includes('patch = { ...patch, open: false }'))
   assert.ok(provider.includes("if (tab === 'terminal' || tab === 'console') openSideView(tab)") && provider.includes("else if (tab === 'design-compare') requestCompareDrawer()") && provider.includes('else requestConflictDrawer()'))
   assert.ok(palette.includes('run: () => openSideView(tab),') && palette.includes("id: 'toggle-side'") && palette.includes("id: 'toggle-chat'") && !palette.includes('toggle-bottom'))
