@@ -1,5 +1,6 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import SidebarToggle from '@/components/layout/SidebarToggle'
+import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import Logo from '@/components/layout/Logo'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
@@ -7,7 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutPanelLeft, PanelLeftClose, User as UserIcon, Users } from 'lucide-react'
+import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutPanelLeft, PanelLeftClose, Radio, User as UserIcon, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -161,7 +162,9 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
             {/* Home (outside a project) and this button lead to the same
                 /dashboard route — the same name and the same icon, so it reads
                 as one destination in both places, not two different ones. */}
-            <RailButton label="Home" icon={House} render={<Link to="/dashboard" />} />
+            {/* Inside a project, Home is the project's own home (its overview); the global Home is the project
+                switcher's first item (the mark above) and the path's first crumb. */}
+            <RailButton label="Project home" icon={House} render={<Link to={base} />} aria-current={path === base ? 'page' : undefined} className={cn(path === base && !drawer && activeClass)} />
             {/* The split code-editor/canvas layout, same shape as the icon. */}
             <RailButton label="Workspace" icon={LayoutPanelLeft} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
             <RailButton
@@ -261,6 +264,8 @@ const ROLE_BADGE = {
   Developer: { text: 'Dev', className: 'bg-sky-500' },
 }
 function UserBadge({ projectId }) {
+  // (In a project: "Follow me" — the others follow your view; it was on your own avatar in the top bar's stack.)
+  const workspace = useWorkspaceOptional()
   const user = projectId ? currentUserFor(projectId) : { ...currentUser, jobRole: currentUser.role }
   const role = user.jobRole ?? user.role
   const badge = ROLE_BADGE[role]
@@ -302,6 +307,12 @@ function UserBadge({ projectId }) {
           <UserIcon />
           <LocalizedText text="View profile" />
         </DropdownMenuItem>
+        {projectId && workspace?.startFollowMe && (
+          <DropdownMenuItem data-follow-me={workspace.followingMe ? 'on' : 'off'} onClick={() => (workspace.followingMe ? workspace.cancelFollowMe() : workspace.startFollowMe())}>
+            <Radio />
+            <LocalizedText text={workspace.followingMe ? 'Stop others following me' : 'Follow me'} />
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <SwitchUserItems />
         <DropdownMenuSeparator />

@@ -4,10 +4,11 @@ import { docHref, docsHref } from '@/lib/docLink'
 import { changeHref, changesHref } from '@/lib/changeLink'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight, BookOpen } from 'lucide-react'
-import Breadcrumb, { projectCrumbs } from '@/components/layout/Breadcrumb'
+import { projectCrumbs } from '@/components/layout/Breadcrumb'
+import DashboardTopBar from '@/components/dashboard/DashboardTopBar'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ACCENT_CTA, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
+import { ACCENT_CTA, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import { activities, allPeople } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
 import { isOpen, needsReviewFrom } from '@/lib/conflicts'
@@ -276,25 +277,17 @@ function ProjectOverviewPage() {
 
   return (
     <div className="relative h-full min-w-0 overflow-x-hidden overflow-y-auto bg-background text-foreground">
-      <div className="mx-auto flex w-full min-w-0 max-w-[1180px] flex-col gap-6 px-6 py-8 sm:px-10">
-        {/* The path — the reference every other page's path is drawn from
-            (components/layout/Breadcrumb) — and, in its row, who's here. */}
-        <div className="flex min-w-0 items-center gap-2">
-          <Breadcrumb items={projectCrumbs(project, { current: true })} />
-          {/* Same profile popover and Inbox as the Workspace's top bar —
-              Project home had no way to switch user, see who's on the
-              project, or check notifications until you opened the
-              Workspace; this closes that gap instead of growing separate,
-              smaller implementations of them. */}
-          <span className="ml-auto flex items-center gap-2">
-            <div className={cn('flex h-8 items-center gap-2 rounded-full px-2', FLOATING_PILL, 'border-0 bg-white/[0.04]')}>
-              <span className={PRESENCE_STACK}>
-                <UserPresence />
-              </span>
-            </div>
+      {/* The same top bar as Home and the Workspace (AppTopBar): the path, the search, then who else is here and the Inbox. */}
+      <div className="sticky top-0 z-20 bg-background">
+        <DashboardTopBar
+          crumbs={projectCrumbs(project, { current: true })}
+          actions={<>
+            <div className="ds-header-pill flex h-8 items-center gap-2 rounded-full px-2"><span className={PRESENCE_STACK}><UserPresence /></span></div>
             <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
-          </span>
-        </div>
+          </>}
+        />
+      </div>
+      <div className="mx-auto flex w-full min-w-0 max-w-[1180px] flex-col gap-6 px-6 pt-6 pb-8 sm:px-10">
         {/* Header */}
         <header className="flex flex-wrap items-start gap-4">
           <span

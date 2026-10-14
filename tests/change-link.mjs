@@ -80,7 +80,7 @@ console.log('change-link: ok')
 {
   assert.ok(read('src/components/layout/Breadcrumb.jsx').includes("{ label: 'Home', to: '/dashboard' }"))
   const rail = read('src/components/dashboard/Sidebar.jsx')
-  assert.ok(rail.includes("{ id: 'home', label: 'Home', icon: House, path: '/dashboard' }") && rail.includes('<RailButton label="Home" icon={House} render={<Link to="/dashboard" />} />') && !rail.includes('label="Dashboard"'))
+  assert.ok(rail.includes("{ id: 'home', label: 'Home', icon: House, path: '/dashboard' }") && rail.includes('<RailButton label="Project home" icon={House} render={<Link to={base} />}') && !rail.includes('label="Dashboard"'))
   assert.ok(read('src/i18n/ko.js').includes('\nHome|홈\n'))
   const home = read('src/pages/ProjectOverviewPage.jsx')
   assert.ok(home.includes('navigate(changeHref(project.id, conflict.id))') && home.includes('navigate(changesHref(project.id, filter))') && !home.includes('setBottomPanel'), 'the project home sends to the address — nothing of its own')

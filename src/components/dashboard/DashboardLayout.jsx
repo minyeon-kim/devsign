@@ -12,7 +12,7 @@ import DashboardTopBar from '@/components/dashboard/DashboardTopBar'
 // generous, responsive horizontal padding at every breakpoint.
 function DashboardLayout({ children, rightColumn, projectProportions = false }) {
   return (
-    <AppShell topBar={<DashboardTopBar column={projectProportions ? 'max-w-[1180px] px-6 sm:px-10' : undefined} />}>
+    <AppShell topBar={<DashboardTopBar />}>
       <div className="flex-1 overflow-auto bg-background">
         <div
           className={cn(

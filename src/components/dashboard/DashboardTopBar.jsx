@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import AppTopBar from '@/components/layout/AppTopBar'
 import { FileCode2, Folder } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -39,9 +40,11 @@ function searchAll(query) {
 // pill, and the notifications/profile controls on the right: equal 1fr
 // side columns with symmetric padding keep the pill exactly centered
 // over the content column.
-// `column`: the content's own column (DashboardLayout's max width and side padding), so the search starts at the
-// content's left edge and the bell ends at its right — the bar lines up with the page under it.
-function DashboardTopBar({ column = 'max-w-[1680px] px-6 sm:px-10 lg:px-14' }) {
+// The top bar outside the Workspace (AppTopBar): the path, the search over projects, files and members, and
+// the bell. `crumbs` / `actions`: a project's home sets its own path and its people + Inbox in their place.
+const PAGE_CRUMB = { '/dashboard': 'Home', '/activity': 'Activity', '/team': 'Team' }
+function DashboardTopBar({ crumbs = null, actions = null }) {
+  const { pathname } = useLocation()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
@@ -79,12 +82,12 @@ function DashboardTopBar({ column = 'max-w-[1680px] px-6 sm:px-10 lg:px-14' }) {
   }
 
   return (
-    // Equal 1fr columns either side of the search pin it to the bar's exact
-    // center regardless of how wide the profile cluster on the right is.
-    <header className={cn('z-20 mx-auto flex h-[var(--ds-chrome-size)] w-full shrink-0 items-center justify-between gap-3', column)}>
-
+    <AppTopBar
+      crumbs={crumbs ?? [{ label: PAGE_CRUMB[pathname.replace(/\/$/, '')] ?? 'Home' }]}
+      actions={actions ?? <NotificationsMenu className="size-9 hover:bg-muted" />}
+      search={
       <SearchField
-        className="w-full max-w-[480px]"
+        className="w-full"
         ref={inputRef}
         shortcut="⌘K"
         onKeyDown={onSearchKey}
@@ -166,13 +169,8 @@ function DashboardTopBar({ column = 'max-w-[1680px] px-6 sm:px-10 lg:px-14' }) {
           </div>
         )}
       </SearchField>
-
-      <div className="flex items-center justify-end gap-2">
-        <NotificationsMenu className="size-9 hover:bg-muted" />
-
-        {/* (Who's signed in, and their menu: the rail's avatar at the bottom left — one place, as in a project.) */}
-      </div>
-    </header>
+      }
+    />
   )
 }
 

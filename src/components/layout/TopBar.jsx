@@ -1,12 +1,13 @@
 import { notificationDestination } from '@/lib/inboxNotifications'
 import '@/components/dockview/panels/CanvasToolbar.css'
-import { Link } from 'react-router-dom'
 import { cn } from 'cn'
 import { HeaderCommandSearch } from '@/components/layout/CommandPalette'
 import { PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 import UserPresence from '@/components/layout/UserPresence'
+import AppTopBar from '@/components/layout/AppTopBar'
+import { projectCrumbs } from '@/components/layout/Breadcrumb'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { Sparkles } from 'lucide-react'
 
@@ -29,20 +30,6 @@ import { Sparkles } from 'lucide-react'
 // (the old "Workspace" segment even linked to the page already open).
 // This keeps just what the rail can't show: which project you're in.
 // (The sidebar's switch is in the activity rail now: SidebarToggle.)
-function ProjectTitle({ project }) {
-  return (
-    <div className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-1.5 text-[13px]">
-      <Link
-        to={`/projects/${project?.id}`}
-        title={`Open ${project?.name}`}
-        className="ds-header-pill flex h-8 min-w-0 items-center truncate rounded-full px-3 font-semibold text-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
-      >
-        {project?.name}
-      </Link>
-    </div>
-  )
-}
-
 function ActionTooltip({ label, children }) {
   return (
     <div className="group/action-tooltip relative flex shrink-0">
@@ -60,27 +47,13 @@ function TopBar({ project }) {
 
   return (
     <>
-      <ProjectTitle project={project} />
-
-      {/* The same SearchField as the Home dashboard's top bar — same
-          capsule, fill, hairline and type — at up to the same 480px.
-          Sized against the Workspace view itself (a container query on
-          WorkspacePage's root), not the browser window: the view narrows
-          when the sidebar drawer opens. It keeps 630px clear on each side
-          of center (the ~600px action cluster + its 16px inset + a 12px gap)
-          and steps aside entirely when the view is too narrow to fit a
-          usable field between the pills, so it never collides with them.
-          It is the command palette: typing filters commands, and the
-          results drop down under it (⌘K focuses it). */}
-      <HeaderCommandSearch className="absolute top-2 left-1/2 z-40 w-[480px] max-w-[calc(100%-1260px)] -translate-x-1/2 @max-[1480px]:hidden" />
-
-      {/* The action cluster, built exactly like Merge Studio's header:
-          separate floating pieces rather than one long bar — the people
-          pill (Inbox + teammates), Share and Merge Studio. The view tools
-          (Files & Layers, views, layout, Inspect) live in the command
-          palette (⌘K, the search field) and each window's `+` — the only
-          place Preview opens from. */}
-      <div className="workspace-canvas-toolbar absolute top-2 right-4 z-40 flex items-center gap-2">
+      {/* The same top bar as Home and a project's home (AppTopBar): the path, the search (the command palette —
+          typing filters commands, ⌘K focuses it), then who else is here, Share, the Inbox and AI Chat. */}
+      <AppTopBar
+        className="absolute inset-x-0 top-0 z-40"
+        crumbs={[...projectCrumbs(project), { label: 'Workspace' }]}
+        search={<HeaderCommandSearch className="w-full" />}
+        actions={<div className="workspace-canvas-toolbar flex items-center gap-2">
         <div className="ds-header-pill flex h-8 items-center gap-2 rounded-full px-2">
           <span className={PRESENCE_STACK}>
             <UserPresence />
@@ -100,7 +73,8 @@ function TopBar({ project }) {
           {chatAwaitingApproval ? <span data-chat-awaiting className="text-[10px] text-amber-300">Awaiting approval</span>
             : chatUnread && <span data-chat-unread aria-label="New reply" className="size-2 shrink-0 rounded-full bg-emerald-400" />}
         </button>
-      </div>
+        </div>}
+      />
 
       {inboxOpen && (
         <MergeInboxDrawer

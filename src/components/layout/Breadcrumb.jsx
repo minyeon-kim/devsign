@@ -50,7 +50,8 @@ export function BreadcrumbBar({ children, className, rowClassName, ...props }) {
 export function projectCrumbs(project, { current = false } = {}) {
   return [
     { label: 'Home', to: '/dashboard' },
-    { label: project?.name ?? '', translate: false, key: `project:${project?.id}`, ...(!current && { to: `/projects/${project?.id}` }) },
+    // (The project's name as its title says it — translated with the page, so the path and the title agree.)
+    { label: project?.name ?? '', key: `project:${project?.id}`, ...(!current && { to: `/projects/${project?.id}` }) },
   ]
 }
 
