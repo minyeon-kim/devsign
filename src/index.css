@@ -976,6 +976,8 @@ button.editor-line-comment {
   color: var(--notification-accent);
 }
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-icon] svg { width: 16px; height: 16px; margin: 0; }
+/* (No icon on a toast either, as on the cards: the title says what it is.) */
+[data-sonner-toaster] [data-sonner-toast].cn-toast [data-icon] { display: none !important; }
 /* (Room for the dismiss button, so a long title never runs under it.) */
 /* (Its × as the cards': on the top-left corner, shown on hover or focus.) */
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-close-button] {

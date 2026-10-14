@@ -1,16 +1,15 @@
-import { CircleCheck, Info, OctagonX, TriangleAlert, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 
 // The one notification: every card that announces something is this, with
 // only its `type` changed — success, warning, error or info (none: no
 // accent). Its look is the notification tokens' (index.css), laid out as the
-// system's own: a dark frosted card, the type's icon on a rounded square,
-// the title and body beside it, the action at the right of that row (under
+// system's own: a dark frosted card (no icon — the title says what it is),
+// the title and body, the action at the right of that row (under
 // it when the card lists something) and a round × on the top-left corner,
 // shown on hover. Toasts (Sonner) and the bell's
 // dropdown read the same tokens, so they match without sharing markup.
-const TYPE_ICON = { success: CircleCheck, warning: TriangleAlert, error: OctagonX, info: Info }
 const text = (value) => (typeof value === 'string' ? <LocalizedText text={value} /> : value)
 
 // A card that can be dismissed (`onDismiss`) is dismissed by pressing it anywhere that isn't a
@@ -19,11 +18,10 @@ const text = (value) => (typeof value === 'string' ? <LocalizedText text={value}
 // a card beside it). Dismissing only puts it away: it stays in the Inbox.
 const OWN_CONTROLS = 'button, a, input, textarea, select, summary, [role="button"], [role="menuitem"]'
 
-// `icon`: a component to use in place of the type's own.
+// `icon`: kept for callers, not drawn — the card has no icon.
 // `actions`: [{ label, onClick, quiet?, ...buttonProps }] — at most one filled.
 // `children`: anything between the text and the actions (a list of rows).
-export function Notification({ type, icon, title, body, bodyClassName, children, actions = [], onDismiss, dismissLabel = '알림 닫기', dismissHint = '누르면 알림이 닫혀요', as: Tag = 'section', className, ...rest }) {
-  const Icon = icon ?? TYPE_ICON[type] ?? Info
+export function Notification({ type, icon: _icon, title, body, bodyClassName, children, actions = [], onDismiss, dismissLabel = '알림 닫기', dismissHint = '누르면 알림이 닫혀요', as: Tag = 'section', className, ...rest }) {
   const dismissible = typeof onDismiss === 'function'
   function onPress(event) {
     if (!dismissible || event.defaultPrevented || event.target.closest?.(OWN_CONTROLS)) return
@@ -69,7 +67,7 @@ export function Notification({ type, icon, title, body, bodyClassName, children,
         </button>
       )}
       <div data-inline={inline && shown.length > 0 ? '' : undefined} className="ds-notification-head flex items-center gap-3">
-        <span className="ds-notification-icon"><Icon aria-hidden /></span>
+        {/* (No icon: the title says what it is; the card gives its room to the text.) */}
         <div className="min-w-0 flex-1">
           <p className="ds-notification-title">{text(title)}</p>
           {body && <p className={cn('ds-notification-body', bodyClassName)}>{text(body)}</p>}

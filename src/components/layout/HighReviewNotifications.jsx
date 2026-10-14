@@ -45,7 +45,7 @@ function ConflictNotice({ conflict, title, meta, type = 'info', onDismiss, actio
       onDismiss={onDismiss}
       actions={actions}
     >
-      {meta && <p data-notice-meta className="ds-notification-meta mt-1 pl-12 text-xs">{meta}</p>}
+      {meta && <p data-notice-meta className="ds-notification-meta mt-1 text-xs">{meta}</p>}
     </Notification>
   )
 }
