@@ -233,10 +233,6 @@ export function PanelToggleButton({ label, tip = label, hint = null, onClick, mi
   )
 }
 
-function CloseButton({ onClose }) {
-  return <PanelToggleButton label="Close drawer" tip="Close" onClick={onClose} />
-}
-
 // Claude-style back / forward icons in the drawer header — through the
 // browser history, so ‹ from anywhere in Docs returns to where you
 // came from (e.g. the Workspace), and › goes forward again.
@@ -435,7 +431,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
             />
           )}
           {comparing && project && context ? (
-            <ComparePanel project={project} expanded={compareOpen} overlay={overlay} closeButton={<CloseButton onClose={onCloseDrawer} />} />
+            <ComparePanel project={project} expanded={compareOpen} overlay={overlay} />
           ) : (<>
           <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
             <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">
@@ -461,7 +457,6 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
                 )}
               </>
             ) : <HistoryNavButtons />}
-            <CloseButton onClose={onCloseDrawer} />
           </div>
           {/* (The list drawers keep their top — search, filters — and scroll their list themselves.) */}
           <div className={cn('min-h-0 flex-1 px-2', panel === 'history' || panel === 'conflicts' || panel === 'compare' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto')}>
