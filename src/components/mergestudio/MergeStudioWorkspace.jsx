@@ -858,8 +858,7 @@ function MergeStudioWorkspace({ item }) {
     return {
       frame: compareFrame,
       entries: [
-        // (The drafts themselves are their own pane beside it:
-        // DraftCompareBoard.)
+        // (The drafts themselves are compared in the Design Compare sidebar.)
         {
           // The mix so far, beside the drafts it's drawn from.
           key: 'result',
