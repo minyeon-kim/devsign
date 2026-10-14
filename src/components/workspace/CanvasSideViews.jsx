@@ -27,15 +27,18 @@ const VIEWS = [
 const RULE = 'mx-1.5 h-4 w-px shrink-0 bg-white/10'
 
 export function CanvasViewRail() {
-  const { sidePanel, filesWindow, toggleSideView } = useWorkspace()
+  const { sidePanel, filesWindow, toggleSideView, workspaceView, activeView } = useWorkspace()
   const language = useLanguage()
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
+  // (Code: its files. Screens: the canvas's layers, assets and properties. Preview: all four.)
+  const view = activeView === 'mergeStudio' ? null : workspaceView
+  const shown = view === 'code' ? VIEWS.filter((entry) => entry.id === 'files') : view === 'screens' ? VIEWS.filter((entry) => entry.id !== 'files') : VIEWS
   return (
     // (In the tab row: 28px buttons, 2px apart — transparent, faint; white 6% under the pointer; the open
     // one on surface-2 in the plain text colour.)
     <div data-canvas-view-rail role="toolbar" aria-orientation="horizontal" aria-label={translateText('Workspace views', language)} onPointerDown={(event) => event.stopPropagation()} className="flex shrink-0 items-center gap-0.5">
       <span aria-hidden className={RULE} />
-      {VIEWS.map(({ id, label, icon: Icon, rule }) => (
+      {shown.map(({ id, label, icon: Icon, rule }) => (
         <Fragment key={id}>
           {rule && <span aria-hidden className={RULE} />}
           <button
