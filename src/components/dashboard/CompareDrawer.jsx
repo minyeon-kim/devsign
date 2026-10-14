@@ -60,6 +60,9 @@ function DesignSetRow({ item, state, count, selected, onOpen }) {
   )
 }
 
+// (Searched only from this many sets on.)
+const SEARCH_FROM = 6
+
 function CompareDrawer() {
   const { mergeItems, conflicts, historyEntries, projectPages, compareItemId, setCompareItemId, closeCompareView, activeView, setSelectedMergeItemId, conflictPin, selectConflictPin, boardConflicts } = useWorkspace()
   const language = useLanguage()
@@ -109,25 +112,24 @@ function CompareDrawer() {
   return (
     <DrawerShell
       data-compare-drawer
-      top={<>
-        <p className="px-2 pb-2 text-xs leading-5 text-muted-foreground">디자인 시스템의 시안을 비교하고, 영역별로 선택해 하나의 디자인으로 조합하세요.</p>
-        <DrawerSearch value={query} onChange={setQuery} placeholder="화면, 시안, 조합 영역 검색…" label="디자인 시안 검색" />
-      </>}
+      // (A search only once there's enough to look through; no line of explanation over the list.)
+      top={(items.length >= SEARCH_FROM || query) && <div className="pt-2"><DrawerSearch value={query} onChange={setQuery} placeholder="화면, 시안, 조합 영역 검색…" label="디자인 시안 검색" /></div>}
     >
       {groups.length === 0 && <DrawerEmpty onClear={() => setQuery('')}><LocalizedText text="No matching design sets." /></DrawerEmpty>}
       {groups.map(([label, list]) => {
         const open_ = terms.length > 0 || !folded.has(label)
         return (
-          <section key={label} data-drawer-group={label} data-compare-group={label} className="mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 last:mb-0">
-            <h4 style={{ height: GROUP_HEIGHT }} className="flex items-center text-[11px] leading-4 font-semibold text-slate-400">
-              <button type="button" aria-expanded={open_} onClick={() => toggleGroup(label)} className="ds-intrinsic flex h-full min-w-0 flex-1 items-center gap-1 rounded-lg px-2 text-left transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-white/60">
-                <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none', !open_ && '-rotate-90')} />
-                <span className="min-w-0 truncate"><LocalizedText text={label} /></span>
-                <span className="ml-auto shrink-0 font-normal text-slate-500 tabular-nums">{list.length}</span>
+          // (As the change list's groups: no box — a header held at the top, its name then how many, and the rows under it.)
+          <section key={label} data-drawer-group={label} data-compare-group={label} className="mt-4">
+            <h4 style={{ height: GROUP_HEIGHT }} className="sticky top-0 z-10 m-0 flex items-center bg-background text-[12px] leading-4">
+              <button type="button" aria-expanded={open_} onClick={() => toggleGroup(label)} className="ds-intrinsic flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform duration-150 motion-reduce:transition-none', !open_ && '-rotate-90')} />
+                <span className="min-w-0 truncate font-semibold text-slate-400"><LocalizedText text={label} /></span>
+                <span className="shrink-0 font-normal text-slate-500 tabular-nums">{list.length}</span>
               </button>
             </h4>
             {open_ && (
-              <ul role="listbox" aria-label={label} className="flex flex-col gap-0.5">
+              <ul role="listbox" aria-label={label} className="mt-0.5 flex flex-col gap-0.5">
                 {list.map((row) => (
                   <li key={row.item.id}>
                     <DesignSetRow item={row.item} state={row.state} count={designCompareOptions(row.item).length} selected={isPicked(row)} onOpen={() => open(row)} />

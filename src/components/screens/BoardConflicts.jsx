@@ -67,7 +67,7 @@ const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-ce
 // `host`: where it's docked (BoardDockSlot's element). `marked`: the change another view has picked (Design
 // Compare's) — its row is marked as the picked one is. `compareItem`/`onOpenCompare`: the picked change's design
 // set, and the way into its comparison (the icon in the detail's header).
-export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose, focusScreenId = null, currentScreenId = null, host = null, marked = null, compareItem = null, onOpenCompare = null }) {
+export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose, focusScreenId = null, currentScreenId = null, host = null, docked = false, marked = null, compareItem = null, onOpenCompare = null }) {
   const language = useLanguage()
   const listRef = useRef(null)
   // (The row whose detail was last open stays marked once back on the list — and takes the focus.)
@@ -94,14 +94,15 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
     <section
       data-board-chrome
       data-board-conflicts={picked ? 'detail' : 'list'}
-      data-docked={host ? '' : undefined}
+      data-docked={host || docked ? '' : undefined}
       aria-label="Changes on these screens"
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      className={host
-        ? 'relative flex h-full flex-col overflow-hidden border-l border-white/[0.06] bg-background'
+      // (`docked`: laid over the canvas's right by the page (WorkspaceChanges) in the frame a docked one has.)
+      className={host || docked
+        ? cn('relative flex h-full flex-col overflow-hidden border-l border-white/[0.06] bg-background', docked && 'rounded-br-[23px]')
         : 'absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none'}
-      style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
+      style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host || docked ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
       <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
         {/* (On a change: the way back to the list — its title is the detail's own, right under.) */}
