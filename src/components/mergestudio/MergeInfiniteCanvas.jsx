@@ -2548,49 +2548,9 @@ function MergeInfiniteCanvas({
               // One pill for "what to decide" (drift paging) and "is the
               // result OK" (checks, live as you edit) — deciding a drift
               // visibly moves the checks count beside it.
-              <div className={cn('relative flex items-center gap-1 rounded-full px-0.5 text-[13px]', FLOATING_PILL)}>
-                {(drifts.length > 0 || decisionKeys.length > 0) && <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    goDrift(-1)
-                  }}
-                  title="Previous drift"
-                  disabled={drifts.length === 0}
-                  className="flex size-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-                >
-                  <ChevronLeft className="size-4" />
-                </button>
-                {/* Plain label, not a button — drift detail now lives inline
-                    in the Block Deck's Compare tab (no more floating
-                    popover here for this to show/hide). */}
-                {/* The pill's main action: open the conflict's review, whose
-                    Decide row is where each value is picked. */}
-                <button
-                  type="button"
-                  title="Decide values"
-                  onClick={openDecisions}
-                  className={cn('ds-intrinsic h-7 min-w-20 rounded-full px-2 text-center font-semibold tabular-nums transition-colors hover:bg-white/10', decisionKeys.length && decidedCount === decisionKeys.length ? 'text-emerald-300' : 'text-foreground')}
-                >
-                  {decisionKeys.length
-                    ? <LocalizedText text={`Decided ${decidedCount}/${decisionKeys.length}`} />
-                    : <><LocalizedText text="Drift" /> {currentDrift >= 0 ? currentDrift + 1 : '–'}/{drifts.length}</>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    goDrift(1)
-                  }}
-                  title="Next drift"
-                  disabled={drifts.length === 0}
-                  className="flex size-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
-                >
-                  <ChevronRight className="size-4" />
-                </button>
-                </>}
+              checks && <div className={cn('relative flex items-center gap-1 rounded-full px-0.5 text-[13px]', FLOATING_PILL)}>
                 {checks && (
                   <>
-                    {(drifts.length > 0 || decisionKeys.length > 0) && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
                     <CheckStatus checks={checks} onFix={() => openDecisions()} />
                   </>
                 )}

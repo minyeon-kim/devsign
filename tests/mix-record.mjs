@@ -65,6 +65,6 @@ try {
   const provider = readFileSync(new URL('../src/state/WorkspaceProvider.jsx', import.meta.url), 'utf8')
   assert.ok(provider.includes('...(item && { mergeItemId: item.id }),'))
   const studio = readFileSync(new URL('../src/components/mergestudio/MergeStudioWorkspace.jsx', import.meta.url), 'utf8')
-  assert.ok(studio.includes("{item.tag !== 'Merged' && <button"))
+  assert.ok(!studio.includes("data-mix-status") && !studio.includes("data-merge-progress"), "the picking is said once — by the parts bar — not by a pill beside the title")
   console.log('Passed: a set’s mixes are a record — sources, who and when, what changed — with one state and one primary action, shown in Design Compare.')
 } finally { await server.close() }

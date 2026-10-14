@@ -46,7 +46,7 @@ assert.match(panel, /\(event\.metaKey \|\| event\.ctrlKey\) && event\.key === 'E
 assert.ok(panel.includes("/^[1-9]$/.test(event.key)") && panel.includes('String(option.letter).toLowerCase() === event.key.toLowerCase()'))
 // The title says where it stands and has no button to finish from; the request reuses the existing record.
 const title = source.slice(source.indexOf('{item && designComparison && ('), source.indexOf('{/* The header row\'s right side'))
-assert.ok(title.includes('data-mix-status') && !title.includes('data-merge-request'), 'the merge request is the parts bar’s alone')
+assert.ok(!title.includes('data-mix-status') && !title.includes('data-merge-request'), 'no "n/m 선택" pill (the parts bar says it), and the merge request is the parts bar’s alone')
 assert.match(source, /const requestId = conflict\?\.id \?\? createMergeRequest\(item\)\.id\n    updateConflict\(requestId, \{/)
 // A whole draft in one edit (so one ⌘Z takes it back), offered on each draft's title.
 assert.match(source, /function takeWholeDraft\(draftKey\) \{[\s\S]{0,260}setResolutions\(\(prev\) => \{/)
