@@ -1003,10 +1003,10 @@ function codeConflictOptions(conflict) {
   const sides = mid > 0 && end > mid ? { local: before.slice(1, mid), remote: before.slice(mid + 1, end) } : null
   return [
     ...(sides ? [
-      { id: 'local', title: conflict.codeComparison?.localTitle ?? 'Keep local', note: conflict.branches?.local, lines: sides.local },
-      { id: 'remote', title: conflict.codeComparison?.remoteTitle ?? 'Take remote', note: conflict.branches?.remote, lines: sides.remote },
+      { id: 'local', title: conflict.codeComparison?.localTitle ?? 'Keep local', note: conflict.branches?.local, desc: conflict.codeComparison?.local, lines: sides.local },
+      { id: 'remote', title: conflict.codeComparison?.remoteTitle ?? 'Take remote', note: conflict.branches?.remote, desc: conflict.codeComparison?.remote, lines: sides.remote },
     ] : []),
-    { id: 'both', title: 'Apply both', note: 'Suggested', plain: true, lines: conflict.diff?.after ?? [] },
+    { id: 'both', title: 'Apply both', note: 'Suggested', plain: true, desc: conflict.codeComparison?.resolution ?? conflict.suggestion, lines: conflict.diff?.after ?? [] },
   ]
 }
 
@@ -1644,30 +1644,33 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             {codeConflict && conflict.diff && !readOnly && (
               <section data-code-conflict className="min-w-0 space-y-3">
                 <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Change summary" /></h3></div>
-                <CodeDifferenceSummary conflict={conflict} />
-                <p data-conflict-code-location className="break-all font-mono text-xs text-slate-400">{conflict.file}:{conflict.line ?? 1}</p>
-                <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.resolution ?? conflict.suggestion} /></p>
+                {/* (One line on what overlaps; each branch's change is said on its own choice below.) */}
+                <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.conflict ?? conflict.cause ?? conflict.message} /></p>
                 {(() => {
                   const before = conflict.diff.before ?? []
                   const options = codeConflictOptions(conflict)
                   const picked = options.find((option) => option.id === codeChoice) ?? options.at(-1)
                   return <>
-                    <div role="radiogroup" aria-label="How to resolve the conflict" className="grid min-w-0 gap-2 sm:grid-cols-3">
+                    <div role="radiogroup" aria-label="How to resolve the conflict" className="grid min-w-0 gap-1.5">
                       {options.map((option) => {
                         const on = option.id === picked.id
                         return (
-                          <button key={option.id} type="button" role="radio" aria-checked={on} data-code-choice={option.id} onClick={() => setCodeChoice(option.id)} className={cn('ds-intrinsic flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', on ? 'border-emerald-300/50 bg-emerald-400/[0.08]' : 'border-white/10 hover:border-white/25 hover:bg-white/[0.04]')}>
-                            <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-white">
-                              <span aria-hidden className={cn('flex size-3.5 shrink-0 items-center justify-center rounded-full border', on ? 'border-[#5EEAB5] bg-[#5EEAB5] text-[#06281D]' : 'border-white/25')}>{on && <Check className="size-2.5" strokeWidth={3} />}</span>
-                              <span className="min-w-0 truncate"><LocalizedText text={option.title} /></span>
+                          <button key={option.id} type="button" role="radio" aria-checked={on} data-code-choice={option.id} onClick={() => setCodeChoice(option.id)} className={cn('ds-intrinsic flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', on ? 'border-emerald-300/50 bg-emerald-400/[0.08]' : 'border-white/10 hover:border-white/25 hover:bg-white/[0.04]')}>
+                            <span aria-hidden className={cn('mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border', on ? 'border-[#5EEAB5] bg-[#5EEAB5] text-[#06281D]' : 'border-white/25')}>{on && <Check className="size-2.5" strokeWidth={3} />}</span>
+                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="min-w-0 truncate text-[13px] font-medium text-white"><LocalizedText text={option.title} /></span>
+                                {option.note && (option.plain
+                                  ? <span className="shrink-0 rounded bg-emerald-400/10 px-1.5 text-[10.5px] leading-4 font-medium text-emerald-200"><LocalizedText text={option.note} /></span>
+                                  : <span translate="no" className="ml-auto min-w-0 truncate font-mono text-[10.5px] text-slate-500" title={option.note}>{option.note}</span>)}
+                              </span>
+                              {option.desc && <span className="text-xs leading-5 text-slate-400"><LocalizedText text={option.desc} /></span>}
                             </span>
-                            {option.note && (option.plain
-                              ? <span className="min-w-0 truncate pl-5 text-[11px] text-slate-400"><LocalizedText text={option.note} /></span>
-                              : <span translate="no" className="min-w-0 truncate pl-5 font-mono text-[11px] text-slate-400">{option.note}</span>)}
                           </button>
                         )
                       })}
                     </div>
+                    <p data-conflict-code-location className="break-all font-mono text-[11px] text-slate-500">{conflict.file}:{conflict.line ?? 1}</p>
                     <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict />
                   </>
                 })()}
