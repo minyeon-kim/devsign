@@ -170,7 +170,7 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, setSelectedMergeItemId, openMergeStudio } = useWorkspace()
   const language = useLanguage()
   const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
@@ -491,7 +491,13 @@ function ScreensBoard() {
     glideTo(home, { x: 0, y: 0, width: room.width, height: room.height })
     return true
   }
-  const pickBoardConflict = (conflict) => focusOn(sequence.find((entry) => entry.conflict.id === conflict.id))
+  // A change that has a merge item opens the Merge tab on it (one way in, from the list as from everywhere); one
+  // without stays on the board, as before.
+  const pickBoardConflict = (conflict) => {
+    const item = mergeItems.find((entry) => entry.id === conflict.mergeItemId || entry.conflictId === conflict.id)
+    if (item) { setSelectedMergeItemId(item.id); openMergeStudio(); return }
+    focusOn(sequence.find((entry) => entry.conflict.id === conflict.id))
+  }
   // A pin pressed: its change — several on it, the next of them after the one the board is on.
   const pressMarker = (screenId, marker) => {
     const ids = new Set(marker.conflicts.map((conflict) => conflict.id))

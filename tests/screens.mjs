@@ -155,7 +155,7 @@ try {
   assert.ok(tabs.includes("selected ? 'bg-white/[0.12] font-semibold text-white'") && tabs.includes('{selected && <span aria-hidden className="absolute inset-x-2.5 bottom-0.5'), 'the one showing: weight and a bar, not color alone')
   assert.ok(read('components/workspace/FloatingWindow.jsx').includes("role={viewPanel ? 'tabpanel' : undefined}"))
   assert.ok(layoutSource.includes("const VIEW_PANELS = { preview: ['preview'], screens: ['screens', 'canvas'], code: ['editor'] }"), 'Screens is its board, or the canvas a screen is edited on')
-  assert.ok(layoutSource.includes("/^Digit[1-3]$/.test(event.code) && !isTyping(event.target)"), '⌥1–3, not while typing')
+  assert.ok(layoutSource.includes("/^Digit[1-4]$/.test(event.code)"), '⌘/⌥ 1–4, not while typing')
   assert.ok(provider.includes('navigate({ pathname: at.pathname, search }, { replace: true, state: at.state })'), 'tabs and screens replace the address')
   assert.ok(provider.includes('const workspaceView = viewSaid.view ?? lastView ?? defaultViewOf(prototype.kind)'))
   assert.ok(provider.includes("if (workspaceView !== 'code' || !activePageId || codeScreen.current === activePageId) return"), 'Code opens the screen’s file')

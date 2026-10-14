@@ -157,8 +157,10 @@ function zoneRect(rect, zone) {
 // everything that opens, closes or focuses panels through `dockApi`
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
-function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView } = useWorkspace()
+// `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
+// stays mounted under it).
+function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeStudio, exitMergeStudio } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -290,6 +292,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   // (`side`: the side panel's own window is open — not the tool panel at the canvas's left, which has no window of its
   // own: the dock's focus moving must not fold it.)
   panelOpen.current = { side: sidePanel.open && !inCanvasViewOf(sidePanel, filesWindow.tab), chat: aiChat.open }
+  const activeViewNow = useRef(activeView)
+  activeViewNow.current = activeView
   const viewNow = useRef(workspaceView)
   viewNow.current = workspaceView
   const focusKey = useRef(null)
@@ -530,10 +534,12 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   // ⌘/Ctrl+B (or ⌘/Ctrl+\) folds and unfolds the side panel — not while
   // typing; ⌘/Ctrl+L, AI Chat — while typing only from inside the chat itself.
   const onPanelKey = useEffectEvent((event) => {
-    // ⌥1 / ⌥2 / ⌥3: Preview, Screens, Code — not while typing.
-    if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.defaultPrevented && /^Digit[1-3]$/.test(event.code) && !isTyping(event.target)) {
+    // ⌘/Ctrl or ⌥ with 1 / 2 / 3 / 4: Preview, Screens, Code, Merge — not while typing.
+    if (/^Digit[1-4]$/.test(event.code) && !event.shiftKey && !event.defaultPrevented && !isTyping(event.target) && (event.altKey !== (event.metaKey || event.ctrlKey))) {
       event.preventDefault()
-      setWorkspaceView(VIEWS[Number(event.code.slice(5)) - 1])
+      const at = Number(event.code.slice(5)) - 1
+      if (at === 3) { if (activeViewNow.current !== 'mergeStudio') openMergeStudio() }
+      else { if (activeViewNow.current === 'mergeStudio') exitMergeStudio(); setWorkspaceView(VIEWS[at]) }
       return
     }
     if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.defaultPrevented) return
@@ -601,6 +607,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             // canvas's row — it pushes the canvas over.)
             viewDock={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
             viewDockEnd={!mergeStudio && group.id === mainGroupId ? <BoardDockSlot /> : null}
+            viewOverlay={!mergeStudio && group.id === mainGroupId && studio ? <div data-merge-view className="absolute inset-0 z-30 flex min-h-0 min-w-0 animate-in bg-card duration-[120ms] fade-in motion-reduce:animate-none">{studio}</div> : null}
+            viewCovered={!mergeStudio && group.id === mainGroupId && Boolean(studio)}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.

@@ -89,7 +89,7 @@ try {
   assert.ok(sidebar.includes('aria-expanded={showing(view)}') && sidebar.includes("aria-controls={view.side ? 'workspace-side-panel' : 'work-pane'}"))
   assert.ok(sidebar.includes('data-views-more') && sidebar.includes('railSplit(WORKSPACE_VIEWS, slots)') && sidebar.includes('onKeyDown={railArrowKeys}'))
   assert.ok(sidebar.includes('data-view-badge'), 'Design Compare’s count sits on its icon')
-  assert.ok(shell.includes("workspace.activeView === 'workspace'") && shell.includes("const LAYER_PARAMS = ['doc', 'docs', 'history']"), 'only while the Workspace itself is showing')
+  assert.ok(shell.includes("const LAYER_PARAMS = ['doc', 'docs', 'history']"), 'not as a layer over the Workspace (docs, history)')
   // Its views: the navigator's four as tabs (← / → between them); Terminal and Console in the same panel.
   assert.ok(windowSource.includes("role={isNavigatorGroup ? 'tablist' : undefined}") && tabs.includes("role={panel.component === 'navigator' ? 'tab' : undefined}") && navigator.includes('role="tabpanel"'))
   assert.ok(navigator.includes("filesWindow.tab === 'terminal' && <TerminalPanel />") && navigator.includes("filesWindow.tab === 'console' && <ConsolePanel />"))

@@ -45,3 +45,30 @@ export function readLastView(projectId, storage = typeof localStorage !== 'undef
 export function writeLastView(projectId, view, storage = typeof localStorage !== 'undefined' ? localStorage : null) {
   try { if (VIEWS.includes(view)) storage?.setItem(key(projectId), view) } catch { /* not kept */ }
 }
+
+// The Merge tab — the fourth view of the main window — has the same kind of address:
+//
+//   /projects/:id/workspace?view=merge&item=<mergeItemId>
+//
+// `view=merge` isn't one of VIEWS (those are the three that keep a screen on the canvas): reading it as a
+// view says nothing, and the last view stays what it was underneath.
+export const MERGE_VIEW = 'merge'
+export function readMergeParams(search) {
+  const params = new URLSearchParams(search ?? '')
+  return { open: params.get('view') === MERGE_VIEW, item: params.get('item') || null }
+}
+// The same address with the Merge tab up on `item` (or none), or — with `null` — put away (the view it replaced
+// is named again only if the caller says so with `withView`).
+export function withMerge(search, item) {
+  const params = new URLSearchParams(search ?? '')
+  if (item === null) {
+    if (params.get('view') === MERGE_VIEW) params.delete('view')
+    params.delete('item')
+  } else {
+    params.set('view', MERGE_VIEW)
+    if (item) params.set('item', item)
+    else params.delete('item')
+  }
+  const rest = params.toString()
+  return rest ? `?${rest}` : ''
+}

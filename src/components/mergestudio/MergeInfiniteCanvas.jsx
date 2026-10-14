@@ -1,9 +1,9 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Redo2, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -19,7 +19,7 @@ import { getLanguage } from '@/i18n/language'
 import UserPresence from '@/components/layout/UserPresence'
 import MultiplayerCursors from '@/components/collab/MultiplayerCursors'
 import { COUNT_BADGE, STUDIO_PILL as FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
-import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
+import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 import NewMergeMenu from '@/components/mergestudio/NewMergeMenu'
 
 const MIN_ZOOM = 25
@@ -1344,9 +1344,9 @@ function MergeInfiniteCanvas({
   // The device the Result is checked against (RESULT_DEVICES), if any.
   const [resultDevice, setResultDevice] = useState(null)
   const [framesOpen, setFramesOpen] = useState(false)
-  // The studio header's slot for the session controls (MergeStudioWorkspace).
-  const [headerSlot, setHeaderSlot] = useState(null)
-  useEffect(() => { setHeaderSlot(document.querySelector('[data-studio-header-slot]')) }, [])
+  // The tab row's slot (the main window's header, WindowHeaderSlot) for the studio's tools: undo / redo,
+  // preview, new merge.
+  const headerSlot = useContext(WindowHeaderSlotContext)
   const [aiStage, setAiStage] = useState(null) // null | 'badge' | 'prompt'
   const setAnnotations = onAnnotationsChange
   const [openNote, setOpenNote] = useState(null)
@@ -2274,7 +2274,7 @@ function MergeInfiniteCanvas({
               </button>
               {/* Undo / redo and help: in this row too, so nothing else
                   floats over the Result. */}
-              <MergeCanvasControls inline history={editHistory} showZoom={false} />
+              <MergeCanvasControls inline history={editHistory} showZoom={false} showHistory={false} />
             </div>
           )
         })()}
@@ -2516,19 +2516,10 @@ function MergeInfiniteCanvas({
               )}
             </button>
           )}
-          {/* One pill for the session controls — presence (the Workspace
-              TopBar's stack, hidden in Merge Studio), Share, Preview and
-              Notifications — instead of four separate floating pieces.
-              It keeps a surface: artboards pan underneath it. */}
-          <div className={cn('flex items-center gap-0.5 rounded-full pr-0.5 pl-1', FLOATING_PILL)}>
-            {/* Studio-scoped styling for the shared presence stack (the
-                component itself is untouched): left-on-top order and the
-                soft surface-colored ring. */}
-            <span className={cn(PRESENCE_STACK, 'pr-1')}>
-              <UserPresence />
-            </span>
-            <span aria-hidden className="mx-1 h-5 w-px bg-white/10" />
-            <MergeShareButton item={item} inline />
+          {/* Undo / redo, and Preview: the tools. (The people, Share and Notifications are the app header's.) */}
+          <div data-merge-tools className="flex items-center gap-0.5">
+            <button type="button" aria-label="Undo" title="Undo" disabled={!editHistory?.canUndo} onClick={editHistory?.undo} className="flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"><Undo2 className="size-4" /></button>
+            <button type="button" aria-label="Redo" title="Redo" disabled={!editHistory?.canRedo} onClick={editHistory?.redo} className="flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"><Redo2 className="size-4" /></button>
             {/* (Comparing drafts, the preview is the Result header's.) */}
             {!designCompare && <button
               type="button"
@@ -2536,32 +2527,11 @@ function MergeInfiniteCanvas({
               title={mergePreviewOpen ? 'Close preview' : 'Preview'}
               aria-label="Preview"
               aria-pressed={mergePreviewOpen}
-              className={cn(
-                'flex size-7 items-center justify-center rounded-full transition-colors',
-                mergePreviewOpen ? 'bg-emerald-400 text-slate-950' : 'text-foreground hover:bg-white/10'
-              )}
+              className={cn('flex size-7 items-center justify-center rounded-md transition-colors', mergePreviewOpen ? 'bg-[var(--ds-surface-2)] text-slate-100' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white')}
             >
               {/* Outline play triangle, nudged 1px right to sit optically centered. */}
               <Play className="size-4 translate-x-px" />
             </button>}
-            <button
-              type="button"
-              title="Notifications"
-              aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : 'Notifications'}
-              aria-expanded={mergeDrawer === 'inbox'}
-              onClick={() => setMergeDrawer(mergeDrawer === 'inbox' ? null : 'inbox')}
-              className={cn(
-                'relative flex size-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-white/10',
-                mergeDrawer === 'inbox' && 'bg-emerald-400/20 text-emerald-300'
-              )}
-            >
-              <Bell className="size-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex min-w-3 items-center justify-center rounded-full bg-emerald-400 px-0.5 text-[8px] leading-[12px] font-semibold text-slate-950 ring-2 ring-card">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
           </div>
           </div>
           )
@@ -2654,6 +2624,7 @@ function MergeInfiniteCanvas({
         hasSelection={Boolean(syncSelection?.layerId || syncSelection?.fileId || frameSel)}
         onSelection={() => requestMergeFocus({ itemId: item.id, ...syncSelection, card: frameSel, keepDeck: true })}
         history={editHistory}
+        showHistory={false}
         guidesVisible={guidesVisible}
         onToggleGuides={onToggleGuides}
         showZoom={!designCompare}
