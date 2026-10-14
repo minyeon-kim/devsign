@@ -105,15 +105,6 @@ export function foldForRoom({ room, tool, right = { open: false, width: 0 }, cha
   return null
 }
 
-// Design Compare's sidebar: the list alone is 360px; with a set picked it widens to list + detail — 960px to
-// start, never over 55% of the window nor under 720px — kept for the browser. A window of 1280px or less (or one
-// the widening would leave the canvas under MIN_CANVAS) gets it over the canvas.
-export const COMPARE_PANEL = { key: 'devsign:compareWidth.v1', width: 960, min: 720, maxShare: 0.55 }
+// Design Compare's sidebar shows one screen at a time: the list at 360px, the picked set's detail at 520px.
 export const COMPARE_LIST_WIDTH = 360
-export const COMPARE_NARROW = 1280
-export const clampCompareWidth = (width, viewport = null) => {
-  const max = Math.max(COMPARE_PANEL.min, viewport ? Math.floor(viewport * COMPARE_PANEL.maxShare) : Infinity)
-  return Math.round(Math.max(COMPARE_PANEL.min, Math.min(max, Number.isFinite(width) ? width : COMPARE_PANEL.width)))
-}
-export const readCompareWidth = (storage) => { const saved = read(COMPARE_PANEL, storage).width; return Number.isFinite(saved) ? saved : undefined }
-export const writeCompareWidth = (width, storage) => write(COMPARE_PANEL, { width: Number.isFinite(width) ? Math.round(width) : undefined }, storage)
+export const COMPARE_DETAIL_WIDTH = 520
