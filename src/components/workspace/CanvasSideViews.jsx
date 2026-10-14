@@ -69,7 +69,9 @@ export const DOCK_MOTION = 'duration-200 ease-out motion-reduce:transition-none'
 const boardDockWidth = (shown) => (shown === 'detail' ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
 
 export function CanvasViewPanel() {
-  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown, setBoardConflicts } = useWorkspace()
+  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown: boardShown, setBoardConflicts, activeView } = useWorkspace()
+  // (The board's list is the Screens view's: while Merge is up it's out of the row.)
+  const boardDockShown = activeView === 'mergeStudio' ? false : boardShown
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
   // (The view it showed stays while it eases shut.)
   const [last, setLast] = useState(open)
@@ -143,7 +145,9 @@ export function CanvasViewPanel() {
 // canvas (or the comparison) in the same row, its width easing like the tool panel's. BoardConflicts renders
 // into it (a portal, from the board — which keeps its data and its camera); this is only its place.
 export function BoardDockSlot() {
-  const { boardDockShown, setBoardDockHost } = useWorkspace()
+  const { boardDockShown: boardShown, setBoardDockHost, activeView } = useWorkspace()
+  // (The board's list is the Screens view's: while Merge is up it's out of the row — kept, and back with the view.)
+  const boardDockShown = activeView === 'mergeStudio' ? false : boardShown
   const target = boardDockShown ? boardDockWidth(boardDockShown) : 0
   const width = useAfterPaint(target)
   return (

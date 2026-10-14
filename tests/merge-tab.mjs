@@ -34,7 +34,7 @@ try {
   assert.ok(layout.includes('/^Digit[1-4]$/') && layout.includes("at === 3"), '⌘1–4')
   // The address, both ways; the three ways in.
   assert.ok(provider.includes('readMergeParams(location.search)') && provider.includes('withMerge(at.search, id)') && provider.includes("setActiveView('mergeStudio')"))
-  assert.ok(read('components/screens/ScreensBoard.jsx').includes('setSelectedMergeItemId(item.id); openMergeStudio()'), 'a change in the list opens its merge item')
+  assert.ok(!read('components/screens/ScreensBoard.jsx').includes('openMergeStudio()'), 'a change picked in the board’s list shows its detail in the panel — the Screens view stays')
   assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('openMergeStudio()'), '조합하기 opens it')
   // The studio's row: the item switcher, the tools; empty / loading / read-only.
   assert.ok(work.includes('data-merge-switcher') && work.includes('data-merge-skeleton') && work.includes('병합할 변경점이 없어요') && work.includes('data-merge-empty-back') && work.includes('data-merge-readonly'))
@@ -42,5 +42,6 @@ try {
   // The canvas is the Screens canvas's — the same ground (bg-canvas), flush with the tab row: no frame, no gap — and no pill says "n/m 선택" or "결정 n/m" beside what the parts bar says.
   assert.ok(work.includes('data-studio-stage') && work.includes('className="relative flex min-h-0 flex-1 overflow-hidden bg-canvas"') && !/mt-12|rounded-\[20px\]/.test(work.slice(work.indexOf('data-studio-stage'), work.indexOf('data-studio-stage') + 260)), 'flush, on the canvas ground')
   assert.ok(!read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('Decided ${decidedCount}'), 'no decided pill')
-  console.log('Passed: Merge is the fourth view tab of the main window — one shell, one address, three ways in.')
+  assert.ok(read('components/workspace/CanvasSideViews.jsx').split("activeView === 'mergeStudio' ? false : boardShown").length === 3, 'the board’s list is out of the row while Merge is up')
+  console.log('Passed: Merge is the fourth view tab of the main window — one shell, one address, two ways in.')
 } finally { await server.close() }
