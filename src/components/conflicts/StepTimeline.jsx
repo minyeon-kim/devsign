@@ -1,11 +1,10 @@
 import { Children, useEffect, useState } from 'react'
 import { cn } from 'cn'
 import { Chevron, FoldBody } from '@/components/conflicts/Fold'
-import { IDLE, STEP_STATE_WORD, countDone, firstView, liveView, metaLines, progressLabel, readSeen, writeSeen } from '@/lib/stepProgress'
+import { IDLE, STEP_STATE_WORD, countDone, firstView, liveView, progressLabel, readSeen, writeSeen } from '@/lib/stepProgress'
 
-// The record's label / value rows (on the 8px grid): 12px between rows, a
-// 96px label column in grey 13px, values at 14px with room between lines.
-export const RECORD_ROWS = 'grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-3 text-[14px] leading-[1.6] [&>dt]:text-[13px]'
+// The record's label / value rows: 8px between rows, an 80px label column in grey 12px, values at 12.5px.
+export const RECORD_ROWS = 'grid grid-cols-[68px_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-[12.5px] leading-[1.55] [&>dt]:text-[12px]'
 
 const motionOk = () => {
   try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
@@ -57,11 +56,11 @@ const WORD = (state) => STEP_STATE_WORD[state]
 // ring; waiting: an empty grey outline; needs a person: a warning disc and
 // "!". The shape differs by state, so colour never carries it alone.
 export function StepDot({ state, moves: animate = false, arrive = false }) {
-  const base = 'relative flex size-4 shrink-0 items-center justify-center rounded-full'
+  const base = 'relative flex size-3 shrink-0 items-center justify-center rounded-full'
   if (state === 'done') {
     return (
       <span aria-hidden data-step-dot="done" className={cn(base, 'bg-emerald-400/15 text-emerald-300', animate && 'ds-step-pop')}>
-        <svg viewBox="0 0 16 16" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 16 16" className="size-2" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3.5 8.5l3 3 6-7" pathLength="1" className={cn('ds-step-check', animate && 'ds-step-check-draw')} />
         </svg>
       </span>
@@ -75,7 +74,7 @@ export function StepDot({ state, moves: animate = false, arrive = false }) {
   if (state === 'problem') {
     return (
       <span aria-hidden data-step-dot="problem" className={cn(base, 'bg-amber-400/20 text-amber-300')}>
-        <svg viewBox="0 0 16 16" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M8 3.5v5.2M8 12.2v.1" /></svg>
+        <svg viewBox="0 0 16 16" className="size-2" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><path d="M8 3.5v5.2M8 12.2v.1" /></svg>
       </span>
     )
   }
@@ -108,13 +107,13 @@ export function StepLine({ filled, strong = false, moves: animate = false, class
 // finished and fills in (see StepTimeline); `strong`: the line below it is
 // deeper while a later step is hovered. A step with nothing inside (no
 // `children`) has no fold: its head is all there is.
-export function StepRow({ state, title, who, summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
+export function StepRow({ state, title, who: _who, summary: _summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
   const pending = state === 'pending'
   // (Nothing inside — or only conditions that didn't hold: no fold.)
   const foldable = Children.toArray(children).length > 0
   return (
     <li
-      className="group/step relative pl-7"
+      className="group/step relative pl-6"
       aria-label={`${title} · ${STEP_STATE_WORD[state]}`}
       data-step-anim={anim}
       style={{ '--d': `${delay}ms` }}
@@ -122,40 +121,37 @@ export function StepRow({ state, title, who, summary, time, open, onToggle, onRe
       onMouseLeave={onHover && (() => onHover(false))}
       {...rest}
     >
-      {/* (The line runs on to the next step's dot, 48px on; the last one ends at its own.) */}
-      {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-5 bottom-[-28px] left-[7.5px]" />}
-      {/* (12px from the mark to the step's name.) */}
+      {/* (The line runs on to the next step's dot, 16px on; the last one ends at its own.) */}
+      {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-[18px] bottom-[-18px] left-[5.5px]" />}
+      {/* (12px from the mark to the step's name; the mark centred on the name's line.) */}
       <span className="absolute top-1 left-0"><StepDot state={state} moves={moves} arrive={arrive} /></span>
-      {/* 48px from step to step, a hairline halfway — under every step but the last. */}
-      <div data-step-row={state} data-open={open} className={cn(!last && 'border-b border-white/[0.06] pb-[23px]')}>
+      {/* (16px from step to step, no hairline: the line and the marks carry it.) */}
+      <div data-step-row={state} data-open={open}>
         <div data-step-head className="flex min-w-0 items-start gap-3">
           {(() => {
             const text = (
               <>
                 {/* The step's name alone, bold… */}
-                <span data-step-title className={cn('text-base leading-6 font-semibold whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'text-slate-200' : 'text-white')}>{title}</span>
-                {/* …and who and what under it, grey, at most two "·" to a line. */}
-                {metaLines([who, summary]).map((line, index) => (
-                  <span key={line} data-step-meta className={cn('block max-w-full truncate text-[13px] leading-5', index === 0 && 'mt-1', pending ? 'text-slate-600' : 'text-slate-400')}>{line}</span>
-                ))}
+                <span data-step-title className={cn('text-[13px] leading-5 whitespace-nowrap', pending ? 'text-slate-500' : state === 'done' ? 'font-medium text-slate-300' : 'font-semibold text-white')}>{title}</span>
+
               </>
             )
             return foldable
               ? <button type="button" aria-expanded={open} onClick={onToggle} className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer flex-col items-start rounded text-left focus-visible:outline-2 focus-visible:outline-emerald-300">{text}</button>
               : <div className="flex min-w-0 flex-1 flex-col items-start">{text}</div>
           })()}
-          <div className="flex h-6 shrink-0 items-center gap-2">
+          <div className="flex h-5 shrink-0 items-center gap-1.5">
             {onReplay && (
-              <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-[13px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
+              <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
                 이 단계부터 보기
               </button>
             )}
-            {time && <time data-step-time className="shrink-0 text-[13px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
-            {foldable && <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-6 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3.5" /></button>}
+            {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
+            {foldable && <button type="button" tabIndex={-1} aria-hidden onClick={onToggle} className="ds-intrinsic flex size-5 shrink-0 cursor-pointer items-center justify-center rounded"><Chevron open={open} className="size-3" /></button>}
           </div>
         </div>
-        {/* Opened: 20px under its head, from the name's own left edge; 24px between its blocks, a readable measure. */}
-        {foldable && <FoldBody open={open}><div data-step-body className="flex flex-col gap-6 pt-5 pr-8 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>}
+        {/* Opened: 12px under its head, from the name's own left edge; 16px between its blocks, a readable measure. */}
+        {foldable && <FoldBody open={open}><div data-step-body className="flex flex-col gap-4 pt-3 pb-1 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody>}
       </div>
     </li>
   )

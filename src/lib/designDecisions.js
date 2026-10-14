@@ -104,12 +104,12 @@ export function reasonChipsFor(id, custom, conflict) {
   const shape = proposalOf(id, custom)
   if (!shape) return []
   const { columns, gap, values } = shape
-  const chips = [`${IMPLEMENTATION_SPEC}이라 768px에서 카드가 겹쳐요`]
-  if (columns === 1) chips.push('1열로 쌓으면 카드가 겹치지 않고 숫자가 또렷해요', '태블릿에서는 한 줄에 하나씩 보는 편이 읽기 쉬워요')
-  else if (columns === 2 && values.cardWidth?.mode === 'fixed') chips.push('2열을 유지해서 한 화면에 보이는 정보가 줄지 않아요', '카드 폭을 줄이면 겹치지 않아요')
-  else if (columns === 2) chips.push('디자인 원안과 같은 2열이라 디자인을 바꿀 필요가 없어요')
-  else if (columns === 3) chips.push('3열이 한 화면에 가장 많이 보여요', '1열은 스크롤이 길어지고 2열은 카드가 좁아 숫자가 잘려요')
-  if (gap != null && gap !== '') chips.push(`간격을 ${gap}px로 하면 카드가 한 줄에 더 들어가요`)
+  const chips = [`768px에서 고정 폭 카드가 겹쳐요`]
+  if (columns === 1) chips.push('1열이면 겹침 없이 숫자가 보여요', '태블릿에선 1열이 읽기 쉬워요')
+  else if (columns === 2 && values.cardWidth?.mode === 'fixed') chips.push('2열로 화면의 정보량을 유지해요', '카드 폭을 줄이면 겹치지 않아요')
+  else if (columns === 2) chips.push('원안의 2열을 유지해요')
+  else if (columns === 3) chips.push('3열이 한 화면에 가장 많이 보여요', '1열은 긴 스크롤 · 2열은 숫자 잘림')
+  if (gap != null && gap !== '') chips.push(`간격 ${gap}px로 한 줄에 더 배치해요`)
   return chips.slice(0, 3)
 }
 

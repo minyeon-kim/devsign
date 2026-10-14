@@ -67,8 +67,8 @@ export const SEED = {
       stage: 'detected',
       steps: {
         detected: { day: 0, at: '09:12' },
-        requested: { by: 'min', day: 0, at: '09:20', proposal: 'one-column', reason: '360px 고정 2열이라 768px에서 카드가 겹쳐요.' },
-        decided: { by: 'jane', day: 0, at: '09:48', choice: 'approve', reason: '768px에서는 1열이 더 읽기 쉬워요. 출시 전에 디자인 원안도 1열로 업데이트할게요.' },
+        requested: { by: 'min', day: 0, at: '09:20', proposal: 'one-column', reason: '768px에서 카드가 겹쳐요' },
+        decided: { by: 'jane', day: 0, at: '09:48', choice: 'approve', reason: '768px엔 1열이 읽기 쉬워요 · 원안도 1열로 바꿔요' },
         fixed: { auto: true, day: 0, at: '09:49' },
         verified: { day: 0, at: '09:50' },
         merged: { by: 'min', day: 0, at: '10:05' },
@@ -78,7 +78,7 @@ export const SEED = {
       id: 'CON-003',
       title: 'StatCard / Padding',
       kind: 'value',
-      reasons: ['카드 4개가 한 줄에 들어가려면 안쪽 여백을 12px로 둬야 해요', '숫자가 커서 16px이면 두 줄로 넘어가요'], // why keep the code's value — offered, never filled in
+      reasons: ['12px이면 카드 4개가 한 줄에 들어가요', '숫자가 커서 16px이면 두 줄로 넘어가요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       changeType: 'spacing', // which adapter the 해결 방법 card uses (lib/changeAdapters)
       property: 'Padding',
@@ -89,9 +89,9 @@ export const SEED = {
       layers: ['c-revenue', 'c-orders', 'c-visitors', 'c-conversion'],
       region: 'cards',
       components: ['StatCard'],
-      effect: '카드 내용이 조금 답답해 보임',
+      effect: '카드가 답답해 보임',
       cause: '카드 안쪽 여백 12px · 디자인은 16px (space.4)',
-      says: 'StatCard의 안쪽 여백이 12px이에요. 디자인은 space.4(16px)를 써요.',
+      says: '안쪽 여백 12px → 디자인은 16px(space.4)',
       preview: { kind: 'spacing', built: { gap: '12px' }, design: { gap: '16px' } },
       changedBy: 'min',
       branch: { source: 'feature/dashboard-responsive', target: 'develop' },
@@ -104,7 +104,7 @@ export const SEED = {
       id: 'CON-005',
       title: 'PurchaseCTA / Color token',
       kind: 'value',
-      reasons: ['color.cta(#2563EB)는 흰 글자와의 대비가 4.5:1에 못 미쳐요', '토큰을 고칠 때까지 지금 색을 유지하고 싶어요'], // why keep the code's value — offered, never filled in
+      reasons: ['color.cta 대비가 4.5:1 미만이에요', '토큰 수정 전까지 현재 색을 유지해요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       changeType: 'color',
       tokens: ['color.ctaDark (#0F172A)', 'color.accent (#7C3AED)'], // what else there is to pick, beside the design's and the code's
@@ -120,14 +120,14 @@ export const SEED = {
       components: ['PurchaseCTA'],
       effect: '테마 변경을 따르지 않음',
       cause: '구매 버튼 배경이 #1D4ED8 고정값 · 디자인은 color.cta 토큰',
-      says: '구매 버튼 배경이 #1D4ED8로 고정돼 있어요. 디자인은 color.cta 토큰을 써요.',
+      says: '배경 #1D4ED8 고정 → 디자인은 color.cta 토큰',
       preview: { kind: 'button', label: 'Upgrade to Pro', built: { height: 44, background: '#1D4ED8' }, design: { height: 44, background: '#2563EB' } },
       changedBy: 'min',
       branch: { source: 'feature/dashboard-cta', target: 'develop' },
       reviewers: ['jane'],
       due: 1,
       stage: 'in_review', // waiting for Taylor's approval
-      steps: { detected: { day: 0, at: '08:55' }, requested: { by: 'min', day: 0, at: '09:02', proposal: 'current', reason: 'color.cta(#2563EB)는 흰 글자와의 대비가 4.5:1에 조금 못 미쳐요. 토큰을 고칠 때까지 지금 색을 유지하고 싶어요.' } },
+      steps: { detected: { day: 0, at: '08:55' }, requested: { by: 'min', day: 0, at: '09:02', proposal: 'current', reason: 'color.cta는 대비 4.5:1 미달 · 토큰 수정 전까지 유지' } },
     },
     {
       id: 'CON-006',
@@ -146,7 +146,7 @@ export const SEED = {
       components: ['DashboardHeader'],
       effect: '제목이 덜 강조됨',
       cause: '제목 굵기 600 · 디자인은 700',
-      says: '대시보드 제목이 font-weight 600이에요. 디자인은 700을 써요.',
+      says: '제목 굵기 600 → 디자인은 700',
       preview: { kind: 'text', label: 'Dashboard', built: { fontWeight: 600 }, design: { fontWeight: 700 } },
       changedBy: 'james',
       branch: { source: 'feature/dashboard-header', target: 'develop' },
@@ -159,7 +159,7 @@ export const SEED = {
       id: 'CON-008',
       title: 'Chart legend / Spacing',
       kind: 'value',
-      reasons: ['범례 항목이 6개라 8px이면 좁은 화면에서 두 줄로 넘어가요', '차트 폭이 좁아 범례를 한 줄로 두고 싶어요'], // why keep the code's value — offered, never filled in
+      reasons: ['8px이면 범례 6개가 두 줄이 돼요', '좁은 차트에 범례를 한 줄로 맞춰요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       changeType: 'spacing',
       property: 'Gap',
@@ -170,22 +170,22 @@ export const SEED = {
       wholeScreen: true,
       sample: 'legend', // its own component, drawn alone (ElementPreview's ComponentSample)
       components: ['RevenueChart'],
-      effect: '범례 항목이 붙어 보임',
+      effect: '범례가 붙어 보임',
       cause: '범례 항목 간격 4px · 디자인은 8px',
-      says: '차트 범례 항목 사이 간격이 4px이에요. 디자인은 8px(space.2)이에요.',
+      says: '범례 간격 4px → 디자인은 8px(space.2)',
       preview: { kind: 'spacing', built: { gap: '4px' }, design: { gap: '8px' } },
       changedBy: 'james',
       branch: { source: 'feature/revenue-chart', target: 'develop' },
       reviewers: ['jane'],
       due: 3,
       stage: 'in_review',
-      steps: { detected: { day: 0, at: '08:10' }, requested: { by: 'james', day: 0, at: '08:25', proposal: 'current', reason: '범례 항목이 6개라 8px이면 좁은 화면에서 두 줄로 넘어가요.' } },
+      steps: { detected: { day: 0, at: '08:10' }, requested: { by: 'james', day: 0, at: '08:25', proposal: 'current', reason: '8px이면 좁은 화면에서 두 줄이 돼요' } },
     },
     {
       id: 'CON-009',
       title: 'Sidebar / Breakpoint',
       kind: 'value',
-      reasons: ['태블릿 가로(1024px)에서는 본문이 좁아 사이드바를 접는 게 나아요', '1024px에서 차트가 잘려 보여요'], // why keep the code's value — offered, never filled in
+      reasons: ['1024px에서 본문 공간을 확보해요', '1024px에서 차트가 잘려 보여요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       changeType: 'breakpoint',
       property: 'Collapse at',
@@ -197,9 +197,9 @@ export const SEED = {
       sample: 'sidebar', // the screen at a width between the two, its sidebar open or folded (ElementPreview's ComponentSample)
       screens: ['Dashboard · tablet'],
       components: ['Sidebar'],
-      effect: '태블릿 가로 화면에서 사이드바가 일찍 접힘',
+      effect: '태블릿 가로에서 사이드바가 일찍 접힘',
       cause: '사이드바 접힘 기준 1024px · 디자인은 768px',
-      says: '사이드바가 1024px부터 접혀요. 디자인은 768px(breakpoint.tablet)에서 접혀요.',
+      says: '1024px부터 접힘 → 디자인은 768px부터',
       preview: { kind: 'card', content: { title: 'Sidebar.tsx', detail: 'collapse < 1024px → 768px' }, built: { radius: 12, collapseAt: 1024 }, design: { radius: 12, collapseAt: 768 } }, // collapseAt: where the sidebar folds — what the sample is drawn from
       changedBy: 'min',
       branch: { source: 'feature/dashboard-responsive', target: 'develop' },
@@ -212,7 +212,7 @@ export const SEED = {
       id: 'CON-011',
       title: 'Empty state / Illustration size',
       kind: 'value',
-      reasons: ['작은 화면에서 120px이면 빈 상태의 버튼이 첫 화면 아래로 밀려요', '일러스트보다 버튼이 먼저 보여야 해요'], // why keep the code's value — offered, never filled in
+      reasons: ['120px이면 버튼이 첫 화면 밖으로 밀려요', '일러스트보다 버튼이 먼저 보여야 해요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       changeType: 'size',
       property: 'Size',
@@ -226,14 +226,14 @@ export const SEED = {
       components: ['EmptyState'],
       effect: '빈 화면이 허전해 보임',
       cause: '빈 상태 일러스트 96px · 디자인은 120px',
-      says: '빈 상태 일러스트가 96px이에요. 디자인은 120px이에요.',
+      says: '일러스트 96px → 디자인은 120px',
       preview: { kind: 'icon', built: { size: 24, stroke: 2, px: 96 }, design: { size: 30, stroke: 2, px: 120 } }, // px: the illustration's real size
       changedBy: 'james',
       branch: { source: 'feature/empty-state', target: 'develop' },
       reviewers: ['jane'],
       due: 7,
       stage: 'in_review',
-      steps: { detected: { day: -1, at: '17:40' }, requested: { by: 'james', day: 0, at: '08:30', proposal: 'current', reason: '작은 화면에서 120px이면 빈 상태의 버튼이 첫 화면 아래로 밀려요.' } },
+      steps: { detected: { day: -1, at: '17:40' }, requested: { by: 'james', day: 0, at: '08:30', proposal: 'current', reason: '120px이면 버튼이 첫 화면 밖으로 밀려요' } },
     },
   ],
 
@@ -260,7 +260,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-012',
       title: 'CheckoutForm / Field gap',
       kind: 'value',
-      reasons: ['폼이 길어서 6px로 두면 결제 버튼까지 스크롤이 줄어요', '입력 칸이 많아 간격을 좁게 두고 싶어요'], // why keep the code's value — offered, never filled in
+      reasons: ['6px이면 결제 버튼까지 스크롤이 줄어요', '입력 칸이 많아 간격을 좁게 두고 싶어요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       property: 'Field gap',
       design: '8px',
@@ -271,10 +271,10 @@ export const CHECKOUT_SEED = {
       code: { built: '<form className="flex flex-col gap-1.5">', design: '<form className="flex flex-col gap-2">' },
       frame: 'Checkout · Form',
       components: ['CheckoutForm'],
-      effect: '입력 필드 사이가 8px 단위보다 2px 좁음',
+      effect: '필드 사이가 2px 좁음',
       cause: '폼 필드 간격 6px · 디자인은 8px (4/8 간격 단위)',
-      says: '결제 폼 필드 간격이 6px이에요. 디자인은 4/8 간격 단위의 8px을 써요.',
-      suggestion: 'gap-1.5를 gap-2로 바꿔 폼 간격을 8px 단위에 맞추세요.',
+      says: '필드 간격 6px → 디자인은 8px(4/8 단위)',
+      suggestion: 'gap-2로 변경 · 필드 간격 8px',
       riskReason: 'Medium: 결제 폼 간격 · 눈에 보이지만 동작은 그대로예요.',
       uxNote: '입력 필드 사이가 8px 간격 단위보다 2px 좁아요.',
       previewPrompt: '결제 폼 간격을 8px 단위에 맞춰 줘',
@@ -288,8 +288,8 @@ export const CHECKOUT_SEED = {
       // What happened, in order. Every step is done: it's merged.
       steps: {
         detected: { day: -4, at: '10:05' },
-        requested: { by: 'james', day: -4, at: '10:20', proposal: 'current', reason: '폼이 길어서 6px로 두면 결제 버튼까지 스크롤이 줄어요.' },
-        decided: { by: 'jane', day: -4, at: '11:00', choice: 'keep', reason: '폼 간격은 4/8 단위를 지켜야 해요. 디자인대로 8px로 맞춰요.' },
+        requested: { by: 'james', day: -4, at: '10:20', proposal: 'current', reason: '6px면 결제 버튼까지 스크롤이 줄어요' },
+        decided: { by: 'jane', day: -4, at: '11:00', choice: 'keep', reason: '4/8 단위를 지켜 8px로 맞춰요' },
         fixed: { auto: true, day: -4, at: '11:01' },
         verified: { day: -4, at: '11:02' },
         merged: { by: 'james', day: -4, at: '11:30' },
@@ -299,7 +299,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-013',
       title: 'ShippingOptions / Icon stroke',
       kind: 'value',
-      reasons: ['16px 아이콘이라 2.5여야 또렷하게 보여요', '배송 옵션을 다른 아이콘보다 눈에 띄게 하고 싶어요'], // why keep the code's value — offered, never filled in
+      reasons: ['16px 아이콘이라 2.5여야 또렷하게 보여요', '배송 옵션을 더 강조해요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Stroke',
       design: '2',
@@ -312,9 +312,9 @@ export const CHECKOUT_SEED = {
       frame: 'Checkout · Shipping',
       screens: ['Checkout · Shipping step'],
       components: ['ShippingOptions'],
-      effect: '배송 아이콘이 다른 아이콘보다 굵어 보임',
+      effect: '아이콘이 굵어 보임',
       cause: '배송 아이콘 stroke 2.5 · 아이콘 세트는 2',
-      says: '배송 옵션 아이콘이 stroke 2.5로 그려져요. 아이콘 세트는 2로 그려요.',
+      says: '선 굵기 2.5 → 아이콘 세트는 2',
       suggestion: '배송 아이콘의 strokeWidth를 지워 기본값(2)을 쓰세요.',
       riskReason: 'Low: 배송 옵션 아이콘 굵기 · 레이아웃과 동작은 그대로예요.',
       uxNote: '배송 아이콘이 나머지 아이콘보다 굵어 보여요.',
@@ -332,7 +332,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-014',
       title: 'PlaceOrderButton / Height & color',
       kind: 'value',
-      reasons: ['결제 버튼 A/B 테스트가 끝날 때까지 지금 높이와 색을 유지하고 싶어요', '브랜드 보라색의 전환율이 더 높게 나왔어요'], // why keep the code's value — offered, never filled in
+      reasons: ['A/B 테스트 종료까지 높이·색을 유지해요', '브랜드 보라색의 전환율이 더 높게 나왔어요'], // why keep the code's value — offered, never filled in
       severity: 'medium',
       fields: [
         { label: 'Height', design: '44px (button.height.lg)', built: '40px (default size)' },
@@ -348,13 +348,13 @@ export const CHECKOUT_SEED = {
       layer: 'place-order',
       frame: 'Checkout · Payment step',
       components: ['PlaceOrderButton'],
-      effect: '버튼이 4px 낮음 · 고정 색상이라 테마 변경을 따르지 않음',
+      effect: '4px 낮음 · 테마를 따르지 않음',
       cause: '주문 버튼 높이 40px · 보라색(#7c3aed) 고정 · 디자인은 44px large 버튼과 primary 토큰',
-      says: '주문 버튼이 40px 높이에 보라색(#7c3aed) 고정 배경이에요. 결제 디자인은 44px large 버튼과 primary 색상 토큰을 써요.',
-      suggestion: 'lg 버튼 크기를 쓰고 고정 배경을 지워 primary 색상 토큰을 따르게 하세요.',
-      suggestionReason: '결제 디자인은 large primary 버튼을 써요. 고정 hex는 테마를 거치지 않아요.',
+      says: '높이 40px · #7c3aed 고정 → 디자인은 44px · primary 토큰',
+      suggestion: 'lg 크기 · primary 색상 토큰 적용',
+      suggestionReason: 'large primary가 디자인 기준 · 고정 색은 테마 미반영',
       riskReason: 'Medium: 결제의 주 버튼 크기와 색상이 바뀌어요. 스타일만 바뀌고 결제 로직과 데이터는 그대로예요.',
-      uxNote: '버튼이 디자인의 large 버튼보다 4px 낮고, 보라색 고정이라 테마를 바꿔도 그대로예요.',
+      uxNote: '버튼 높이 4px 부족 · 고정 색으로 테마 미반영',
       expectedResult: '결제 단계에서 주문 버튼이 44px 높이, primary 색상으로 보여요.',
       previewPrompt: '주문 버튼을 결제 디자인에 맞춰 줘',
       // Its reason, registered ahead of time: the two design system rules it
@@ -376,7 +376,7 @@ export const CHECKOUT_SEED = {
       reviewers: ['jane'],
       due: 1,
       stage: 'in_review', // waiting for Taylor's decision
-      steps: { detected: { day: -1, at: '17:20' }, requested: { by: 'james', day: 0, at: '09:30', proposal: 'current', reason: '결제 버튼 A/B 테스트가 끝날 때까지 지금 높이와 색을 유지하고 싶어요.' } },
+      steps: { detected: { day: -1, at: '17:20' }, requested: { by: 'james', day: 0, at: '09:30', proposal: 'current', reason: 'A/B 테스트가 끝날 때까지 유지' } },
     },
     {
       id: 'CON-015',
@@ -394,9 +394,9 @@ export const CHECKOUT_SEED = {
       layer: 'payment-label',
       frame: 'Checkout · Payment',
       components: ['PaymentForm'],
-      effect: '라벨 자간이 나머지 폼 글자보다 넓음',
+      effect: '라벨 자간이 넓음',
       cause: '필드 라벨 tracking-wide · 디자인 시스템은 기본 자간',
-      says: '필드 라벨에 tracking-wide가 붙어 있어요. 디자인 시스템의 라벨 스타일은 기본 자간이에요.',
+      says: '라벨 자간 tracking-wide → 디자인은 기본 자간',
       suggestion: '필드 라벨에서 tracking-wide를 지우세요.',
       riskReason: 'Low: 결제 필드 라벨 자간 · 레이아웃과 동작은 그대로예요.',
       uxNote: '필드 라벨 자간이 나머지 폼보다 조금 넓어 보여요.',
@@ -414,7 +414,7 @@ export const CHECKOUT_SEED = {
       id: 'CON-016',
       title: 'OrderSummary / Divider color',
       kind: 'value',
-      reasons: ['디자인이 확정될 때까지 임시로 유지하고 싶어요', '다크 테마에서 border 토큰이 너무 어두워 구분선이 안 보여요'], // why keep the code's value — offered, never filled in
+      reasons: ['디자인 확정 전까지 유지해요', '다크 테마에서 border 구분선이 안 보여요'], // why keep the code's value — offered, never filled in
       severity: 'low',
       property: 'Divider',
       design: 'border (token)',
@@ -426,9 +426,9 @@ export const CHECKOUT_SEED = {
       layer: 'order-summary',
       frame: 'Checkout · Summary',
       components: ['OrderSummary'],
-      effect: '고정 색상이라 테마 변경을 따르지 않음',
+      effect: '테마를 따르지 않음',
       cause: '주문 요약 구분선 slate-200 · 디자인은 border 토큰',
-      says: '주문 요약 구분선이 slate-200이에요. 디자인은 border 토큰을 써요.',
+      says: '구분선 slate-200 → 디자인은 border 토큰',
       suggestion: '구분선에 border-border를 써서 테마를 따르게 하세요.',
       riskReason: 'Low: 주문 요약 구분선 색 · 레이아웃과 동작은 그대로예요.',
       uxNote: '고정 색상이라 테마를 바꿔도 구분선 색이 그대로예요.',
@@ -483,9 +483,9 @@ export const CHECKOUT_SEED = {
       components: ['CouponNotice'],
       effect: '터치 화면에서 누르기 어려움',
       cause: '쿠폰 닫기 버튼 20 × 20px (코드 · 디자인 모두) · 터치 영역 기준 24px 미만',
-      says: '닫기 버튼이 코드와 디자인 모두 20 × 20px이에요. 터치 영역 기준 24px보다 작아요.',
+      says: '코드·디자인 모두 20 × 20px → 기준은 24px 이상',
       suggestion: 'Merge Studio에서 닫기 버튼을 24 × 24px 이상으로 키우세요.',
-      riskReason: '두 버전의 크기가 같아서 한쪽을 고르는 것만으로는 터치 영역을 고칠 수 없어요.',
+      riskReason: '두 버전 모두 작아요 · 터치 영역 확대 필요',
       ruleIds: ['touch-target'],
       resolution: 'manual',
       adjustment: { from: { width: 20, height: 20 }, to: { width: 24, height: 24 } },
@@ -519,7 +519,7 @@ export const CHECKOUT_SEED = {
       components: ['CheckoutTabs'],
       effect: '탭 아이콘이 디자인보다 작게 보임',
       cause: '탭 아이콘 코드 20px · 디자인 24px',
-      says: '탭 아이콘이 코드에서 20px이에요. 디자인은 24px이에요.',
+      says: '아이콘 20px → 디자인은 24px',
       suggestion: '디자인 크기를 고르거나, Merge Studio에서 아이콘의 W와 H를 정하세요.',
       riskReason: 'Low: 결제 탭의 아이콘 하나예요.',
       preview: { kind: 'icon', built: { size: 20, stroke: 2 }, design: { size: 24, stroke: 2 } },
@@ -553,9 +553,9 @@ export const CHECKOUT_SEED = {
       components: ['CouponNotice'],
       effect: '터치 화면에서 누르기 어려움',
       cause: '쿠폰 닫기 버튼 20 × 20px (두 버전 모두) · 어느 쪽을 골라도 해결되지 않음',
-      says: '두 버전 모두 닫기 버튼이 20 × 20px이에요. Merge Studio에서 버튼을 선택하고 속성 → 레이아웃에서 W와 H를 24px 이상으로 정하세요.',
-      suggestion: '모서리 스타일은 어느 쪽이든 고르고, 닫기 버튼을 24 × 24px 이상으로 키우세요.',
-      riskReason: '두 버전 모두 닫기 버튼이 너무 작아요. 카드를 고르는 것만으로는 터치 영역을 고칠 수 없어요.',
+      says: '두 버전 모두 20 × 20px → W·H를 24px 이상으로',
+      suggestion: '모서리 선택 후 닫기 버튼을 24 × 24px 이상으로',
+      riskReason: '두 버전 모두 작아요 · 터치 영역 확대 필요',
       ruleIds: ['touch-target'],
       preview: { kind: 'button', label: '×', built: { width: 20, height: 20, radius: 4, background: '#475569' }, design: { width: 20, height: 20, radius: 8, background: '#475569' } },
       branch: { source: 'feature/coupon-dismiss', target: 'develop' },

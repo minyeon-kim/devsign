@@ -73,18 +73,26 @@ try {
       const html = render(conflict, viewer)
       const where = `${conflict.id} (${decisionStageOf(conflict)}, ${role})`
       assert.equal(count(html, 'data-proposal-section'), 1, `${where}: one 해결 방법 card`)
+      const stepOpen = (key) => new RegExp(`data-fold="${key}"[\\s\\S]*?data-step-row="[^"]+" data-open="([^"]+)"`).exec(html)?.[1]
+      assert.equal(stepOpen('detect'), 'false', `${where}: completed detection starts folded`)
+      if (decisionStageOf(conflict) === 'detected') assert.equal(stepOpen('request'), 'true', `${where}: request is the current step`)
+      if (decisionStageOf(conflict) === 'requested') {
+        assert.equal(stepOpen('request'), 'false', `${where}: previous request is folded`)
+        assert.equal(stepOpen('decision'), 'true', `${where}: decision is the current step`)
+      }
+
       assert.equal(count(html, 'data-before-after='), 1, `${where}: one comparison, in the card`)
       for (const marker of OLD) assert.equal(count(html, marker), 0, `${where}: ${marker} is drawn`)
       const mode = /data-proposal-card="(\w+)"/.exec(html)[1]
       seen.add(`${decisionStageOf(conflict)}:${role}:${mode}`)
       // Only a way being picked has radios and a button; anything else is read-only.
-      assert.equal(html.includes('role="radio"') && html.includes('data-proposal-action'), mode === 'pick', `${where}: ${mode}`)
+      assert.equal(html.includes('role="radio"') && html.includes('data-proposal-action'), ['pick', 'pending'].includes(mode), `${where}: ${mode}`)
       // 원안 보기 is the card's; its pictures open larger in a popover — no separate full-screen viewer.
-      assert.ok(html.includes('data-show-design') && html.includes('data-picture-zoom') && !html.includes('data-proposal-fullscreen'), `${where}: 원안 보기 · 크게 보기`)
+      assert.ok(!html.includes('data-show-design') && html.includes('data-picture-zoom') && !html.includes('data-proposal-fullscreen'), `${where}: no 원안 보기 toggle; 크게 보기`)
     }
   }
   // (The seeds cover a way being picked, one waiting, and one that went in — seen by both.)
-  for (const state of ['detected:developer:pick', 'detected:designer:view', 'requested:developer:pending', 'requested:designer:pending', 'resolved:developer:done', 'resolved:designer:done']) assert.ok(seen.has(state), `no seeded change is ${state}`)
+  for (const state of ['detected:developer:pick', 'detected:designer:pick', 'requested:developer:pending', 'requested:designer:pending', 'resolved:developer:done', 'resolved:designer:done']) assert.ok(seen.has(state), `no seeded change is ${state}`)
   assert.ok(['layout', 'spacing', 'color', 'weight', 'breakpoint', 'size'].every((type) => kinds.has(type)), 'every kind is seeded')
 } finally {
   await server.close()

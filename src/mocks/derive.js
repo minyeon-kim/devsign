@@ -211,12 +211,12 @@ function designDecisionOf(project, change, fields, ms) {
     // seed's for keeping the code's value); the designer's, by decision.
     reasonChips: {
       current: change.reasons ?? [],
-      other: [`디자인 원안(${designSpec})과 현재 값(${builtSpec}) 사이로 맞추면 둘 다 지킬 수 있어요`],
+      other: [`원안(${designSpec})과 현재(${builtSpec})의 절충값`],
     },
     decisionChips: {
-      keep: `디자인 시스템 기준(${designSpec})을 지켜 주세요. 원안대로 맞춰요.`,
-      approve: `제안한 이유가 맞아요. 디자인 원안도 ${steps.requested?.proposal === 'other' ? '제안한 값' : builtSpec}${/[가-힣]$/.test(builtSpec) ? '으로' : '로'} 바꿀게요.`,
-      rework: '이 값으로는 어려워요. 다른 값을 다시 제안해 주세요.',
+      keep: `디자인 기준(${designSpec})으로 맞춰요`,
+      approve: `원안도 ${steps.requested?.proposal === 'other' ? '제안한 값' : builtSpec}${/[가-힣]$/.test(builtSpec) ? '으로' : '로'} 바꿀게요.`,
+      rework: '다른 값을 제안해 주세요',
     },
     // 다른 값's one field: the value, starting from what the code has.
     driftProps: [{ id: 'value', label: told.length > 1 ? '값' : told[0].label, kind: 'text', primary: true, current: builtSpec, currentText: `현재 ${builtSpec}` }],
@@ -283,12 +283,12 @@ export function mergedStructuralRecord(change, now = Date.now()) {
     gitFlow: change.branch,
     cause: `${bp}px에서 카드 ${built.columns}열(${built.width}px 고정) · 화면 폭보다 넓어 카드가 겹침`,
     effect: change.effects.join(' · '),
-    summary: `${bp}px에서 카드가 겹쳐요. 디자인은 화면 폭에 맞춘 ${design.columns}열, 구현은 ${builtWords}이에요.`,
+    summary: `${bp}px에서 카드 겹침 · 고정 폭 → 화면 폭 맞춤 ${design.columns}열`,
     message: `${bp}px(태블릿)에서 DashboardGrid가 ${built.width}px 고정 카드 ${built.columns}열을 유지해, 카드가 서로 ${change.overlap}px 겹쳐요. 디자인 원안은 ${bp}px에서 화면 폭에 맞춘 카드 ${design.columns}열이에요.`,
     riskReason: 'Medium: 태블릿 레이아웃 구조가 바뀌는 변경 · 데이터나 결제 로직은 그대로예요.',
     impact: { screens: [`${SEED.project.screen} · ${bp}px (tablet)`], components: change.components, files: [change.file, 'src/styles/dashboard.css'] },
     uxNote: '태블릿에서 카드가 겹쳐 숫자가 가려지고, 구매 버튼이 아래로 밀려요.',
-    suggestion: `디자인 결정이 필요해요: 원안(${design.columns}열)에 맞춰 코드를 고치거나, ${decided.columns}열로 바꾸는 변경을 승인받으세요.`,
+    suggestion: `원안 ${design.columns}열 적용 또는 ${decided.columns}열 변경 승인`,
     branches: { local: 'DashboardGrid.tsx', remote: `${SEED.project.screen} · ${bp}px (Figma)` },
     // (The small picture a list row or card falls back on.)
     preview: { kind: 'spacing', before: { gap: '0px' }, after: { gap: '8px' } },

@@ -14,6 +14,7 @@ import { RISK_LABEL, listStatusOf, shortDue } from '@/lib/conflicts'
 //   groups: [{ id, n, name, conflicts }] — the screens with changes, then
 //   (id: null) those about no screen. picked: the change whose detail shows.
 export const BOARD_PANEL_WIDTH = 380
+export const BOARD_DETAIL_WIDTH = 460
 const RISK_DOT = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-sky-300' }
 const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
@@ -32,7 +33,7 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       className="absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none"
-      style={{ width: BOARD_PANEL_WIDTH }}
+      style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
       <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
         {/* (On a change: the way back to the list — its title is the detail's own, right under.) */}

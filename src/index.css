@@ -1102,3 +1102,66 @@ button.editor-line-comment {
 @media (prefers-reduced-motion: reduce) {
   .ds-ripple { animation: none; opacity: 0; }
 }
+
+/* The narrow floating review has its own gutter, independent of page spacing. */
+[data-board-conflicts="detail"] [data-review-header],
+[data-board-conflicts="detail"] [data-review-body] {
+    padding-inline: 28px;
+}
+
+[data-board-conflicts="detail"] > header {
+    height: 52px;
+    padding-top: 8px;
+    padding-inline: 12px;
+}
+
+[data-board-conflicts="detail"] [data-review-header] {
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+[data-board-conflicts="detail"] [data-review-body] {
+    padding-bottom: 28px;
+}
+
+[data-board-conflicts="detail"] [data-review-tabs="top"] > [role="tab"] {
+    border-bottom: 0;
+    margin-bottom: 0;
+}
+
+[data-board-conflicts="detail"] [data-step-list] > li {
+    padding-left: 20px;
+}
+
+/* Resolution options retain their own colour when hovered or selected. */
+[data-choice-tone="A"] { --choice-rgb: 56 189 248; }
+[data-choice-tone="B"] { --choice-rgb: 251 191 36; }
+[data-choice-tone="C"] { --choice-rgb: 167 139 250; }
+
+[data-choice-tone][role="radio"] {
+    background-color: rgb(var(--choice-rgb) / 0.055);
+    box-shadow: inset 0 0 0 1px rgb(var(--choice-rgb) / 0.2);
+    outline-color: rgb(var(--choice-rgb));
+}
+[data-choice-tone][role="radio"]:hover {
+    background-color: rgb(var(--choice-rgb) / 0.1);
+}
+[data-choice-tone][role="radio"][aria-checked="true"] {
+    background-color: rgb(var(--choice-rgb) / 0.14);
+    box-shadow: inset 0 0 0 1.5px rgb(var(--choice-rgb) / 0.75);
+}
+[data-choice-tone][role="radio"] > span[aria-hidden] {
+    border-color: rgb(var(--choice-rgb) / 0.5);
+}
+[data-choice-tone][role="radio"][aria-checked="true"] > span[aria-hidden] {
+    border-color: rgb(var(--choice-rgb));
+}
+[data-choice-tone][role="radio"] > span[aria-hidden] > span {
+    background-color: rgb(var(--choice-rgb));
+}
+
+/* Expanded choices must not change the preview width when scrolling begins. */
+[data-review-scroll="main"] {
+    scrollbar-gutter: stable;
+    overflow-anchor: none;
+}

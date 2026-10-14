@@ -72,6 +72,7 @@ Reason for adjustment and exception|직접 조정 및 예외 요청 사유
 This reason is also sent with the exception request.|입력한 조정 사유가 예외 요청에도 함께 전달됩니다.
 Apply exception|예외 적용
 Exception needed to merge|병합하려면 예외 필요
+Exception needed|예외 필요
 Apply both|둘 다 적용
 Suggested|제안
 Keep local|로컬 유지

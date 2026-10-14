@@ -8,7 +8,7 @@ import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { HEAD_COLOR, PinShape } from '@/components/conflicts/ConflictPins'
-import BoardConflicts, { BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
+import BoardConflicts, { BOARD_PANEL_WIDTH, BOARD_DETAIL_WIDTH } from '@/components/screens/BoardConflicts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RISK_LABEL, listStatusOf, shortDue } from '@/lib/conflicts'
 import { layerIdsOf } from '@/lib/conflictInsight'
@@ -427,7 +427,7 @@ function ScreensBoard() {
   const pickedMarker = listOpen && pickedScreen && pickedLayer ? `${pickedScreen}:${pickedLayer}` : null
   const pickBoardConflict = (conflict) => {
     const card = cardOf(screenOfConflict(conflict))
-    if (card) zoomToCard(card, BOARD_PANEL_WIDTH + 64)
+    if (card) zoomToCard(card, BOARD_DETAIL_WIDTH + 64)
     setBoardConflicts({ conflictId: conflict.id })
   }
   const reveal = (id) => {
