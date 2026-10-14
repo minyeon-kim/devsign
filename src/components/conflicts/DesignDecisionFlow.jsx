@@ -1341,33 +1341,12 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     />
   )
 
-  // (The designer's view, once decided: what came of it — said in the status block's second line, once.)
-  const delivered = !developer && decision && stage !== 'requested' ? [
-    `${nameOf(request?.by)}님에게 전달됨`,
-    '승인 기록 저장됨',
-    stage === 'rework' ? '새 수정안이 오면 알려 드려요'
-      : stage === 'decided' ? scheduleOf(conflict, releaseOf(conflict))
-        : stage === 'fixed' ? `${nameOf(request?.by)}님이 반영했어요`
-          : stage === 'verified' ? `${nameOf(request?.by)}님이 반영하고 검증했어요` : null,
-  ].filter(Boolean).join(' · ') : null
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} data-step-live={reveal.live ? '' : undefined} className="flex min-w-0 flex-col gap-5">
       {/* (The merge banner is the list's first item: the same gap as between cards.) */}
       {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
 
-      {/* Steps still to go: the next action, first — what to act on (the ways
-          forward, the request, the decision) is right under it. */}
-      {/* (One status, said once: where it stands, and — once it's been decided — a line of what came of it:
-          who it went to, that it's on the record, when it goes in.) */}
-      {!post && stage !== 'resolved' && decisionFlowOf(conflict, viewer).next && (
-        <div data-status-block="next" role="status" className="flex items-start gap-2 rounded-lg bg-white/[0.04] px-3 py-2.5 ring-1 ring-white/[0.08] ring-inset">
-          <span aria-hidden className={cn('mt-[7px] size-1.5 shrink-0 rounded-full', delivered ? (stage === 'rework' ? 'bg-amber-300' : 'bg-emerald-300') : 'bg-sky-300')} />
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] leading-5 font-medium text-white">{decisionFlowOf(conflict, viewer).next}</p>
-            {delivered && <p data-decision-delivered className="text-[11.5px] leading-4 text-slate-400">{delivered}</p>}
-          </div>
-        </div>
-      )}
+      {/* (No "next step" box: the progress record under it already says where it stands.) */}
       {/* (Sent back: what the designer said, first — then the ways forward again.) */}
       {/* What's needed now — first (once it's decided). */}
       {post && developer && (

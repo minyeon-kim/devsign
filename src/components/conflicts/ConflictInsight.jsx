@@ -193,7 +193,6 @@ export function FlowSteps({ conflict, flow: given, className, meta, onStep }) {
           </button>
         ) : <span className="shrink-0 text-[11px] font-medium text-slate-400 tabular-nums"><span className="text-slate-100">{completed}</span>/{flow.steps.length} <LocalizedText text="complete" /></span>}
         </div>
-        <p data-flow-next className="mt-1 truncate text-[11px] leading-4 text-slate-400"><LocalizedText text={flow.next} /></p>
       </div>
       <FoldBody open={isExpanded}><ol className="px-3 pt-3 pb-3">
         {flow.steps.map((step, index) => {

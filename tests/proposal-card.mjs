@@ -53,7 +53,7 @@ assert.ok(flow.includes('<ElementCrop conflict={conflict} link={link} overrides=
 assert.ok(!flow.includes('data-show-design') && !flow.includes('data-proposal-fullscreen') && !flow.includes('ElementPreviewDialog'), 'no 원안 보기 toggle, no separate full-screen viewer')
 assert.ok(!flow.includes('<ExpandablePicture') && !flow.includes('<PictureViewer') && flow.includes('data-preview-diff'), 'no viewer: a fix is previewed on the canvas, in place (tests/canvas-preview)')
 assert.ok(flow.includes('data-fold-section="request"') && flow.includes('data-fold-section="proposal"') && flow.includes('data-fold-section="decision"'), '승인 요청, 해결 방법, 내 결정 fold')
-assert.ok(!flow.includes('님에게 전달됐어요 · 승인 기록이 남았어요') && flow.includes("'승인 기록 저장됨'"), 'what came of a decision is said once, in the status block')
+assert.ok(!flow.includes('님에게 전달됐어요 · 승인 기록이 남았어요') && !flow.includes('data-status-block="next"'), 'no "next step" box over the record: the record says where it stands')
 assert.ok(flow.includes("way.id === 'original') ? 'original' : null"), 'the recommended way is picked to start')
 assert.ok(!flow.includes('data-status-compare'), 'no separate 원안 / 현재 구현 card')
 assert.ok(flow.includes("step.key === 'detect' && <DetectionFacts") && flow.includes('자동 감지 · {conflict.detectedBy}'), 'what detected it is in the record\'s 변경 감지 step')
