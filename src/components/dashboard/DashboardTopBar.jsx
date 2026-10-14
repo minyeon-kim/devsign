@@ -1,26 +1,12 @@
-import { SettingsContent } from '@/components/workspace/SettingsDialog'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { toast } from '@/i18n/toast'
-import { ChevronDown, FileCode2, Folder, User as UserIcon } from 'lucide-react'
+import { FileCode2, Folder } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import SearchField from '@/components/layout/SearchField'
 import { translateText } from '@/i18n/translate'
 import NotificationsMenu from '@/components/layout/NotificationsMenu'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-} from '@/components/ui/dropdown-menu'
-import { LocalizedText } from '@/i18n/runtime'
-import SwitchUserItems from '@/components/dashboard/SwitchUserItems'
-import { allPeople, currentUser, projectFileSets, projects } from '@/data/mockData'
+import { allPeople, projectFileSets, projects } from '@/data/mockData'
 
 const MAX_RESULTS_PER_GROUP = 4
 
@@ -183,46 +169,7 @@ function DashboardTopBar() {
       <div className="flex items-center justify-end gap-2">
         <NotificationsMenu className="size-9 hover:bg-muted" />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-full py-1 pr-1 pl-1.5 transition-colors hover:bg-muted"
-              >
-                <Avatar size="sm">
-                  <AvatarFallback className={cn('text-[10px] font-medium text-white', currentUser.colorClass)}>
-                    {currentUser.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden text-left leading-tight sm:block">
-                  <p className="text-[12px] font-medium text-foreground">{currentUser.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{currentUser.team}</p>
-                </div>
-                <ChevronDown className="size-3.5 text-muted-foreground" />
-              </button>
-            }
-          />
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => toast('Viewing profile', { description: currentUser.name })}>
-              <UserIcon />
-              View profile
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Settings</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64 max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-popover p-3 shadow-xl">
-                <p className="mb-3 text-xs font-medium text-muted-foreground">Settings</p>
-                <SettingsContent />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <SwitchUserItems />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => toast('Signed out')}>
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* (Who's signed in, and their menu: the rail's avatar at the bottom left — one place, as in a project.) */}
       </div>
     </header>
   )

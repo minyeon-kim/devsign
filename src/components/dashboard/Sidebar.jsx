@@ -6,13 +6,16 @@ import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
+import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, User as UserIcon, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import SwitchUserItems from '@/components/dashboard/SwitchUserItems'
 import { LocalizedText } from '@/i18n/runtime'
+import { getLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
+import { toast } from '@/i18n/toast'
 import { currentUser, currentUserFor } from '@/data/mockData'
 import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer, { HistoryCount } from '@/components/dashboard/HistoryDrawer'
@@ -282,8 +285,27 @@ function UserBadge({ projectId }) {
         />
         <TooltipContent side="right">{user.name} · <LocalizedText text={role} /></TooltipContent>
       </Tooltip>
+      {/* (The one account menu — the top bar's is gone: who, their profile, switching, signing out.) */}
       <DropdownMenuContent side="right" align="end" className="min-w-60">
+        <div data-user-menu-head className="flex items-center gap-2.5 px-2 py-2">
+          <Avatar size="sm">
+            <AvatarFallback className={cn('text-[10px] font-medium text-white', user.colorClass)}>{user.initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-[13px] font-medium text-foreground">{user.name}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{[user.team && translateText(user.team, getLanguage()), role && role !== 'Me' && translateText(role, getLanguage())].filter(Boolean).join(' · ')}</p>
+          </div>
+        </div>
+        <DropdownMenuItem onClick={() => toast('Viewing profile', { description: user.name })}>
+          <UserIcon />
+          <LocalizedText text="View profile" />
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <SwitchUserItems />
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={() => toast('Signed out')}>
+          <LocalizedText text="Sign out" />
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
