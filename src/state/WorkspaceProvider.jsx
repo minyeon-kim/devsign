@@ -313,7 +313,8 @@ export function WorkspaceProvider({ children, projectId }) {
       setReviewConflictId(null)
       return
     }
-    if (view === 'overlay') {
+    // (There's no bottom panel any more to hold a review: the "panel" way of opening one is the full-screen viewer too.)
+    if (view === 'overlay' || view === 'panel') {
       // (Over a layer that's already open — another change, or a document — it takes its place: one step back still closes.
       // The docs layer comes off the address with it: never both.)
       if (here) navigate({ pathname: at.pathname, search: withChange(withoutDoc(at.search), id, { evidence, source }) }, anyLayer ? { replace: true, state: at.state } : { state: pushState(fromHistory) })
@@ -393,10 +394,11 @@ export function WorkspaceProvider({ children, projectId }) {
   const compareItemId = readCompare(location.search)
   const setCompareItemId = useCallback((id) => {
     const { location: at } = route.current
-    const search = withCompare(at.search, id)
-    if (search === at.search) return
-    navigate({ pathname: at.pathname, search }, { replace: !(id && !readCompare(at.search)), state: at.state })
-    // (The address is read from `route` by what runs next in the same step — it's told at once.)
+    // (The address as it is now — a step before this one may have changed it, and `route` hears of it only on the next render.)
+    const now = typeof window !== 'undefined' ? window.location.search : at.search
+    const search = withCompare(now, id)
+    if (search === now) return
+    navigate({ pathname: at.pathname, search }, { replace: !(id && !readCompare(now)), state: at.state })
     route.current = { ...route.current, location: { ...at, search } }
   }, [navigate])
   // The Screens board's change list at the right (BoardConflicts) is docked in the work area's row, beside the
@@ -638,8 +640,6 @@ export function WorkspaceProvider({ children, projectId }) {
   const [activeView, setActiveViewState] = useState('workspace')
   // (Said at once, too: what's opened in the same step as the view changes goes by the view it's going to.)
   const setActiveView = useCallback((view) => { activeViewNow.current = view; setActiveViewState(view) }, [])
-  // (Merge Studio is the whole screen: Design Compare's detail is put away, with its address.)
-  useEffect(() => { if (activeView === 'mergeStudio' && compareItemId) setCompareItemId(null) }, [activeView, compareItemId, setCompareItemId])
   const [mergeItems, setMergeItems] = useDemoState(`project:${projectId}:mergeItems`, () => forProject(seedMergeListItems, projectId))
   // Recreate only dynamically registered demo variants after reload.
   useMemo(() => {
@@ -667,16 +667,18 @@ export function WorkspaceProvider({ children, projectId }) {
   useEffect(() => {
     const { location: at, onWorkspace: here } = route.current
     if (!here) return
-    const said = readMergeParams(at.search)
+    // (The address as it is now, not as the last render saw it.)
+    const nowSearch = typeof window !== 'undefined' ? window.location.search : at.search
+    const said = readMergeParams(nowSearch)
     // (`activeViewNow`: the view as it's just been set — the address may name it a render before `activeView` says so.)
     if (activeViewNow.current === 'mergeStudio') {
       const id = openMergeItem?.id ?? ''
       // (Opened from the address, on an item it names: wait for that item to be the open one before saying it back.)
       if (pendingMergeItem.current && pendingMergeItem.current === said.item && id !== said.item) return
       pendingMergeItem.current = null
-      if (!said.open || (said.item ?? '') !== id) navigate({ pathname: at.pathname, search: withMerge(at.search, id) }, { replace: said.open, state: at.state })
+      if (!said.open || (said.item ?? '') !== id) navigate({ pathname: at.pathname, search: withMerge(nowSearch, id) }, { replace: said.open, state: at.state })
     } else if (said.open && mergeAddressSettled.current) {
-      navigate({ pathname: at.pathname, search: withMerge(at.search, null) }, { replace: true, state: at.state })
+      navigate({ pathname: at.pathname, search: withMerge(nowSearch, null) }, { replace: true, state: at.state })
     }
     mergeAddressSettled.current = true
   }, [activeView, openMergeItem?.id]) // eslint-disable-line react-hooks/exhaustive-deps

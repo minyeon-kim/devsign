@@ -9,6 +9,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
 import { Skeleton } from '@/components/ui/skeleton'
+import { rememberCompareKeys } from '@/components/workspace/WorkspaceDesignCompare'
 import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
@@ -17,7 +18,7 @@ import { ADJUSTMENT_REASONS } from '@/lib/rationale'
 import { InlineDeviationReason } from '@/components/conflicts/Rationale'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useCallback, useContext, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Check, ChevronDown, ChevronUp, Clock, Ellipsis, Send, Layers3, ListChecks, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronUp, Clock, Ellipsis, Send, MousePointerClick, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -33,15 +34,12 @@ import MergeHelp from '@/components/mergestudio/MergeHelp'
 import PlacementOverlay from '@/components/mergestudio/PlacementOverlay'
 import LayerTransformHandles from '@/components/mergestudio/LayerTransformHandles'
 import { COPY_FILE_ID, copyEdits, copyEntries, copyFile, copyLineFor, formatCopyLine, parseCopyLine } from '@/components/mergestudio/copyFile'
-import WorkspaceBottomPanel from '@/components/workspace/WorkspaceBottomPanel'
-import ConflictPanel from '@/components/dockview/panels/ConflictPanel'
-import MergeChangesPanel from '@/components/mergestudio/MergeChangesPanel'
-import { DesignComparePanel, designCompareOptions, resolvedEffects } from '@/components/mergestudio/DesignComparison'
+import { designCompareOptions, resolvedEffects } from '@/components/mergestudio/DesignComparison'
 import { draftRows } from '@/lib/driftDecisions'
 import { GAP as DRAFT_GAP, INNER_GAP, LAYOUT_KEY, composeDraftFrame, compositionChecks, draftFrame, draftScreens, layerSource, layoutDecision, regionKey, regionLayout, regionPicks } from '@/data/draftScreens'
 import { checksFor } from '@/components/mergestudio/mergeChecks'
 import { cn } from 'cn'
-import { PANEL_RADIUS, STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
+import { STUDIO_PILL } from '@/components/mergestudio/floatingStyles'
 
 // The whole right-hand side of Merge Studio — a single shared infinite
 // canvas (MergeInfiniteCanvas) holding the merge item's unified code window
@@ -657,7 +655,7 @@ function MergeStudioWorkspace({ item }) {
     setSelectedMergeItemId,
     openConflictReview,
     openConflictFromNotification,
-    setBottomPanel,
+    openCompareView,
     mergeDrafts,
     saveMergeDraft,
     setStudioDecisions,
@@ -702,8 +700,6 @@ function MergeStudioWorkspace({ item }) {
   const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
   const [addedLayers, setAddedLayers] = useState(savedDraft.addedLayers ?? [])
-  const [designCompareItemId, setDesignCompareItemId] = useState(item?.id ?? null)
-  const [designCompareKeys, setDesignCompareKeys] = useState([])
   const [designComparison, setDesignComparison] = useState(null)
   // The adjustment's reason is entered in a dialog; saving closes it.
   const [adjustReasonOpen, setAdjustReasonOpen] = useState(false)
@@ -763,44 +759,19 @@ function MergeStudioWorkspace({ item }) {
   }
 
   useEffect(() => {
-    setDesignCompareItemId(item?.id ?? null)
-    setDesignCompareKeys([])
     // Only another item's comparison ends here — one just started for this
     // item (a compare request, see below) stays, even when effects re-run.
     setDesignComparison((current) => (current?.item.id === item?.id ? current : null))
   }, [item?.id])
 
-  // Design Compare lists the screens that have several drafts to compare —
-  // not every item with a design page.
-  const designCompareItems = mergeItems.filter((candidate) => candidate.hasDesign && candidate.designPageId && draftScreens[candidate.id])
-  const designCompareItem = designCompareItems.find((candidate) => candidate.id === designCompareItemId)
-  function toggleDesignCompareOption(key) {
-    setDesignCompareKeys((current) =>
-      current.includes(key) ? current.filter((candidate) => candidate !== key) : [...current, key]
-    )
-  }
-  // Comparing drafts is about one item, so the studio is on that item while
-  // it does: another item's drafts switch to it first (the comparison is
-  // picked up once it loads), and the compared element is selected.
-  function openDesignComparison(compareItem, options) {
-    setBottomPanel({ open: false })
-    const layerId = Object.keys(designMergeVariants[compareItem.id]?.layerDiffs ?? {})[0]
-    if (compareItem.id !== item.id) {
-      setDesignCompareRequest({ itemId: compareItem.id, keys: options.map((option) => option.key) })
-      requestMergeFocus({ itemId: compareItem.id, ...(layerId && { layerId }), noPan: true })
-      return
-    }
-    setDesignComparison({ item: compareItem, options })
-    if (layerId) requestMergeFocus({ itemId: item.id, layerId, noPan: true })
-  }
   function backToDrafts() {
     const compared = designComparison
     endComparison()
+    // Leaving goes back to picking drafts — the Design Compare sidebar, on this set, with these drafts still ticked.
     if (compared) {
-      setDesignCompareItemId(compared.item.id)
-      setDesignCompareKeys(compared.options.map((option) => option.key))
+      rememberCompareKeys(compared.item.id, compared.options.map((option) => option.key))
+      openCompareView(compared.item.id)
     }
-    setBottomPanel({ tab: 'design-compare', open: true })
   }
   function endComparison() {
     setDesignComparison(null)
@@ -816,7 +787,6 @@ function MergeStudioWorkspace({ item }) {
     // Same as starting it from the Design Compare tab: the canvas gets the
     // room (the mixing panel is up top; the conflict is a tab away).
     setDesignComparison((current) => (current?.item.id === item.id ? current : { item, options }))
-    setBottomPanel({ open: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, designCompareRequest])
   // Submit the composition to its review, without applying it to the project.
@@ -881,9 +851,7 @@ function MergeStudioWorkspace({ item }) {
 
   function openReviewFor(target) {
     const conflict = conflicts.find((c) => c.mergeItemId === target.id || c.id === target.conflictId)
-    // (Inside Merge Studio: the bottom panel's detail, beside the canvas — said by name.)
-    if (conflict) openConflictReview(conflict.id, { view: 'panel' })
-    setBottomPanel({ tab: 'conflict', open: true })
+    if (conflict) openConflictReview(conflict.id)
   }
   // The open conflict this item is being adjusted for (a draft merge is
   // finished with Request merge instead).
@@ -1032,8 +1000,7 @@ function MergeStudioWorkspace({ item }) {
   // code, checks, review and merge all are.
   function openReview() {
     const conflict = conflicts.find((c) => c.mergeItemId === item?.id || c.id === item?.conflictId)
-    if (conflict) openConflictReview(conflict.id, { view: 'panel' })
-    setBottomPanel({ tab: 'conflict', open: true })
+    if (conflict) openConflictReview(conflict.id)
   }
 
 
@@ -1572,67 +1539,6 @@ function MergeStudioWorkspace({ item }) {
   // Block Deck target: the selected layer, or the smart default when the
   // selection is an unmapped code line / nothing.
   const deckLayerId = syncSelection?.layerId ?? defaultLayerFor(item)
-  // Merge Studio's own bottom panel: Conflict Points plus this item's
-  // Changes log, instead of Terminal/Console. Conflict Points is the
-  // project-wide list (same as the Workspace's own tab); a conflict's
-  // review there is where its code, checks, review and merge happen.
-  // `Panel` is always the bare component reference (never an inline arrow
-  // function here) — WorkspaceBottomPanel spreads `panelProps` onto it
-  // separately. An inline `() => <X .../>` is a *new* function, and so a
-  // new component type, on every render of this component (which happens
-  // constantly — any edit, hover, or selection change), so React would
-  // unmount and remount the tab's whole panel each time instead of just
-  // re-rendering it with new props — exactly what broke the canvas focus
-  // jump when selecting a conflict (the panel never stayed mounted long
-  // enough for its effect to stick).
-  const bottomPanelTabs = [
-    {
-      id: 'conflict',
-      label: 'Conflict Points',
-      icon: TriangleAlert,
-      Panel: ConflictPanel,
-      panelProps: { inMergeStudio: true },
-    },
-    {
-      id: 'design-compare',
-      label: 'Design Compare',
-      icon: Layers3,
-      Panel: DesignComparePanel,
-      panelProps: {
-        inMergeStudio: true,
-        items: designCompareItems,
-        itemId: designCompareItem?.id ?? null,
-        selectedKeys: designCompareKeys,
-        onSelectItem: (id) => {
-          setDesignCompareItemId(id)
-          setDesignCompareKeys([])
-        },
-        onToggleVariant: toggleDesignCompareOption,
-        onSelectAll: setDesignCompareKeys,
-        onCompare: openDesignComparison,
-      },
-    },
-    {
-      id: 'changes',
-      label: 'Changes',
-      icon: ListChecks,
-      Panel: MergeChangesPanel,
-      panelProps: {
-        entries: changesEntries,
-        codeRows: changesCodeRows,
-        onJump: (e) =>
-          item &&
-          requestMergeFocus({
-            itemId: item.id,
-            keepDeck: true,
-            label: e.title,
-            ...(e.layerId ? { layerId: e.layerId } : { fileId: e.fileId, line: e.line }),
-          }),
-        onUndo: (e) => (e.kind === 'annotation' ? setAnnotationsSnap((prev) => prev.filter((a) => a.id !== e.id)) : undoChange(e)),
-        onOpenHistory: requestHistoryDrawer,
-      },
-    },
-  ]
   // A fresh selection re-expands a collapsed Block Deck, so its
   // context-aware content is visible right away.
   const selectedLayer = frame0?.layers.find((l) => l.id === deckLayerId) ?? null
@@ -1991,7 +1897,6 @@ function MergeStudioWorkspace({ item }) {
       {!item && <MergeHelp />}
       </div>
 
-      <WorkspaceBottomPanel tabs={bottomPanelTabs} portal />
     </div>
   )
 }

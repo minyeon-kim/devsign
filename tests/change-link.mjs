@@ -53,9 +53,9 @@ console.log('change-link: ok')
   const rule = provider.slice(provider.indexOf('const openedChange = useRef(null)'), provider.indexOf('  const value = {'))
   assert.ok(['exitMergeStudio()', 'requestConflictDrawer(record.id)', 'focusConflictPin(record)'].every((call) => rule.includes(call)))
   // The exception, where it's made.
-  const named = { 'src/components/mergestudio/MergeStudioWorkspace.jsx': 2, 'src/components/mergestudio/MergeInfiniteCanvas.jsx': 2, 'src/pages/WorkspacePage.jsx': 1, 'src/components/chat/ChatConversation.jsx': 1 }
-  for (const [file, count] of Object.entries(named)) assert.equal((read(file).match(/openConflictReview\([^)]*\{ view: 'panel' \}\)/g) ?? []).length, count, `${file}: the bottom panel's detail, by name`)
-  assert.ok(read('src/components/mergestudio/DesignComparison.jsx').includes("const reviewIn = inMergeStudio ? { view: 'panel' } : undefined"))
+  // (No bottom panel any more: Merge Studio's own reviews open in the full-screen viewer too — the provider reads "panel" as "overlay".)
+  assert.equal((read('src/components/mergestudio/MergeStudioWorkspace.jsx').match(/openConflictReview\([^)]*\{ view: 'panel' \}\)/g) ?? []).length, 0)
+  assert.ok(read('src/state/WorkspaceProvider.jsx').includes("if (view === 'overlay' || view === 'panel') {"))
   // Nothing else asks for the panel, and nothing opens the bottom list on the way.
   for (const file of ['src/components/conflicts/CheckDecisions.jsx', 'src/pages/ProjectOverviewPage.jsx', 'src/components/layout/TopBar.jsx']) assert.ok(!/view: 'panel'/.test(read(file)), `${file} opens a change in the panel`)
   assert.ok(!/setBottomPanel\(\{ open: true, tab: 'conflict' \}\)\s*\n\s*openConflictReview\(conflict\.id\)/.test(read('src/components/conflicts/CheckDecisions.jsx')))

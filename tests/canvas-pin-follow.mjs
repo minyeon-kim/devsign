@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
@@ -55,8 +55,8 @@ try {
   const canvas = readFileSync('src/components/dockview/panels/CanvasPanel.jsx', 'utf8')
   const handleSelect = canvas.slice(canvas.indexOf('function handleSelect('), canvas.indexOf('function pickConflictPin'))
   assert.ok(!handleSelect.includes('setBottomPanel'), 'selecting an element never opens the panel')
-  const panelSource = readFileSync('src/components/workspace/WorkspaceBottomPanel.jsx', 'utf8')
-  assert.ok(!/OPEN_SHARE|LIST_MIN_HEIGHT|REVIEW_SHARE/.test(panelSource), 'no fixed opening height')
+  // (The bottom panel is gone: nothing opens at a height.)
+  assert.ok(!existsSync('src/components/workspace/WorkspaceBottomPanel.jsx'), 'no bottom panel')
   const pins = readFileSync('src/components/conflicts/ConflictPins.jsx', 'utf8')
   assert.ok(/useLayoutEffect\(\(\) => \{ measure\(\) \}\)/.test(pins), 'pins are measured in every commit, before paint')
   const hoverHandlers = pins.match(/onMouseEnter=\{[^\n]*\}/g).join('\n')

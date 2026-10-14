@@ -7,6 +7,8 @@ import { reviewForDesign } from '@/lib/designReview'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const PICKED = new Map()
+// (Which drafts are ticked for a set — kept for the session; the studio's "back to drafts" puts them back.)
+export const rememberCompareKeys = (itemId, keys) => { PICKED.set(itemId, keys) }
 // (How long the detail shows its skeleton after a set is picked: the time to lay its drafts out.)
 const LOAD_MS = 320
 

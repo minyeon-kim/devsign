@@ -33,7 +33,7 @@ try {
   assert.ok(page.includes('<WorkspaceSplitLayout studio=') && layout.includes('data-merge-view') && layout.includes('viewCovered='), 'the studio fills the main window; what is under it stays mounted')
   assert.ok(layout.includes('/^Digit[1-4]$/') && layout.includes("at === 3"), '⌘1–4')
   // The address, both ways; the three ways in.
-  assert.ok(provider.includes('readMergeParams(location.search)') && provider.includes('withMerge(at.search, id)') && provider.includes("setActiveView('mergeStudio')"))
+  assert.ok(provider.includes('readMergeParams(location.search)') && provider.includes('withMerge(nowSearch, id)') && provider.includes("setActiveView('mergeStudio')"))
   assert.ok(!read('components/screens/ScreensBoard.jsx').includes('openMergeStudio()'), 'a change picked in the board’s list shows its detail in the panel — the Screens view stays')
   assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('openMergeStudio()'), '조합하기 opens it')
   // The studio's row: the item switcher, the tools; empty / loading / read-only.
@@ -43,5 +43,8 @@ try {
   assert.ok(work.includes('data-studio-stage') && work.includes('className="relative flex min-h-0 flex-1 overflow-hidden bg-canvas"') && !/mt-12|rounded-\[20px\]/.test(work.slice(work.indexOf('data-studio-stage'), work.indexOf('data-studio-stage') + 260)), 'flush, on the canvas ground')
   assert.ok(!read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('Decided ${decidedCount}'), 'no decided pill')
   assert.ok(read('components/workspace/CanvasSideViews.jsx').split("activeView === 'mergeStudio' ? false : boardShown").length === 3, 'the board’s list is out of the row while Merge is up')
+  // No bottom panel: Design Compare is the left menu (drafts ticked there), the studio fills to the window's foot.
+  assert.ok(!work.includes('WorkspaceBottomPanel') && !work.includes('bottomPanelTabs'), 'no bottom panel in the studio')
+  assert.ok(read('components/mergestudio/DesignDetail.jsx').includes('data-detail-selection') && read('components/mergestudio/DesignDetail.jsx').includes('data-detail-pick'), 'the drafts are ticked in the sidebar')
   console.log('Passed: Merge is the fourth view tab of the main window — one shell, one address, two ways in.')
 } finally { await server.close() }
