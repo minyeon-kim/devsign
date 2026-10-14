@@ -3,7 +3,7 @@ import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
-import { AI_CHAT, clampCompareWidth, clampWidth, readCompareWidth, writeCompareWidth, COMPARE_LIST_WIDTH, COMPARE_NARROW } from '@/lib/panelPrefs'
+import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
@@ -438,17 +438,12 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   const chat = workspace && context?.aiChat?.open ? clampWidth(AI_CHAT, context.aiChat.width, windowWidth) + 8 : 0
   const room = Math.max(0, windowWidth - RAIL_PX - chat)
   const pane = paneWidth(room, ratio, { maximized })
-  // Design Compare: the list alone at 360px, or — with a set picked — widened into list + detail (960px to start,
-  // 55% of the window at most, 720px at least; dragged by its edge, kept). Where that would leave the canvas under
-  // 480px (or on a window of 1280px or less) it opens over the canvas instead, with a scrim.
+  // Design Compare: the list at 360px, or — with a set picked — its detail at 520px, one screen at a time. Where
+  // that would leave the canvas under 480px it opens over the canvas instead, with a scrim.
   const comparing = panel === 'compare'
   const compareOpen = comparing && Boolean(context?.compareItemId)
-  const [compareWidth, setCompareWidth] = useState(() => readCompareWidth())
-  const expandedWidth = clampCompareWidth(compareWidth, windowWidth)
-  const compareWidthNow = useRef(expandedWidth)
-  compareWidthNow.current = expandedWidth
-  const shownWidth = split ? pane.width : comparing ? (compareOpen ? expandedWidth : COMPARE_LIST_WIDTH) : width
-  const overlay = compareOpen && (windowWidth <= COMPARE_NARROW || windowWidth - RAIL_PX - chat - shownWidth - 8 < 480)
+  const shownWidth = split ? pane.width : comparing ? (compareOpen ? COMPARE_DETAIL_WIDTH : COMPARE_LIST_WIDTH) : width
+  const overlay = compareOpen && windowWidth - RAIL_PX - chat - shownWidth - 8 < 480
   const keepShare = (next) => { const saved = readSplit(); writeSplit({ ...saved, ratios: { ...saved.ratios, [panel]: next } }) }
   const setShare = (next, keep = false) => { setRatios((prev) => ({ ...prev, [panel]: next })); if (keep) keepShare(next) }
   // (Maximizing is for the pane that's open: it doesn't outlast it.)
@@ -509,20 +504,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
                 onReset={() => setShare(defaultRatio(panel), true)}
               />
             )
-          ) : comparing ? (
-            compareOpen && (
-              <SplitHandle
-                label="Resize detail"
-                value={Math.round((expandedWidth / Math.max(1, windowWidth)) * 100)}
-                className="absolute inset-y-0 -right-1 z-10"
-                onResizeStart={() => { dragStart.current = expandedWidth; setResizing(true) }}
-                onResize={(dx) => setCompareWidth(clampCompareWidth(dragStart.current + dx, windowWidth))}
-                onResizeEnd={() => { setResizing(false); writeCompareWidth(compareWidthNow.current) }}
-                onStep={(d) => { const next = clampCompareWidth(expandedWidth + d, windowWidth); setCompareWidth(next); writeCompareWidth(next) }}
-                onReset={() => { setCompareWidth(clampCompareWidth(undefined, windowWidth)); writeCompareWidth(undefined) }}
-              />
-            )
-          ) : (
+          ) : comparing ? null : (
             <SplitHandle
               label="Resize sidebar"
               className="absolute inset-y-0 -right-1 z-10"

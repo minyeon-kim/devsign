@@ -3,7 +3,7 @@ import { TriangleAlert } from 'lucide-react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DesignComparePanel, designCompareOptions } from '@/components/mergestudio/DesignComparison'
-import { designSetState, reviewForDesign } from '@/lib/designReview'
+import { reviewForDesign } from '@/lib/designReview'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 const PICKED = new Map()
@@ -18,10 +18,12 @@ const LOAD_MS = 320
 // the set shown here.
 function Skeleton_() {
   return (
-    <div data-compare-skeleton aria-busy="true" aria-label="불러오는 중" className="flex min-h-0 flex-1 flex-col gap-4 p-3">
-      <div className="flex items-center gap-3"><Skeleton className="h-4 w-48" /><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="ml-auto h-7 w-24 rounded-full" /></div>
-      <div className="grid grid-cols-2 gap-3"><Skeleton className="h-[320px] rounded-xl" /><Skeleton className="h-[320px] rounded-xl" /></div>
-      <div className="flex flex-col gap-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-3/4" /></div>
+    <div data-compare-skeleton aria-busy="true" aria-label="불러오는 중" className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-14 shrink-0 items-center gap-3 pr-5 pl-3"><Skeleton className="size-8 rounded-full" /><Skeleton className="h-4 w-48" /></div>
+      <div className="flex flex-col gap-6 px-5">
+        <div className="grid grid-cols-2 gap-4"><Skeleton className="h-[300px] rounded-md" /><Skeleton className="h-[300px] rounded-md" /></div>
+        <Skeleton className="h-8 w-full" />
+      </div>
     </div>
   )
 }
@@ -37,8 +39,10 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-export default function WorkspaceDesignCompare({ titleRef, group, onClose, onPrev, onNext, onReady }) {
-  const { mergeItems, conflicts, historyEntries, compareItemId, setCompareItemId, conflictPin, boardConflicts, setSelectedMergeItemId, setDesignCompareRequest, openMergeStudio, currentUser } = useWorkspace()
+export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, group, onBack, onReady }) {
+  const { mergeItems, conflicts, compareItemId: pickedId, setCompareItemId, conflictPin, boardConflicts, setSelectedMergeItemId, setDesignCompareRequest, openMergeStudio, currentUser } = useWorkspace()
+  // (`itemId`: the set shown while the detail eases away — the address has already let go of it.)
+  const compareItemId = itemId ?? pickedId
   const items = mergeItems.filter(item => item.hasDesign)
   const item = items.find(candidate => candidate.id === compareItemId) ?? null
 
@@ -77,7 +81,7 @@ export default function WorkspaceDesignCompare({ titleRef, group, onClose, onPre
 
   if (!item) return <ErrorState message="이 주소의 디자인 시안을 찾을 수 없어요. 목록에서 다른 항목을 골라 주세요." onRetry={() => setAttempt((n) => n + 1)} />
   if (loading) return <Skeleton_ />
-  const detail = { group, titleRef, status: designSetState(item, conflicts, historyEntries), onPrev, onNext, onClose, readOnly: currentUser?.canEdit === false }
+  const detail = { group, titleRef, onBack, onDone: onBack, readOnly: currentUser?.canEdit === false }
   return (
     <ErrorBoundary key={`${item.id}:${attempt}`} fallback={(error, reset) => <ErrorState message={error?.message} onRetry={() => { reset(); setAttempt((n) => n + 1) }} />}>
       <DesignComparePanel items={items} itemId={item.id} selectedKeys={selectedKeys} detail={detail}

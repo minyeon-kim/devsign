@@ -61,27 +61,28 @@ try {
   const tooldock = views.slice(views.indexOf('export function CanvasViewPanel'), views.indexOf('export function CompareWorkView'))
   assert.ok(!/absolute inset-y|rounded-xl|shadow-2xl|\bfixed\b/.test(tooldock.replace('absolute inset-y-0 right-0 z-10', '')), 'no floating card')
   assert.ok(tooldock.includes('foldForRoom(') && tooldock.includes('setToolPanelWidth(') && tooldock.includes("label=\"Resize tool panel\""))
-  // No floating Design Compare, and none replacing the canvas: a drawer whose pick widens it into list + detail.
+  // No floating Design Compare, none replacing the canvas: one sidebar, one screen at a time — the list (360px), or the picked set's detail (520px).
   const panel = read('components/dashboard/ComparePanel.jsx')
   assert.ok(!views.includes('CanvasComparePanel') && !views.includes('CompareWorkView') && !layout.includes('CompareWorkView') && !floating.includes('viewCovered') && !shell.includes('setCompareOpen'), 'the canvas is never covered or replaced')
-  assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes("const comparing = panel === 'compare'") && sidebar.includes('overlay'), 'one sidebar, two states, an overlay when narrow')
+  assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes('COMPARE_DETAIL_WIDTH : COMPARE_LIST_WIDTH') && sidebar.includes('overlay'), 'one sidebar, two widths, an overlay only when the canvas would be under 480')
   assert.ok(shell.includes("setDrawer('compare')") && shell.includes('setCompareItemId(null)'), 'the detail goes with the list')
-  assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === '['") && panel.includes("event.key === ']'") && panel.includes('closeCompareView'), 'a named region, the keys')
+  assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === 'Escape'") && panel.includes("event.key === '['") && panel.includes("'ArrowDown'") && panel.includes('closeCompareView') && panel.includes('inert={expanded}'), 'a named region; the list kept (inert), the keys')
+  assert.ok(panel.includes('translate-x-4') && panel.includes('duration-200') && panel.includes('motion-reduce:transition-none'), '16px slide + fade, 200ms, none when reduced')
   // The list is made of the change list's own parts (one row component), grouped by screen, searchable.
   assert.ok(drawer.includes("from '@/components/dashboard/DrawerList'") && drawer.includes('<DrawerRow') && drawer.includes('<DrawerSearch') && drawer.includes('aria-expanded={open_}'))
   // The comparison: "← canvas" (focusing the change), the sets not repeated as a column; the pick kept in step with the change lists, both ways.
   assert.ok(compare.includes('data-compare-skeleton') && compare.includes('data-compare-error') && compare.includes('boardConflicts') && compare.includes('conflictPin'), 'loading, error, and both lists’ picks')
-  const dc = read('components/mergestudio/DesignComparison.jsx')
-  assert.ok(dc.includes('data-design-identical') && dc.includes('aria-busy={busy || undefined}') && dc.includes('data-design-view-mode') && dc.includes('data-design-diff-row') && dc.includes('data-design-sync') && dc.includes('data-design-activity'), 'empty, working, views, differences, sync, activity')
+  const dd = read('components/mergestudio/DesignDetail.jsx')
+  // The detail: ← and the name only; two buttons in a bar; no boxes, no badge, no ⋯ ↑ ↓ ×, no segments / zoom / sync, no empty-comment line.
+  assert.ok(dd.includes('data-compare-back') && dd.includes('h-14') && dd.includes('data-detail-actions') && dd.includes('h-10') && dd.includes('grid-cols-2') && dd.includes('data-detail-overlay-toggle') && dd.includes('data-detail-diff-row') && dd.includes('aria-busy'), 'header, bottom bar, one overlay icon, rows, working')
+  assert.ok(!/Ellipsis|ArrowUp|ArrowDown|role="radio"|줌|동기화|차이 강조|아직 코멘트가 없어요/.test(dd), 'what was taken out stays out')
   assert.ok(read('components/conflicts/ConflictReviewOverlay.jsx').includes('data-review-open-compare') && read('components/screens/BoardConflicts.jsx').includes('data-board-conflicts-compare'), 'the change’s detail opens the comparison')
   // The right panel (the board’s change list) docks in the row too.
   assert.ok(read('components/screens/BoardConflicts.jsx').includes('createPortal(panel, host)') && views.includes('export function BoardDockSlot'))
   // Address, widths.
   const { readCompare, withCompare } = await server.ssrLoadModule('/src/lib/compareLink.js')
   assert.equal(readCompare('?screen=a&compare=x'), 'x'); assert.equal(withCompare('?screen=a', 'x'), '?screen=a&compare=x'); assert.equal(withCompare('?screen=a&compare=x', null), '?screen=a')
-  const { clampCompareWidth, COMPARE_LIST_WIDTH } = prefs
-  assert.equal(COMPARE_LIST_WIDTH, 360)
-  assert.equal(clampCompareWidth(undefined, 2000), 960, '960 to start'); assert.equal(clampCompareWidth(undefined, 1600), 880, '55% of the window at most'); assert.equal(clampCompareWidth(300, 2000), 720, '720 at least'); assert.equal(clampCompareWidth(undefined, 1200), 720)
+  assert.deepEqual([prefs.COMPARE_LIST_WIDTH, prefs.COMPARE_DETAIL_WIDTH], [360, 520])
   // Reduced motion: no transition (the tool panel, the sidebar, the right panel).
   assert.ok(views.includes('motion-reduce:transition-none') && sidebar.includes('motion-reduce:transition-none'))
   console.log('Passed: panels dock in one row — the tool panel, the comparison, the right list — with the camera and the 480px rule.')
