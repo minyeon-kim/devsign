@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { Loader2 } from 'lucide-react'
-import { discardUndo, pendingUndo, resetWorkspace, undoReset } from '@/lib/workspaceReset'
+import { discardUndo, pendingUndo, resetWorkspace } from '@/lib/workspaceReset'
 import { getLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 
@@ -48,40 +48,12 @@ export default function DemoTools({ onDone }) {
   )
 }
 
-// After a reset the app has reloaded on the page it was on: say so, with Undo
-// for what is left of the 10 seconds. Undo writes the snapshot back and
-// reloads in place; "Restored" shows on the other side of that reload.
+// After a reset the app has reloaded on the page it was on — and says nothing: no "Workspace reset" notice,
+// no Undo (the data is back to its start; that's what was asked for). The snapshot taken for the Undo is let
+// go, so a later change can't be mixed with it.
 export function useResetUndoToast() {
   useEffect(() => {
-    const language = getLanguage()
-    try {
-      if (sessionStorage.getItem(UNDONE_KEY)) {
-        sessionStorage.removeItem(UNDONE_KEY)
-        toast(translateText('Restored', language))
-        return
-      }
-    } catch { /* storage unavailable */ }
-    const pending = pendingUndo()
-    if (!pending) return
-    const remaining = pending.expiresAt - Date.now()
-    const timer = setTimeout(discardUndo, remaining)
-    toast(translateText('Workspace reset', language), {
-      id: 'workspace-reset',
-      duration: remaining,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          clearTimeout(timer)
-          try {
-            if (!undoReset()) throw new Error('expired')
-            sessionStorage.setItem(UNDONE_KEY, '1')
-            window.location.reload()
-          } catch {
-            toast(translateText('Could not undo. Please try again.', language))
-          }
-        },
-      },
-    })
-    return () => clearTimeout(timer)
+    try { sessionStorage.removeItem(UNDONE_KEY) } catch { /* storage unavailable */ }
+    if (pendingUndo()) discardUndo()
   }, [])
 }
