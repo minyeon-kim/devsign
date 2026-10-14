@@ -143,7 +143,7 @@ export default function CompareCanvas({ preview, frame, box, edits }) {
   const DOTS = { backgroundImage: 'radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px)', backgroundSize: '18px 18px' }
 
   return (
-    <div data-compare-canvas={mode} data-canvas-chrome className="absolute inset-y-0 right-0 left-14 z-30 flex flex-col bg-canvas" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+    <div data-compare-canvas={mode} data-canvas-chrome className="absolute inset-0 z-30 flex flex-col bg-canvas" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/[0.06] px-3">
         <div role="radiogroup" aria-label="비교 방식" className="flex items-center gap-0.5 rounded-lg border border-white/[0.08] bg-black/30 p-0.5">
           {MODES.map(([id, label]) => (

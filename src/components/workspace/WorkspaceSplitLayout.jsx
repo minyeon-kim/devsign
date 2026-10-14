@@ -592,12 +592,11 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             docked={!mergeStudio}
             onDockDragStart={startDockDrag}
             // The main window's row starts with the Workspace's views.
-            viewTabs={!mergeStudio && group.id === mainGroupId ? <WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /> : null}
+            viewTabs={!mergeStudio && group.id === mainGroupId ? <><WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /><CanvasViewRail /></> : null}
             viewPanel={!mergeStudio && group.id === mainGroupId ? { id: VIEW_PANEL_ID, labelledBy: viewTabId(workspaceView) } : null}
             headerEnd={!mergeStudio && group.id === mainGroupId ? chatPill : null}
             // (Files · Layers · Assets · Inspect: a column of icons at the main window's left, under its tabs,
             // each opening its view over the canvas's left.)
-            viewRail={!mergeStudio && group.id === mainGroupId ? <CanvasViewRail /> : null}
             viewOverlay={!mergeStudio && group.id === mainGroupId ? <><CanvasViewPanel /><CanvasComparePanel /></> : null}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}

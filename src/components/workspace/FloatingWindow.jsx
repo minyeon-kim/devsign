@@ -41,7 +41,8 @@ const DRAG_THRESHOLD = 4
 // editor's files — the three views are the row; `viewPanel`: { id, labelledBy } for the area under it.
 // That row draws no line under it, and the active view's tools (through the header slot) sit at its right end,
 // then `headerEnd` (AI Chat's pill, while it's folded).
-// `viewRail` / `viewOverlay` (the main window): a column of icons floating over the content's left, and
+// `viewRail` / `viewOverlay` (the main window): anything floating over the content's left (none now — its
+// icons are in the tab row, CanvasSideViews), and
 // what opens from it over the content (CanvasSideViews) — the content itself runs under both.
 function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null, surface = 'card' }) {
   const dragRef = useRef(null)

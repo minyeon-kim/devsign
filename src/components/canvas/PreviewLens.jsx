@@ -9,7 +9,7 @@ import { FrameDrawing } from '@/components/canvas/CompareCanvas'
 //   frame, layer: where the element is (canvas units); view: the canvas's { x, y, zoom (%) };
 //   room: the canvas's size; overrides: what the screen is drawn with now.
 
-export const LENS = { size: 160, gap: 28, margin: 8, rail: 64, minScale: 4, maxScale: 8 }
+export const LENS = { size: 160, gap: 28, margin: 8, rail: 8, minScale: 4, maxScale: 8 }
 
 // Where the magnifier goes, and the element's box — both in the canvas's px. Null when the element is out of view.
 export function lensPlacement(frame, layer, view, room) {
