@@ -2613,7 +2613,10 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
                     {step.rows.map((row) => (
                       <Fragment key={row.label}>
                         <dt className="text-slate-400">{row.label}</dt>
-                        <dd translate={row.mono ? 'no' : undefined} className={cn('min-w-0 break-words', row.mono ? 'font-mono text-slate-200' : ROW_TONE[row.tone] ?? 'text-slate-100')}>{row.value}</dd>
+                        {/* (A path is one line, cut short, its line number after it as ":8" — the whole of it on hover.) */}
+                        {row.mono
+                          ? (() => { const value = String(row.value).replace(/ · (\d+)행$/, ':$1'); return <dd translate="no" title={value} className="min-w-0 truncate font-mono text-slate-200">{value}</dd> })()
+                          : <dd className={cn('min-w-0 break-words', ROW_TONE[row.tone] ?? 'text-slate-100')}>{row.value}</dd>}
                       </Fragment>
                     ))}
                   </dl>

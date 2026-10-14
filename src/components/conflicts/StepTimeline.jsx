@@ -5,7 +5,7 @@ import { FoldBody } from '@/components/conflicts/Fold'
 import { IDLE, STEP_STATE_WORD, countDone, firstView, liveView, progressLabel, readSeen, writeSeen } from '@/lib/stepProgress'
 
 // The record's label / value rows: 8px between rows, an 80px label column in grey 12px, values at 12.5px.
-export const RECORD_ROWS = 'grid grid-cols-[68px_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-[12.5px] leading-[1.55] [&>dt]:text-[12px]'
+export const RECORD_ROWS = 'grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-1.5 [&>dd]:min-w-0 text-[12.5px] leading-[1.55] [&>dt]:text-[12px]'
 
 const motionOk = () => {
   try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
@@ -206,19 +206,19 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
               aria-expanded={open}
               aria-controls={bodyId}
               onClick={onToggle}
-              className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] px-3.5 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300"
+              className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] px-4 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300"
             >
               {head}
             </button>
-          ) : <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5 py-3">{head}</div>}
+          ) : <div className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3">{head}</div>}
           {onReplay && (
             <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic mr-2 h-5 shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
               이 단계부터 보기
             </button>
           )}
         </div>
-        {/* Opened: its contents inside the card, under the head — from where the step's name starts, not the icon. */}
-        {foldable && <div id={bodyId} role="region" aria-label={title}><FoldBody open={open}><div data-step-body className={cn('flex flex-col gap-4 pr-3.5 pb-3.5 pl-[38px] [&_dl]:max-w-[640px] [&_p]:max-w-[640px]', pending && 'opacity-50')}>{children}</div></FoldBody></div>}
+        {/* Opened: its contents inside the card, under the head — 16px each side, as the head: its labels start where the icon does. */}
+        {foldable && <div id={bodyId} role="region" aria-label={title}><FoldBody open={open}><div data-step-body className={cn('flex flex-col gap-4 px-4 pb-3.5 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]', pending && 'opacity-50')}>{children}</div></FoldBody></div>}
       </div>
     </li>
   )

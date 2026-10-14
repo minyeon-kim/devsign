@@ -1049,7 +1049,8 @@ function DetectionFacts({ conflict, cause = false }) {
       {conflict.detectedBy && <><dt className="text-slate-400">감지</dt>
       <dd className="text-slate-200">자동 감지 · {conflict.detectedBy} · {formatTimeLabel(conflict.detectedAt ?? conflict.timestamp)}</dd></>}
       <dt className="text-slate-400">관련 파일</dt>
-      <dd translate="no" className="font-mono text-slate-200">{conflict.file}{conflict.line ? ` · ${conflict.line}행` : ''}</dd>
+      {/* (One line: the path cut short with its line number after it — the whole path on hover.) */}
+      <dd translate="no" title={`${conflict.file}${conflict.line ? `:${conflict.line}` : ''}`} className="truncate font-mono text-slate-200">{conflict.file}{conflict.line ? `:${conflict.line}` : ''}</dd>
       {cause && conflict.cause && <><dt className="text-slate-400">원인</dt>
       <dd className="text-slate-200">{conflict.cause}</dd></>}
       <dt className="text-slate-400">영향 범위</dt>

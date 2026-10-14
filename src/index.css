@@ -1132,10 +1132,6 @@ button.editor-line-comment {
     margin-bottom: 0;
 }
 
-[data-board-conflicts="detail"] [data-step-list] > li {
-    padding-left: 20px;
-}
-
 /* Resolution options retain their own colour when hovered or selected. */
 [data-choice-tone="A"] { --choice-rgb: 56 189 248; }
 [data-choice-tone="B"] { --choice-rgb: 251 191 36; }
