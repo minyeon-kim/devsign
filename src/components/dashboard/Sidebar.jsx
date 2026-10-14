@@ -1,15 +1,14 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
-import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Maximize2, Minimize2, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import SwitchUserItems from '@/components/dashboard/SwitchUserItems'
 import { LocalizedText } from '@/i18n/runtime'
@@ -36,7 +35,6 @@ const globalItems = [
 // What the bar's fixed parts take of its height: the top padding and the
 // project switcher (48), the six project views (240), the two hairlines
 // (26) and the foot — the viewer's badge and Settings (96).
-const RAIL_TAKEN = 48 + 240 + 26 + 96
 
 const iconButtonClass =
   'mx-auto flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full p-0 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
@@ -59,75 +57,6 @@ export function RailButton({ label, icon: Icon, className, iconClassName, side =
       </TooltipTrigger>
       <TooltipContent side={side}>{label}{hint && <span className="ml-1.5 opacity-60">{hint}</span>}</TooltipContent>
     </Tooltip>
-  )
-}
-
-// The Workspace's own views, on the activity bar under the project's, past a
-// hairline: Design Compare (its list in the drawer, the pick shown in the
-// work area). (Terminal and Console aren't on the bar.)
-// A side panel icon opens the panel on its view, swaps the view, or — the
-// one that's showing — folds it. What doesn't fit the bar's height goes to
-// "More" at the end, so the bar itself never scrolls.
-const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
-// (Files · Layers · Assets · Inspect aren't here: they're icons in the main window, under its tabs,
-// opening over the canvas — CanvasSideViews.)
-const WORKSPACE_VIEWS = [
-  { id: 'design-compare', label: 'Design Compare', icon: Layers3 },
-]
-function WorkspaceViews({ workspace, slots, drawer, onToggleDrawer }) {
-  const { sidePanel, filesWindow, toggleSideView, mergeItems } = workspace
-  // (Design Compare is a drawer like Docs: its list at the left, the set picked opening where the canvas is.)
-  const comparing = drawer === 'compare'
-  const designSets = mergeItems.filter((item) => item.hasDesign).length
-  // Every icon is a switch: on, it shows its view; pressed again, it puts it away. (A side panel
-  // view folds the panel; Design Compare is a drawer — lib/workPane.)
-  const showing = (view) => (view.side ? sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck')) : comparing)
-  const press = (view) => (view.side ? toggleSideView(view.id) : onToggleDrawer('compare'))
-  const { shown, more } = railSplit(WORKSPACE_VIEWS, slots)
-  return (
-    <div data-workspace-views role="group" aria-label="Workspace views" className="flex flex-col gap-1">
-      <span aria-hidden className="mx-auto my-1 h-px w-5 shrink-0 bg-white/10" />
-      {shown.map((view) => (
-        <div key={view.id} className="relative flex flex-col gap-1">
-          {view.rule && <span aria-hidden className="mx-auto my-1 h-px w-5 shrink-0 bg-white/10" />}
-          <div className="relative">
-            <RailButton
-              label={view.label}
-              icon={view.icon}
-              hint={view.side ? SIDE_SHORTCUT : null}
-              data-side-view={view.side ? view.id : undefined}
-              data-workspace-view={view.id}
-              aria-expanded={showing(view)}
-              aria-controls={view.side ? 'workspace-side-panel' : 'work-pane'}
-              onClick={() => press(view)}
-              className={cn(showing(view) && activeClass)}
-            />
-            {view.id === 'design-compare' && designSets > 0 && (
-              <span data-view-badge title={`${designSets} design sets`} className="pointer-events-none absolute top-1 right-1.5 inline-flex size-3 items-center justify-center rounded-full bg-[#5CE0AE] text-[8px] leading-none font-bold text-[#050505] tabular-nums ring-[1.5px] ring-background">
-                {designSets}
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
-      {more.length > 0 && (
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger render={<DropdownMenuTrigger data-views-more aria-label="More" className={cn(iconButtonClass, more.some(showing) && activeClass, 'data-[popup-open]:bg-muted')}><Ellipsis className="size-[18px]" /></DropdownMenuTrigger>} />
-            <TooltipContent side="right">More</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent side="right" align="end" className="min-w-44">
-            {more.map((view) => (
-              <DropdownMenuItem key={view.id} data-workspace-view={view.id} onClick={() => press(view)} className="gap-2 text-xs">
-                <view.icon className="size-3.5" />
-                <LocalizedText text={view.label} />
-                {view.id === 'design-compare' && designSets > 0 && <span className="ml-auto tabular-nums text-muted-foreground">{designSets}</span>}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </div>
   )
 }
 
@@ -174,20 +103,7 @@ function ProjectsMark({ project }) {
 //     Conflict Points opens the conflict list in the drawer — the same
 //     list as the Workspace's bottom panel, as a second way in.
 // Settings is pinned to the bottom.
-function ActivityBar({ project, drawer, onToggleDrawer, workspace = null }) {
-  // How many of the Workspace's icons fit under the main ones (each a 36px
-  // button and a 4px gap; the rest of the bar's height is spoken for).
-  const barRef = useRef(null)
-  const [slots, setSlots] = useState(WORKSPACE_VIEWS.length)
-  useLayoutEffect(() => {
-    const bar = barRef.current
-    if (!bar || !workspace) return undefined
-    const measure = () => setSlots(Math.max(0, Math.floor((bar.clientHeight - RAIL_TAKEN) / 40)))
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(bar)
-    return () => observer.disconnect()
-  }, [Boolean(workspace)])
+function ActivityBar({ project, drawer, onToggleDrawer }) {
   const { pathname, search } = useLocation()
   const path = pathname.replace(/\/$/, '')
   const base = project ? `/projects/${project.id}` : null
@@ -199,7 +115,7 @@ function ActivityBar({ project, drawer, onToggleDrawer, workspace = null }) {
 
   return (
     <div
-      ref={barRef}
+
       data-activity-bar
       onKeyDown={railArrowKeys}
       className={cn(
@@ -283,7 +199,6 @@ function ActivityBar({ project, drawer, onToggleDrawer, workspace = null }) {
         )}
       </nav>
 
-      {workspace && <WorkspaceViews workspace={workspace} slots={slots} drawer={drawer} onToggleDrawer={onToggleDrawer} />}
 
       {/* (48px tall, as the top bar is.) */}
       <div className="mt-auto flex shrink-0 flex-col items-center gap-1">
@@ -441,9 +356,10 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   // Design Compare: the list at 360px, or — with a set picked — its detail at 520px, one screen at a time. Where
   // that would leave the canvas under 480px it opens over the canvas instead, with a scrim.
   const comparing = panel === 'compare'
+  const compareOnly = comparing && context?.activeView !== 'mergeStudio'
   const compareOpen = comparing && Boolean(context?.compareItemId)
   const shownWidth = split ? pane.width : comparing ? (compareOpen ? COMPARE_DETAIL_WIDTH : COMPARE_LIST_WIDTH) : width
-  const overlay = compareOpen && windowWidth - RAIL_PX - chat - shownWidth - 8 < 480
+  const overlay = !compareOnly && compareOpen && windowWidth - RAIL_PX - chat - shownWidth - 8 < 480
   const keepShare = (next) => { const saved = readSplit(); writeSplit({ ...saved, ratios: { ...saved.ratios, [panel]: next } }) }
   const setShare = (next, keep = false) => { setRatios((prev) => ({ ...prev, [panel]: next })); if (keep) keepShare(next) }
   // (Maximizing is for the pane that's open: it doesn't outlast it.)
@@ -455,11 +371,12 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     const before = wasOpen.current
     wasOpen.current = drawer
     if (isSplit(drawer) && before !== drawer) requestAnimationFrame(() => asideRef.current?.querySelector('input, button:not([data-pane-chrome]), [tabindex="0"]')?.focus({ preventScroll: true }))
-    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-sidebar-toggle]')?.focus()
+    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view-tab="merge"]' : '[data-sidebar-toggle]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
   const targetWidth = drawer ? (overlay ? COMPARE_LIST_WIDTH : shownWidth) + 8 : 0
   const easedWidth = useAfterPaint(targetWidth)
+  const easedContentWidth = useAfterPaint(shownWidth)
   // (Dragged by its edge: it follows the pointer at once.)
   const openWidth = resizing ? targetWidth : easedWidth
 
@@ -476,7 +393,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
         className={cn(
           'relative h-full shrink-0 motion-reduce:transition-none',
           overlay ? 'overflow-visible' : 'overflow-hidden',
-          !resizing && cn('transition-[width]', comparing ? 'duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)]' : PANE_MOTION)
+          !resizing && cn('transition-[width]', PANE_MOTION)
         )}
       >
         {/* (Over the canvas, in a narrow window: the canvas behind it is dimmed; pressing it puts the detail away.) */}
@@ -488,8 +405,8 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
           data-work-pane={split ? panel : undefined}
           data-pane-full={split && pane.full ? '' : undefined}
           aria-label={DRAWER_TITLES[panel] ?? 'Drawer'}
-          style={{ width: shownWidth }}
-          className={cn('relative flex h-full flex-col bg-background pb-2', overlay && 'absolute top-0 left-0 z-50 border-r border-border shadow-2xl shadow-black/40', overlay && !resizing && 'transition-[width] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none')}
+          style={{ width: resizing ? shownWidth : easedContentWidth }}
+          className={cn('relative flex h-full flex-col bg-background pb-2 motion-reduce:transition-none', !resizing && cn('transition-[width,opacity,transform]', PANE_MOTION), drawer ? 'translate-x-0 opacity-100' : '-translate-x-2 opacity-0', overlay && 'absolute top-0 left-0 z-50 border-r border-border shadow-2xl shadow-black/40')}
         >
           {split ? (
             !pane.full && (

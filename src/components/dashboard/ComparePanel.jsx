@@ -94,7 +94,7 @@ export default function ComparePanel({ project, expanded, overlay, closeButton }
 
   return (
     <div ref={rootRef} onKeyDown={onTrap} className="relative h-full min-h-0 overflow-hidden">
-      <div inert={expanded} aria-hidden={expanded || undefined} className={cn('absolute inset-y-0 left-0 flex w-[360px] flex-col transition-opacity duration-200 ease-out motion-reduce:transition-none', expanded && 'pointer-events-none opacity-0')}>
+      <div inert={expanded} aria-hidden={expanded || undefined} className={cn('absolute inset-0 flex w-full flex-col transition-[opacity,transform] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', expanded ? 'pointer-events-none -translate-x-4 opacity-0' : 'translate-x-0 opacity-100')}>
         <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
           <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">디자인 비교<CompareCount /></p>
           {closeButton}

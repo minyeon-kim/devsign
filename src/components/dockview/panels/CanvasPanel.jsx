@@ -1,4 +1,5 @@
 import './CanvasToolbar.css'
+import { DesignCompareContext } from '@/components/workspace/DesignCompareContext'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FileImage,
@@ -371,6 +372,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
 }
 
 function CanvasPanel() {
+  const comparing = useContext(DesignCompareContext)
   // The infinite canvas's viewport: pan offset (px) and zoom (%).
   const [view, setView] = useState({ x: 0, y: 0, zoom: 100 })
   const zoom = view.zoom
@@ -830,8 +832,8 @@ function CanvasPanel() {
           data-cursor-zone="canvas"
           data-cursor-tool={canvasTool}
           onPointerDown={handlePointerDown}
-          onClickCapture={handleClickCapture}
-          onClick={handleSurfaceClick}
+          onClickCapture={comparing ? undefined : handleClickCapture}
+          onClick={comparing ? undefined : handleSurfaceClick}
           className={cn('relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden', panning && 'cursor-grabbing')}
           style={{
             backgroundImage:
@@ -840,6 +842,7 @@ function CanvasPanel() {
             backgroundPosition: `${view.x}px ${view.y}px`,
           }}
         >
+          {!comparing && <>
           <div
             ref={surfaceRef}
             className="absolute top-0 left-0 min-h-full min-w-full p-16"
@@ -933,6 +936,7 @@ function CanvasPanel() {
           })()}
           {/* The ways side by side (or one over the other), over the canvas — the detail beside it stays. */}
           {compareFrame && compareBox && <CompareCanvas preview={previewHere} frame={compareFrame} box={compareBox} edits={prototypeEdits} />}
+          </>}
 
           <div className="pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-1.5">
             <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} compact={compactToolbar} />

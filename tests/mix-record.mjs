@@ -44,7 +44,7 @@ try {
 
   // ── One state, one primary action ──
   const state = (overrides, record, saved) => m.mixStatusOf({ ...item, ...overrides }, record, saved)
-  assert.deepEqual([state({}, null, false).label, state({}, null, true).label, state({ tag: 'Merged' }, null, false).label], ['조합 중', '저장됨', '저장됨'])
+  assert.deepEqual([state({}, null, false).label, state({}, null, true).label, state({ tag: 'Merged' }, null, false).label], ['조합 전', '저장됨', '저장됨'])
   assert.deepEqual([state({}, { reviewStage: 'in_review' }, true).label, state({}, { reviewStage: 'approved' }, true).label, state({}, { reviewStage: 'resolved' }, true).label], ['병합 요청됨', '병합 요청됨', '병합 완료'])
   assert.equal(state({ tag: 'Merged', saveOnFinish: false }, null, false).label, '병합 완료')
   assert.ok(!Object.values(m.MIX_STATUS).some((status) => status.label === '저장 완료'), '“저장 완료” isn’t one of the names')

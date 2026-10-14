@@ -8,6 +8,7 @@ import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInb
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 import UserPresence from '@/components/layout/UserPresence'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { Sparkles } from 'lucide-react'
 
 // The normal workspace's chrome, in the same floating-pill language as
 // Merge Studio's own header — no docked bar spanning the viewport, three
@@ -88,7 +89,7 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project }) {
-  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, bottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
+  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, bottomPanel, mergeDrawer, setMergeDrawer, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
 
   return (
@@ -124,6 +125,15 @@ function TopBar({ project }) {
           <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} borderless />
         </ActionTooltip>
         <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
+        <button type="button" data-chat-toggle aria-expanded={aiChat.open} aria-controls="workspace-ai-chat"
+          aria-label={aiChat.open ? 'Collapse AI Chat' : 'Expand AI Chat'}
+          onClick={() => setAiChat({ open: !aiChat.open })}
+          className={cn('ds-header-pill flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', aiChat.open && 'bg-white/[0.08]')}>
+          <Sparkles aria-hidden className="size-3.5 shrink-0" />
+          AI Chat
+          {chatAwaitingApproval ? <span data-chat-awaiting className="text-[10px] text-amber-300">Awaiting approval</span>
+            : chatUnread && <span data-chat-unread aria-label="New reply" className="size-2 shrink-0 rounded-full bg-emerald-400" />}
+        </button>
       </div>
 
       {inboxOpen && (
@@ -145,7 +155,7 @@ function TopBar({ project }) {
               return
             }
             requestMergeFocus(destination.mergeTarget)
-            openMergeStudio()
+            openMergeStudio(destination.mergeTarget?.itemId)
           }}
           onClose={() => setMergeDrawer(null)}
         />

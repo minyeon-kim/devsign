@@ -13,7 +13,7 @@ import { signature } from '@/lib/demoStorage'
 //   requested  asked for, reviewers deciding/decided → 요청 보기
 //   merged     merged                                → (조합 수정)
 export const MIX_STATUS = {
-  draft: { id: 'draft', label: '조합 중', className: 'text-slate-400' },
+  draft: { id: 'draft', label: '조합 전', className: 'text-slate-400' },
   saved: { id: 'saved', label: '저장됨', className: 'text-emerald-300' },
   requested: { id: 'requested', label: '병합 요청됨', className: 'text-sky-300' },
   merged: { id: 'merged', label: '병합 완료', className: 'text-violet-300' },

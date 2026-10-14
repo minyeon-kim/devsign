@@ -78,16 +78,14 @@ try {
   // --- The side panel: at the left, on the activity bar ---
   assert.ok(layout.includes('addDockPanel(dockApi, panelById.navigator, { share, atStart: true })'), 'docked at the row’s left end')
   assert.ok(dock.includes('if (atStart) { root.children.unshift(leaf); root.sizes.unshift(size) }'))
-  assert.ok(sidebar.includes("{ id: 'design-compare', label:"), 'design-compare is on the bar')
+  assert.ok(!sidebar.includes("{ id: 'design-compare', label:"), 'Design Compare opens through Merge, without an activity bar menu')
   for (const view of ['terminal', 'console']) assert.ok(!sidebar.includes(`{ id: '${view}', label:`), `${view} isn’t on the bar`)
   // Files · Layers · Assets · Inspect: icons in the main window under its tabs, opening over the canvas — not on the bar.
   for (const view of ['files', 'layers', 'assets', 'inspect']) {
     assert.ok(!sidebar.includes(`{ id: '${view}', label:`), `${view} isn’t on the bar`)
     assert.ok(read('components/workspace/CanvasSideViews.jsx').includes(`{ id: '${view}', label:`), `${view} is in the main window`)
   }
-  assert.ok(sidebar.includes('aria-expanded={showing(view)}') && sidebar.includes("aria-controls={view.side ? 'workspace-side-panel' : 'work-pane'}"))
-  assert.ok(sidebar.includes('data-views-more') && sidebar.includes('railSplit(WORKSPACE_VIEWS, slots)') && sidebar.includes('onKeyDown={railArrowKeys}'))
-  assert.ok(sidebar.includes('data-view-badge'), 'Design Compare’s count sits on its icon')
+  assert.ok(sidebar.includes('onKeyDown={railArrowKeys}'))
   assert.ok(shell.includes("const LAYER_PARAMS = ['doc', 'docs', 'history']"), 'not as a layer over the Workspace (docs, history)')
   // Its views: the navigator's four as tabs (← / → between them); Terminal and Console in the same panel.
   assert.ok(windowSource.includes("role={isNavigatorGroup ? 'tablist' : undefined}") && tabs.includes("role={panel.component === 'navigator' ? 'tab' : undefined}") && navigator.includes('role="tabpanel"'))
@@ -116,7 +114,10 @@ try {
 
   // --- AI Chat: its own window at the right, folded by default, kept while folded ---
   assert.ok(panels.includes("position: { direction: 'right', referencePanel: panelById.canvas.id },\n    share: 0.3,"))
-  assert.ok(layout.includes('data-chat-toggle') && layout.includes('aria-controls={CHAT_ID}') && layout.includes('data-chat-unread'))
+  const topBar = read('components/layout/TopBar.jsx')
+  assert.ok(topBar.includes('data-chat-toggle') && topBar.includes('aria-controls="workspace-ai-chat"') && topBar.includes('data-chat-unread'))
+  assert.ok(topBar.indexOf('data-chat-toggle') > topBar.indexOf('<InboxButton'), 'AI Chat follows notifications in the top bar')
+  assert.ok(!layout.includes('type="button"\n      data-chat-toggle') && layout.includes('data-conflict-toggle') && layout.includes('open: !boardConflicts.open'), 'the former chat position opens Conflicts')
   assert.ok(provider.includes("if (wasAiTyping.current && !isAiTyping && !aiChat.open && activeViewNow.current !== 'mergeStudio') setChatUnread(true)") && provider.includes('if (aiChat.open && chatUnread) setChatUnread(false)'))
   assert.ok(layout.includes("leaf('chat')?.querySelector('textarea, [contenteditable=\"true\"], input[type=\"text\"]')?.focus()"), 'opened: the message box takes the focus')
   assert.ok(tabs.includes("['assets', 'layers', 'explorer', 'chat'].includes(panel.component) ? null : closeView"), 'it folds; it isn’t closed')

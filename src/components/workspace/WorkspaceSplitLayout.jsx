@@ -3,7 +3,9 @@ import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { TriangleAlert, ChevronLeft, ChevronRight } from 'lucide-react'
+import { conflictSequence } from '@/lib/screenConflicts'
+import { conflictCounts } from '@/lib/conflicts'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
 import { BoardDockSlot, CanvasViewPanel, CanvasViewRail } from '@/components/workspace/CanvasSideViews'
 import { inCanvasViewOf, AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/panelPrefs'
@@ -160,7 +162,7 @@ function zoneRect(rect, zone) {
 // `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
 // stays mounted under it).
 function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeStudio, exitMergeStudio } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, prototype, setConflictStepRequest } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -522,7 +524,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     }
     if (before.chat !== aiChat.open) {
       if (aiChat.open) { opened = 'chat'; requestAnimationFrame(() => leaf('chat')?.querySelector('textarea, [contenteditable="true"], input[type="text"]')?.focus()) }
-      else if (held('chat')) rootRef.current?.querySelector('[data-chat-toggle]')?.focus()
+      else if (held('chat')) document.querySelector('[data-chat-toggle]')?.focus()
     }
     if (!opened) return
     const fold = panelToFold({ room: rootRef.current?.clientWidth ?? Infinity, side: { open: sideSplitOpen, width: sideWidth }, chat: { open: aiChat.open, width: chatWidth }, opened })
@@ -538,7 +540,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     if (/^Digit[1-4]$/.test(event.code) && !event.shiftKey && !event.defaultPrevented && !isTyping(event.target) && (event.altKey !== (event.metaKey || event.ctrlKey))) {
       event.preventDefault()
       const at = Number(event.code.slice(5)) - 1
-      if (at === 3) { if (activeViewNow.current !== 'mergeStudio') openMergeStudio() }
+      if (at === 3) { openMergeTab() }
       else { if (activeViewNow.current === 'mergeStudio') exitMergeStudio(); setWorkspaceView(VIEWS[at]) }
       return
     }
@@ -602,7 +604,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
             // The main window's row starts with the Workspace's views.
             viewTabs={!mergeStudio && group.id === mainGroupId ? <><WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /><CanvasViewRail /></> : null}
             viewPanel={!mergeStudio && group.id === mainGroupId ? { id: VIEW_PANEL_ID, labelledBy: viewTabId(workspaceView) } : null}
-            headerEnd={!mergeStudio && group.id === mainGroupId ? chatPill : null}
+            headerEnd={!mergeStudio && group.id === mainGroupId ? conflictPill : null}
             // (Files · Layers · Assets · Inspect open in a tool panel docked at the work area's left, in the
             // canvas's row — it pushes the canvas over.)
             viewDock={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
@@ -626,27 +628,32 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} floating={mergeStudio} fixed={fixed} />
   }
 
-  // AI Chat, folded: its pill at the main window's tab row, top right — with a dot when an answer finished unseen.
-  const chatPill = !mergeStudio && chatGroup && !aiChat.open ? (
-    <button
-      type="button"
-      data-chat-toggle
-      aria-expanded={false}
-      aria-controls={CHAT_ID}
-      aria-label={chatAwaitingApproval ? 'Expand AI Chat · Awaiting approval' : chatUnread ? 'Expand AI Chat · New reply' : 'Expand AI Chat'}
-      title={`Expand AI Chat · ${CHAT_SHORTCUT}`}
-      onClick={() => setAiChat({ open: true })}
+  const conflictCount = conflictCounts(conflicts).open
+  const changeSequence = conflictSequence(prototype, conflicts)
+  const stepConflict = (step) => {
+    if (!changeSequence.length) return
+    if (activeView !== 'mergeStudio' && workspaceView === 'screens') {
+      setConflictStepRequest({ step, nonce: Date.now() })
+      return
+    }
+    const at = changeSequence.findIndex((entry) => entry.conflict.id === boardConflicts.conflictId)
+    const next = at < 0 ? (step > 0 ? 0 : changeSequence.length - 1) : (at + step + changeSequence.length) % changeSequence.length
+    setBoardConflicts({ open: true, conflictId: changeSequence[next].conflict.id, screenId: null })
+  }
+  const conflictPill = (
+    <div className="flex shrink-0 items-center gap-0.5" onPointerDown={(event) => event.stopPropagation()}>
+    <button type="button" data-conflict-toggle aria-label="변경 확인" aria-expanded={boardConflicts.open}
+      onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
       onPointerDown={(event) => event.stopPropagation()}
-      className="flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-white/[0.06] px-2.5 text-[12px] font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
-    >
-      <Sparkles className="size-3.5 shrink-0" />
-      AI Chat
-      {/* A request waiting says so in words; a finished answer is a dot. */}
-      {chatAwaitingApproval
-        ? <span data-chat-awaiting aria-hidden className="shrink-0 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-amber-200">Awaiting approval</span>
-        : chatUnread && <span data-chat-unread aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />}
+      className={cn('flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', conflictCount > 0 ? 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/20' : 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1] hover:text-white')}>
+      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+      Conflict
+      {conflictCount > 0 && <span className="text-xs tabular-nums text-amber-300">{conflictCount}</span>}
     </button>
-  ) : null
+    <button type="button" data-board-change-prev aria-label="Previous conflict" title="Previous conflict · K" disabled={!changeSequence.length} onClick={() => stepConflict(-1)} className="flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40"><ChevronLeft className="size-3.5" /></button>
+    <button type="button" data-board-change-next aria-label="Next conflict" title="Next conflict · J" disabled={!changeSequence.length} onClick={() => stepConflict(1)} className="flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40"><ChevronRight className="size-3.5" /></button>
+    </div>
+  )
 
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (

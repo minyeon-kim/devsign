@@ -23,11 +23,11 @@ const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 // — pressing Screens again goes back to the board (`onBoard`). Nothing else
 // sits in the row: no page or file tabs, no back button.
 function WorkspaceViewTabs({ editing = false, onBoard }) {
-  const { workspaceView, setWorkspaceView, activeView, openMergeStudio, exitMergeStudio, conflicts } = useWorkspace()
+  const { workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts } = useWorkspace()
   const merging = activeView === 'mergeStudio'
   const unresolved = conflictCounts(conflicts).open
   const show = (view) => {
-    if (view === 'merge') { if (!merging) openMergeStudio(); return }
+    if (view === 'merge') { openMergeTab(); return }
     if (merging) exitMergeStudio()
     setWorkspaceView(view)
   }

@@ -526,7 +526,7 @@ export const mergeListItems = [
   {
     id: 'merge-dashboard-drafts',
     projectId: 'dashboard-redesign',
-    title: 'Dashboard · AI 시안 A/B',
+    title: '대시보드 시안 조합',
     subtitle: 'Design · 2 drafts',
     tag: 'Needs Review',
     updatedLabel: 'Just now',
@@ -581,7 +581,7 @@ export const mergeListItems = [
   {
     id: 'merge-checkout-payment-drafts',
     projectId: 'checkout-redesign',
-    title: 'Payment step · 4 drafts',
+    title: '결제 화면 시안 조합',
     subtitle: 'Design · 4 drafts',
     tag: 'Needs Review',
     updatedLabel: '1h ago',
@@ -597,7 +597,7 @@ export const mergeListItems = [
       { key: 'jane', label: 'Standard checkout' },
       { key: 'min', label: 'Progress and wallet' },
       { key: 'james', label: 'Saved card' },
-      { key: 'ai', label: 'Secure checkout and wallets' },
+      { key: 'ai', label: 'Secure checkout and wallets', ai: true },
     ],
   },
   // Three drafts of the order confirmation screen with nothing in common —
@@ -605,7 +605,7 @@ export const mergeListItems = [
   {
     id: 'merge-confirmation-drafts',
     projectId: 'checkout-redesign',
-    title: 'Order confirmation · 3 drafts',
+    title: '주문 완료 화면 시안 조합',
     subtitle: 'Design · 3 drafts',
     tag: 'Needs Review',
     updatedLabel: '30m ago',
@@ -620,7 +620,7 @@ export const mergeListItems = [
     variants: [
       { key: 'jane', label: 'Celebration' },
       { key: 'james', label: 'Order receipt' },
-      { key: 'ai', label: 'Delivery tracking' },
+      { key: 'ai', label: 'Delivery tracking', ai: true },
     ],
   },
   // Checkout Redesign's remaining Conflict Points, same project as

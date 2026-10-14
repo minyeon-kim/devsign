@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
 import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
+import { DesignCompareContext } from '@/components/workspace/DesignCompareContext'
 
 // The common application shell, shared by the dashboard-level pages and
 // a project's Workspace/Archive:
@@ -51,9 +52,7 @@ function AppShell({ topBar, project, children }) {
   const shown = drawer ?? workPane
   function toggleDrawer(panel) {
     // (Conflict Points while the Screens board shows: its list floats over the board — ScreensBoard.)
-    if (panel === 'conflicts' && workspace?.activeView === 'workspace' && workspace.workspaceView === 'screens') {
-      setDrawer(null)
-      if (workPane) workspace.setWorkPane(null)
+    if (panel === 'conflicts' && workspace) {
       workspace.setBoardConflicts({ open: !workspace.boardConflicts.open, conflictId: null })
       return
     }
@@ -89,8 +88,8 @@ function AppShell({ topBar, project, children }) {
   const { conflictDrawerRequest, setWorkPane } = workspace ?? {}
   useEffect(() => {
     if (!conflictDrawerRequest) return
-    setDrawer(null)
-    setWorkPane?.('conflicts')
+    if (drawer === 'conflicts') setDrawer(null)
+    if (workPane === 'conflicts') setWorkPane?.(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conflictDrawerRequest])
   // The docs layer (WorkspaceProvider's `requestDocsDrawer`) opens the Docs drawer the same way.
@@ -140,7 +139,9 @@ function AppShell({ topBar, project, children }) {
       {/* (The 8px between the drawer and the work area is the drawer's own — it opens and shuts with it, never at once.) */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {topBar}
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <DesignCompareContext.Provider value={shown === 'compare'}>{children}</DesignCompareContext.Provider>
+        </div>
       </div>
     </div>
   )

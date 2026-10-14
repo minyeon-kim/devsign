@@ -8,6 +8,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { designRegionsOf, designSetsOf } from '@/lib/designSets'
 
 // The drawer behind the activity bar's Design Compare icon — in the same slot, and made of the same parts, as
 // Docs and the change list (DrawerList): a search over the design sets, grouped by the screen they are for
@@ -15,7 +16,6 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // A set picked here widens the sidebar into list + detail (ComparePanel), the canvas beside it; it's picked in the
 // change list too (the same pick, both ways); the same row again puts the detail away.
 
-const designSetsOf = (mergeItems) => mergeItems.filter((item) => item.hasDesign)
 const screenNameOf = (projectPages, item) => projectPages.find((page) => page.id === item.designPageId)?.name ?? 'Other screens'
 
 // The design sets in the order the list shows them (screen by screen) — what ↑ / ↓ walk along.
@@ -48,11 +48,12 @@ function DesignSetRow({ item, state, count, selected, onOpen }) {
       onOpen={onOpen}
       className={cn(merged && 'opacity-60')}
       title={<LocalizedText text={item.title} />}
-      time={<span data-compare-drafts>{count}</span>}
+      time={<span data-compare-drafts>시안 {count}개</span>}
       meta={(
         <>
           {merged ? <Check aria-hidden className="size-3 shrink-0" /> : <span aria-hidden data-status-dot className={cn('size-1.5 shrink-0 rounded-full', state.id === 'draft' ? 'bg-slate-500' : 'bg-white')} />}
           <span className="min-w-0 truncate"><LocalizedText text={state.label} /></span>
+          <span className="shrink-0 text-slate-500">· {designRegionsOf(item).length}개 영역 조합</span>
         </>
       )}
     />
@@ -72,7 +73,7 @@ function CompareDrawer() {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
   const found = ({ item, state, screen }) => {
     if (!terms.length) return true
-    const text = [item.title, state.label, screen].filter(Boolean).flatMap((part) => [part, translateText(part, language)]).join(' ').toLocaleLowerCase()
+    const text = [item.title, state.label, screen, ...item.variants.map((variant) => variant.label), ...designRegionsOf(item).map((region) => region.label)].filter(Boolean).flatMap((part) => [part, translateText(part, language)]).join(' ').toLocaleLowerCase()
     return terms.every((term) => text.includes(term))
   }
   const shown = rows.filter(found)
@@ -108,7 +109,10 @@ function CompareDrawer() {
   return (
     <DrawerShell
       data-compare-drawer
-      top={<DrawerSearch value={query} onChange={setQuery} placeholder={translateText('Search design sets…', language)} label={translateText('Search design sets', language)} />}
+      top={<>
+        <p className="px-2 pb-2 text-xs leading-5 text-muted-foreground">디자인 시스템의 시안을 비교하고, 영역별로 선택해 하나의 디자인으로 조합하세요.</p>
+        <DrawerSearch value={query} onChange={setQuery} placeholder="화면, 시안, 조합 영역 검색…" label="디자인 시안 검색" />
+      </>}
     >
       {groups.length === 0 && <DrawerEmpty onClear={() => setQuery('')}><LocalizedText text="No matching design sets." /></DrawerEmpty>}
       {groups.map(([label, list]) => {

@@ -1,5 +1,5 @@
 import { Component, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PlayFrame from '@/components/screens/PlayFrame'
 import { cameraFor, interactionsOf, pathAhead, readProto, tierOf, withProto } from '@/lib/boardPrototype'
@@ -170,7 +170,7 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, conflictStepRequest } = useWorkspace()
   const language = useLanguage()
   const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
@@ -179,7 +179,7 @@ function ScreensBoard() {
   const changes = useMemo(() => conflictsByScreen(prototype, conflicts), [prototype, conflicts])
   // …and one by one, in the order ‹ › walk them (lib/screenConflicts' conflictSequence).
   const sequence = useMemo(() => conflictSequence(prototype, conflicts, order), [prototype, conflicts, order.join()]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [marking, setMarking] = useState(false)
+  const marking = boardConflicts.open
   // (Which element's marker is pointed at — its outline shows.)
   const [hotMarker, setHotMarker] = useState(null)
   const openLabel = (count) => (language === 'ko' ? `미해결 충돌 ${count}건` : `${count} open ${count === 1 ? 'change' : 'changes'}`)
@@ -456,7 +456,6 @@ function ScreensBoard() {
   useEffect(() => { if (focusAt === -1) homeView.current = null }, [focusAt])
   // (Bumped on each arrival, so the outline's pulse plays again; and on going round, so the count flashes.)
   const [arrival, setArrival] = useState(0)
-  const [wrapped, setWrapped] = useState(0)
   // What's clear of the panel at the right (it floats over the board, 8px in): where the camera centres.
   const focusArea = () => {
     const width = room.width - (docked ? 0 : BOARD_DETAIL_WIDTH + 16)
@@ -480,7 +479,6 @@ function ScreensBoard() {
   const stepChange = (step) => {
     if (!sequence.length || proto) return
     const next = focusAt === -1 ? (step > 0 ? 0 : sequence.length - 1) : (focusAt + step + sequence.length) % sequence.length
-    if (focusAt !== -1 && ((step > 0 && next < focusAt) || (step < 0 && next > focusAt))) setWrapped((n) => n + 1)
     focusOn(sequence[next])
   }
   // Out: the camera back to where it was before it closed in (the change stays the one ‹ › go on from).
@@ -509,6 +507,9 @@ function ScreensBoard() {
   // typing, not in a dialog or a menu); Esc takes the camera back out.
   const keys = useRef(null)
   keys.current = { stepChange, focusOut }
+  useEffect(() => {
+    if (conflictStepRequest) keys.current.stepChange(conflictStepRequest.step)
+  }, [conflictStepRequest])
   useEffect(() => {
     const onKey = (event) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
@@ -819,23 +820,6 @@ function ScreensBoard() {
         </div>
       )}
 
-      {/* The change list's own button, floating at the board's top right (as a map's "Show list"): it brings the
-          list up there; the list, once up, closes from its own ×. */}
-      {!listOpen && !proto && changes.total > 0 && (
-        <button
-          type="button"
-          data-board-chrome
-          data-board-conflicts-open
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => setBoardConflicts({ open: true, conflictId: null, screenId: null })}
-          className="absolute top-2 right-2 z-30 flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-card/95 pr-3.5 pl-3 text-[13px] font-semibold text-slate-100 shadow-lg shadow-black/40 backdrop-blur-sm transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-300"
-        >
-          <ChevronLeft className="size-4 text-slate-300" />
-          <LocalizedText text="Conflict list" />
-          {/* (A true circle — one size for one, two digits or "99+".) */}
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#F04E5A] text-[10.5px] leading-none font-bold text-white tabular-nums">{countLabel(changes.total)}</span>
-        </button>
-      )}
       {listOpen && (
         <BoardConflicts
           groups={boardGroups}
@@ -856,18 +840,6 @@ function ScreensBoard() {
       {/* The board's tools: up in the window's tab row, at its right end (in place, over the board, outside a window). */}
       <WindowHeaderPortal fallbackClassName="absolute top-3 right-3 z-20">
       <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('flex items-center gap-0.5', !inHeader && BAR)}>
-        {/* The project's open changes: pressed, the screens without any step back; ‹ › walk the changes
-            themselves, one at a time ("3 / 10" — which one the board is on). */}
-        {changes.total > 0 && (
-          <>
-            <button type="button" key={wrapped} data-board-changes data-at={focusAt === -1 ? undefined : focusAt + 1} aria-pressed={marking} aria-label={openLabel(changes.total)} title={openLabel(changes.total)} translate="no" onClick={() => setMarking((on) => !on)} className={cn(TOOL, 'gap-1 px-2 tabular-nums', marking && 'bg-white/[0.12] text-white', wrapped > 0 && 'ds-count-flash')}>
-              <TriangleAlert className="size-3.5 text-amber-300" />{focusAt === -1 ? countLabel(changes.total) : <>{focusAt + 1}<span className="text-slate-500"> / {countLabel(sequence.length)}</span></>}
-            </button>
-            <button type="button" data-board-change-prev title="Previous conflict · K" aria-label="Previous conflict" disabled={!sequence.length || Boolean(proto)} onClick={() => stepChange(-1)} className={TOOL}><ChevronLeft className="size-3.5" /></button>
-            <button type="button" data-board-change-next title="Next conflict · J" aria-label="Next conflict" disabled={!sequence.length || Boolean(proto)} onClick={() => stepChange(1)} className={TOOL}><ChevronRight className="size-3.5" /></button>
-            <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
-          </>
-        )}
         {prototype.flows.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger data-board-flows title="Go to a flow" className={cn(TOOL, 'px-2')}><LocalizedText text="Flows" /></DropdownMenuTrigger>

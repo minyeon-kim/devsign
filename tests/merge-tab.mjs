@@ -35,7 +35,9 @@ try {
   // The address, both ways; the three ways in.
   assert.ok(provider.includes('readMergeParams(location.search)') && provider.includes('withMerge(nowSearch, id)') && provider.includes("setActiveView('mergeStudio')"))
   assert.ok(!read('components/screens/ScreensBoard.jsx').includes('openMergeStudio()'), 'a change picked in the board’s list shows its detail in the panel — the Screens view stays')
-  assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('openMergeStudio()'), '조합하기 opens it')
+  assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('openMergeStudio(candidate.id)'), '조합하기 starts the selected task explicitly')
+  assert.ok(view.includes('data-merge-empty-canvas') && view.includes('startedMergeItemId === selected.id'), 'an unstarted or stale selection draws only an empty grid')
+  assert.ok(tabs.includes('openMergeTab()') && provider.includes('setSelectedMergeItemId(startedMergeItemId)'), 'Merge opens the comparison and resumes only a started task')
   // The studio's row: the item switcher, the tools; empty / loading / read-only.
   assert.ok(work.includes('data-merge-switcher') && work.includes('data-merge-skeleton') && work.includes('병합할 변경점이 없어요') && work.includes('data-merge-empty-back') && work.includes('data-merge-readonly'))
   assert.ok(read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('data-merge-tools') && read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('useContext(WindowHeaderSlotContext)'))

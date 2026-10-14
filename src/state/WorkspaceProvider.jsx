@@ -386,6 +386,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // shows, or null for the list, screenId: the screen it was opened for }. (Files · Layers · Assets · Inspect
   // float at the left: the two can be open together.)
   const [boardConflicts, setBoardConflictsState] = useState({ open: false, conflictId: null, screenId: null })
+  const [conflictStepRequest, setConflictStepRequest] = useState(null)
   const setBoardConflicts = useCallback((patch) => setBoardConflictsState((prev) => ({ ...prev, ...patch })), [])
   // Design Compare: its list is an app sidebar (the drawer, like Docs); the set picked there widens the sidebar
   // into list + detail (`compareItemId`; null: the list alone) while the canvas stays where it is, reflowed. The
@@ -638,18 +639,15 @@ export function WorkspaceProvider({ children, projectId }) {
     for (const item of mergeItems) if (item.category === 'Workspace') registerMergeVariants(item.id, item.designPageId)
   }, [mergeItems])
   const [selectedMergeItemId, setSelectedMergeItemId] = useDemoState(`project:${projectId}:selectedMergeItemId`, null)
+  const [startedMergeItemId, setStartedMergeItemId] = useDemoState(`project:${projectId}:startedMergeItemId`, null)
 
   // Which conversation AI Chat shows: the Workspace's, or — in Merge Studio
   // with an item open — that item's own, opening on the item it's about
   // (see lib/mergeChat). `setChatMessagesFor(thread)` writes to one thread
   // regardless of which is on screen, so a reply that lands after you've
   // switched items still goes to the conversation it answers.
-  // The item Merge Studio has open: the selection, or else the next
-  // unmerged item (what the studio opens by default). One answer for the
-  // canvas (MergeStudioView) and the chat thread, so they never disagree.
-  const openMergeItem = mergeItems.find((item) => item.id === selectedMergeItemId)
-    ?? mergeItems.find((item) => item.tag !== 'Merged')
-    ?? mergeItems[0]
+  // A studio task must be explicitly selected; seeded examples aren't previous work.
+  const openMergeItem = mergeItems.find((item) => item.id === selectedMergeItemId) ?? null
     ?? null
   // The Merge tab is in the address (`?view=merge&item=`, lib/viewLink): opening it pushes it (Back goes to the tab
   // before), switching items replaces it, and an address that names it opens it — a reload, a shared link.
@@ -677,6 +675,7 @@ export function WorkspaceProvider({ children, projectId }) {
   useEffect(() => {
     if (!onWorkspace) return
     if (mergeSaid.open && activeViewNow.current !== 'mergeStudio') {
+      requestCompareDrawer()
       if (mergeSaid.item && mergeItems.some((item) => item.id === mergeSaid.item)) { pendingMergeItem.current = mergeSaid.item; setSelectedMergeItemId(mergeSaid.item) }
       setActiveView('mergeStudio')
     } else if (!mergeSaid.open && activeViewNow.current === 'mergeStudio') setActiveView('workspace')
@@ -1003,9 +1002,17 @@ export function WorkspaceProvider({ children, projectId }) {
     [memberViewports]
   )
 
-  const openMergeStudio = useCallback(() => {
+  const openMergeStudio = useCallback((itemId = selectedMergeItemId) => {
+    if (itemId) setStartedMergeItemId(itemId)
     setActiveView('mergeStudio')
-  }, [])
+  }, [selectedMergeItemId, setStartedMergeItemId, setActiveView])
+
+  const openMergeTab = useCallback(() => {
+    requestCompareDrawer()
+    // A selected demo item isn't a started task. The empty Merge view is just a grid.
+    setSelectedMergeItemId(startedMergeItemId)
+    setActiveView('mergeStudio')
+  }, [startedMergeItemId, setSelectedMergeItemId, requestCompareDrawer, setActiveView])
 
   const exitMergeStudio = useCallback(() => {
     setActiveView('workspace')
@@ -1042,8 +1049,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // conflict's review in the full-screen viewer, as a row of that drawer
   // opens it.
   const requestConflictDrawer = useCallback((id) => {
+    setBoardConflicts({ open: true, conflictId: id ?? null, screenId: null })
     setConflictDrawerRequest({ nonce: nextId('conflict-drawer'), conflictId: id })
-  }, [])
+  }, [setBoardConflicts])
   // Where each of the bottom panel's views went (see `setBottomPanel`).
   workspaceViewOpener.current = (tab) => {
     if (tab === 'terminal' || tab === 'console') openSideView(tab)
@@ -3061,6 +3069,8 @@ export function WorkspaceProvider({ children, projectId }) {
     mergedBaseline,
     setSelectedMergeItemId,
     openMergeStudio,
+    openMergeTab,
+    startedMergeItemId,
     exitMergeStudio,
     startMergeFromFiles,
     mergeEntry,
@@ -3100,6 +3110,8 @@ export function WorkspaceProvider({ children, projectId }) {
     conflictDrawerRequest,
     openConflictFromNotification,
     requestConflictDrawer,
+    conflictStepRequest,
+    setConflictStepRequest,
     docsDrawerRequest,
     requestDocsDrawer,
     docParam,

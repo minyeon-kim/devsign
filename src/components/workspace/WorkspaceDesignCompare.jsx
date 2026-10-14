@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DesignComparePanel, designCompareOptions } from '@/components/mergestudio/DesignComparison'
 import { reviewForDesign } from '@/lib/designReview'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { designSetsOf } from '@/lib/designSets'
 
 const PICKED = new Map()
 // (Which drafts are ticked for a set — kept for the session; the studio's "back to drafts" puts them back.)
@@ -45,7 +46,7 @@ export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, g
   const { mergeItems, conflicts, compareItemId: pickedId, setCompareItemId, conflictPin, boardConflicts, setSelectedMergeItemId, setDesignCompareRequest, openMergeStudio, currentUser } = useWorkspace()
   // (`itemId`: the set shown while the detail eases away — the address has already let go of it.)
   const compareItemId = itemId ?? pickedId
-  const items = mergeItems.filter(item => item.hasDesign)
+  const items = designSetsOf(mergeItems)
   const item = items.find(candidate => candidate.id === compareItemId) ?? null
 
   // The change lists' pick moves the detail (when it is another design set's change): the change pins' and the
@@ -93,7 +94,7 @@ export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, g
         onCompare={(candidate, options) => {
           setSelectedMergeItemId(candidate.id)
           setDesignCompareRequest({ itemId: candidate.id, keys: options.map(option => option.key) })
-          openMergeStudio()
+          openMergeStudio(candidate.id)
           // (The detail stays: with the studio mixing these drafts it is where they're picked from.)
         }} />
     </ErrorBoundary>

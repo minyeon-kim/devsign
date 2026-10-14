@@ -1,4 +1,5 @@
 import ConflictReviewOverlay from '@/components/conflicts/ConflictReviewOverlay'
+import WorkspaceChanges from '@/components/conflicts/WorkspaceChanges'
 import HistoryOverlay from '@/components/history/HistoryOverlay'
 import DocsOverlay from '@/components/docs/DocsOverlay'
 import { readChangeParams, sourceKeyOf } from '@/lib/changeLink'
@@ -62,7 +63,7 @@ function WorkspacePage() {
     if (state.openMergeStudio) {
       const item = state.mergeItemId && mergeItems.find((i) => i.id === state.mergeItemId)
       setSelectedMergeItemId(item ? item.id : null)
-      openMergeStudio()
+      openMergeStudio(item?.id)
       if (state.conflictId) {
         // `collapsePanel` (arriving to fix a check): the review stays
         // selected but folded, so the canvas it points at is in view.
@@ -168,6 +169,7 @@ function WorkspacePage() {
         ) : null} />
 
         <TopBar project={project} />
+        <WorkspaceChanges />
         <FollowMeBanner />
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       </div>
