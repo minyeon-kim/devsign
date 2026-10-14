@@ -394,7 +394,7 @@ function ApprovalCard({ message }) {
 function TypingBubble() {
   return (
     <div className="flex justify-start">
-      <div className="flex items-center gap-1 rounded-[20px] rounded-bl-[6px] bg-muted px-3.5 py-3">
+      <div className="flex items-center gap-1 rounded-[20px] bg-muted px-3.5 py-3">
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
         <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
@@ -570,11 +570,11 @@ function ChatConversation() {
             {approvalState(message) && <ApprovalCard message={message} />}
             <div
               className={cn(
-                // (iOS bubbles: 20px round, the corner on the speaker's side kept small — the bubble's tail.)
+                // (20px round on every corner — no tail.)
                 'max-w-[88%] rounded-[20px] px-4 py-3 text-[13px]',
                 message.role === 'user'
-                  ? 'ds-chat-user-bubble rounded-br-[6px] whitespace-pre-wrap leading-6'
-                  : 'rounded-bl-[6px] bg-slate-800/80 text-slate-200'
+                  ? 'ds-chat-user-bubble whitespace-pre-wrap leading-6'
+                  : 'bg-slate-800/80 text-slate-200'
               )}
             >
               {message.role === 'user' ? (

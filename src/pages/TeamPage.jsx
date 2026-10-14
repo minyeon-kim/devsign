@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from '@/i18n/toast'
-import { Archive, ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Download, Lock, MoreVertical, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
+import { Archive, ArrowDown, ArrowUp, ArrowUpDown, Download, Lock, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
+import { PAGE_PANEL, PageTitle, Segmented } from '@/components/layout/PagePieces'
 import { cn } from 'cn'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -154,37 +154,25 @@ function TeamPage() {
 
   return (
     <DashboardLayout projectProportions>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" title="Back to home" nativeButton={false} render={<Link to="/dashboard" />}>
-            <ArrowLeft className="size-3.5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">{activeTeam ? activeTeam.name : 'Team members'}</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {activeTeam ? `${activeTeam.memberIds.length} members of this team.` : 'People with access to your projects.'}
-            </p>
-          </div>
-        </div>
-
+      {/* (As Home's sections: a title and its count; the path in the top bar says where you are. One primary
+          action; the rest in ⋯.) */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageTitle title={activeTeam ? activeTeam.name : 'Team members'} count={activeTeam ? activeTeam.memberIds.length : members.length} />
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search"
-              className="h-8 w-48 pl-8 text-sm"
-            />
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-500" />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search"
+              className="h-8 w-48 rounded-full border-0 bg-white/[0.06] pl-8 text-xs" />
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportCsv}>
-            <Download className="size-3.5" />
-            Download CSV
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCreateTeamOpen(true)}>
-            <Plus className="size-3.5" />
-            New team
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger aria-label="More" title="More" className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setCreateTeamOpen(true)}><Plus />New team</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCsv}><Download />Download CSV</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" className="gap-1.5" onClick={openAddModal}>
             <Plus className="size-3.5" />
             Add user
@@ -192,36 +180,13 @@ function TeamPage() {
         </div>
       </div>
 
-      {/* Team scope as page-level tabs (not sidebar entries), in the same
-          pill style as the Activity page's type filters. */}
-      <div role="tablist" aria-label="Teams" className="mt-6 flex flex-wrap items-center gap-1.5">
-        {[{ id: null, name: 'All members', count: members.length }, ...teams.map((t) => ({ ...t, count: t.memberIds.length }))].map(
-          (tab) => {
-            const isActive = (activeTeam?.id ?? null) === tab.id
-            return (
-              <button
-                key={tab.id ?? 'all'}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setSearchParams(tab.id ? { team: tab.id } : {}, { replace: true })}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150',
-                  isActive
-                    ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                {tab.name}
-                <span className="text-[11px] text-muted-foreground tabular-nums">{tab.count}</span>
-              </button>
-            )
-          }
-        )}
-      </div>
+      {/* Team scope: the Workspace's segmented capsule. */}
+      <Segmented label="Teams" value={activeTeam?.id ?? null} onChange={(id) => setSearchParams(id ? { team: id } : {}, { replace: true })}
+        options={[{ id: null, label: 'All members', count: members.length }, ...teams.map((t) => ({ id: t.id, label: t.name, count: t.memberIds.length }))]} />
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+      {/* (The windows' card; a quiet header — no fill, no capitals.) */}
+      <div className={cn(PAGE_PANEL, 'overflow-hidden')}>
+        <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-2.5 text-[12px] text-slate-500">
           <input
             type="checkbox"
             checked={allVisibleSelected}
@@ -245,14 +210,14 @@ function TeamPage() {
           <span className="w-16 shrink-0" />
         </div>
 
-        <div className="flex flex-col divide-y divide-border/60">
+        <div className="flex flex-col divide-y divide-white/[0.06]">
           {visibleMembers.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-muted-foreground">No members match your search.</p>
           ) : (
             visibleMembers.map((member) => {
               const isActive = member.status === 'Active'
               return (
-                <div key={member.id} className="flex items-center gap-3 px-4 py-3">
+                <div key={member.id} className="group/member flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]">
                   <input
                     type="checkbox"
                     checked={selected.has(member.id)}
@@ -273,12 +238,7 @@ function TeamPage() {
                   </div>
 
                   <div className="w-24 shrink-0">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium',
-                        isActive ? 'border-emerald-500/30 text-foreground' : 'border-border text-muted-foreground'
-                      )}
-                    >
+                    <span className={cn('inline-flex items-center gap-1.5 text-xs', isActive ? 'text-slate-200' : 'text-slate-500')}>
                       <span className={cn('size-1.5 shrink-0 rounded-full', isActive ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
                       {member.status}
                     </span>
@@ -293,26 +253,27 @@ function TeamPage() {
                       <span className="text-xs text-muted-foreground">—</span>
                     ) : (
                       member.teams.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="rounded-full font-normal">
+                        <span key={tag} className="inline-flex h-6 items-center rounded-full bg-white/[0.06] px-2.5 text-[11px] text-slate-300">
                           {tag}
-                        </Badge>
+                        </span>
                       ))
                     )}
                   </div>
 
                   <div className="flex w-16 shrink-0 items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon-sm" aria-label="Edit member" onClick={() => openEditModal(member)}>
-                      <Pencil className="size-3.5" />
-                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
                           <Button variant="ghost" size="icon-sm" aria-label="More actions">
-                            <MoreVertical className="size-3.5" />
+                            <MoreHorizontal className="size-3.5" />
                           </Button>
                         }
                       />
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditModal(member)}>
+                          <Pencil />
+                          Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => toast('Viewing profile', { description: member.name })}
                         >

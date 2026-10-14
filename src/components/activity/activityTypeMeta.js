@@ -1,36 +1,36 @@
 import { AtSign, FileText, GitBranch, GitCommitHorizontal, GitMerge, MessageSquare } from 'lucide-react'
 
-// Color is reserved for status badges; leading activity icons stay minimal.
+// Tags are quiet words; the one colour is 변경확인's amber, as in the Workspace.
 export const ACTIVITY_TYPE_META = {
   changes: {
     label: 'Changes',
     icon: GitCommitHorizontal,
-    tone: 'text-sky-400 bg-sky-500/10 ring-1 ring-sky-500/20',
+    tone: 'text-slate-400',
   },
   conflict: {
     label: 'Conflict',
     icon: GitBranch,
-    tone: 'text-destructive bg-destructive/10 ring-1 ring-destructive/20',
+    tone: 'text-amber-300',
   },
   merge: {
     label: 'Merge',
     icon: GitMerge,
-    tone: 'text-violet-400 bg-violet-500/10 ring-1 ring-violet-500/20',
+    tone: 'text-slate-400',
   },
   comment: {
     label: 'Comment',
     icon: MessageSquare,
-    tone: 'text-muted-foreground bg-muted',
+    tone: 'text-slate-400',
   },
   file: {
     label: 'File',
     icon: FileText,
-    tone: 'text-sky-400 bg-sky-500/10 ring-1 ring-sky-500/20',
+    tone: 'text-slate-400',
   },
   mention: {
     label: 'Mention',
     icon: AtSign,
-    tone: 'text-muted-foreground bg-muted',
+    tone: 'text-slate-400',
   },
 }
 

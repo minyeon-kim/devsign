@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 // so it doesn't compete with the activity timeline for attention.
 function StayInSync() {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
+    <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-card p-4">
       <div
         className="pointer-events-none absolute -top-8 -right-8 size-28 rounded-full bg-primary/10 blur-2xl"
         aria-hidden="true"

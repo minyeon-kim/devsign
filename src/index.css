@@ -858,8 +858,10 @@ button.editor-line-comment {
   white-space: nowrap;
   transition: background-color 140ms, color 140ms, filter 140ms;
 }
-.ds-notification-action { background: var(--notification-action-bg); color: var(--notification-action-text); }
-.ds-notification-action:hover { background: var(--notification-action-bg-hover); }
+/* (Quiet until pointed at: its words alone, the pill under the pointer or the focus — it stays visible, for a
+   notice that leaves on its own and a screen with no hover.) */
+.ds-notification-action { background: transparent; color: var(--notification-text-secondary); }
+.ds-notification-action:hover, .ds-notification-action:focus-visible { background: var(--notification-action-bg); color: var(--notification-action-text); }
 .ds-notification-action-quiet { background: transparent; color: var(--notification-text-secondary); }
 .ds-notification-action-quiet:hover { background: var(--notification-control-hover-bg); color: var(--notification-text); }
 /* Dismiss: a small round × on the card's top-left corner, half over its

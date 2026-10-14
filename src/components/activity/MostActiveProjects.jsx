@@ -6,7 +6,7 @@ const maxCount = sortedProjects[0]?.activityCount ?? 1
 
 function MostActiveProjects() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-[24px] border border-white/10 bg-card p-4">
       <h3 className="text-sm font-semibold text-foreground">Most active projects</h3>
 
       <div className="mt-3 flex flex-col gap-2.5">

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { projects } from '@/data/mockData'
 import { ACTIVITY_FILTERS } from './activityTypeMeta'
+import { CAPSULE_CONTROL, Segmented } from '@/components/layout/PagePieces'
 
 // Date range is visual-only — it doesn't refilter `activities` (there's
 // only one week of mock data), but the dropdown itself is fully
@@ -15,8 +16,7 @@ import { ACTIVITY_FILTERS } from './activityTypeMeta'
 // visual" allowance.
 const dateRanges = ['This week', 'Last week', 'This month']
 
-const dropdownTriggerClass =
-  'flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted'
+const dropdownTriggerClass = CAPSULE_CONTROL
 
 // Type pills on the left; project + date-range dropdowns on the right.
 // The project scope lives here in the page (not in the sidebar), so the
@@ -26,31 +26,13 @@ function ActivityFilterBar({ activeFilter, onFilterChange, projectFilter, onProj
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {ACTIVITY_FILTERS.map((filter) => {
-          const isActive = filter.id === activeFilter
-          return (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => onFilterChange(filter.id)}
-              className={cn(
-                'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150',
-                isActive
-                  ? 'border-primary/40 bg-primary/10 text-foreground'
-                  : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              {filter.label}
-            </button>
-          )
-        })}
-      </div>
+      {/* (The Workspace's segmented capsule.) */}
+      <Segmented label="Activity type" options={ACTIVITY_FILTERS} value={activeFilter} onChange={onFilterChange} />
 
       <div className="flex shrink-0 items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger
-            className={cn(dropdownTriggerClass, selectedProject && 'border-primary/40 bg-primary/10 text-foreground')}
+            className={cn(dropdownTriggerClass, selectedProject && 'bg-white/[0.12] text-white')}
           >
             <FolderKanban className="size-3.5" />
             <span className="max-w-40 truncate">{selectedProject ? selectedProject.name : 'All projects'}</span>

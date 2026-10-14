@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from '@/i18n/toast'
 import { ChevronDown, LayoutGrid, List, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
 import { LocalizedText } from '@/i18n/runtime'
+import { CAPSULE_CONTROL } from '@/components/layout/PagePieces'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import {
@@ -127,7 +128,7 @@ function ProjectsSection() {
         <div className="flex shrink-0 items-center gap-2">
           {projectList.length >= TOOLS_FROM && (<>
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
+            <DropdownMenuTrigger className={CAPSULE_CONTROL}>
               {type}
               <ChevronDown className="size-3" />
             </DropdownMenuTrigger>
@@ -139,7 +140,7 @@ function ProjectsSection() {
           </DropdownMenu>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
+            <DropdownMenuTrigger className={CAPSULE_CONTROL}>
               {sort}
               <ChevronDown className="size-3" />
             </DropdownMenuTrigger>
@@ -150,14 +151,14 @@ function ProjectsSection() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+          <div className="flex h-8 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
             <button
               type="button"
               aria-label="Grid view"
               aria-pressed={view === 'grid'}
               onClick={() => setView('grid')}
               className={cn(
-                'flex size-6 items-center justify-center rounded',
+                'flex size-7 items-center justify-center rounded-full',
                 view === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground'
               )}
             >
@@ -169,7 +170,7 @@ function ProjectsSection() {
               aria-pressed={view === 'list'}
               onClick={() => setView('list')}
               className={cn(
-                'flex size-6 items-center justify-center rounded',
+                'flex size-7 items-center justify-center rounded-full',
                 view === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground'
               )}
             >

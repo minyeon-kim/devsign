@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Activity as ActivityIcon } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { cn } from 'cn'
+import { PAGE_PANEL, PageTitle } from '@/components/layout/PagePieces'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
-import { Button } from '@/components/ui/button'
 import ActivityFilterBar from '@/components/activity/ActivityFilterBar'
 import ActivityRow from '@/components/activity/ActivityRow'
 import ActivityOverview from '@/components/activity/ActivityOverview'
@@ -58,18 +58,8 @@ function ActivityPage() {
         </>
       }
     >
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" title="Back to home" nativeButton={false} render={<Link to="/dashboard" />}>
-          <ArrowLeft className="size-3.5" />
-        </Button>
-        <ActivityIcon className="size-5 text-muted-foreground" />
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">All activities</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            What your team is doing across every project. For one project&apos;s saved versions, open its Archive → History.
-          </p>
-        </div>
-      </div>
+      {/* (The path in the top bar says where you are: no back arrow, no icon, no line of explanation.) */}
+      <PageTitle title="All activities" />
 
       <ActivityFilterBar
         activeFilter={activeFilter}
@@ -80,14 +70,14 @@ function ActivityPage() {
 
       <div className="flex flex-col gap-5">
         {groupedActivities.length === 0 ? (
-          <p className="rounded-xl border border-dashed px-3 py-10 text-center text-sm text-muted-foreground">
+          <p className={cn(PAGE_PANEL, 'px-3 py-10 text-center text-sm text-muted-foreground')}>
             No activity matches this filter.
           </p>
         ) : (
           groupedActivities.map((group) => (
             <section key={group.id}>
-              <h2 className="text-base font-semibold text-foreground">{group.label}</h2>
-              <div className="mt-2 flex flex-col gap-0.5">
+              <PageTitle as="h2" title={group.label} count={group.items.length} className="text-[13px] text-slate-300" />
+              <div className={cn(PAGE_PANEL, 'mt-2 flex flex-col p-1.5')}>
                 {group.items.map((activity) => (
                   <ActivityRow key={activity.id} activity={activity} />
                 ))}
