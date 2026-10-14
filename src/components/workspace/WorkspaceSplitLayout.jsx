@@ -666,7 +666,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
           <div
             className={cn(
               'pointer-events-none absolute z-[600] flex items-center justify-center bg-emerald-400/10 ring-2 ring-emerald-400/60 transition-all duration-100',
-              dock.onHeader ? 'rounded-t-[20px]' : 'rounded-2xl'
+              dock.onHeader ? 'rounded-t-[24px]' : 'rounded-2xl'
             )}
             style={dock.rect}
           >

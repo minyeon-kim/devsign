@@ -15,7 +15,8 @@
 // strip between the activity bar and a panel read darker than the bar.
 export const FLOATING_PANEL =
   'border border-white/10 bg-card shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_4px_12px_-6px_rgba(0,0,0,0.5)]'
-export const PANEL_RADIUS = 'rounded-[20px]'
+// 24px: concentric with what's inside — the tab row's 32px capsules (16px radius) sit 8px in from the edge.
+export const PANEL_RADIUS = 'rounded-[24px]'
 // A page section or card outside the Workspace (Dashboard, Project home):
 // the Workspace window's surface — card charcoal, 10% hairline, 20px
 // corners — on the same app background (--ds-bg-base), minus the floating
