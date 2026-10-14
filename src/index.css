@@ -761,7 +761,11 @@ button.editor-line-comment {
      — WorkspaceBottomPanel publishes its height), whether or not the panel
      is open, so a notice never floats up the middle of the screen. */
   --notification-bottom: calc(max(24px, env(safe-area-inset-bottom)) + var(--ds-bottom-panel-offset, 0px));
-  --notification-right: 24px;
+  /* The cards keep the same gap from the windows' frame at the top and the
+     right: 8px under the top bar, and 8px in from the frame's right edge
+     (itself 8px off the window's). */
+  --notification-inset: 8px;
+  --notification-right: calc(8px + var(--notification-inset));
   --notification-width: 380px;
   --notification-gap: 8px;
 }
@@ -907,7 +911,7 @@ button.editor-line-comment {
      they read as its and stay off the canvas and the bottom panel. (The
      padding below gives the cards' shadow room; taken back by the margin.) */
   position: fixed;
-  top: calc(52px - var(--notification-shadow-room));
+  top: calc(var(--ds-chrome-size, 48px) + var(--notification-inset) - var(--notification-shadow-room));
   right: var(--notification-right);
   z-index: 1100;
   display: flex;
