@@ -1,7 +1,7 @@
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { affectedPagesOf, getCanvasPreview, isSubtleChange, overridesFor, previewTargetsOf, readLens, setCanvasPreview, useCanvasPreview, writeLens } from '@/lib/canvasPreview'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, Columns4, ZoomIn, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
+import { ArrowRight, Check, Columns4, Minus, Plus, ZoomIn, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { RECORD_ROWS, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
@@ -13,7 +13,6 @@ import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSp
 import { ElementCrop, PreviewFrame, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
-import ValueScale from '@/components/conflicts/ValueScale'
 import ValueCards from '@/components/conflicts/ValueCards'
 import { SmoothHeight } from '@/components/ui/SmoothHeight'
 import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
@@ -207,19 +206,56 @@ function Choice({ label, name, options, value, onChange, hint }) {
 //     box when it's empty and adds to it when it isn't; one already used is
 //     gone from the list (not left there, disabled);
 //   · `error`: said under the box, when it was sent empty.
-function ReasonField({ label, value, onChange, suggestions = [], placeholder, error = null, id }) {
+// 다른 값's value, set in its own row: [− value +], 28px, typed into or stepped (`step`) from what's
+// there — or, empty, from what's built (`from`). Its presses never reach the row under it.
+function ValueStepper({ value, from, step, unit, onChange }) {
+  const base = Number.parseFloat(value)
+  const at = Number.isFinite(base) ? base : from
+  const stepTo = (direction) => {
+    if (!Number.isFinite(at)) return
+    const next = Math.max(0, Math.round((at + direction * step) / step) * step)
+    onChange(String(Number(next.toFixed(4))))
+  }
+  const BUTTON = 'flex h-full w-7 items-center justify-center text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-40'
+  return (
+    <div data-value-stepper onClick={(event) => event.stopPropagation()} className="absolute top-1/2 right-2 flex h-7 -translate-y-1/2 items-center overflow-hidden rounded-md border border-white/[0.12] bg-black/30">
+      <button type="button" aria-label="값 줄이기" disabled={!Number.isFinite(at)} onClick={() => stepTo(-1)} className={BUTTON}><Minus className="size-3" /></button>
+      <input
+        data-value-stepper-input
+        aria-label="다른 값"
+        inputMode="decimal"
+        value={value}
+        placeholder={Number.isFinite(from) ? String(from) : '값'}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-full w-[52px] border-x border-white/[0.08] bg-transparent text-center font-mono text-[12.5px] text-slate-100 tabular-nums outline-none placeholder:text-slate-600 focus:bg-white/[0.04]"
+      />
+      <button type="button" aria-label="값 늘리기" disabled={!Number.isFinite(at)} onClick={() => stepTo(1)} className={BUTTON}><Plus className="size-3" /></button>
+      {unit && <span className="pr-1.5 text-[11px] text-slate-500">{unit}</span>}
+    </div>
+  )
+}
+// What's built, as a number on a scale (where 다른 값's stepper starts from).
+const builtNumberOf = (scale) => {
+  const step = scale?.steps.find((entry) => entry.key === scale.currentKey)
+  const number = Number.parseFloat(step?.value ?? '')
+  return Number.isFinite(number) ? number : null
+}
+
+// `compact` (the proposal's own): one line to begin with (36px), growing to three as it's typed into;
+// the label 12px, 6px over the box; one suggestion, unlabelled, 8px under it.
+function ReasonField({ label, value, onChange, suggestions = [], placeholder, error = null, id, compact = false }) {
   const box = useRef(null)
-  // As tall as its text (from two lines up).
+  // As tall as its text (from two lines up — one, compact — and never past three, compact).
   useEffect(() => {
     const node = box.current
     if (!node) return
     node.style.height = 'auto'
-    node.style.height = `${Math.max(node.scrollHeight, 56)}px`
-  }, [value])
-  const left = suggestions.filter((text) => !value.includes(text))
+    node.style.height = compact ? `${Math.min(Math.max(node.scrollHeight, 36), 76)}px` : `${Math.max(node.scrollHeight, 56)}px`
+  }, [value, compact])
+  const left = suggestions.filter((text) => !value.includes(text)).slice(0, compact ? 1 : undefined)
   return (
-    <div data-reason-field className="flex min-w-0 flex-col gap-2">
-      <label htmlFor={id} className={LABEL}>{label} <span aria-hidden className="text-rose-300">*</span></label>
+    <div data-reason-field className={cn('flex min-w-0 flex-col', compact ? 'gap-1.5' : 'gap-2')}>
+      <label htmlFor={id} className={compact ? 'text-[12px] leading-4 font-medium text-slate-300' : LABEL}>{label} <span aria-hidden className="text-rose-300">*</span></label>
       <textarea
         ref={box}
         id={id}
@@ -229,13 +265,13 @@ function ReasonField({ label, value, onChange, suggestions = [], placeholder, er
         aria-describedby={error ? `${id}-error` : undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        rows={2}
-        className={cn('block w-full resize-none overflow-hidden rounded-lg border bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60', error ? 'border-destructive/70' : 'border-white/10')}
+        rows={compact ? 1 : 2}
+        className={cn('block w-full resize-none rounded-lg border bg-black/20 px-3 py-2 text-[13px] leading-5 font-normal text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60', compact ? 'overflow-y-auto' : 'overflow-hidden', error ? 'border-destructive/70' : 'border-white/10')}
       />
       {error && <p id={`${id}-error`} data-reason-error role="alert" className="text-xs text-destructive">{error}</p>}
       {left.length > 0 && (
-        <div data-reason-chips className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-slate-500">추천</span>
+        <div data-reason-chips className={cn('flex flex-wrap items-center gap-1.5', compact && 'mt-0.5')}>
+          {!compact && <span className="text-[11px] text-slate-500">추천</span>}
           {left.map((text) => (
             <button key={text} type="button" onClick={() => onChange(value.trim() ? `${value.trim().replace(/[.。]$/, '')}. ${text}.` : `${text.replace(/[.。]$/, '')}.`)} className="ds-intrinsic inline-flex min-h-6 items-center rounded-full bg-white/[0.04] px-2.5 py-1 text-left text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white">
               {text}
@@ -509,18 +545,8 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const ownKey = ownValue ? adapterOf(conflict).key(ownValue) : null
   // (What's typed, kept as typed; a value that isn't on the scale opens the field with it.)
   const [typed, setTyped] = useState(() => (ownKey && scale && !scale.steps.some((step) => step.key === ownKey) ? String(ownValue).replace(/px$/, '') : ''))
-  const typedValue = scale?.custom ? customValueOf(conflict, typed) : null
-  // The step under the pointer or the focus: tried in the picture until it leaves.
-  const [stepTried, setTriedStep] = useState(null)
-  // A step taken: the design's is 원안대로 맞추기, the code's is 현재 값 유지 — the
-  // radio follows (and the focus with it); any other is 다른 값's.
-  const takeStep = (step) => {
-    const way = wayOfStep(scale, step)
-    setTriedStep(null)
-    if (way === 'other') { setTyped(''); onCustom({ ...custom, values: { value: step.value } }); return }
-    onProposal(way)
-    window.setTimeout(() => refs.current[ways.findIndex((option) => option.id === way)]?.focus(), 0)
-  }
+  // (A step under the pointer, tried in the picture until it leaves — none since 다른 값 is set by its stepper.)
+  const stepTried = null
   const typeValue = (text) => {
     setTyped(text)
     const next = customValueOf(conflict, text)
@@ -719,8 +745,11 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         {ways.map((option, index) => {
           const on = proposal === option.id
           const shape = proposalOf(option.id, custom, conflict)
+          // (다른 값, picked, with a scale: its value is set in its own row — a stepper at the row's right.)
+          const stepper = on && option.id === 'other' && Boolean(scale)
           return (
             <Fragment key={option.id}>
+              <div className="relative">
               <button
                 ref={(node) => { refs.current[index] = node }}
                 type="button"
@@ -739,6 +768,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                 className={cn(
                   'ds-tone ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
                   on ? 'bg-emerald-400/[0.08]' : 'hover:bg-white/[0.04]',
+                  stepper && 'pr-[132px]',
                 )}
               >
                 <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>
@@ -751,79 +781,61 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                   {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-[var(--ds-accent-bg)] px-1.5 align-middle text-[10.5px] font-medium text-[var(--ds-accent-text)]">추천</span>}
                 </span>
               </button>
-              {/* Controls belong to 다른 수정안 alone, right under its row. */}
-              {on && option.id === 'other' && (scale ? (
-                // (On the label's own line: 12px + the dot's 16px + 12px in.)
-                <div data-proposal-scale className="mt-2 ml-10 pr-3">
-                  <ValueScale
-                    scale={scale}
-                    selectedKey={ownKey}
-                    onTry={setTriedStep}
-                    onPick={takeStep}
-                    customText={typed}
-                    onCustom={typeValue}
-                    customNote={typedValue && !typedValue.onScale && scale.steps.some((step) => step.token) ? '디자인 토큰에 없는 값이에요' : null}
-                  />
-                </div>
-              ) : <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />)}
+              {stepper && <ValueStepper value={typed || (ownValue ? String(ownValue).replace(/px$/, '') : '')} from={builtNumberOf(scale)} step={scale.unit === 'px' ? 1 : 0.25} unit={scale.unit} onChange={typeValue} />}
+              </div>
+              {/* A way with values of its own that aren't one number (a layout's): its controls, under its row. */}
+              {on && option.id === 'other' && !scale && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
             </Fragment>
           )
         })}
       </div>
       )}
-      {/* The screens side by side on the canvas — what's built and each way — with the panel still here. */}
-      {inPlace && (
-        <div className="mt-3 flex items-center gap-2 pl-3 text-[11.5px] text-slate-500">
-          <button type="button" data-preview-compare aria-pressed={comparing} onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: prev.compare ? null : 'side', peek: false } : prev))}
-            className={cn('ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', comparing ? 'border-[var(--ds-accent-border)] bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]' : 'border-white/[0.1] text-slate-200 hover:bg-white/[0.06]')}>
-            <Columns4 className="size-3.5" />{comparing ? '비교 종료' : '나란히 비교'}
-          </button>
-          <span>캔버스에서 미리보는 중 · Space를 누르고 있으면 현재 구현</span>
-        </div>
-      )}
-
-      {/* What a way that differs from the design needs: asked for, with why.
-          24px under the list, on the list's own inset. */}
+      {/* What a way that differs from the design needs: why — 12px under the list, on its edges. */}
       {!readOnly && <FoldBody open={asking}>
-        <div data-request-area className="flex flex-col gap-4 pt-5">
-          <p data-request-note className="text-xs text-slate-500">원안과 다른 수정안이라 승인이 필요해요 · 승인되면 바로 반영돼요</p>
-          {tried && undescribed && <p data-proposal-error role="alert" className="text-xs text-destructive">{valueChange ? '위 눈금에서 값을 골라 주세요.' : '다른 수정안의 내용을 위에서 정해 주세요.'}</p>}
+        <div data-request-area className="pt-3">
           <ReasonField
+            compact
             id={`reason-${conflict.id}`}
             label="변경 사유"
             value={reason}
             onChange={setReason}
-            placeholder={valueChange ? '이 값을 고른 핵심 이유' : '원안과 다르게 바꾸는 이유'}
+            placeholder="이 값을 고른 이유"
             suggestions={asking ? reasonChipsFor(proposal, custom, conflict) : []}
             error={tried && !reason.trim() ? '변경 사유를 적어 주세요.' : null}
           />
         </div>
       </FoldBody>}
 
-      {/* The one action, at the card's lower right: 24px over it, no rule. */}
-      {!readOnly && <div ref={actionRef} data-proposal-action className="mt-5 flex scroll-mb-4 flex-wrap items-center justify-end gap-3">
-        {!proposal ? (
-          <button type="button" data-apply-proposal disabled className={PRIMARY}>이 수정안 적용하기</button>
-        ) : !asking ? (
-          <>
-            <span className="mr-auto text-xs text-slate-500">원안대로 맞추는 거라 승인 없이 바로 적용돼요</span>
-            <button type="button" data-start-direct-fix data-apply-proposal onClick={() => onDirect(payload())} className={PRIMARY}>
-              <ArrowRight className="size-3.5" />
-              이 수정안 적용하기
-            </button>
-          </>
-        ) : reviewers.length === 0 ? (
-          <>
-            <span data-no-reviewer className="text-xs text-amber-200">검토자를 먼저 추가해 주세요</span>
-            <button type="button" data-go-add-reviewer onClick={addReviewer} className={SECONDARY}>검토자 추가</button>
-          </>
-        ) : (
-          <button type="button" data-send-decision-request title={reviewers.length > 1 ? reviewers.join(', ') : undefined} onClick={send} className={PRIMARY}>
-            <Send className="size-3.5" />
-            {reviewers.length === 1 ? `${reviewers[0]}님에게 승인 요청` : `검토자 ${reviewers.length}명에게 승인 요청`}
-          </button>
-        )}
-      </div>}
+      {/* The action bar: a rule, then 나란히 비교 at the left and the one action at the right, on one line. */}
+      {!readOnly && (() => {
+        const missing = asking && reviewers.length > 0 ? (undescribed ? '값을 입력해 주세요' : !reason.trim() ? '변경 사유를 입력해 주세요' : null) : null
+        return (
+          <div ref={actionRef} data-proposal-action className="mt-4 flex scroll-mb-4 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4">
+            {inPlace ? (
+              <button type="button" data-preview-compare aria-pressed={comparing} title="Space: 현재와 비교" onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: prev.compare ? null : 'side', peek: false } : prev))}
+                className={cn('ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', comparing ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white')}>
+                <Columns4 className="size-3.5 shrink-0" />{comparing ? '비교 종료' : '나란히 비교'}
+              </button>
+            ) : <span />}
+            {!proposal ? (
+              <button type="button" data-apply-proposal disabled title="해결 방법을 골라 주세요" className={cn(PRIMARY, 'whitespace-nowrap')}>이 수정안 적용하기</button>
+            ) : !asking ? (
+              <button type="button" data-start-direct-fix data-apply-proposal onClick={() => onDirect(payload())} className={cn(PRIMARY, 'whitespace-nowrap')}>
+                <ArrowRight className="size-3.5" />
+                이 수정안 적용하기
+              </button>
+            ) : reviewers.length === 0 ? (
+              <button type="button" data-go-add-reviewer title="검토자를 먼저 추가해 주세요" onClick={addReviewer} className={cn(SECONDARY, 'whitespace-nowrap')}>검토자 추가</button>
+            ) : (
+              // (Asking needs a reason, and 다른 값 a value: until then the button says so, and waits.)
+              <button type="button" data-send-decision-request disabled={Boolean(missing)} title={missing ?? (reviewers.length > 1 ? reviewers.join(', ') : undefined)} onClick={send} className={cn(PRIMARY, 'whitespace-nowrap')}>
+                <Send className="size-3.5" />
+                {reviewers.length === 1 ? `${reviewers[0]}님에게 승인 요청` : `검토자 ${reviewers.length}명에게 승인 요청`}
+              </button>
+            )}
+          </div>
+        )
+      })()}
       </div>
       </SmoothHeight>
       </>)}
