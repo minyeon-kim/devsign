@@ -2,7 +2,6 @@ import { cn } from 'cn'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import { VIEWS, VIEW_LABEL } from '@/lib/viewLink'
-import { conflictCounts } from '@/lib/conflicts'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 export const VIEW_PANEL_ID = 'workspace-view-panel'
@@ -10,7 +9,7 @@ export const viewTabId = (view) => `workspace-view-tab-${view}`
 // (Said here rather than through the dictionary: "Screens" already means something else there — the screens a change affects.)
 const VIEW_NAME = { en: { ...VIEW_LABEL, merge: 'Merge' }, ko: { preview: '미리보기', screens: '화면', code: '코드', merge: '병합' } }
 // (Preview · Screens · Code · Merge — Merge is Merge Studio, in the same shell.)
-const TABS = [...VIEWS, 'merge']
+const TABS = VIEWS
 const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 
 // The Workspace's three views — Preview · Screens · Code — as the tabs of
@@ -23,11 +22,9 @@ const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 // — pressing Screens again goes back to the board (`onBoard`). Nothing else
 // sits in the row: no page or file tabs, no back button.
 function WorkspaceViewTabs({ editing = false, onBoard }) {
-  const { workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts } = useWorkspace()
+  const { workspaceView, setWorkspaceView, activeView, exitMergeStudio } = useWorkspace()
   const merging = activeView === 'mergeStudio'
-  const unresolved = conflictCounts(conflicts).open
   const show = (view) => {
-    if (view === 'merge') { openMergeTab(); return }
     if (merging) exitMergeStudio()
     setWorkspaceView(view)
   }
@@ -65,7 +62,6 @@ function WorkspaceViewTabs({ editing = false, onBoard }) {
               )}
             >
               {names[view]}
-              {view === 'merge' && unresolved > 0 && <span data-merge-count className="ml-1.5 text-xs font-normal tabular-nums opacity-70">{unresolved}</span>}
               {selected && <span aria-hidden className="absolute inset-x-2.5 bottom-0.5 h-0.5 rounded-full bg-white/80" />}
             </button>
           )

@@ -103,6 +103,7 @@ export default function ComparePanel({ project, expanded, overlay, closeButton }
       </div>
       <section role="complementary" aria-label="디자인 비교 상세" data-compare-detail inert={!expanded} aria-hidden={!expanded || undefined}
         className={cn('absolute inset-0 flex min-h-0 min-w-0 flex-col bg-background transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none', expanded ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-4 opacity-0')}>
+        <div className="absolute top-3 right-2 z-20">{closeButton}</div>
         {mountedId && (
           <div key={mountedId} className="flex min-h-0 min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">

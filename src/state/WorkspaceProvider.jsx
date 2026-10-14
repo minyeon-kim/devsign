@@ -385,9 +385,12 @@ export function WorkspaceProvider({ children, projectId }) {
   // screen's count): a panel floating over the board's right — { open, conflictId: the one whose detail it
   // shows, or null for the list, screenId: the screen it was opened for }. (Files · Layers · Assets · Inspect
   // float at the left: the two can be open together.)
+  const [designComparePanelOpen, setDesignComparePanelOpen] = useState(false)
   const [boardConflicts, setBoardConflictsState] = useState({ open: false, conflictId: null, screenId: null })
-  const [conflictStepRequest, setConflictStepRequest] = useState(null)
-  const setBoardConflicts = useCallback((patch) => setBoardConflictsState((prev) => ({ ...prev, ...patch })), [])
+  const setBoardConflicts = useCallback((patch) => {
+    if (patch.open) setDesignComparePanelOpen(false)
+    setBoardConflictsState((prev) => ({ ...prev, ...patch }))
+  }, [])
   // Design Compare: its list is an app sidebar (the drawer, like Docs); the set picked there widens the sidebar
   // into list + detail (`compareItemId`; null: the list alone) while the canvas stays where it is, reflowed. The
   // pick is the address's (`?compare=<id>`, lib/compareLink): opening pushes it (Back puts it away), switching
@@ -410,11 +413,15 @@ export function WorkspaceProvider({ children, projectId }) {
   // studio publishes what that needs here (`mixBridge`: the drafts, the picks so far, the ways to pick).
   const [mixBridge, setMixBridge] = useState(null)
   const [compareDrawerRequest, setCompareDrawerRequest] = useState(null)
-  const requestCompareDrawer = useCallback(() => setCompareDrawerRequest({ nonce: nextId('compare-drawer') }), [])
-  const openCompareView = useCallback((itemId) => {
-    setCompareItemId(itemId)
+  const requestCompareDrawer = useCallback(() => {
+    setBoardConflictsState((prev) => ({ ...prev, open: false }))
+    setDesignComparePanelOpen(true)
     setCompareDrawerRequest({ nonce: nextId('compare-drawer') })
   }, [])
+  const openCompareView = useCallback((itemId) => {
+    setCompareItemId(itemId)
+    requestCompareDrawer()
+  }, [setCompareItemId, requestCompareDrawer])
   // The tool panel's width (Files · Layers · Assets · Inspect, docked beside the canvas): kept for the browser.
   const [toolPanelWidth, setToolPanelWidthState] = useState(() => readToolPanelWidth())
   const setToolPanelWidth = useCallback((width) => {
@@ -700,7 +707,7 @@ export function WorkspaceProvider({ children, projectId }) {
   const [mergeDrawer, setMergeDrawer] = useState(null) // null | 'inbox' | 'history'
   // Design Compare asked for on an item that isn't open yet: Merge Studio
   // switches to it, then picks this up on load ({ itemId, keys }).
-  const [designCompareRequest, setDesignCompareRequest] = useState(null)
+  const [designCompareRequest, setDesignCompareRequest] = useDemoState(`project:${projectId}:designComposition:v2`, null)
   // Merge Studio's feed plus this project's Conflict Points items.
   const [storedNotifications, setNotifications] = useDemoState(`project:${projectId}:notifications`, () => [
     ...conflictNotifications.filter((n) => n.projectId === projectId),
@@ -2976,6 +2983,8 @@ export function WorkspaceProvider({ children, projectId }) {
     openCompareView,
     closeCompareView,
     compareDrawerRequest,
+    designComparePanelOpen,
+    setDesignComparePanelOpen,
     requestCompareDrawer,
     toolPanelWidth,
     setToolPanelWidth,
@@ -3110,8 +3119,6 @@ export function WorkspaceProvider({ children, projectId }) {
     conflictDrawerRequest,
     openConflictFromNotification,
     requestConflictDrawer,
-    conflictStepRequest,
-    setConflictStepRequest,
     docsDrawerRequest,
     requestDocsDrawer,
     docParam,

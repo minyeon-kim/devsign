@@ -3,8 +3,8 @@ import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
-import { TriangleAlert, ChevronLeft, ChevronRight } from 'lucide-react'
-import { conflictSequence } from '@/lib/screenConflicts'
+import { TriangleAlert } from 'lucide-react'
+import { designSetsOf } from '@/lib/designSets'
 import { conflictCounts } from '@/lib/conflicts'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
 import { BoardDockSlot, CanvasViewPanel, CanvasViewRail } from '@/components/workspace/CanvasSideViews'
@@ -162,7 +162,7 @@ function zoneRect(rect, zone) {
 // `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
 // stays mounted under it).
 function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, prototype, setConflictStepRequest } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -629,17 +629,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
   }
 
   const conflictCount = conflictCounts(conflicts).open
-  const changeSequence = conflictSequence(prototype, conflicts)
-  const stepConflict = (step) => {
-    if (!changeSequence.length) return
-    if (activeView !== 'mergeStudio' && workspaceView === 'screens') {
-      setConflictStepRequest({ step, nonce: Date.now() })
-      return
-    }
-    const at = changeSequence.findIndex((entry) => entry.conflict.id === boardConflicts.conflictId)
-    const next = at < 0 ? (step > 0 ? 0 : changeSequence.length - 1) : (at + step + changeSequence.length) % changeSequence.length
-    setBoardConflicts({ open: true, conflictId: changeSequence[next].conflict.id, screenId: null })
-  }
+  const mergeCount = designSetsOf(mergeItems).length
   const conflictPill = (
     <div className="flex shrink-0 items-center gap-0.5" onPointerDown={(event) => event.stopPropagation()}>
     <button type="button" data-conflict-toggle aria-label="변경 확인" aria-expanded={boardConflicts.open}
@@ -650,8 +640,9 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
       Conflict
       {conflictCount > 0 && <span className="text-xs tabular-nums text-amber-300">{conflictCount}</span>}
     </button>
-    <button type="button" data-board-change-prev aria-label="Previous conflict" title="Previous conflict · K" disabled={!changeSequence.length} onClick={() => stepConflict(-1)} className="flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40"><ChevronLeft className="size-3.5" /></button>
-    <button type="button" data-board-change-next aria-label="Next conflict" title="Next conflict · J" disabled={!changeSequence.length} onClick={() => stepConflict(1)} className="flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40"><ChevronRight className="size-3.5" /></button>
+    <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
+    <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
+      className={cn('flex h-7 shrink-0 items-center rounded-md px-2.5 text-[12px] font-medium transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', activeView === 'mergeStudio' ? 'bg-white/[0.12] text-white' : 'bg-white/[0.06] text-slate-300')}>병합 <span data-merge-count className="ml-1.5 text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
     </div>
   )
 

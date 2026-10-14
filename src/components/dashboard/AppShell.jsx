@@ -99,28 +99,6 @@ function AppShell({ topBar, project, children }) {
     setHandledDocsRequest(docsDrawerRequest)
     setDrawer('docs')
   }
-  // Design Compare is a drawer like Docs (its list); the set picked in it widens the drawer into list + detail,
-  // the canvas beside it. Asked for (a change's "open in the comparison", the Workspace's views) it opens the same
-  // way — and so does an address that names a set (`?compare=`: a reload, a shared link).
-  const { compareDrawerRequest, compareItemId, setCompareItemId } = workspace ?? {}
-  const [handledCompareRequest, setHandledCompareRequest] = useState(null)
-  if (compareDrawerRequest && compareDrawerRequest !== handledCompareRequest) {
-    setHandledCompareRequest(compareDrawerRequest)
-    setDrawer('compare')
-  }
-  const [openedFor, setOpenedFor] = useState(null)
-  if (compareItemId && compareItemId !== openedFor) {
-    setOpenedFor(compareItemId)
-    if (drawer !== 'compare') setDrawer('compare')
-  } else if (!compareItemId && openedFor) setOpenedFor(null)
-  useEffect(() => {
-    if (compareDrawerRequest && workPane) workspace.setWorkPane(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compareDrawerRequest])
-  // The detail is the list's: with the list put away (or another menu in its place), it goes too.
-  useEffect(() => {
-    if (shown !== 'compare' && compareItemId != null) setCompareItemId(null)
-  }, [shown, compareItemId, setCompareItemId])
   const openConflicts = workspace ? conflictCounts(workspace.conflicts).open : 0
 
   return (

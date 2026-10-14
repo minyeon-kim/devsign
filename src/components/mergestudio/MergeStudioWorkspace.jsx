@@ -677,7 +677,11 @@ function MergeStudioWorkspace({ item }) {
   const [deckTabRequest, setDeckTabRequest] = useState(null)
   // Layers pulled from the Design System library onto both artboards.
   const [addedLayers, setAddedLayers] = useState(savedDraft.addedLayers ?? [])
-  const [designComparison, setDesignComparison] = useState(null)
+  const [designComparison, setDesignComparison] = useState(() => {
+    if (!item || designCompareRequest?.itemId !== item.id) return null
+    const options = designCompareOptions(item).filter((option) => designCompareRequest.keys.includes(option.key))
+    return options.length >= 2 ? { item, options } : null
+  })
   // The adjustment's reason is entered in a dialog; saving closes it.
   const [adjustReasonOpen, setAdjustReasonOpen] = useState(false)
   const studioRootRef = useRef(null)

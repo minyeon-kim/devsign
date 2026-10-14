@@ -1,5 +1,6 @@
 import ConflictReviewOverlay from '@/components/conflicts/ConflictReviewOverlay'
 import WorkspaceChanges from '@/components/conflicts/WorkspaceChanges'
+import WorkspaceDesignComparePanel from '@/components/workspace/WorkspaceDesignComparePanel'
 import HistoryOverlay from '@/components/history/HistoryOverlay'
 import DocsOverlay from '@/components/docs/DocsOverlay'
 import { readChangeParams, sourceKeyOf } from '@/lib/changeLink'
@@ -170,6 +171,7 @@ function WorkspacePage() {
 
         <TopBar project={project} />
         <WorkspaceChanges />
+        <WorkspaceDesignComparePanel project={project} />
         <FollowMeBanner />
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       </div>

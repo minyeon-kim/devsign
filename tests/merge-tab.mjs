@@ -26,7 +26,8 @@ try {
   const work = read('components/mergestudio/MergeStudioWorkspace.jsx')
   const provider = read('state/WorkspaceProvider.jsx')
   // The tab: after Code, text only, the open count beside it (none at 0), the same segment as the others.
-  assert.ok(tabs.includes("const TABS = [...VIEWS, 'merge']") && tabs.includes('data-merge-count') && tabs.includes('unresolved > 0') && !/lucide/.test(tabs), 'four tabs, a count, no icon')
+  assert.ok(tabs.includes('const TABS = VIEWS') && !tabs.includes('data-merge-count'), 'the left view tabs only contain Preview, Screens and Code')
+  assert.ok(layout.includes('data-workspace-view-tab="merge"') && layout.indexOf('data-workspace-view-tab="merge"') > layout.indexOf('data-conflict-toggle'), 'Merge sits beside Change Review')
   // One shell: no button in the header, no exit, no second header.
   assert.ok(!topBar.includes('MergeStudioMenu') && !topBar.includes("activeView === 'mergeStudio') return null"), 'the header stays, without its Merge Studio button')
   assert.ok(!view.includes('StudioExit') && !work.includes('data-studio-header-slot'), 'no header of its own')
@@ -37,7 +38,7 @@ try {
   assert.ok(!read('components/screens/ScreensBoard.jsx').includes('openMergeStudio()'), 'a change picked in the board’s list shows its detail in the panel — the Screens view stays')
   assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('openMergeStudio(candidate.id)'), '조합하기 starts the selected task explicitly')
   assert.ok(view.includes('data-merge-empty-canvas') && view.includes('startedMergeItemId === selected.id'), 'an unstarted or stale selection draws only an empty grid')
-  assert.ok(tabs.includes('openMergeTab()') && provider.includes('setSelectedMergeItemId(startedMergeItemId)'), 'Merge opens the comparison and resumes only a started task')
+  assert.ok(layout.includes('onClick={openMergeTab}') && provider.includes('setSelectedMergeItemId(startedMergeItemId)'), 'Merge opens the comparison and resumes only a started task')
   // The studio's row: the item switcher, the tools; empty / loading / read-only.
   assert.ok(work.includes('data-merge-switcher') && work.includes('data-merge-skeleton') && work.includes('병합할 변경점이 없어요') && work.includes('data-merge-empty-back') && work.includes('data-merge-readonly'))
   assert.ok(read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('data-merge-tools') && read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('useContext(WindowHeaderSlotContext)'))
