@@ -70,6 +70,7 @@ import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from
 import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCategories'
 import { importKind } from '@/lib/importFiles'
 import { reviewForDesign } from '@/lib/designReview'
+import { readCompare, withCompare } from '@/lib/compareLink'
 import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampToolPanelWidth, clampWidth, pressSideView, readAiChat, readSidePanel, readToolPanelWidth, writeAiChat, writeSidePanel, writeToolPanelWidth } from '@/lib/panelPrefs'
 import { prototypeOf } from '@/lib/screens'
 import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
@@ -385,10 +386,19 @@ export function WorkspaceProvider({ children, projectId }) {
   // float at the left: the two can be open together.)
   const [boardConflicts, setBoardConflictsState] = useState({ open: false, conflictId: null, screenId: null })
   const setBoardConflicts = useCallback((patch) => setBoardConflictsState((prev) => ({ ...prev, ...patch })), [])
-  // Design Compare: its list is an app sidebar (the drawer, like Docs) and the set picked there opens in the
-  // work area where the canvas is (`compareItemId`; null: the canvas shows). It opens and closes with the
-  // sidebar (AppShell), `closeCompareView` is its "← canvas" (defined with the pins, below).
-  const [compareItemId, setCompareItemId] = useState(null)
+  // Design Compare: its list is an app sidebar (the drawer, like Docs); the set picked there widens the sidebar
+  // into list + detail (`compareItemId`; null: the list alone) while the canvas stays where it is, reflowed. The
+  // pick is the address's (`?compare=<id>`, lib/compareLink): opening pushes it (Back puts it away), switching
+  // sets it in place. It goes with the sidebar (AppShell).
+  const compareItemId = readCompare(location.search)
+  const setCompareItemId = useCallback((id) => {
+    const { location: at } = route.current
+    const search = withCompare(at.search, id)
+    if (search === at.search) return
+    navigate({ pathname: at.pathname, search }, { replace: !(id && !readCompare(at.search)), state: at.state })
+    // (The address is read from `route` by what runs next in the same step — it's told at once.)
+    route.current = { ...route.current, location: { ...at, search } }
+  }, [navigate])
   // The Screens board's change list at the right (BoardConflicts) is docked in the work area's row, beside the
   // canvas or the comparison: `boardDockHost` is its place there, `boardDockShown` whether the board has it up.
   const [boardDockHost, setBoardDockHost] = useState(null)
@@ -626,6 +636,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const [activeView, setActiveViewState] = useState('workspace')
   // (Said at once, too: what's opened in the same step as the view changes goes by the view it's going to.)
   const setActiveView = useCallback((view) => { activeViewNow.current = view; setActiveViewState(view) }, [])
+  // (Merge Studio is the whole screen: Design Compare's detail is put away, with its address.)
+  useEffect(() => { if (activeView === 'mergeStudio' && compareItemId) setCompareItemId(null) }, [activeView, compareItemId, setCompareItemId])
   const [mergeItems, setMergeItems] = useDemoState(`project:${projectId}:mergeItems`, () => forProject(seedMergeListItems, projectId))
   // Recreate only dynamically registered demo variants after reload.
   useMemo(() => {
@@ -2786,14 +2798,8 @@ export function WorkspaceProvider({ children, projectId }) {
     return true
   }, [canvasLocationFor, selectConflictPin, dockApi])
 
-  // Design Compare's "← canvas": the canvas shows again, and glides to where the set's change is (its pin is
-  // picked, so the change list has it picked too).
-  const closeCompareView = useCallback(({ focus = true } = {}) => {
-    const item = mergeItems.find((candidate) => candidate.id === compareItemId)
-    const record = item ? reviewForDesign(item, conflicts) : null
-    setCompareItemId(null)
-    if (focus && record) focusConflictPin(record)
-  }, [compareItemId, mergeItems, conflicts, focusConflictPin])
+  // Design Compare's detail closes: the list stays, the canvas is untouched (nothing glides anywhere).
+  const closeCompareView = useCallback(() => setCompareItemId(null), [setCompareItemId])
 
   // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
   // never silent — it needs a reason, which is posted to the conflict's

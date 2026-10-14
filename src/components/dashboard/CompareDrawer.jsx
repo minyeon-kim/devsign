@@ -12,10 +12,23 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // The drawer behind the activity bar's Design Compare icon — in the same slot, and made of the same parts, as
 // Docs and the change list (DrawerList): a search over the design sets, grouped by the screen they are for
 // (a group folds), each a row of the "changes to check" list — its state, the set, how many drafts it holds.
-// A set picked here opens in the work area where the canvas is (WorkspaceDesignCompare) and is picked in the
-// change list too (the same pick, both ways); the same row again puts the comparison away.
+// A set picked here widens the sidebar into list + detail (ComparePanel), the canvas beside it; it's picked in the
+// change list too (the same pick, both ways); the same row again puts the detail away.
 
 const designSetsOf = (mergeItems) => mergeItems.filter((item) => item.hasDesign)
+const screenNameOf = (projectPages, item) => projectPages.find((page) => page.id === item.designPageId)?.name ?? 'Other screens'
+
+// The design sets in the order the list shows them (screen by screen) — what ↑ / ↓ walk along.
+export function orderedDesignSets(mergeItems, projectPages) {
+  const groups = []
+  for (const item of designSetsOf(mergeItems)) {
+    const label = screenNameOf(projectPages, item)
+    const group = groups.find(([name]) => name === label)
+    if (group) group[1].push(item)
+    else groups.push([label, [item]])
+  }
+  return groups.flatMap(([, list]) => list)
+}
 
 // The number beside the drawer's title: every design set.
 export function CompareCount() {
@@ -27,6 +40,8 @@ function DesignSetRow({ item, state, count, selected, onOpen }) {
   const merged = state.id === 'merged'
   return (
     <DrawerRow
+      role="option"
+      aria-selected={selected}
       data-compare-row={item.id}
       data-compare-state={state.id}
       selected={selected}
@@ -45,13 +60,13 @@ function DesignSetRow({ item, state, count, selected, onOpen }) {
 }
 
 function CompareDrawer() {
-  const { mergeItems, conflicts, historyEntries, projectPages, compareItemId, setCompareItemId, closeCompareView, conflictPin, selectConflictPin, boardConflicts, setBoardConflicts, workspaceView } = useWorkspace()
+  const { mergeItems, conflicts, historyEntries, projectPages, compareItemId, setCompareItemId, closeCompareView, conflictPin, selectConflictPin, boardConflicts } = useWorkspace()
   const language = useLanguage()
   const [query, setQuery] = useState('')
   const [folded, setFolded] = useState(() => new Set())
   const items = designSetsOf(mergeItems)
   const pickedConflictId = boardConflicts.conflictId ?? conflictPin.selected?.conflictId ?? null
-  const screenOf = (item) => projectPages.find((page) => page.id === item.designPageId)?.name ?? 'Other screens'
+  const screenOf = (item) => screenNameOf(projectPages, item)
 
   const rows = items.map((item) => ({ item, review: reviewForDesign(item, conflicts), state: designSetState(item, conflicts, historyEntries), screen: screenOf(item) }))
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
@@ -71,12 +86,10 @@ function CompareDrawer() {
   const isPicked = ({ item, review }) => (compareItemId != null ? compareItemId === item.id : Boolean(review && pickedConflictId === review.id))
 
   function open({ item, review }) {
-    if (compareItemId === item.id) { closeCompareView({ focus: false }); return }
+    if (compareItemId === item.id) { closeCompareView(); return }
     setCompareItemId(item.id)
     // (The change list has it picked too.)
     if (review) selectConflictPin(review.id, review.layerId ?? null)
-    // (And the board's change list is up at the right, beside the comparison — its opener is under the comparison.)
-    if (workspaceView === 'screens' && !boardConflicts.open) setBoardConflicts({ open: true, conflictId: null, screenId: null })
   }
 
   const toggleGroup = (label) => setFolded((prev) => {
@@ -108,7 +121,7 @@ function CompareDrawer() {
               </button>
             </h4>
             {open_ && (
-              <ul className="flex flex-col">
+              <ul role="listbox" aria-label={label} className="flex flex-col">
                 {list.map((row) => (
                   <li key={row.item.id}>
                     <DesignSetRow item={row.item} state={row.state} count={designCompareOptions(row.item).length} selected={isPicked(row)} onOpen={() => open(row)} />

@@ -5,14 +5,16 @@ import { createServer } from 'vite'
 // One way for every panel to open: in the same flex row, taking its own width (never floating over the work).
 //   app sidebar (Docs, Design Compare's list …) → pushes the whole work area;
 //   tool panel (Files · Layers · Assets · Inspect) → pushes the canvas only; 200ms ease-out; 200–400px, kept;
-//   Design Compare's pick opens in the canvas's place, beside the tool panel; the board's change list at the right.
+//   Design Compare's pick widens the app sidebar into list + detail (the canvas stays mounted, reflowed); the
+//   board's change list at the right.
 // The canvas (or comparison) keeps 480px: the tool panel folds first, then the right panel; the camera keeps
 // its scale and moves only as far as it takes.
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8')
 const map = new Map(); const storage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, String(v)) }
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom', logLevel: 'error' })
 try {
-  const { MIN_CANVAS, TOOL_PANEL, clampToolPanelWidth, foldForRoom, readToolPanelWidth, writeToolPanelWidth } = await server.ssrLoadModule('/src/lib/panelPrefs.js')
+  const prefs = await server.ssrLoadModule('/src/lib/panelPrefs.js')
+  const { MIN_CANVAS, TOOL_PANEL, clampToolPanelWidth, foldForRoom, readToolPanelWidth, writeToolPanelWidth } = prefs
   const { resizeShift } = await server.ssrLoadModule('/src/lib/canvasCamera.js')
   const { PANELS, isSplit } = await server.ssrLoadModule('/src/lib/workPane.js')
 
@@ -59,19 +61,27 @@ try {
   const tooldock = views.slice(views.indexOf('export function CanvasViewPanel'), views.indexOf('export function CompareWorkView'))
   assert.ok(!/absolute inset-y|rounded-xl|shadow-2xl|\bfixed\b/.test(tooldock.replace('absolute inset-y-0 right-0 z-10', '')), 'no floating card')
   assert.ok(tooldock.includes('foldForRoom(') && tooldock.includes('setToolPanelWidth(') && tooldock.includes("label=\"Resize tool panel\""))
-  // No floating Design Compare any more: a drawer (the list) + a view where the canvas is.
-  assert.ok(!views.includes('CanvasComparePanel') && !layout.includes('CanvasComparePanel') && !shell.includes('setCompareOpen') && !sidebar.includes('compareOpen'))
-  assert.ok(layout.includes('<CompareWorkView />') && layout.includes('viewCovered={') && layout.includes('disabled={compareItemId != null}'), 'the comparison stands in the canvas’s place; the three tabs wait')
-  assert.ok(sidebar.includes('<CompareDrawer project={project} />') && sidebar.includes("const comparing = drawer === 'compare'"))
-  assert.ok(shell.includes("setDrawer('compare')") && shell.includes('setCompareItemId(null)'), 'with the list put away, the canvas is back')
+  // No floating Design Compare, and none replacing the canvas: a drawer whose pick widens it into list + detail.
+  const panel = read('components/dashboard/ComparePanel.jsx')
+  assert.ok(!views.includes('CanvasComparePanel') && !views.includes('CompareWorkView') && !layout.includes('CompareWorkView') && !floating.includes('viewCovered') && !shell.includes('setCompareOpen'), 'the canvas is never covered or replaced')
+  assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes("const comparing = panel === 'compare'") && sidebar.includes('overlay'), 'one sidebar, two states, an overlay when narrow')
+  assert.ok(shell.includes("setDrawer('compare')") && shell.includes('setCompareItemId(null)'), 'the detail goes with the list')
+  assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === '['") && panel.includes("event.key === ']'") && panel.includes('closeCompareView'), 'a named region, the keys')
   // The list is made of the change list's own parts (one row component), grouped by screen, searchable.
   assert.ok(drawer.includes("from '@/components/dashboard/DrawerList'") && drawer.includes('<DrawerRow') && drawer.includes('<DrawerSearch') && drawer.includes('aria-expanded={open_}'))
   // The comparison: "← canvas" (focusing the change), the sets not repeated as a column; the pick kept in step with the change lists, both ways.
-  assert.ok(compare.includes('hideSets') && compare.includes('closeCompareView({ focus: true })') && compare.includes('boardConflicts') && compare.includes('conflictPin'))
-  assert.ok(read('components/mergestudio/DesignComparison.jsx').includes('data-compare-back') && read('components/mergestudio/DesignComparison.jsx').includes('{!hideSets && ('))
+  assert.ok(compare.includes('data-compare-skeleton') && compare.includes('data-compare-error') && compare.includes('boardConflicts') && compare.includes('conflictPin'), 'loading, error, and both lists’ picks')
+  const dc = read('components/mergestudio/DesignComparison.jsx')
+  assert.ok(dc.includes('data-design-identical') && dc.includes('aria-busy={busy || undefined}') && dc.includes('data-design-view-mode') && dc.includes('data-design-diff-row') && dc.includes('data-design-sync') && dc.includes('data-design-activity'), 'empty, working, views, differences, sync, activity')
   assert.ok(read('components/conflicts/ConflictReviewOverlay.jsx').includes('data-review-open-compare') && read('components/screens/BoardConflicts.jsx').includes('data-board-conflicts-compare'), 'the change’s detail opens the comparison')
   // The right panel (the board’s change list) docks in the row too.
   assert.ok(read('components/screens/BoardConflicts.jsx').includes('createPortal(panel, host)') && views.includes('export function BoardDockSlot'))
+  // Address, widths.
+  const { readCompare, withCompare } = await server.ssrLoadModule('/src/lib/compareLink.js')
+  assert.equal(readCompare('?screen=a&compare=x'), 'x'); assert.equal(withCompare('?screen=a', 'x'), '?screen=a&compare=x'); assert.equal(withCompare('?screen=a&compare=x', null), '?screen=a')
+  const { clampCompareWidth, COMPARE_LIST_WIDTH } = prefs
+  assert.equal(COMPARE_LIST_WIDTH, 360)
+  assert.equal(clampCompareWidth(undefined, 2000), 960, '960 to start'); assert.equal(clampCompareWidth(undefined, 1600), 880, '55% of the window at most'); assert.equal(clampCompareWidth(300, 2000), 720, '720 at least'); assert.equal(clampCompareWidth(undefined, 1200), 720)
   // Reduced motion: no transition (the tool panel, the sidebar, the right panel).
   assert.ok(views.includes('motion-reduce:transition-none') && sidebar.includes('motion-reduce:transition-none'))
   console.log('Passed: panels dock in one row — the tool panel, the comparison, the right list — with the camera and the 480px rule.')

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import HistoryCompare from '@/components/history/HistoryCompare'
 import { LocalizedText } from '@/i18n/runtime'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, Ellipsis, Eye, Layers3, Link2, LoaderCircle, MapPin, MessageSquarePlus, Minus, Plus, Send, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { draftRows } from '@/lib/driftDecisions'
 import { cn } from 'cn'
@@ -31,16 +31,74 @@ export function designCompareOptions(item) {
   ]
 }
 
-// `hideSets` / `onBack` (the Workspace's comparison, where the sets are the drawer's list): no column of sets
-// beside the drafts, and "← canvas" before the title.
-function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false, hideSets = false, onBack = null }) {
+// `detail` (the Design Compare sidebar's detail column, where the sets are the list beside it): no column of sets,
+// and a header of its own — { group, titleRef, status, onPrev, onNext, onClose, readOnly } — with the view
+// controls (side by side · tabs · overlay, differences, zoom), the differences listed and the activity under the
+// drafts.
+function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false, detail = null }) {
+  const hideSets = Boolean(detail)
   // Where a change opened from here shows: full screen with the left list — the one way — except inside Merge Studio, whose bottom panel keeps it.
   const reviewIn = inMergeStudio ? { view: 'panel' } : undefined
   const { conflicts, addComment, openConflictReview, reviewConflictId, reviewView, decisionsFor, historyEntries, createMergeRequest, updateConflict, updateMergeItem, currentUser, otherMembers } = useWorkspace()
   const navigate = useNavigate()
   const item = items.find((candidate) => candidate.id === itemId) ?? null
+  // The detail's view: side by side, one draft at a time (tabs), or one over the other; what sets them apart outlined;
+  // the zoom of each draft (together, or the one last pointed at); the layer a difference row points at.
+  const [viewMode, setViewMode] = useState(null)
+  const [tabKey, setTabKey] = useState(null)
+  const [overlayOpacity, setOverlayOpacity] = useState(50)
+  const [showDiff, setShowDiff] = useState(false)
+  const [syncView, setSyncView] = useState(true)
+  const [zooms, setZooms] = useState({})
+  const [pointedKey, setPointedKey] = useState(null)
+  const [focusLayerId, setFocusLayerId] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [narrow, setNarrow] = useState(false)
+  const bodyRef = useRef(null)
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el || !detail) return undefined
+    const observer = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < 640))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [detail, itemId])
+  // (Another set: the view starts over.)
+  const [shownItem, setShownItem] = useState(itemId)
+  if (shownItem !== itemId) { setShownItem(itemId); setTabKey(null); setFocusLayerId(null); setZooms({}); setBusy(false) }
   const options = designCompareOptions(item)
   const selectedOptions = options.filter((option) => selectedKeys.includes(option.key))
+  // What sets the drafts apart, row by row: a layer's own differences (A → B), else the set's (a value per draft).
+  const layerDiffs = (item && designMergeVariants[item.id]?.layerDiffs) ?? {}
+  const diffRows = Object.entries(layerDiffs).flatMap(([layerId, list]) => list.map((diff) => ({ key: `${layerId}:${diff.id}`, layerId, label: diff.label, values: [diff.optionA, diff.optionB] })))
+  const diffRowsOut = diffRows.length ? diffRows : (item?.differences ?? []).map((difference) => ({ key: difference.id, layerId: null, label: difference.label, values: difference.values }))
+  const identical = Boolean(item) && options.length >= 2 && diffRowsOut.length === 0
+  const diffLayerIds = new Set(diffRows.map((row) => row.layerId))
+  const marksOf = focusLayerId ? new Set([focusLayerId]) : showDiff ? diffLayerIds : new Set()
+  const zoomOf = (key) => zooms[key] ?? 100
+  const setZoom = (value) => {
+    const next = Math.max(100, Math.min(400, value))
+    setZooms((prev) => (syncView || !pointedKey ? Object.fromEntries(options.map((option) => [option.key, next])) : { ...prev, [pointedKey]: next }))
+  }
+  // Pressed: the button shows it's working, can't be pressed twice, and the result is said (the list's badge follows the review).
+  async function runBusy(run, done) {
+    if (busy) return
+    setBusy(true)
+    await new Promise((resolve) => setTimeout(resolve, 420))
+    try { run(); if (done) toast(done, { description: item?.title }) } finally { setBusy(false) }
+  }
+  // Scrolling one draft carries the others with it (while they're kept together).
+  function onBoardScroll(event) {
+    const board = event.target
+    if (!syncView || !board?.matches?.('[data-design-board]') || board.__syncing) return
+    const maxX = board.scrollWidth - board.clientWidth, maxY = board.scrollHeight - board.clientHeight
+    for (const other of event.currentTarget.querySelectorAll('[data-design-board]')) {
+      if (other === board) continue
+      other.__syncing = true
+      other.scrollLeft = maxX > 0 ? (board.scrollLeft / maxX) * (other.scrollWidth - other.clientWidth) : 0
+      other.scrollTop = maxY > 0 ? (board.scrollTop / maxY) * (other.scrollHeight - other.clientHeight) : 0
+      requestAnimationFrame(() => { other.__syncing = false })
+    }
+  }
   const [commentModeVariantKey, setCommentModeVariantKey] = useState(null)
   const [commentAnchor, setCommentAnchor] = useState(null)
   const [commentDraft, setCommentDraft] = useState('')
@@ -64,6 +122,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
     frame: base ? composeDraftFrame(item.id, base, regionPicks(item.id, decisionsFor?.(item.id) ?? {}), item.authorAId ?? item.variants?.[0]?.key, regionLayout(item.id, decisionsFor?.(item.id) ?? {})) : null,
   } : null)
   const [codeEntryId, setCodeEntryId] = useState(null)
+  // (Side by side needs room: under 640px it's the tabs.)
+  const effectiveMode = !detail || options.length < 2 ? 'side' : (viewMode ?? (narrow ? 'tab' : 'side'))
+  const activeTab = options.some((option) => option.key === tabKey) ? tabKey : options[0]?.key
 
   function chooseLayer(option, layer) {
     if (commentModeVariantKey === option.key) {
@@ -127,7 +188,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
       : requested ? { label: { merged: '병합 결과 보기', approved: '병합하기', in_review: '검토 현황 보기', changes_requested: '수정 요청 보기' }[status.id] ?? '검토 요청하기', run: () => openConflictReview(conflict.id, reviewIn) }
         : conflict && !isDesignReview(conflict) ? { label: '변경 검토', run: () => openConflictReview(conflict.id, reviewIn) }
           : null
-  const compose = item && (mixSet ? actions.primary === 'compose' : (!next || !requested)) ? { disabled: pickedOptions.length < 2, run: () => onCompare(item, pickedOptions) } : null
+  const compose = item && (mixSet ? actions.primary === 'compose' : (!next || !requested)) ? { disabled: pickedOptions.length < 2 || identical, run: () => onCompare(item, pickedOptions) } : null
   const edit = mixSet && actions.secondary === 'edit' ? { label: MIX_ACTION_LABEL.edit, run: editMix } : null
   // Which drafts are ticked is what goes into the mix (조합하기 takes them to
   // Merge Studio) — nothing else reads it. So it's only offered while there's
@@ -188,15 +249,24 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
         {/* One row: on the left which set and where it is; on the right what
             can be done — how many drafts are ticked, clearing / ticking them
             all, then the one next step. Nothing floats in between. */}
-        <div data-design-compare-head className="@container mb-3 flex min-w-0 items-center gap-3">
+        <div data-design-compare-head className={cn('@container mb-3 flex min-w-0 items-center gap-3', detail && 'sticky -top-3 z-10 -mx-3 -mt-3 mb-3 border-b border-border bg-card px-3 py-2.5')}>
           <div data-design-title className="flex min-w-0 flex-1 items-center gap-2">
-            {onBack && (
-              <button type="button" data-compare-back onClick={onBack} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.06] pr-3 pl-2 text-xs font-medium whitespace-nowrap text-slate-200 transition-colors hover:bg-white/[0.1] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                <ArrowLeft className="size-3.5" />
-                캔버스로
-              </button>
+            {detail && (
+              <>
+                <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12px] text-slate-400">
+                  <span className="shrink-0 truncate">{detail.group}</span>
+                  <span aria-hidden className="shrink-0 text-slate-600">/</span>
+                  <h2 ref={detail.titleRef} tabIndex={-1} className="min-w-0 truncate rounded text-[13px] font-semibold text-slate-100 outline-none focus-visible:outline-2 focus-visible:outline-emerald-300">{item?.title}</h2>
+                </nav>
+                {detail.status && (
+                  <span data-compare-badge={detail.status.id} className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2 text-[11px] font-medium whitespace-nowrap text-slate-200">
+                    <span aria-hidden className={cn('size-1.5 rounded-full', detail.status.id === 'draft' ? 'bg-slate-500' : 'bg-white')} />
+                    {detail.status.label}
+                  </span>
+                )}
+              </>
             )}
-            <h2 className={cn('min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100', hideSets ? 'block' : '@[560px]/compare:block hidden')}>{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
+            <h2 className={cn('min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100', hideSets ? 'hidden' : '@[560px]/compare:block hidden')}>{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
             {/* (Narrow: the title is the menu of sets — the column beside the drafts is folded into it.) */}
             {!hideSets && <DropdownMenu>
               <DropdownMenuTrigger data-design-set-menu disabled={items.length < 2} className="ds-intrinsic flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-[13px] font-semibold text-slate-100 transition-colors hover:bg-white/[0.06] disabled:pointer-events-none @[560px]/compare:hidden">
@@ -247,13 +317,14 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               <button
                 type="button"
                 data-design-compose
-                disabled={compose.disabled}
-                title={compose.disabled ? '비교할 시안을 2개 이상 골라 주세요' : undefined}
-                onClick={compose.run}
+                disabled={compose.disabled || busy || detail?.readOnly}
+                title={detail?.readOnly ? '이 항목을 조합할 권한이 없어요' : identical ? '두 버전이 동일해서 조합할 게 없어요' : compose.disabled ? '비교할 시안을 2개 이상 골라 주세요' : undefined}
+                aria-busy={busy || undefined}
+                onClick={detail ? () => runBusy(compose.run) : compose.run}
                 // (12px from what's before it.)
                 className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3 text-xs font-semibold whitespace-nowrap text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500', selectable && 'ml-3')}
               >
-                <Layers3 className="size-3.5" />
+                {busy ? <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" /> : <Layers3 className="size-3.5" />}
                 조합하기
               </button>
             )}
@@ -263,9 +334,27 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
               </button>
             )}
             {next && (
-              <button type="button" data-design-next onClick={next.run} className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold whitespace-nowrap transition-colors', compose ? 'ml-2 bg-white/[0.06] text-slate-200 hover:bg-white/[0.1]' : 'bg-emerald-400 text-slate-950 hover:bg-emerald-300')}>
+              <button type="button" data-design-next disabled={detail && (busy || detail.readOnly)} title={detail?.readOnly ? '이 항목을 검토할 권한이 없어요' : undefined} aria-busy={busy || undefined} onClick={detail ? () => runBusy(next.run, next.label === MIX_ACTION_LABEL.request ? '병합 요청을 보냈어요' : null) : next.run} className={cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50', compose ? 'ml-2 bg-white/[0.06] text-slate-200 hover:bg-white/[0.1]' : 'bg-emerald-400 text-slate-950 hover:bg-emerald-300')}>
+                {busy && !compose && <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />}
                 {next.label}
               </button>
+            )}
+            {detail && (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger data-design-more-actions aria-label="더 보기" title="더 보기" className="ds-intrinsic ml-2 flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                    <Ellipsis className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-44">
+                    <DropdownMenuItem onClick={() => { navigator.clipboard?.writeText(window.location.href); toast('링크를 복사했어요', { description: item?.title }) }}><Link2 className="size-3.5" />링크 복사</DropdownMenuItem>
+                    {selectable && <DropdownMenuItem onClick={toggleAll}>{allSelected ? '선택 해제' : '모두 선택'}</DropdownMenuItem>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-white/10" />
+                <button type="button" data-compare-prev aria-label="이전 항목 (↑)" title="이전 항목 (↑)" disabled={!detail.onPrev} onClick={detail.onPrev} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-emerald-300"><ArrowUp className="size-4" /></button>
+                <button type="button" data-compare-next aria-label="다음 항목 (↓)" title="다음 항목 (↓)" disabled={!detail.onNext} onClick={detail.onNext} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-emerald-300"><ArrowDown className="size-4" /></button>
+                <button type="button" data-compare-close aria-label="닫기 (Esc)" title="닫기 (Esc)" onClick={detail.onClose} className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><X className="size-4" /></button>
+              </>
             )}
           </div>
         </div>
@@ -298,12 +387,59 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             </button>
           </form>
         )}
-        {item && (
+        <div ref={bodyRef} onScrollCapture={onBoardScroll} className="min-w-0">
+        {detail && item && options.length >= 2 && (
+          <div data-design-view-bar role="toolbar" aria-label="비교 보기" className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <div role="radiogroup" aria-label="보기 방식" className="flex h-7 shrink-0 items-center rounded-lg bg-white/[0.04] p-0.5">
+              {[['side', '나란히'], ['tab', '탭'], ['overlay', '겹쳐보기']].map(([mode, label]) => (
+                <button key={mode} type="button" role="radio" aria-checked={effectiveMode === mode} data-design-view-mode={mode} onClick={() => setViewMode(mode)} className={cn('ds-intrinsic h-6 rounded-md px-2.5 text-[11.5px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', effectiveMode === mode ? 'bg-white/[0.12] font-semibold text-white' : 'text-slate-400 hover:text-slate-200')}>{label}</button>
+              ))}
+            </div>
+            {effectiveMode === 'overlay' && (
+              <label className="flex items-center gap-2 text-[11.5px] text-slate-400">
+                불투명도
+                <input type="range" data-design-opacity min={0} max={100} value={overlayOpacity} onChange={(event) => setOverlayOpacity(Number(event.target.value))} aria-label="B 불투명도" className="h-1 w-28 accent-emerald-400" />
+                <span className="w-8 tabular-nums text-slate-300">{overlayOpacity}%</span>
+              </label>
+            )}
+            <button type="button" data-design-diff-toggle aria-pressed={showDiff} disabled={diffLayerIds.size === 0} title={diffLayerIds.size === 0 ? '표시할 차이가 없어요' : undefined} onClick={() => { setShowDiff((on) => !on); setFocusLayerId(null) }} className={cn('ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40', showDiff ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200')}>
+              <Eye className="size-3.5" />차이 강조
+            </button>
+            <div className="ml-auto flex items-center gap-1.5">
+              <button type="button" data-design-sync aria-pressed={syncView} onClick={() => setSyncView((on) => !on)} className={cn('ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11.5px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', syncView ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200')}>
+                <Link2 className="size-3.5" />줌·스크롤 동기화
+              </button>
+              <div className="flex h-7 items-center rounded-lg bg-white/[0.04]">
+                <button type="button" aria-label="축소" disabled={zoomOf(syncView ? options[0].key : pointedKey ?? options[0].key) <= 100} onClick={() => setZoom(zoomOf(syncView ? options[0].key : pointedKey ?? options[0].key) - 25)} className="ds-intrinsic flex size-7 items-center justify-center text-slate-400 hover:text-white disabled:opacity-35"><Minus className="size-3.5" /></button>
+                <span data-design-zoom className="w-10 text-center text-[11.5px] tabular-nums text-slate-200">{zoomOf(syncView ? options[0].key : pointedKey ?? options[0].key)}%</span>
+                <button type="button" aria-label="확대" disabled={zoomOf(syncView ? options[0].key : pointedKey ?? options[0].key) >= 400} onClick={() => setZoom(zoomOf(syncView ? options[0].key : pointedKey ?? options[0].key) + 25)} className="ds-intrinsic flex size-7 items-center justify-center text-slate-400 hover:text-white disabled:opacity-35"><Plus className="size-3.5" /></button>
+              </div>
+            </div>
+          </div>
+        )}
+        {identical && detail && (
+          <div role="status" data-design-identical className="mb-3 flex items-center gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-[12px] text-slate-300">
+            <Check className="size-4 shrink-0 text-slate-400" />두 버전이 동일합니다. 조합할 차이가 없어요.
+          </div>
+        )}
+        {detail && item && effectiveMode === 'tab' && (
+          <div role="tablist" aria-label="시안" className="mb-3 flex gap-1">
+            {options.map((option, index) => (
+              <button key={option.key} type="button" role="tab" aria-selected={option.key === activeTab} data-design-tab={option.key} onClick={() => setTabKey(option.key)} className={cn('ds-intrinsic h-7 rounded-lg px-3 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', option.key === activeTab ? 'bg-white/[0.12] font-semibold text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200')}>{String.fromCharCode(65 + index)}</button>
+            ))}
+          </div>
+        )}
+        {item && effectiveMode === 'overlay' && (() => {
+          const base = canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0]
+          const frameFor = (option) => (base && draftScreens[item.id] ? draftFrame(item.id, base, option.key) : base)
+          return <OverlayView frameA={frameFor(options[0])} frameB={frameFor(options[1])} effectsA={optionEffects(item, options[0])} effectsB={optionEffects(item, options[1])} opacity={overlayOpacity} marks={marksOf} zoom={zoomOf(options[0].key)} />
+        })()}
+        {item && effectiveMode !== 'overlay' && (
           // Every draft side by side, each carrying what sets it apart — the
           // same properties in the same order, so the cards read across.
           // (As tall as they are — never stretched to the pane — and as many to a row as fit at 200px or more, sharing the row between them.)
-          <div data-design-grid className="grid content-start items-start gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${options.length + (current ? 1 : 0) <= 2 ? 220 : 200}px), 1fr))` }}>
-            {options.map((option, index) => (
+          <div data-design-grid className="grid content-start items-start gap-3" style={{ gridTemplateColumns: effectiveMode === 'tab' ? '1fr' : `repeat(auto-fit, minmax(min(100%, ${options.length + (current ? 1 : 0) <= 2 ? 220 : 200}px), 1fr))` }}>
+            {options.map((option, index) => (effectiveMode === 'tab' && option.key !== activeTab ? null : (
               <DesignOptionCard
                 key={option.key}
                 option={option}
@@ -319,6 +455,9 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                   setCommentAnchor(null)
                 }}
                 onSelectLayer={(layer) => chooseLayer(option, layer)}
+                marks={marksOf}
+                zoom={zoomOf(option.key)}
+                onPoint={() => setPointedKey(option.key)}
                 frame={(() => {
                   const base = canvasPages.find((candidate) => candidate.id === item.designPageId)?.frames[0]
                   // Drafts with their own layout show their own screen.
@@ -329,10 +468,27 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                 traits={(item.differences ?? []).map((difference) => ({ id: difference.id, label: difference.label, value: difference.values[index], used: current ? traitUsedOf(difference, current.sources, option.key) : null }))}
                 usedCount={current ? usedCountOf(current.sources, option.key) : null}
               />
-            ))}
-            {current && <MixResultCard item={item} record={current} older={saves.slice(1)} status={status} onViewCode={current.hasCode && current.id ? () => setCodeEntryId(current.id) : null} />}
+            )))}
+            {current && effectiveMode !== 'tab' && <MixResultCard item={item} record={current} older={saves.slice(1)} status={status} onViewCode={current.hasCode && current.id ? () => setCodeEntryId(current.id) : null} />}
           </div>
         )}
+        {detail && item && diffRowsOut.length > 0 && (
+          <section data-design-diffs aria-label="차이 요약" className="mt-4">
+            <h3 className="mb-1.5 text-[11px] font-semibold text-slate-400">차이 요약 <span className="font-normal text-slate-500 tabular-nums">{diffRowsOut.length}</span></h3>
+            <ul className="flex flex-col gap-0.5">
+              {diffRowsOut.map((row) => (
+                <li key={row.key}>
+                  <button type="button" data-design-diff-row={row.key} aria-pressed={focusLayerId != null && focusLayerId === row.layerId} disabled={!row.layerId} onClick={() => { setShowDiff(false); setFocusLayerId((now) => (now === row.layerId ? null : row.layerId)) }} className={cn('ds-intrinsic grid h-9 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 text-left text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:cursor-default', focusLayerId != null && focusLayerId === row.layerId ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}>
+                    <span className="truncate text-slate-300">{row.label}</span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-slate-100 tabular-nums">{row.values.map((value, index) => <Fragment key={index}>{index > 0 && <span aria-hidden className="text-slate-500">→</span>}<span className="truncate">{value}</span></Fragment>)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {detail && item && <DetailActivity conflict={conflict} />}
+        </div>
         {/* The code this mix changed, in the History's own viewer — over the panel, without leaving it. */}
         {codeEntryId && (
           <Dialog open onOpenChange={(open) => { if (!open) setCodeEntryId(null) }}>
@@ -421,6 +577,75 @@ function MixResultCard({ item, record, older = [], status, onViewCode }) {
   )
 }
 
+// The layers a difference points at, outlined (in every draft at once).
+function LayerMarks({ frame, marks }) {
+  if (!marks?.size) return null
+  return frame.layers.filter((layer) => marks.has(layer.id)).map((layer) => (
+    <span key={layer.id} aria-hidden data-design-mark={layer.id} className="pointer-events-none absolute rounded-[3px] bg-emerald-300/10 ring-2 ring-emerald-300" style={{ left: layer.x, top: layer.y, width: layer.width, height: layer.height }} />
+  ))
+}
+
+// Two drafts, one over the other: B at the opacity asked for over A.
+function OverlayView({ frameA, frameB, effectsA, effectsB, opacity, marks, zoom }) {
+  const boardRef = useRef(null)
+  const [box, setBox] = useState({ width: 0, height: 0 })
+  useEffect(() => {
+    if (!boardRef.current) return undefined
+    const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }))
+    observer.observe(boardRef.current)
+    return () => observer.disconnect()
+  }, [])
+  const frame = frameA ?? frameB
+  if (!frame) return <div className="flex min-h-28 items-center justify-center rounded-lg bg-black/10 text-[10px] text-slate-500">No design preview</div>
+  const scale = box.width && box.height ? Math.max(0, Math.min((box.width - 16) / frame.width, (box.height - 16) / frame.height)) * (zoom / 100) : 0
+  return (
+    <div data-design-overlay ref={boardRef} data-design-board style={{ aspectRatio: `${frame.width} / ${frame.height}` }} className={cn('relative flex max-h-[520px] min-w-0 rounded-lg bg-black/20 p-2', zoom > 100 ? 'items-start justify-start overflow-auto' : 'items-center justify-center overflow-hidden')}>
+      <div className="relative shrink-0 overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale, height: frame.height * scale }}>
+        {[[frameA, effectsA, 1], [frameB, effectsB, opacity / 100]].map(([layerFrame, effects, alpha], index) => layerFrame && (
+          <div key={index} className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: layerFrame.width, height: layerFrame.height, transform: `scale(${scale})`, opacity: alpha }}>
+            {layerFrame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={effects[layer.id]} onSelect={() => {}} />)}
+          </div>
+        ))}
+        <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}><LayerMarks frame={frame} marks={marks} /></div>
+      </div>
+    </div>
+  )
+}
+
+// What's been said about this set (its change's comments), and a line to add to it — the collaborators' avatars with it.
+function DetailActivity({ conflict }) {
+  const { comments, addComment } = useWorkspace()
+  const [draft, setDraft] = useState('')
+  const list = conflict ? comments.filter((comment) => comment.target?.conflictId === conflict.id) : []
+  const nameOf = (id) => allPeople.find((person) => person.id === id)
+  return (
+    <section data-design-activity aria-label="활동" className="mt-5 pb-2">
+      <h3 className="mb-2 text-[11px] font-semibold text-slate-400">활동 · 코멘트 <span className="font-normal text-slate-500 tabular-nums">{list.length}</span></h3>
+      {list.length === 0 && <p className="px-1 pb-2 text-[12px] text-slate-500">아직 코멘트가 없어요.</p>}
+      <ul className="flex flex-col gap-2.5">
+        {list.map((comment) => {
+          const person = nameOf(comment.authorId)
+          return (
+            <li key={comment.id} className="flex gap-2.5">
+              <span aria-hidden className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white', person?.colorClass ?? 'bg-slate-600')}>{person?.initials ?? '?'}</span>
+              <div className="min-w-0 text-[12px] leading-4">
+                <p className="text-slate-300"><span className="font-medium text-slate-100">{person?.name ?? comment.authorId}</span>{comment.timeLabel && <span className="ml-1.5 text-slate-500">{comment.timeLabel}</span>}</p>
+                <p className="mt-0.5 break-words text-slate-300">{comment.text}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      {conflict && (
+        <form onSubmit={(event) => { event.preventDefault(); if (!draft.trim()) return; addComment(draft, { conflictId: conflict.id }); setDraft('') }} className="mt-3 flex items-center gap-2 rounded-lg bg-white/[0.04] p-1.5 pl-3">
+          <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="코멘트 남기기" aria-label="코멘트 남기기" className="h-7 min-w-0 flex-1 bg-transparent text-[12px] text-slate-100 outline-none placeholder:text-slate-500" />
+          <button type="submit" disabled={!draft.trim()} aria-label="코멘트 보내기" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-40"><Send className="size-3.5" /></button>
+        </form>
+      )}
+    </section>
+  )
+}
+
 // One draft: its letter and name, its screen as large as the card allows,
 // and — under it — what it is, property by property. Picking it is only
 // offered when there are more than two to choose from; the comment pin
@@ -430,7 +655,7 @@ function MixResultCard({ item, record, older = [], status, onViewCode }) {
 // can still be ticked.
 // `usedCount`: once there's a mix, how many parts it took from this draft
 // ("요소 N개 사용" — the count Merge Studio's draft cards show).
-function DesignOptionCard({ option, index, choosing, selected, used = null, usedCount = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [] }) {
+function DesignOptionCard({ option, index, choosing, selected, used = null, usedCount = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], marks = null, zoom = 100, onPoint = null }) {
   const boardRef = useRef(null)
   const cardRef = useRef(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
@@ -500,15 +725,19 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, used
         <div
           {...pickable}
           ref={boardRef}
+          data-design-board
+          onPointerEnter={onPoint}
+          onFocus={onPoint}
           // (In the screen's own proportions, no taller than 420px: the whole screen, never a sliver or a void.)
           style={{ aspectRatio: `${frame.width} / ${frame.height}` }}
-          className={cn('relative mx-3 flex max-h-[420px] min-w-0 items-center justify-center overflow-hidden rounded-lg bg-black/20 p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', wide ? 'flex-1' : '', commentMode && 'cursor-crosshair', choosing && !commentMode && 'cursor-pointer')}
+          className={cn('relative mx-3 flex max-h-[420px] min-w-0 rounded-lg bg-black/20 p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', wide ? 'flex-1' : '', zoom > 100 ? 'items-start justify-start overflow-auto' : 'items-center justify-center overflow-hidden', commentMode && 'cursor-crosshair', choosing && !commentMode && 'cursor-pointer')}
         >
-          <div className="relative overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale, height: frame.height * scale }}>
-          <div className="absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
+          <div className="relative overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale * (zoom / 100), height: frame.height * scale * (zoom / 100) }}>
+          <div className="absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale * (zoom / 100)})` }}>
             {frame.layers.map((layer) => (
               <StaticLayer key={layer.id} layer={layer} override={effects[layer.id]} onSelect={() => onSelectLayer(layer)} />
             ))}
+            <LayerMarks frame={frame} marks={marks} />
           </div>
           </div>
         </div>

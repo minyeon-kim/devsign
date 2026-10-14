@@ -5,7 +5,7 @@ import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
-import { BoardDockSlot, CanvasViewPanel, CanvasViewRail, CompareWorkView } from '@/components/workspace/CanvasSideViews'
+import { BoardDockSlot, CanvasViewPanel, CanvasViewRail } from '@/components/workspace/CanvasSideViews'
 import { inCanvasViewOf, AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/panelPrefs'
 import WorkspaceViewTabs, { VIEW_PANEL_ID, viewTabId } from '@/components/workspace/WorkspaceViewTabs'
 import ScreensBoard from '@/components/screens/ScreensBoard'
@@ -158,7 +158,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, compareItemId } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -292,8 +292,6 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   panelOpen.current = { side: sidePanel.open && !inCanvasViewOf(sidePanel, filesWindow.tab), chat: aiChat.open }
   const viewNow = useRef(workspaceView)
   viewNow.current = workspaceView
-  const compareNow = useRef(compareItemId)
-  compareNow.current = compareItemId
   const focusKey = useRef(null)
   const filesTab = useRef(filesWindow.tab)
   filesTab.current = filesWindow.tab
@@ -535,8 +533,6 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
     // ⌥1 / ⌥2 / ⌥3: Preview, Screens, Code — not while typing.
     if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.defaultPrevented && /^Digit[1-3]$/.test(event.code) && !isTyping(event.target)) {
       event.preventDefault()
-      // (The comparison has the canvas's place: the three views wait for "← canvas".)
-      if (compareNow.current != null) return
       setWorkspaceView(VIEWS[Number(event.code.slice(5)) - 1])
       return
     }
@@ -598,15 +594,13 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             docked={!mergeStudio}
             onDockDragStart={startDockDrag}
             // The main window's row starts with the Workspace's views.
-            viewTabs={!mergeStudio && group.id === mainGroupId ? <><WorkspaceViewTabs disabled={compareItemId != null} editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /><CanvasViewRail /></> : null}
+            viewTabs={!mergeStudio && group.id === mainGroupId ? <><WorkspaceViewTabs editing={workspaceView === 'screens' && mainShowing === 'canvas'} onBoard={() => dockApi.getPanel(panelById.screens.id)?.api.setActive()} /><CanvasViewRail /></> : null}
             viewPanel={!mergeStudio && group.id === mainGroupId ? { id: VIEW_PANEL_ID, labelledBy: viewTabId(workspaceView) } : null}
             headerEnd={!mergeStudio && group.id === mainGroupId ? chatPill : null}
             // (Files · Layers · Assets · Inspect open in a tool panel docked at the work area's left, in the
-            // canvas's row — it pushes the canvas over; Design Compare's comparison stands in the canvas's place.)
+            // canvas's row — it pushes the canvas over.)
             viewDock={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
             viewDockEnd={!mergeStudio && group.id === mainGroupId ? <BoardDockSlot /> : null}
-            viewOverlay={!mergeStudio && group.id === mainGroupId ? <CompareWorkView /> : null}
-            viewCovered={!mergeStudio && group.id === mainGroupId && compareItemId != null}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.

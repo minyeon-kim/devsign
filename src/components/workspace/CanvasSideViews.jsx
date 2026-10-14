@@ -3,7 +3,6 @@ import { Component, Files, Layers, ScanEye, X } from 'lucide-react'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { cn } from 'cn'
 import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
-import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
@@ -139,21 +138,6 @@ export function CanvasViewPanel() {
     </div>
   )
 }
-
-// Design Compare's comparison, in the work area where the canvas is (the set picked in the drawer): it fills
-// the canvas's place — beside the tool panel, if that's open — and "← canvas" gives the canvas back. The
-// canvas stays mounted under it (its view, its selection), out of reach until then.
-export function CompareWorkView() {
-  const { compareItemId } = useWorkspace()
-  if (compareItemId == null) return null
-  return (
-    <section id="canvas-compare-panel" data-canvas-compare aria-label="Design Compare" className="absolute inset-0 z-30 flex min-w-0 flex-col overflow-hidden bg-card">
-      <WorkspaceDesignCompare />
-    </section>
-  )
-}
-
-
 
 // The Screens board's change list, at the right of the work area (the "right panel"): a flex child after the
 // canvas (or the comparison) in the same row, its width easing like the tool panel's. BoardConflicts renders

@@ -69,7 +69,7 @@ try {
   assert.ok(sidebar.includes("role={split ? 'region' : undefined}") && sidebar.includes('const pane = paneWidth(room, ratio, { maximized })'))
   assert.ok(sidebar.includes('value={Math.round((pane.width / Math.max(1, room)) * 100)}') && sidebar.includes('onReset={() => setShare(defaultRatio(panel), true)}') && read('components/layout/SplitHandle.jsx').includes('aria-valuenow={value}'))
   assert.ok(sidebar.includes('data-pane-maximize') && sidebar.includes('data-pane-workspace') && sidebar.includes('if (!frame) frame = requestAnimationFrame('), 'maximize, the way back when it has the window, one resize a frame')
-  assert.ok(sidebar.includes("{panel === 'compare' && project && context && <CompareDrawer project={project} />}") && sidebar.includes('data-work-pane-layer'))
+  assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes('data-work-pane-layer'))
   // A change's detail is shown in the pane, the Workspace still in use beside it.
   assert.ok(overlay.includes("const inPane = !inMergeStudio && workPane === 'conflicts' && workPaneHost") && overlay.includes('return inPane ? createPortal(layer, workPaneHost) : layer'))
   assert.ok(shell.includes("const LAYER_PARAMS = ['doc', 'docs', 'history']"))
