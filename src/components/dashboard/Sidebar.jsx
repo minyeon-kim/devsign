@@ -103,7 +103,7 @@ function WorkspaceViews({ workspace, slots, drawer, onToggleDrawer }) {
               className={cn(showing(view) && activeClass)}
             />
             {view.id === 'design-compare' && designSets > 0 && (
-              <span data-view-badge title={`${designSets} design sets`} className="pointer-events-none absolute top-0.5 right-1 inline-flex size-3.5 items-center justify-center rounded-full bg-[#5CE0AE] text-[9px] leading-none font-bold text-[#050505] tabular-nums ring-2 ring-background">
+              <span data-view-badge title={`${designSets} design sets`} className="pointer-events-none absolute top-1 right-1.5 inline-flex size-3 items-center justify-center rounded-full bg-[#5CE0AE] text-[8px] leading-none font-bold text-[#050505] tabular-nums ring-[1.5px] ring-background">
                 {designSets}
               </span>
             )}

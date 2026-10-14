@@ -8,7 +8,6 @@ import { toast } from '@/i18n/toast'
 import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
-import { Skeleton } from '@/components/ui/skeleton'
 import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
@@ -589,28 +588,15 @@ function defaultLineFor(item) {
 
 // Deck width plus its 16px right inset and 16px breathing room.
 
-// The Merge tab's row, middle: the open item's name; pressing it lists the other changes to switch to.
+// The Merge tab's row, middle: the open item's name. Switching to another change is done in the Design Compare
+// sidebar (its list), not here.
 function MergeItemSwitcher({ item, readOnly }) {
-  const { mergeItems, setSelectedMergeItemId } = useWorkspace()
-  const others = mergeItems.filter((candidate) => candidate.projectId === item?.projectId || !candidate.projectId)
   if (!item) return null
   return (
     <div data-merge-switcher className="mr-auto ml-3 flex min-w-0 items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger data-merge-item aria-label="병합 항목 바꾸기" disabled={others.length < 2} className="ds-intrinsic flex h-7 min-w-0 max-w-[320px] items-center gap-1 rounded-md px-2 text-[13px] font-medium text-slate-100 transition-colors outline-none hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none">
-          <span className="min-w-0 truncate"><LocalizedText text={item.title} /></span>
-          {others.length > 1 && <ChevronDown className="size-3.5 shrink-0 text-slate-400" />}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-h-[60vh] min-w-64 overflow-y-auto">
-          {others.map((candidate) => (
-            <DropdownMenuItem key={candidate.id} data-merge-item-option={candidate.id} onClick={() => setSelectedMergeItemId(candidate.id)} className="gap-2 text-xs">
-              <Check className={cn('size-3.5 shrink-0', candidate.id === item.id ? 'opacity-100' : 'opacity-0')} />
-              <span className="min-w-0 flex-1 truncate"><LocalizedText text={candidate.title} /></span>
-              {candidate.tag && <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text={candidate.tag} /></span>}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <span data-merge-item className="flex h-7 min-w-0 max-w-[320px] items-center px-2 text-[13px] font-medium text-slate-100">
+        <span className="min-w-0 truncate"><LocalizedText text={item.title} /></span>
+      </span>
       {readOnly && <span data-merge-readonly className="shrink-0 text-xs text-slate-500">읽기 전용</span>}
     </div>
   )
@@ -618,15 +604,8 @@ function MergeItemSwitcher({ item, readOnly }) {
 
 // Before the three areas are drawn: where they will be.
 function StudioSkeleton() {
-  return (
-    <div data-merge-skeleton aria-busy="true" aria-label="불러오는 중" className="absolute inset-0 z-50 flex gap-2 bg-background p-2 pt-2">
-      <Skeleton className="w-[34%] rounded-xl" />
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <Skeleton className="min-h-0 flex-1 rounded-xl" />
-        <Skeleton className="h-40 rounded-xl" />
-      </div>
-    </div>
-  )
+  // (Just the canvas's own ground: what's drawn on it comes in without the screen changing shape first.)
+  return <div data-merge-skeleton aria-busy="true" aria-label="불러오는 중" className="absolute inset-0 z-50 bg-[#1C1C1C]" />
 }
 
 function MergeStudioWorkspace({ item }) {
@@ -1559,7 +1538,7 @@ function MergeStudioWorkspace({ item }) {
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
   return (
-    <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
+    <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#1C1C1C]">
         {!ready && item && <StudioSkeleton />}
       {/* The header row's right side: the canvas's session controls
           (presence, Share, Preview, Inbox) land here, left of the files pill. */}
@@ -1568,7 +1547,7 @@ function MergeStudioWorkspace({ item }) {
       {/* The canvas is a panel like the Workspace's: under the header row,
           rounded and bordered, ending where the bottom panel begins — not
           a full-bleed sheet the bottom panel slices across. */}
-      <div data-studio-stage inert={readOnly || undefined} title={readOnly ? '읽기 전용이에요' : undefined} className="relative flex min-h-0 flex-1 overflow-hidden bg-canvas">
+      <div data-studio-stage inert={readOnly || undefined} title={readOnly ? '읽기 전용이에요' : undefined} className="relative flex min-h-0 flex-1 overflow-hidden bg-[#1C1C1C]">
 
       {item ? (
         <div className="flex min-h-0 min-w-0 flex-1">

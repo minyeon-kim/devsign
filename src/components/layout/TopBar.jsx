@@ -33,7 +33,6 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // the activity bar's icons and ⌘B change) — as the sidebar icon with its
 // side filled while something is; off, that closes; on, what was last open
 // comes back.
-const SIDE_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘B' : 'Ctrl+B'
 function SidebarToggle() {
   const { leftOpen: open, toggleLeft } = useWorkspace()
   const label = open ? 'Close sidebar' : 'Open sidebar'
@@ -44,7 +43,7 @@ function SidebarToggle() {
         data-sidebar-toggle={open ? 'open' : 'closed'}
         aria-label={label}
         aria-expanded={open}
-        aria-controls="workspace-side-panel"
+        aria-controls="work-pane"
         onClick={toggleLeft}
         className="ds-header-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
       >
@@ -56,7 +55,7 @@ function SidebarToggle() {
       </button>
       {/* (From the button's left edge: it's the first thing in the bar.) */}
       <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-0 z-[100] whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-popover px-2 py-1 text-[11px] text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/sidebar-toggle:opacity-100 group-focus-within/sidebar-toggle:opacity-100">
-        {label}<span className="ml-1.5 opacity-60">{SIDE_SHORTCUT}</span>
+        {label}
       </span>
     </div>
   )

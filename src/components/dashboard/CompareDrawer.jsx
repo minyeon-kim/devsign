@@ -60,7 +60,7 @@ function DesignSetRow({ item, state, count, selected, onOpen }) {
 }
 
 function CompareDrawer() {
-  const { mergeItems, conflicts, historyEntries, projectPages, compareItemId, setCompareItemId, closeCompareView, conflictPin, selectConflictPin, boardConflicts } = useWorkspace()
+  const { mergeItems, conflicts, historyEntries, projectPages, compareItemId, setCompareItemId, closeCompareView, activeView, setSelectedMergeItemId, conflictPin, selectConflictPin, boardConflicts } = useWorkspace()
   const language = useLanguage()
   const [query, setQuery] = useState('')
   const [folded, setFolded] = useState(() => new Set())
@@ -88,6 +88,8 @@ function CompareDrawer() {
   function open({ item, review }) {
     if (compareItemId === item.id) { closeCompareView(); return }
     setCompareItemId(item.id)
+    // (With Merge up, the studio follows the pick — the sidebar's list is where another change is chosen.)
+    if (activeView === 'mergeStudio') setSelectedMergeItemId(item.id)
     // (The change list has it picked too.)
     if (review) selectConflictPin(review.id, review.layerId ?? null)
   }

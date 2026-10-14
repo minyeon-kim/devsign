@@ -562,22 +562,11 @@ export function WorkspaceProvider({ children, projectId }) {
     writeSplit({ ...readSplit(), last: 'side' })
     if (readPanel(route.current.location.search)) setWorkPane(null)
   }, [sidePanel.open, setWorkPane])
-  // The top bar's switch is the whole left area's: off, whatever is open
-  // there closes; on, what was last open comes back (the side panel, when
-  // nothing is remembered).
-  const leftOpen = sidePanel.open || Boolean(workPane)
-  const toggleLeft = useCallback(() => {
-    const { location: at } = route.current
-    const pane = readPanel(at.search)
-    if (pane || sideViewNow.current.open) {
-      if (pane) setWorkPane(null)
-      setSidePanelState((prev) => (prev.open ? { ...prev, open: false } : prev))
-      return
-    }
-    const { last } = readSplit()
-    if (isSplit(last)) setWorkPane(last)
-    else setSidePanelState((prev) => ({ ...prev, open: true }))
-  }, [setWorkPane])
+  // The top bar's switch is the app sidebar's (the drawer beside the activity bar — AppShell owns it and
+  // registers it here): off, whatever is open there closes; on, what was last open comes back.
+  const [appSidebar, setAppSidebar] = useState({ open: false, toggle: null })
+  const leftOpen = appSidebar.open
+  const toggleLeft = useCallback(() => appSidebar.toggle?.(), [appSidebar])
   // Where the pane is on the page (the change detail is shown inside it — ConflictReviewOverlay).
   const [workPaneHost, setWorkPaneHost] = useState(null)
   // The change list narrowed to the screen in view (the Screens board's pin turns it on).
@@ -3033,6 +3022,7 @@ export function WorkspaceProvider({ children, projectId }) {
     setWorkPane,
     leftOpen,
     toggleLeft,
+    setAppSidebar,
     workPaneHost,
     setWorkPaneHost,
     changesOfScreenOnly,
