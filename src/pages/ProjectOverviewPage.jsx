@@ -10,8 +10,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ACCENT_CTA, FLOATING_PILL, PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
 import { activities, allPeople } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
-import { isOpen, isPendingMerge, needsReviewFrom } from '@/lib/conflicts'
-import ConflictRow from '@/components/conflicts/ConflictRow'
+import { isOpen, needsReviewFrom } from '@/lib/conflicts'
+import ChangeList from '@/components/conflicts/ChangeList'
 import MergeCancellationSummary from '@/components/conflicts/MergeCancellationSummary'
 import { projectTone } from '@/lib/projectTone'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -19,11 +19,12 @@ import { useConflictStore } from '@/state/ConflictStore'
 import UserPresence from '@/components/layout/UserPresence'
 import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
 
-function Section({ title, action, children }) {
+// (As Home's: a title and its count, the way to the rest at the right — no rule over it.)
+function Section({ title, count = null, action, children }) {
   return (
-    <section className="min-w-0 border-t border-white/[0.08] pt-5">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-white"><LocalizedText text={title} /></h2>
+    <section className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="flex items-baseline gap-1.5 text-[15px] font-semibold text-white"><LocalizedText text={title} />{count != null && <span className="font-normal text-slate-500 tabular-nums">{count}</span>}</h2>
         {action}
       </div>
       {children}
@@ -148,7 +149,7 @@ function ProjectTimeline({ activities: liveActivities, history, conflicts, proje
       token: tokenFor(item),
       timestamp: item.timestamp,
     })),
-  ].sort((a, b) => timeValue(b.timestamp, b.createdAt) - timeValue(a.timestamp, a.createdAt)).slice(0, 8)
+  ].sort((a, b) => timeValue(b.timestamp, b.createdAt) - timeValue(a.timestamp, a.createdAt)).slice(0, 5)
 
   const groups = []
   const byToken = new Map()
@@ -248,20 +249,9 @@ function ProjectOverviewPage() {
   // know when the Inbox is already open and stay out of its way.
   const inboxOpen = mergeDrawer === 'inbox'
 
-  // Everything below counts from the shared conflict store with the same
-  // rules as the Workspace list (lib/conflicts), so the numbers, the list
-  // and the Workspace's filters always agree. Merged items leave the open
-  // list; approved ones stay in it, as "Approved · Pending merge".
-  const merged = conflicts.filter((conflict) => conflict.reviewStage === 'resolved')
-  const pendingMerge = conflicts.filter(isPendingMerge)
-  const decisions = conflicts.filter((conflict) => conflict.reviewStage !== 'resolved' && !isPendingMerge(conflict))
-  const total = conflicts.length
-  const openConflicts = conflicts
-    .filter(isOpen)
-    .sort((a, b) => Number(needsReviewFrom(b)) - Number(needsReviewFrom(a)))
-  const decisionIds = new Set(decisions.map((conflict) => conflict.id))
-  const mergeConflicts = openConflicts.filter(isPendingMerge)
-  const decisionConflicts = openConflicts.filter((conflict) => decisionIds.has(conflict.id))
+  // The open changes, by the same rules as the Workspace's list (lib/conflicts) — approved ones stay in it,
+  // as "Approved · Pending merge"; merged ones leave it.
+  const openConflicts = conflicts.filter(isOpen)
 
   // A conflict opens in the Workspace: Conflict Points tab, its review
   // window, and its element and file selected (see WorkspacePage).
@@ -336,53 +326,15 @@ function ProjectOverviewPage() {
           </div>
         </header>
 
-        <div aria-label="Conflict progress" className="space-y-2 border-t border-white/[0.08] pt-4">
-          {total > 0 && (
-            <div role="img" aria-label={`Completed ${merged.length}, pending merge ${pendingMerge.length}, decision needed ${decisions.length}`} className="flex h-1 overflow-hidden rounded-full bg-white/[0.06]">
-              {merged.length > 0 && <span className="bg-emerald-400" style={{ width: `${merged.length / total * 100}%` }} />}
-              {pendingMerge.length > 0 && <span className="bg-sky-400" style={{ width: `${pendingMerge.length / total * 100}%` }} />}
-              {decisions.length > 0 && <span className="bg-white/20" style={{ width: `${decisions.length / total * 100}%` }} />}
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            {merged.length > 0 && <button type="button" onClick={() => openList('done')} className="text-slate-400 transition-colors hover:text-white"><LocalizedText text="Done" /> {merged.length}</button>}
-            {pendingMerge.length > 0 && <button type="button" onClick={() => openList('pending_merge')} className="text-sky-300 transition-colors hover:text-white"><LocalizedText text="Pending merge" /> {pendingMerge.length}</button>}
-            {decisions.length > 0 && <button type="button" onClick={() => openList('open')} className="text-slate-300 transition-colors hover:text-white"><LocalizedText text="Decision needed" /> {decisions.length}</button>}
-            {total === 0 && <span className="text-xs text-slate-500"><LocalizedText text="No conflicts to review." /></span>}
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 gap-8 min-[1024px]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-7">
-            <Section
-              title="What to do now"
-              action={<SectionLink onClick={() => openList('open')}>View all</SectionLink>}
-            >
-              {mergeConflicts.length > 0 && (
-                <div className="mb-5">
-                  <h3 className="mb-1 text-xs font-medium text-slate-300"><LocalizedText text="Pending merge" /> <span className="text-slate-500 tabular-nums">{mergeConflicts.length}</span></h3>
-                  <ul className="divide-y divide-white/[0.06]">
-                    {mergeConflicts.map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} conflicts={conflicts} onOpen={openConflict} /></li>)}
-                  </ul>
-                </div>
-              )}
-              {decisionConflicts.length > 0 && (
-                <div>
-                  <h3 className="mb-1 text-xs font-medium text-slate-300"><LocalizedText text="Decision needed" /> <span className="text-slate-500 tabular-nums">{decisionConflicts.length}</span></h3>
-                  <ul className="divide-y divide-white/[0.06]">
-                    {decisionConflicts.map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} conflicts={conflicts} onOpen={openConflict} /></li>)}
-                  </ul>
-                </div>
-              )}
-              {openConflicts.length === 0 && <p className="py-3 text-xs text-slate-500"><LocalizedText text="No conflicts to review." /></p>}
+            {/* The project's changes — the Workspace's 변경확인, by the same name: all of them, yours first and
+                marked (Home gathers only yours, across projects). One line each; the rest are in the Workspace. */}
+            <Section title="Conflicts" count={openConflicts.length} action={<SectionLink onClick={() => openList('open')}>View all</SectionLink>}>
+              {openConflicts.length > 0
+                ? <ChangeList label="Conflicts" conflicts={openConflicts} mine={(conflict) => needsReviewFrom(conflict, currentUser.id)} onOpen={openConflict} onMore={() => openList('open')} />
+                : <p className="py-3 text-xs text-slate-500"><LocalizedText text="No conflicts to review." /></p>}
             </Section>
-            {merged.length > 0 && (
-              <Section title="Recently merged" action={<SectionLink onClick={() => openList('done')}>View all</SectionLink>}>
-                <ul className="divide-y divide-white/[0.06]">
-                  {merged.slice(-4).reverse().map((conflict) => <li key={conflict.id}><ConflictRow conflict={conflict} conflicts={conflicts} onOpen={openConflict} /></li>)}
-                </ul>
-              </Section>
-            )}
           </div>
 
           <div className="flex min-w-0 flex-col gap-7">
@@ -408,7 +360,7 @@ function ProjectOverviewPage() {
             {referenceDocs.length > 0 && (
               <Section title="Reference docs" action={<SectionLink to={docsHref(project.id, 'index')}>All docs</SectionLink>}>
                 <ul className="divide-y divide-white/[0.06]">
-                  {referenceDocs.slice(0, 4).map((doc) => (
+                  {referenceDocs.slice(0, 3).map((doc) => (
                     <li key={doc.id}>
                       <Link to={docHref(project.id, doc.id)} className="flex min-w-0 items-center gap-2 py-2 text-xs text-slate-300 transition-colors hover:text-white">
                         <BookOpen aria-hidden className="size-3.5 shrink-0 text-slate-500" />

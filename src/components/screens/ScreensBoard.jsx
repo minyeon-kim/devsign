@@ -1,4 +1,4 @@
-import { Component, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Component, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PlayFrame from '@/components/screens/PlayFrame'
@@ -19,7 +19,6 @@ import { resizeShift } from '@/lib/canvasCamera'
 import { boardFit, clampZoom, focusView, glideAt, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { liveOverridesOf, useCanvasPreview } from '@/lib/canvasPreview'
-import { WindowHeaderPortal, WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 
 // Screens — the project's screens on one board, in the order its flows say
 // (lib/screens' boardLayout), each flow in one row, in a region of its own
@@ -53,8 +52,7 @@ import { WindowHeaderPortal, WindowHeaderSlotContext } from '@/components/worksp
 // Viewing and playing only: links and hotspots aren't edited here.
 
 const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-full px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
-// (iOS: the tools as one capsule — in the tab row a quiet track, over the board a floating one.)
-const CAPSULE = 'h-8 rounded-full bg-white/[0.06] p-0.5'
+// (iOS: the tools as one floating capsule.)
 const BAR = 'flex items-center gap-0.5 rounded-full border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
 const PANEL_KEY = 'devsign.protoPanel'
 // The zoom from which a screen's changes are shown on their elements rather than counted.
@@ -174,7 +172,6 @@ function ScreenDrawing({ frame, overrides = null }) {
 function ScreensBoard() {
   const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown } = useWorkspace()
   const language = useLanguage()
-  const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
   const order = layout.cards.map((card) => card.id)
   // The open changes, by screen (the workspace's own list: it changes as they're decided, and so does this).
@@ -836,9 +833,11 @@ function ScreensBoard() {
         />
       )}
 
-      {/* The board's tools: up in the window's tab row, at its right end (in place, over the board, outside a window). */}
-      <WindowHeaderPortal fallbackClassName="absolute top-3 right-3 z-20">
-      <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('flex items-center gap-0.5', inHeader ? CAPSULE : BAR)}>
+      {/* The board's tools: a floating capsule at the bottom centre of the board — in one place, whatever opens
+          at the right (they moved with the tab row's end before). */}
+      {/* (While a prototype plays, its ‹ n / total › hold the bottom centre: the tools sit just above them.) */}
+      <div className={cn('pointer-events-none absolute inset-x-0 z-20 flex justify-center', proto ? 'bottom-[72px]' : 'bottom-4')}>
+      <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('pointer-events-auto flex items-center gap-0.5', BAR)}>
         {prototype.flows.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger data-board-flows title="Go to a flow" className={cn(TOOL, 'px-2')}><LocalizedText text="Flows" /></DropdownMenuTrigger>
@@ -855,7 +854,7 @@ function ScreensBoard() {
         <button type="button" data-board-zoom title="Zoom to 100%" aria-label="Zoom to 100%" onClick={() => zoomTo(1)} className={cn(TOOL, 'w-11 tabular-nums')}>{Math.round(shown.zoom * 100)}%</button>
         <button type="button" title="Zoom in" aria-label="Zoom in" disabled={shown.zoom >= ZOOM_MAX} onClick={() => zoomBy(1.25)} className={TOOL}><Plus className="size-3.5" /></button>
       </div>
-      </WindowHeaderPortal>
+      </div>
 
     </div>
   )
