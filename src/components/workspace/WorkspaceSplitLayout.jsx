@@ -641,7 +641,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
   // Dock flush to the activity rail and bottom panel; retain only top-bar clearance.
   return (
     <MergeDeckSlotContext.Provider value={{ element: deckElement, setElement: setDeckElement }}>
-    <div className={cn('absolute inset-0 bg-background px-0 pr-2', mergeStudio ? 'pt-0' : 'pt-[var(--ds-chrome-size)]', bottomPanel.open ? 'pb-2' : 'pb-0')}>
+    {/* (8px of the app's ground under the windows, as at their right: their rounded corners show at both ends.) */}
+    <div className={cn('absolute inset-0 bg-background px-0 pr-2', mergeStudio ? 'pt-0' : 'pt-[var(--ds-chrome-size)]', mergeStudio ? 'pb-0' : 'pb-2')}>
       <div ref={rootRef} onDragOver={documentDrop} onDrop={(event) => documentDrop(event, true)} onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setDock(null)
       }} onDragEnd={() => setDock(null)} className="relative isolate flex size-full min-w-0">

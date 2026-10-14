@@ -8,9 +8,9 @@ import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { HEAD_COLOR, PinShape } from '@/components/conflicts/ConflictPins'
+import BoardConflicts, { BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RISK_LABEL, listStatusOf, shortDue } from '@/lib/conflicts'
-import { PIN } from '@/lib/canvasPins'
 import { layerIdsOf } from '@/lib/conflictInsight'
 import { useLanguage } from '@/i18n/language'
 import { conflictsByScreen, countLabel } from '@/lib/screenConflicts'
@@ -74,11 +74,13 @@ function markersOf(screen, conflicts) {
 // popover opens right there with what it is — the change (or each, several on one element): its risk,
 // where it stands, a line of what's wrong — and a way to its detail.
 const RISK_DOT = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-sky-300' }
+// (The board's markers: a size up from the canvas's pins — PIN — so they read over a screen's drawing.)
+const BOARD_PIN = { head: 22, height: 29, headSelected: 26, heightSelected: 34, inset: 8 }
 function MarkerButton({ marker, lit, onHover, onOpen }) {
   const many = marker.conflicts.length > 1
   const label = many ? `${marker.conflicts.length} changes · ${marker.layer.name ?? ''}` : marker.conflicts[0].title
-  const head = lit ? PIN.headSelected : PIN.head
-  const height = lit ? PIN.heightSelected : PIN.height
+  const head = lit ? BOARD_PIN.headSelected : BOARD_PIN.head
+  const height = lit ? BOARD_PIN.heightSelected : BOARD_PIN.height
   // (While its popover is open the element stays outlined, wherever the pointer goes.)
   const [open, setOpen] = useState(false)
   return (
@@ -97,7 +99,7 @@ function MarkerButton({ marker, lit, onHover, onOpen }) {
         style={{ left: -head / 2, top: -height, width: head, height }}
       >
         <PinShape head={head} height={height} color={lit ? HEAD_COLOR.selected : HEAD_COLOR.default} />
-        {many && <span data-pin-badge className="absolute flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-slate-900 px-1 text-[9px] leading-none font-semibold text-white tabular-nums ring-1 ring-white" style={{ top: -6, right: -9 }}>{marker.conflicts.length}</span>}
+        {many && <span data-pin-badge className="absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-1 ring-white" style={{ top: -6, right: -10 }}>{marker.conflicts.length}</span>}
       </PopoverTrigger>
       <PopoverContent side="right" align="start" sideOffset={10} data-marker-popover={marker.layer.id} data-control-tooltip="off" className="w-64 gap-0 p-0" onPointerDown={(event) => event.stopPropagation()}>
         <p className="border-b border-white/[0.06] px-3 py-2 text-[11px] text-slate-400"><LocalizedText text={marker.layer.name ?? ''} />{many && <span className="tabular-nums"> · {marker.conflicts.length}</span>}</p>
@@ -190,7 +192,7 @@ function ScreenDrawing({ frame }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, openConflictReview } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, openConflictReview, boardConflicts, setBoardConflicts } = useWorkspace()
   const language = useLanguage()
   const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
@@ -401,12 +403,32 @@ function ScreensBoard() {
   }, [Boolean(proto)]) // eslint-disable-line react-hooks/exhaustive-deps
   // In on one screen, near enough to see its changes' markers: the whole card in view, never under the
   // markers' zoom (DETAIL_ZOOM) nor past 120% — gliding there, and the screen selected.
-  const zoomToCard = (card) => {
-    const zoom = Math.min(1.2, Math.max(DETAIL_ZOOM + 0.1, Math.min((room.height - 120) / (card.height + 64), (room.width - 160) / card.width)))
+  // (`inset`: what's floating over the board's left — the change list — so the card centres in what's clear of it.)
+  const zoomToCard = (card, inset = 0) => {
+    const width = room.width - inset
+    const zoom = Math.min(1.2, Math.max(DETAIL_ZOOM + 0.1, Math.min((room.height - 120) / (card.height + 64), (width - 160) / card.width)))
     setActivePageId(card.id)
     setGliding(true)
     window.setTimeout(() => setGliding(false), 360)
-    setView({ zoom, x: room.width / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y - 16 + card.height / 2) * zoom })
+    setView({ zoom, x: inset + width / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y - 16 + card.height / 2) * zoom })
+  }
+  // The change list floating over the board (Conflict Points, pressed while Screens shows — BoardConflicts):
+  // screen by screen, in the board's order, then what's about no screen. Picking one glides in on its screen,
+  // its element lit, and shows its detail in the panel.
+  const listOpen = boardConflicts.open && !proto
+  const boardGroups = [
+    ...order.filter((id) => changes.byScreen.has(id)).map((id) => ({ id, n: cardOf(id)?.n ?? null, name: screenOf(prototype, id).name, conflicts: changes.byScreen.get(id) })),
+    ...(changes.unplaced.length ? [{ id: null, n: null, name: 'Not on a screen', conflicts: changes.unplaced }] : []),
+  ]
+  const pickedConflict = boardConflicts.conflictId ? conflicts.find((conflict) => conflict.id === boardConflicts.conflictId) ?? null : null
+  const screenOfConflict = (conflict) => order.find((id) => (changes.byScreen.get(id) ?? []).some((entry) => entry.id === conflict.id)) ?? null
+  const pickedScreen = pickedConflict ? screenOfConflict(pickedConflict) : null
+  const pickedLayer = pickedScreen ? layerIdsOf(pickedConflict).find((id) => screenOf(prototype, pickedScreen).frame.layers.some((layer) => layer.id === id)) ?? null : null
+  const pickedMarker = listOpen && pickedScreen && pickedLayer ? `${pickedScreen}:${pickedLayer}` : null
+  const pickBoardConflict = (conflict) => {
+    const card = cardOf(screenOfConflict(conflict))
+    if (card) zoomToCard(card, BOARD_PANEL_WIDTH + 64)
+    setBoardConflicts({ conflictId: conflict.id })
   }
   const reveal = (id) => {
     const card = cardOf(id)
@@ -583,11 +605,11 @@ function ScreensBoard() {
                 return (
                   <>
                     {markers.map((marker) => {
-                      const lit = hotMarker === `${card.id}:${marker.layer.id}`
+                      const lit = hotMarker === `${card.id}:${marker.layer.id}` || pickedMarker === `${card.id}:${marker.layer.id}`
                       return (
                         <Fragment key={marker.layer.id}>
                           {lit && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #F04E5A`, background: 'color-mix(in srgb, #F04E5A 12%, transparent)' }} />}
-                          <div data-board-chrome className="absolute z-10" style={{ left: marker.layer.x + marker.layer.width - PIN.inset, top: 32 + marker.layer.y + PIN.inset, transform: `scale(${1 / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
+                          <div data-board-chrome className="absolute z-10" style={{ left: marker.layer.x + marker.layer.width - BOARD_PIN.inset, top: 32 + marker.layer.y + BOARD_PIN.inset, transform: `scale(${1 / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
                             <MarkerButton
                               marker={marker}
                               lit={lit}
@@ -692,6 +714,17 @@ function ScreensBoard() {
           <span translate="no" className="min-w-12 text-center text-xs tabular-nums text-slate-400">{frameAt + 1} / {order.length}</span>
           <button type="button" data-proto-next title="Next screen" aria-label="Next screen" disabled={frameAt === -1 || frameAt >= order.length - 1} onClick={() => moveFrame(1)} className={STEP}><ChevronRight className="size-5" /></button>
         </div>
+      )}
+
+      {listOpen && (
+        <BoardConflicts
+          groups={boardGroups}
+          total={changes.total}
+          picked={pickedConflict}
+          onPick={pickBoardConflict}
+          onBack={() => setBoardConflicts({ conflictId: null })}
+          onClose={() => setBoardConflicts({ open: false, conflictId: null })}
+        />
       )}
 
       {/* The board's tools: up in the window's tab row, at its right end (in place, over the board, outside a window). */}

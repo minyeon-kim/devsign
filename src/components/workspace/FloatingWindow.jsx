@@ -41,8 +41,8 @@ const DRAG_THRESHOLD = 4
 // editor's files — the three views are the row; `viewPanel`: { id, labelledBy } for the area under it.
 // That row draws no line under it, and the active view's tools (through the header slot) sit at its right end,
 // then `headerEnd` (AI Chat's pill, while it's folded).
-// `viewRail` / `viewOverlay` (the main window): a column at the content's left, and what opens from it
-// over the content (CanvasSideViews).
+// `viewRail` / `viewOverlay` (the main window): a column of icons floating over the content's left, and
+// what opens from it over the content (CanvasSideViews) — the content itself runs under both.
 function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null, surface = 'card' }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
@@ -267,13 +267,14 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
         </div>
       )}
 
-      <div className={cn('flex min-h-0 flex-1 overflow-hidden', viewRail && 'bg-card')}>
-      {viewRail}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
       <div role={viewPanel ? 'tabpanel' : undefined} id={viewPanel?.id} aria-labelledby={viewPanel?.labelledBy} className={cn('relative min-h-0 min-w-0 flex-1 overflow-hidden', surface === 'base' ? 'bg-background' : 'bg-card')}>
         <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
           <WindowTabsContext.Provider value={docked || isNavigatorGroup}>
             {ActiveContent && <ActiveContent params={activePanel.params} />}
           </WindowTabsContext.Provider>
+          {/* (Over the content — the canvas runs under them to the window's edge.) */}
+          {viewRail}
           {viewOverlay}
         </WindowHeaderSlotContext.Provider>
       </div>

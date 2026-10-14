@@ -267,8 +267,8 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, works
                 icon={TriangleAlert}
                 data-conflicts-entry
                 onClick={() => onToggleDrawer('conflicts')}
-                aria-expanded={drawer === 'conflicts'}
-                className={cn(drawer === 'conflicts' && activeClass)}
+                aria-expanded={drawer === 'conflicts' || Boolean(workspace?.boardConflicts?.open)}
+                className={cn((drawer === 'conflicts' || workspace?.boardConflicts?.open) && activeClass)}
               />
               {openConflicts > 0 && (
                 <span aria-hidden data-conflict-dot className={cn('pointer-events-none absolute top-1.5 right-2 size-2 rounded-full ring-2 ring-background', CONFLICT_DOT)} />

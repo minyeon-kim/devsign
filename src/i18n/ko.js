@@ -796,6 +796,10 @@ Whole screen|화면 전체
 Showing now|지금 보는 화면
 Previous screen|이전 화면
 Next screen|다음 화면
+No open changes on these screens.|이 화면들에 열린 변경점이 없어요.
+Back to the list|목록으로
+Changes on these screens|이 화면들의 변경점
+Not on a screen|화면 밖
 Browser|브라우저
 Browser · small|브라우저 · 작은 화면
 Browser · laptop|브라우저 · 노트북

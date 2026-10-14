@@ -69,7 +69,7 @@ import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUp
 import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from '@/lib/documentChanges'
 import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCategories'
 import { importKind } from '@/lib/importFiles'
-import { AI_CHAT, SIDE_PANEL, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
+import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
 import { prototypeOf } from '@/lib/screens'
 import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
 import { isSplit, readPanel, readSplit, withPanel, writeSplit } from '@/lib/workPane'
@@ -378,10 +378,19 @@ export function WorkspaceProvider({ children, projectId }) {
   }), [])
   const sideViewNow = useRef(null)
   sideViewNow.current = { open: sidePanel.open, tab: filesWindow.tab }
+  // The Screens board's own change list (Conflict Points, pressed while Screens shows): a panel floating
+  // over the board's left — { open, conflictId: the one whose detail it shows, or null for the list }.
+  // One thing over the canvas's left at a time: it and Files · Layers · Assets · Inspect close each other.
+  const [boardConflicts, setBoardConflictsState] = useState({ open: false, conflictId: null })
+  const setBoardConflicts = useCallback((patch) => {
+    setBoardConflictsState((prev) => ({ ...prev, ...patch }))
+    if (patch.open) setSidePanelState((prev) => (prev.open && SIDE_TABS.includes(sideViewNow.current?.tab) ? { ...prev, open: false } : prev))
+  }, [])
   const toggleSideView = useCallback((view) => {
     const next = pressSideView(sideViewNow.current, view)
     setSidePanelState((prev) => ({ ...prev, open: next.open }))
     setFilesWindowState((prev) => ({ ...prev, tab: next.tab }))
+    if (next.open) setBoardConflictsState((prev) => (prev.open ? { ...prev, open: false } : prev))
   }, [])
   const openSideView = useCallback((view) => {
     if (!SIDE_VIEWS.includes(view)) return
@@ -2887,6 +2896,8 @@ export function WorkspaceProvider({ children, projectId }) {
     sidePanel,
     setSidePanel,
     toggleSideView,
+    boardConflicts,
+    setBoardConflicts,
     openSideView,
     aiChat,
     setAiChat,

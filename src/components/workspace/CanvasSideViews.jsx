@@ -8,11 +8,11 @@ import { inCanvasViewOf } from '@/lib/panelPrefs'
 import { PANE_MOTION } from '@/lib/useAfterPaint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-// Files · Layers · Assets · Inspect, in the main window: a column of icons at
-// its left edge, under the Preview · Screens · Code tabs. An icon opens its
-// view in a panel beside the column, over the left of the canvas (or the
-// preview, or the code) — another icon swaps it, the same icon (or ×) puts
-// it away. It's the side panel's own state (`sidePanel.open`, the
+// Files · Layers · Assets · Inspect, in the main window: a column of icons
+// floating over the canvas's left, under the Preview · Screens · Code tabs —
+// the canvas runs under it to the window's edge. An icon opens its view in a
+// panel floating beside the column (or the preview, or the code) — another
+// icon swaps it, the same icon (or ×) puts it away. It's the side panel's own state (`sidePanel.open`, the
 // navigator's tab), so ⌘B and anything that asks for a view still work;
 // only Terminal and Console still open in the side panel itself.
 const VIEWS = [
@@ -28,7 +28,8 @@ export function CanvasViewRail() {
   const language = useLanguage()
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
   return (
-    <div data-canvas-view-rail role="toolbar" aria-orientation="vertical" aria-label={translateText('Workspace views', language)} className="flex w-11 shrink-0 flex-col items-center gap-1 pt-2">
+    // (A pill floating over the canvas's left, under the top bar's row of tools.)
+    <div data-canvas-view-rail role="toolbar" aria-orientation="vertical" aria-label={translateText('Workspace views', language)} className="absolute top-14 left-2 z-40 flex flex-col items-center gap-0.5 rounded-xl border border-white/[0.08] bg-card/95 p-1 shadow-lg shadow-black/40 backdrop-blur-sm">
       {VIEWS.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
@@ -61,7 +62,7 @@ export function CanvasViewPanel() {
       inert={!open || undefined}
       aria-hidden={!open || undefined}
       style={{ width: open ? CANVAS_VIEW_WIDTH : 0 }}
-      className={cn('absolute inset-y-2 left-0 z-30 overflow-hidden rounded-xl transition-[width,opacity] motion-reduce:transition-none', PANE_MOTION,
+      className={cn('absolute inset-y-2 left-14 z-30 overflow-hidden rounded-xl transition-[width,opacity] motion-reduce:transition-none', PANE_MOTION,
         open ? 'border border-white/[0.08] bg-card opacity-100 shadow-2xl shadow-black/50' : 'opacity-0')}
     >
       {/* (At its full width whatever it's opened to, so nothing re-wraps while it eases.) */}

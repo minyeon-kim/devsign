@@ -50,6 +50,13 @@ function AppShell({ topBar, project, children }) {
   const workPane = workspace?.workPane ?? null
   const shown = drawer ?? workPane
   function toggleDrawer(panel) {
+    // (Conflict Points while the Screens board shows: its list floats over the board — ScreensBoard.)
+    if (panel === 'conflicts' && workspace?.activeView === 'workspace' && workspace.workspaceView === 'screens') {
+      setDrawer(null)
+      if (workPane) workspace.setWorkPane(null)
+      workspace.setBoardConflicts({ open: !workspace.boardConflicts.open, conflictId: null })
+      return
+    }
     if (isSplit(panel)) {
       setDrawer(null)
       workspace?.setWorkPane(shown === panel ? null : panel)
