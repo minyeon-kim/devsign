@@ -593,9 +593,8 @@ function defaultLineFor(item) {
 
 // Deck width plus its 16px right inset and 16px breathing room.
 
-// The Merge tab's row, middle: the open item's name and — comparing drafts — how far the picking is ("0/1 선택"),
-// small and grey; pressing the name lists the other changes to switch to.
-function MergeItemSwitcher({ item, progress, readOnly }) {
+// The Merge tab's row, middle: the open item's name; pressing it lists the other changes to switch to.
+function MergeItemSwitcher({ item, readOnly }) {
   const { mergeItems, setSelectedMergeItemId } = useWorkspace()
   const others = mergeItems.filter((candidate) => candidate.projectId === item?.projectId || !candidate.projectId)
   if (!item) return null
@@ -616,7 +615,6 @@ function MergeItemSwitcher({ item, progress, readOnly }) {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {progress && <span data-merge-progress className="shrink-0 text-xs text-slate-500 tabular-nums">{progress}</span>}
       {readOnly && <span data-merge-readonly className="shrink-0 text-xs text-slate-500">읽기 전용</span>}
     </div>
   )
@@ -1657,7 +1655,7 @@ function MergeStudioWorkspace({ item }) {
   const variantPreviews = item?.hasDesign ? buildVariantPreviews(item.id, resolutions, hoverDiff) : null
 
   return (
-    <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+    <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
         {!ready && item && <StudioSkeleton />}
         {item && designComparison && (
           // In the header row, above the canvas panel: the "what am I
@@ -1677,29 +1675,16 @@ function MergeStudioWorkspace({ item }) {
             >
               <X className="size-3.5" />
             </button>
-            {/* Where it stands — said, not a button to finish from: that's the
-                parts bar's, where the picking is. Pressing it goes there. */}
-            {/* (Saved: said by the parts bar, where the work is — not here too.) */}
-            {item.tag !== 'Merged' && <button
-              type="button"
-              data-mix-status={mixRequested ? 'requested' : item.tag === 'Merged' ? 'done' : 'picking'}
-              title={mixRequested || item.tag === 'Merged' ? undefined : '다음 항목 고르기'}
-              onClick={() => setMixNudge((count) => count + 1)}
-              className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium whitespace-nowrap text-slate-300 tabular-nums transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <span aria-hidden className="text-slate-600">·</span>
-              {mixRequested === 'approved' ? '승인됨' : mixRequested ? '검토 대기' : `${mixPicked}/${mixRows.length} 선택`}
-            </button>}
           </div>
         )}
       {/* The header row's right side: the canvas's session controls
           (presence, Share, Preview, Inbox) land here, left of the files pill. */}
       {/* The tab row carries the item switcher (and, from the canvas, the tools); a read-only reader is told so. */}
-      {headerSlot && createPortal(<MergeItemSwitcher item={item} progress={designComparison ? `${mixPicked}/${mixRows.length} 선택` : null} readOnly={readOnly} />, headerSlot)}
+      {headerSlot && createPortal(<MergeItemSwitcher item={item} readOnly={readOnly} />, headerSlot)}
       {/* The canvas is a panel like the Workspace's: under the header row,
           rounded and bordered, ending where the bottom panel begins — not
           a full-bleed sheet the bottom panel slices across. */}
-      <div data-studio-stage inert={readOnly || undefined} title={readOnly ? '읽기 전용이에요' : undefined} className={cn('relative mr-2 flex min-h-0 flex-1 overflow-hidden border border-white/10', designComparison || adjustingFor ? 'mt-12' : 'mt-2', PANEL_RADIUS)}>
+      <div data-studio-stage inert={readOnly || undefined} title={readOnly ? '읽기 전용이에요' : undefined} className="relative flex min-h-0 flex-1 overflow-hidden bg-canvas">
 
       {item ? (
         <div className="flex min-h-0 min-w-0 flex-1">
@@ -1708,7 +1693,6 @@ function MergeStudioWorkspace({ item }) {
             the adjustments are listed. Always here, guide open or not. */}
         {!designComparison && adjustingFor && (
           <div data-adjust-bar className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 pr-1 pl-3 font-normal')}>
-            <span className="max-w-56 truncate text-[13px] font-semibold text-white"><LocalizedText text={adjustingFor.title} /></span>
             <span className="text-xs whitespace-nowrap text-slate-400 tabular-nums">
               {adjustmentCount ? <LocalizedText text={`${adjustmentCount} adjusted`} /> : <LocalizedText text="Nothing adjusted yet" />}
             </span>
