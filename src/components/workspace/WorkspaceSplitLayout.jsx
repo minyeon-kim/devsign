@@ -607,7 +607,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
             // canvas's row — it pushes the canvas over.)
             viewDock={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
             viewDockEnd={!mergeStudio && group.id === mainGroupId ? <BoardDockSlot /> : null}
-            viewOverlay={!mergeStudio && group.id === mainGroupId && studio ? <div data-merge-view className="absolute inset-0 z-30 flex min-h-0 min-w-0 animate-in bg-canvas duration-[120ms] fade-in motion-reduce:animate-none">{studio}</div> : null}
+            viewOverlay={!mergeStudio && group.id === mainGroupId && studio ? <div data-merge-view className="absolute inset-0 z-30 flex min-h-0 min-w-0 bg-[#1C1C1C]">{studio}</div> : null}
             viewCovered={!mergeStudio && group.id === mainGroupId && Boolean(studio)}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}

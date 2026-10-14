@@ -2206,7 +2206,7 @@ function MergeInfiniteCanvas({
     // and the floating panels / pills (`bg-card`) lift clearly off it; the
     // dot grid is what marks it as canvas. The Workspace's Canvas window
     // keeps `bg-canvas`, since it sits inside a card.
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1C1C1C]">
       <div ref={containerRef} className="relative min-h-0 flex-1">
         {/* Comparing drafts: the Result pane's own header, like the drafts
             pane's — its title, the frame to see it in, its zoom, and the

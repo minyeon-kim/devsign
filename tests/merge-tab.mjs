@@ -39,8 +39,8 @@ try {
   // The studio's row: the item switcher, the tools; empty / loading / read-only.
   assert.ok(work.includes('data-merge-switcher') && work.includes('data-merge-skeleton') && work.includes('병합할 변경점이 없어요') && work.includes('data-merge-empty-back') && work.includes('data-merge-readonly'))
   assert.ok(read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('data-merge-tools') && read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('useContext(WindowHeaderSlotContext)'))
-  // The canvas is the Screens canvas's — the same ground (bg-canvas), flush with the tab row: no frame, no gap — and no pill says "n/m 선택" or "결정 n/m" beside what the parts bar says.
-  assert.ok(work.includes('data-studio-stage') && work.includes('className="relative flex min-h-0 flex-1 overflow-hidden bg-canvas"') && !/mt-12|rounded-\[20px\]/.test(work.slice(work.indexOf('data-studio-stage'), work.indexOf('data-studio-stage') + 260)), 'flush, on the canvas ground')
+  // The canvas is the Screens canvas's — the ground is #1C1C1C, flush with the tab row: no frame, no gap — and no pill says "n/m 선택" or "결정 n/m" beside what the parts bar says.
+  assert.ok(work.includes('data-studio-stage') && work.includes('className="relative flex min-h-0 flex-1 overflow-hidden bg-[#1C1C1C]"') && !/mt-12|rounded-\[20px\]/.test(work.slice(work.indexOf('data-studio-stage'), work.indexOf('data-studio-stage') + 260)), 'flush, on the canvas ground')
   assert.ok(!read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('Decided ${decidedCount}'), 'no decided pill')
   assert.ok(read('components/workspace/CanvasSideViews.jsx').split("activeView === 'mergeStudio' ? false : boardShown").length === 3, 'the board’s list is out of the row while Merge is up')
   // No bottom panel: Design Compare is the left menu (drafts ticked there), the studio fills to the window's foot.
@@ -52,3 +52,11 @@ try {
   assert.ok(!read('components/workspace/WorkspaceDesignCompare.jsx').includes('setCompareItemId(null)\n          setSelectedMergeItemId'), 'the detail stays open after 조합하기')
   console.log('Passed: Merge is the fourth view tab of the main window — one shell, one address, two ways in.')
 } finally { await server.close() }
+
+{
+  const work = read('components/mergestudio/MergeStudioWorkspace.jsx')
+  // The change is picked in the Design Compare sidebar, not by a dropdown in the tab row; the skeleton is the canvas's own ground.
+  assert.ok(!work.includes('data-merge-item-option') && !work.includes('aria-label="병합 항목 바꾸기"'))
+  assert.ok(work.includes('data-merge-skeleton aria-busy="true" aria-label="불러오는 중" className="absolute inset-0 z-50 bg-[#1C1C1C]"'))
+  assert.ok(read('components/dashboard/CompareDrawer.jsx').includes("if (activeView === 'mergeStudio') setSelectedMergeItemId(item.id)"))
+}

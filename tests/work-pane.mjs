@@ -63,8 +63,8 @@ try {
   // Icons are switches: the same one again closes; another split panel swaps what's shown in the open pane.
   assert.ok(shell.includes('workspace?.setWorkPane(shown === panel ? null : panel)') && shell.includes('const shown = drawer ?? workPane'))
   assert.ok(sidebar.includes("view.side ? toggleSideView(view.id) : onToggleDrawer('compare')") && sidebar.includes('aria-expanded={showing(view)}'))
-  // The top bar's switch is the whole left area's, and brings back what was last open.
-  assert.ok(topBar.includes('const { leftOpen: open, toggleLeft } = useWorkspace()') && provider.includes('const leftOpen = sidePanel.open || Boolean(workPane)') && provider.includes('if (isSplit(last)) setWorkPane(last)'))
+  // The top bar's switch is the app sidebar's (AppShell's drawer, registered in the provider), and brings back what was last open — not the Files / Layers panel.
+  assert.ok(topBar.includes('const { leftOpen: open, toggleLeft } = useWorkspace()') && provider.includes('const leftOpen = appSidebar.open') && shell.includes('setAppSidebar?.({ open: sidebarOpen') && shell.includes('toggleDrawer(lastShown.current)'))
   // The pane: a named region, as wide as its share; its edge a separator that says where it stands, resets on a double press.
   assert.ok(sidebar.includes("role={split ? 'region' : undefined}") && sidebar.includes('const pane = paneWidth(room, ratio, { maximized })'))
   assert.ok(sidebar.includes('value={Math.round((pane.width / Math.max(1, room)) * 100)}') && sidebar.includes('onReset={() => setShare(defaultRatio(panel), true)}') && read('components/layout/SplitHandle.jsx').includes('aria-valuenow={value}'))

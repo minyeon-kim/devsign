@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isSplit } from '@/lib/workPane'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '@/components/dashboard/Sidebar'
@@ -65,6 +65,20 @@ function AppShell({ topBar, project, children }) {
     if (workPane) workspace?.setWorkPane(null)
     setDrawer(shown === panel ? null : panel)
   }
+  // The top bar's switch (WorkspaceProvider's `toggleLeft`): the whole sidebar drawer off, and the last one back on.
+  const lastShown = useRef('docs')
+  if (shown) lastShown.current = shown
+  const toggleSidebar = () => {
+    if (shown) { setDrawer(null); if (workPane) workspace?.setWorkPane(null); return }
+    toggleDrawer(lastShown.current)
+  }
+  const toggleSidebarNow = useRef(toggleSidebar)
+  toggleSidebarNow.current = toggleSidebar
+  const setAppSidebar = workspace?.setAppSidebar
+  const sidebarOpen = Boolean(shown)
+  useEffect(() => {
+    setAppSidebar?.({ open: sidebarOpen, toggle: () => toggleSidebarNow.current() })
+  }, [setAppSidebar, sidebarOpen])
   function closeDrawer() {
     if (drawer) setDrawer(null)
     else workspace?.setWorkPane(null)
