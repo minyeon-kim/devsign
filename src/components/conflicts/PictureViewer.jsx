@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Maximize2, Minus, Plus, Scan, X } from 'lucide-react'
 import { cn } from 'cn'
@@ -12,13 +12,22 @@ import { cn } from 'cn'
 //   · Fitted to 84% of the screen to begin with; − / + step through
 //     50–200% of that (or the wheel / a pinch), and a picture bigger than the
 //     screen is dragged about. "Fit" puts it back.
-//   · At the left, the two pictures small: the one in view is marked, and
-//     the other is a press away — the large one cross-fades, nothing closes.
+//   · At the left, what's built now and then each way to resolve it, each
+//     drawn small with that way applied: the one in view is marked, and any
+//     other is a press away — or ↑ / ↓, or 0 (what's built) and 1–3 (the
+//     ways). The large one cross-fades in place; the zoom and where it's
+//     panned to stay, so the same part is compared. Holding Space shows
+//     what's built until it's let go.
+//   · A way with values of one's own brings its controls under the picture
+//     (`controlsFor(id)`), and the detail's action can be taken here too
+//     (`action`).
 //   · Esc, ✕ or a press on the canvas closes it; a press on the picture doesn't.
 // The pictures are the detail's own, drawn live (`render(id, width)`), so a
-// way picked while it's open is what it shows.
+// way picked, or a value set, while it's open is what it shows.
 //
-//   items: [{ id, label }];  sourceOf(id): the thumbnail's element, where it grows from and goes back to.
+//   items: [{ id, label, sub?, badge?, group? }] — `group: 'ways'` starts the ways' list under a caption.
+//   sourceOf(id): the thumbnail's element, where it grows from and goes back to.
+//   base: the item held up while Space is down (what's built).
 
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const DURATION = 300
@@ -41,7 +50,7 @@ export const nextZoom = (zoom, step) => {
 }
 
 // (`instant`: it was already open — the detail drew it anew, a way being picked — so it's just there, not grown again.)
-function PictureViewer({ open, items, active, onActive, onClose, sourceOf, render, instant = false }) {
+function PictureViewer({ open, items, active, onActive, onClose, sourceOf, render, instant = false, base = null, controlsFor = null, action = null, title = null }) {
   const [phase, setPhase] = useState('closed') // 'opening' | 'open' | 'closing' | 'closed'
   const [target, setTarget] = useState(null)
   const [start, setStart] = useState(null)
@@ -49,6 +58,10 @@ function PictureViewer({ open, items, active, onActive, onClose, sourceOf, rende
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const stageRef = useRef(null)
+  // (Space held: what's built, for as long as it's held.)
+  const [peek, setPeek] = useState(false)
+  const shownId = peek && base ? base : active
+  const step = (by) => { const at = items.findIndex((item) => item.id === active); const next = items[Math.max(0, Math.min(items.length - 1, at + by))]; if (next) onActive(next.id) }
   const closeRef = useRef(null)
   const returnTo = useRef(null)
 
@@ -106,16 +119,24 @@ function PictureViewer({ open, items, active, onActive, onClose, sourceOf, rende
   keyRef.current = (event) => {
     if (event.defaultPrevented) return
     // (Its Esc only: the detail under it doesn't close too.)
-    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); close() }
-    else if (event.key === '+' || event.key === '=') { event.preventDefault(); setZoom((value) => nextZoom(value, 1)) }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); close(); return }
+    // (Typing a value in the bar: the keys are the field's.)
+    if (event.target instanceof HTMLElement && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))) return
+    if (event.key === '+' || event.key === '=') { event.preventDefault(); setZoom((value) => nextZoom(value, 1)) }
     else if (event.key === '-') { event.preventDefault(); setZoom((value) => nextZoom(value, -1)); setPan({ x: 0, y: 0 }) }
-    else if (event.key === '0') { event.preventDefault(); setZoom(1); setPan({ x: 0, y: 0 }) }
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); step(event.key === 'ArrowDown' ? 1 : -1) }
+    else if (/^[0-9]$/.test(event.key) && items[Number(event.key)]) { event.preventDefault(); onActive(items[Number(event.key)].id) }
+    else if (event.key === ' ' && base) { event.preventDefault(); if (!event.repeat) setPeek(true) }
   }
+  const keyUpRef = useRef(null)
+  keyUpRef.current = (event) => { if (event.key === ' ') setPeek(false) }
   useEffect(() => {
     if (phase === 'closed') return undefined
     const onKey = (event) => keyRef.current(event)
+    const onUp = (event) => keyUpRef.current(event)
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    window.addEventListener('keyup', onUp, true)
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onUp, true) }
   }, [phase])
 
   // The wheel and a pinch zoom it; the page behind never scrolls.
@@ -152,7 +173,7 @@ function PictureViewer({ open, items, active, onActive, onClose, sourceOf, rende
   const CONTROL = 'flex size-8 items-center justify-center rounded-lg border border-white/[0.08] bg-black/45 text-slate-200 backdrop-blur-sm transition-colors duration-150 hover:bg-white/[0.12] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-40'
 
   return createPortal(
-    <div data-picture-viewer role="dialog" aria-modal="true" aria-label={items.find((item) => item.id === active)?.label} className="fixed inset-0 z-[950]">
+    <div data-picture-viewer role="dialog" aria-modal="true" aria-label={items.find((item) => item.id === shownId)?.label} className="fixed inset-0 z-[950]">
       {/* The canvas: dark, a little blurred, fading in as the picture grows — pressed, it closes. */}
       <div
         data-viewer-backdrop
@@ -180,7 +201,7 @@ function PictureViewer({ open, items, active, onActive, onClose, sourceOf, rende
         >
           {/* Each picture in the same place, the one in view on top: switching cross-fades. */}
           {items.map((item) => (
-            <div key={item.id} aria-hidden={item.id !== active} className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl" style={{ opacity: item.id === active ? 1 : 0, transition: 'opacity 180ms ease-out' }}>
+            <div key={item.id} data-viewer-pane={item.id} aria-hidden={item.id !== shownId} className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl" style={{ opacity: item.id === shownId ? 1 : 0, transition: 'opacity 150ms ease-out' }}>
               {render(item.id, target.width)}
             </div>
           ))}
@@ -190,20 +211,48 @@ function PictureViewer({ open, items, active, onActive, onClose, sourceOf, rende
       {/* The few controls, floating — they come in once the picture is in place. */}
       <div className="pointer-events-none absolute inset-0" style={{ opacity: shown ? 1 : 0, transition: 'opacity 160ms ease-out' }}>
         <button ref={closeRef} type="button" data-viewer-close aria-label="닫기" title="닫기 · Esc" onClick={close} className={cn(CONTROL, 'pointer-events-auto absolute top-4 left-4')}><X className="size-4" /></button>
-        <nav aria-label="미리보기 전환" className="pointer-events-auto absolute top-1/2 left-4 flex -translate-y-1/2 flex-col gap-2">
-          {items.map((item) => (
-            <button key={item.id} type="button" data-viewer-thumb={item.id} aria-pressed={item.id === active} aria-label={item.label} title={item.label} onClick={() => { onActive(item.id); setZoom(1); setPan({ x: 0, y: 0 }) }}
-              className={cn('flex w-[84px] flex-col items-center gap-1 rounded-lg p-1.5 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-emerald-300', item.id === active ? 'bg-white/[0.12] ring-2 ring-emerald-300' : 'bg-black/40 ring-1 ring-white/[0.08] hover:bg-white/[0.08]')}>
-              <span className="pointer-events-none flex h-14 w-full items-center justify-center overflow-hidden rounded-md">{render(item.id, 72)}</span>
-              <span className="w-full truncate text-center text-[10.5px] text-slate-300">{item.label}</span>
-            </button>
+        {/* What's in view, said where it's always seen. */}
+        <p data-viewer-title className="pointer-events-none absolute top-5 left-16 rounded-lg bg-black/45 px-2.5 py-1 text-[12.5px] font-medium text-slate-100 backdrop-blur-sm">
+          {title ? title(shownId) : items.find((item) => item.id === shownId)?.label}
+        </p>
+        <nav aria-label="미리보기 전환" className="pointer-events-auto absolute top-1/2 left-4 flex max-h-[calc(100vh-140px)] -translate-y-1/2 flex-col gap-1.5 overflow-y-auto [scrollbar-width:none]">
+          {items.map((item, index) => (
+            <Fragment key={item.id}>
+              {item.group === 'ways' && items[index - 1]?.group !== 'ways' && (
+                <p aria-hidden className="mt-1.5 border-t border-white/[0.08] px-1 pt-2 text-[10.5px] font-medium text-slate-500">해결 방법</p>
+              )}
+              <button type="button" data-viewer-thumb={item.id} aria-pressed={item.id === active} aria-label={`${index}. ${item.label}${item.sub ? ` · ${item.sub}` : ''}`} title={`${item.label}${item.sub ? ` · ${item.sub}` : ''} · ${index}`} onClick={() => onActive(item.id)}
+                className={cn('flex w-[136px] flex-col gap-1 rounded-lg border p-1.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-emerald-300', item.id === active ? 'border-[var(--ds-accent-border)] bg-[var(--ds-accent-bg)]' : 'border-white/[0.08] bg-black/40 hover:bg-white/[0.08]')}>
+                <span className="pointer-events-none flex h-[68px] w-[120px] items-center justify-center overflow-hidden rounded-md">{render(item.id, 112)}</span>
+                <span className={cn('flex w-full min-w-0 items-center gap-1 text-[11px] font-medium', item.group === 'ways' ? 'text-slate-100' : 'text-slate-400')}>
+                  <span className="min-w-0 truncate">{item.label}</span>
+                  {item.badge && <span className="shrink-0 rounded bg-[var(--ds-accent-bg)] px-1 text-[9.5px] leading-[14px] text-[var(--ds-accent-text)]">{item.badge}</span>}
+                </span>
+                {item.sub && <span className="w-full truncate text-[10.5px] text-slate-500 tabular-nums">{item.sub}</span>}
+              </button>
+            </Fragment>
           ))}
         </nav>
-        <div role="toolbar" aria-label="확대" className="pointer-events-auto absolute right-4 bottom-4 flex items-center gap-1 rounded-xl border border-white/[0.08] bg-black/45 p-1 backdrop-blur-sm">
+        {/* A way's own values, under the picture, while it's the one in view. */}
+        {controlsFor?.(active) && (
+          <div data-viewer-controls className="pointer-events-auto absolute bottom-20 left-1/2 w-[min(560px,calc(100vw-360px))] -translate-x-1/2 rounded-xl border border-white/[0.08] bg-[#161618]/95 p-3 shadow-2xl backdrop-blur-sm">
+            {controlsFor(active)}
+          </div>
+        )}
+        <p data-viewer-hint aria-hidden className="pointer-events-none absolute bottom-6 left-4 text-[11px] text-slate-500">↑↓ 옵션 전환{base ? ' · Space 현재와 비교' : ''}</p>
+        <div className="pointer-events-auto absolute right-4 bottom-4 flex items-center gap-2">
+        <div role="toolbar" aria-label="확대" className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-black/45 p-1 backdrop-blur-sm">
           <button type="button" data-viewer-zoom-out aria-label="축소" title="축소 · −" disabled={zoom <= ZOOMS[0]} onClick={() => { setZoom((value) => nextZoom(value, -1)); setPan({ x: 0, y: 0 }) }} className={cn(CONTROL, 'border-0 bg-transparent')}><Minus className="size-4" /></button>
           <span data-viewer-zoom className="w-12 text-center text-xs text-slate-300 tabular-nums">{Math.abs(zoom - 1) < 0.001 ? '맞춤' : `${Math.round(zoom * 100)}%`}</span>
           <button type="button" data-viewer-zoom-in aria-label="확대" title="확대 · +" disabled={zoom >= ZOOMS[ZOOMS.length - 1]} onClick={() => setZoom((value) => nextZoom(value, 1))} className={cn(CONTROL, 'border-0 bg-transparent')}><Plus className="size-4" /></button>
-          <button type="button" data-viewer-fit aria-label="화면에 맞춤" title="화면에 맞춤 · 0" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} className={cn(CONTROL, 'border-0 bg-transparent')}><Scan className="size-4" /></button>
+          <button type="button" data-viewer-fit aria-label="화면에 맞춤" title="화면에 맞춤" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} className={cn(CONTROL, 'border-0 bg-transparent')}><Scan className="size-4" /></button>
+        </div>
+        {/* The detail's action, here too — the one solid green on the screen. */}
+        {action && (
+          <button type="button" data-viewer-apply disabled={action.disabled} title={action.title} onClick={action.onClick} className="ds-intrinsic inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--ds-accent)] px-4 text-[13px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
+            {action.label}
+          </button>
+        )}
         </div>
       </div>
     </div>,

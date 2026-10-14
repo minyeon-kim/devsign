@@ -31,10 +31,14 @@ try {
   // No card frame: the picture floats on the canvas; ✕ top left, the zoom bottom right, the switcher at the left.
   assert.ok(viewer.includes('top-4 left-4') && viewer.includes('right-4 bottom-4') && viewer.includes('data-viewer-thumb') && viewer.includes('aria-pressed={item.id === active}'))
   // Switching cross-fades in place; a press on the canvas or Esc closes; a press on the picture doesn't.
-  assert.ok(viewer.includes("transition: 'opacity 180ms ease-out'") && viewer.includes('onClick={close}') && viewer.includes('onClick={(event) => event.stopPropagation()}') && viewer.includes("event.key === 'Escape'"))
+  assert.ok(viewer.includes("opacity 150ms ease-out") && viewer.includes('onClick={close}') && viewer.includes('onClick={(event) => event.stopPropagation()}') && viewer.includes("event.key === 'Escape'"))
   // Bigger than the screen: dragged with a grab cursor; the wheel zooms and the page never scrolls.
   assert.ok(viewer.includes("dragging ? 'cursor-grabbing' : 'cursor-grab'") && viewer.includes("addEventListener('wheel', onWheel, { passive: false })") && viewer.includes('event.preventDefault()'))
   // The same pictures as the card, from the same state: nothing drawn twice by hand.
-  assert.ok(flow.includes("const afterWhich = holding ? 'original'") && flow.includes('<Picture conflict={conflict} which={afterWhich} overlap={overlap} scale={1.5} />') && flow.includes('<Picture conflict={conflict} which={afterWhich} overlap={overlap} maxWidth={width} />'))
+  assert.ok(flow.includes("const afterWhich = holding ? 'original'") && flow.includes('<Picture conflict={conflict} which={afterWhich} overlap={overlap} scale={1.5} />') && flow.includes('which={wayWhich(id)} overlap={overlap} maxWidth={width}'))
+  // The options at the left, the one shown in the accent; ↑↓ and digits switch, Space holds the current build, one solid action.
+  assert.ok(viewer.includes('data-viewer-title') && viewer.includes('data-viewer-controls') && viewer.includes('data-viewer-apply') && viewer.includes('↑↓ 옵션 전환') && viewer.includes('Space 현재와 비교'))
+  assert.ok(viewer.includes("event.key === 'ArrowDown'") && viewer.includes("event.key === ' '") && viewer.includes('setPeek'))
+  assert.ok(flow.includes("base=\"before\"") && flow.includes('이 수정안 적용하기') && flow.includes('controlsFor='))
   console.log('Passed: the picture viewer — its fit, its growing from the thumbnail and back, its controls, and the card’s own pictures.')
 } finally { await server.close() }
