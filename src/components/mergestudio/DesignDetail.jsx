@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Blend, Check, LoaderCircle, Send } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
+import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { allPeople } from '@/data/mockData'
 import { toast } from '@/i18n/toast'
@@ -75,7 +76,10 @@ function Overlay({ drawn, opacity, marks, onPress }) {
 }
 
 export default function DesignDetail({ item, drawn, diffRows, identical, conflict, status, compose, next, edit, selection = null, titleRef, group, onBack, readOnly = false, onDone }) {
-  const { comments, addComment, showScreenIn, focusConflictPin } = useWorkspace()
+  const { comments, addComment, showScreenIn, focusConflictPin, mixBridge } = useWorkspace()
+  // While the studio is mixing this set's drafts, they're drawn live here — the place the picking is done from
+  // (a part into the Result, one whole draft); otherwise they're thumbnails.
+  const live = mixBridge && item && mixBridge.itemId === item.id ? mixBridge : null
   const [overlay, setOverlay] = useState(false)
   const [opacity, setOpacity] = useState(50)
   const [hot, setHot] = useState(null)
@@ -103,7 +107,7 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
   // (A saved mix is put together again through its own "edit".)
   const composeAction = compose ?? (edit ? { run: edit.run, disabled: false } : null)
   const waiting = status?.id === 'in_review' || status?.id === 'requested'
-  const composeReason = readOnly ? '이 항목을 조합할 권한이 없어요' : waiting ? '검토 대기 중에는 조합할 수 없어요' : identical ? '두 버전이 동일해서 조합할 게 없어요' : composeAction?.disabled ? '비교할 시안을 2개 이상 골라 주세요' : !composeAction ? '지금은 조합할 수 없어요' : null
+  const composeReason = live ? '지금 이 시안들을 조합하고 있어요 — 캔버스에서 이어서 하세요' : readOnly ? '이 항목을 조합할 권한이 없어요' : waiting ? '검토 대기 중에는 조합할 수 없어요' : identical ? '두 버전이 동일해서 조합할 게 없어요' : composeAction?.disabled ? '비교할 시안을 2개 이상 골라 주세요' : !composeAction ? '지금은 조합할 수 없어요' : null
   const reviewReason = readOnly ? '이 항목을 검토할 권한이 없어요' : !next ? '검토할 변경이 아직 없어요' : null
   const rootButton = 'ds-intrinsic inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45'
 
@@ -125,7 +129,7 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
         <div className="flex flex-col gap-6">
           <section aria-label="비교">
-            {canOverlay && (
+            {canOverlay && !live && (
               <div className="mb-2 flex h-8 items-center justify-end">
                 <Tooltip>
                   <TooltipTrigger data-detail-overlay-toggle aria-pressed={overlay} aria-label="겹쳐보기" onClick={() => setOverlay((on) => !on)}
@@ -136,13 +140,17 @@ export default function DesignDetail({ item, drawn, diffRows, identical, conflic
                 </Tooltip>
               </div>
             )}
-            {selection && (
+            {selection && !live && (
               <div data-detail-selection className="mb-3 flex h-8 items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span aria-live="polite" className="tabular-nums">{selection.count}/{selection.total} 선택됨</span>
                 <button type="button" data-detail-select-all onClick={selection.all} className="ds-intrinsic rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">{selection.allSelected ? '선택 해제' : '모두 선택'}</button>
               </div>
             )}
-            {overlay && canOverlay ? (
+            {live ? (
+              <div data-detail-live className="h-[520px] min-h-0">
+                <DraftCompareBoard embedded item={item} options={live.options} frame={live.frame} decisions={live.decisions} onPick={live.onPick} onTakeAll={live.onTakeAll} />
+              </div>
+            ) : overlay && canOverlay ? (
               <div className="flex flex-col gap-3">
                 <Overlay drawn={drawn} opacity={opacity} marks={marks} onPress={seeOnCanvas} />
                 <label className="flex items-center gap-3 text-xs text-muted-foreground">

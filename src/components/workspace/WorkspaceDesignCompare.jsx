@@ -94,8 +94,7 @@ export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, g
           setSelectedMergeItemId(candidate.id)
           setDesignCompareRequest({ itemId: candidate.id, keys: options.map(option => option.key) })
           openMergeStudio()
-          // (Merge Studio is the whole screen now: the detail is put away, with its address.)
-          setCompareItemId(null)
+          // (The detail stays: with the studio mixing these drafts it is where they're picked from.)
         }} />
     </ErrorBoundary>
   )

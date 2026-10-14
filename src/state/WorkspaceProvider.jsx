@@ -405,6 +405,9 @@ export function WorkspaceProvider({ children, projectId }) {
   // canvas or the comparison: `boardDockHost` is its place there, `boardDockShown` whether the board has it up.
   const [boardDockHost, setBoardDockHost] = useState(null)
   const [boardDockShown, setBoardDockShown] = useState(false)
+  // While Merge Studio compares a set's drafts, the picking is done in the Design Compare sidebar's detail: the
+  // studio publishes what that needs here (`mixBridge`: the drafts, the picks so far, the ways to pick).
+  const [mixBridge, setMixBridge] = useState(null)
   const [compareDrawerRequest, setCompareDrawerRequest] = useState(null)
   const requestCompareDrawer = useCallback(() => setCompareDrawerRequest({ nonce: nextId('compare-drawer') }), [])
   const openCompareView = useCallback((itemId) => {
@@ -2967,6 +2970,8 @@ export function WorkspaceProvider({ children, projectId }) {
     setBoardConflicts,
     compareItemId,
     setCompareItemId,
+    mixBridge,
+    setMixBridge,
     boardDockHost,
     setBoardDockHost,
     boardDockShown,

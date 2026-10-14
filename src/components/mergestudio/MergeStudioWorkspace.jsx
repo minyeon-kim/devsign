@@ -9,7 +9,6 @@ import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
 import { Skeleton } from '@/components/ui/skeleton'
-import { rememberCompareKeys } from '@/components/workspace/WorkspaceDesignCompare'
 import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
@@ -23,7 +22,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } from '@/data/mockData'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
-import DraftCompareBoard from '@/components/mergestudio/DraftCompareBoard'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -655,7 +653,7 @@ function MergeStudioWorkspace({ item }) {
     setSelectedMergeItemId,
     openConflictReview,
     openConflictFromNotification,
-    openCompareView,
+    setMixBridge,
     mergeDrafts,
     saveMergeDraft,
     setStudioDecisions,
@@ -704,21 +702,6 @@ function MergeStudioWorkspace({ item }) {
   // The adjustment's reason is entered in a dialog; saving closes it.
   const [adjustReasonOpen, setAdjustReasonOpen] = useState(false)
   const studioRootRef = useRef(null)
-  // Comparing drafts: the share of the stage the drafts pane takes (the
-  // Result has the rest), dragged on the divider between them.
-  // (The drafts are there to pick from; the Result is what's made — it gets the room.)
-  const DRAFT_SHARE = 0.36
-  const [draftShare, setDraftShare] = useState(DRAFT_SHARE)
-  function startSplitDrag(event) {
-    if (event.button !== 0) return
-    event.preventDefault()
-    const pane = event.currentTarget.parentElement.getBoundingClientRect()
-    const move = (m) => setDraftShare(Math.min(0.8, Math.max(0.2, (m.clientX - pane.left) / pane.width)))
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); document.body.style.cursor = '' }
-    document.body.style.cursor = 'col-resize'
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
   // While the deck sits in its default spot the canvas refits so Option B
   // isn't covered by it; once dragged it floats freely and no longer does.
   // Variant Compare state lives here (not in the deck) so choosing — or
@@ -764,15 +747,6 @@ function MergeStudioWorkspace({ item }) {
     setDesignComparison((current) => (current?.item.id === item?.id ? current : null))
   }, [item?.id])
 
-  function backToDrafts() {
-    const compared = designComparison
-    endComparison()
-    // Leaving goes back to picking drafts — the Design Compare sidebar, on this set, with these drafts still ticked.
-    if (compared) {
-      rememberCompareKeys(compared.item.id, compared.options.map((option) => option.key))
-      openCompareView(compared.item.id)
-    }
-  }
   function endComparison() {
     setDesignComparison(null)
     setDesignCompareRequest(null)
@@ -895,6 +869,31 @@ function MergeStudioWorkspace({ item }) {
       ],
     }
   }, [designComparison])
+  // Comparing drafts: the drafts to pick from are drawn in the Design Compare sidebar's detail (DesignDetail), which
+  // reads them from here — and picks through these (a part into the Result; one whole draft).
+  const bridgeActions = useRef({})
+  bridgeActions.current = {
+    onTakeAll: item && item.tag !== 'Merged' && !mixRequested ? takeWholeDraft : undefined,
+    onPick: (regionId, draftKey) => {
+      decideMix(regionKey(regionId), draftKey ? { custom: draftKey } : null)
+      // …and it's taken (selected) there, so where it went shows.
+      const firstLayer = draftKey && draftScreens[item.id]?.drafts[draftKey]?.[regionId]?.layers[0]
+      if (firstLayer) setSyncSelection({ layerId: `${draftKey}--${regionId}--${firstLayer.id}` })
+    },
+  }
+  const canTakeAll = Boolean(item && item.tag !== 'Merged' && !mixRequested)
+  useEffect(() => {
+    if (!item || !designComparison || !designCompare) return undefined
+    setMixBridge({
+      itemId: item.id,
+      options: designComparison.options,
+      frame: designCompare.frame,
+      decisions: resolutions,
+      onTakeAll: canTakeAll ? (key) => bridgeActions.current.onTakeAll?.(key) : undefined,
+      onPick: (regionId, draftKey) => bridgeActions.current.onPick(regionId, draftKey),
+    })
+    return () => setMixBridge(null)
+  }, [item?.id, designComparison, designCompare, resolutions, canTakeAll]) // eslint-disable-line react-hooks/exhaustive-deps
   // The line being typed in the code window right now ({ key, text }), so
   // the canvas re-renders from code on every keystroke — deferred so typing
   // itself never waits on the canvas.
@@ -1563,26 +1562,6 @@ function MergeStudioWorkspace({ item }) {
   return (
     <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
         {!ready && item && <StudioSkeleton />}
-        {item && designComparison && (
-          // In the header row, above the canvas panel: the "what am I
-          // looking at / how do I leave" strip for comparing drafts.
-          // Three groups, divided: what's being compared (and leaving it),
-          // the alternatives (other drafts, one whole draft), and the one
-          // primary action — finishing the mix.
-          <div className={cn(STUDIO_PILL, 'absolute top-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 px-1 font-normal')}>
-            {/* Leaving goes back to picking drafts (the Design Compare tab,
-                with these drafts still ticked) — picks so far are kept. */}
-            <button
-              type="button"
-              title="Back to drafts"
-              aria-label="Back to drafts"
-              onClick={backToDrafts}
-              className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        )}
       {/* The header row's right side: the canvas's session controls
           (presence, Share, Preview, Inbox) land here, left of the files pill. */}
       {/* The tab row carries the item switcher (and, from the canvas, the tools); a read-only reader is told so. */}
@@ -1641,9 +1620,9 @@ function MergeStudioWorkspace({ item }) {
         )}
         {designComparison && (
           // Docked at the Result's foot, centred under it — not floating over it.
-          <div className="pointer-events-none absolute bottom-4 z-40 flex justify-center" style={{ left: `calc(${draftShare * 100}% + 12px)`, right: 12 }} data-mix-pane>
+          <div className="pointer-events-none absolute bottom-4 z-40 flex justify-center" style={{ left: 12, right: 12 }} data-mix-pane>
           <MixPanel
-            paneShare={1 - draftShare}
+            paneShare={1}
             nudge={mixNudge}
             finish={{
               kind: item.saveOnFinish ? 'save' : 'request',
@@ -1680,41 +1659,7 @@ function MergeStudioWorkspace({ item }) {
         )}
         <MergeCheckGuide item={item} checks={liveChecks} low={Boolean(designComparison)} />
         <div className="flex min-h-0 min-w-0 flex-1" data-result-pane>
-        {/* Comparing drafts: the drafts in a pane of their own, the Result
-            artboard in the canvas beside it — each with its own zoom. */}
-        {designCompare && (
-          <>
-            <DraftCompareBoard
-              item={item}
-              options={designComparison.options}
-              frame={designCompare.frame}
-              decisions={resolutions}
-              share={draftShare}
-              onTakeAll={item.tag === 'Merged' || mixRequested ? undefined : takeWholeDraft}
-              // Picked right in a draft's cell: that draft's version of the
-              // part goes into the Result.
-              onPick={(regionId, draftKey) => {
-                decideMix(regionKey(regionId), draftKey ? { custom: draftKey } : null)
-                // …and it's taken (selected) there, so where it went shows.
-                const firstLayer = draftKey && draftScreens[item.id]?.drafts[draftKey]?.[regionId]?.layers[0]
-                if (firstLayer) setSyncSelection({ layerId: `${draftKey}--${regionId}--${firstLayer.id}` })
-              }}
-            />
-            {/* The divider: drag to give either side more room. */}
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize drafts and result"
-              data-compare-divider
-              onPointerDown={startSplitDrag}
-              onDoubleClick={() => setDraftShare(DRAFT_SHARE)}
-              className="group relative z-30 -mx-1.5 w-3 shrink-0 cursor-col-resize"
-            >
-              <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/[0.08] transition-colors group-hover:w-0.5 group-hover:bg-emerald-300/70" />
-              <span className="absolute top-1/2 left-1/2 h-8 w-1 -translate-1/2 rounded-full bg-white/25 group-hover:bg-emerald-300" />
-            </div>
-          </>
-        )}
+        {/* (Comparing drafts, the drafts are the Design Compare sidebar's — the Result has the whole canvas.) */}
         <MergeInfiniteCanvas
           editHistory={{ canUndo: item.tag !== 'Merged' && editTimeline.past.length > 0, canRedo: item.tag !== 'Merged' && editTimeline.future.length > 0, undo: () => restoreEdit('undo'), redo: () => restoreEdit('redo') }}
           reserve={designComparison ? 0 : reserve}

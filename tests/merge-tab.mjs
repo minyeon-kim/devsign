@@ -46,5 +46,9 @@ try {
   // No bottom panel: Design Compare is the left menu (drafts ticked there), the studio fills to the window's foot.
   assert.ok(!work.includes('WorkspaceBottomPanel') && !work.includes('bottomPanelTabs'), 'no bottom panel in the studio')
   assert.ok(read('components/mergestudio/DesignDetail.jsx').includes('data-detail-selection') && read('components/mergestudio/DesignDetail.jsx').includes('data-detail-pick'), 'the drafts are ticked in the sidebar')
+  // The drafts are compared once — in the Design Compare sidebar's detail (live, with the picking), not also in a column of the studio.
+  assert.ok(!work.includes('DraftCompareBoard') && !work.includes('data-compare-divider') && !work.includes('title="Back to drafts"'), 'no drafts column in the studio')
+  assert.ok(work.includes('setMixBridge({') && read('components/mergestudio/DesignDetail.jsx').includes('<DraftCompareBoard embedded') && read('components/mergestudio/DraftCompareBoard.jsx').includes('embedded'), 'the studio publishes the drafts; the sidebar draws and picks from them')
+  assert.ok(!read('components/workspace/WorkspaceDesignCompare.jsx').includes('setCompareItemId(null)\n          setSelectedMergeItemId'), 'the detail stays open after 조합하기')
   console.log('Passed: Merge is the fourth view tab of the main window — one shell, one address, two ways in.')
 } finally { await server.close() }

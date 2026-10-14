@@ -167,7 +167,8 @@ const letterOf = (option, index) => /^시안 ([A-Z])/.exec(option.label)?.[1] ??
 // `onPick(regionId, draftKey | null)`: use a draft's version of a part in the
 // Result (null takes it back).
 // `onTakeAll(draftKey)`: one whole draft for every part (offered on each draft's title).
-export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onTakeAll }) {
+// `embedded`: in the Design Compare sidebar's detail — the whole width of its place, no pane of its own to clear.
+export default function DraftCompareBoard({ item, options: compared, frame, decisions, share = 0.5, onPick, onTakeAll, embedded = false }) {
   // null: every draft; else the keys picked to be shown.
   const [picked, setPicked] = useState(null)
   const shown = picked ? compared.filter((option) => picked.includes(option.key)) : compared
@@ -181,7 +182,8 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   }
   const ko = getLanguage() === 'ko'
   const paneRef = useRef(null)
-  const insets = useClearInsets(paneRef)
+  const clearInsets = useClearInsets(paneRef)
+  const insets = embedded ? { top: 0, bottom: 0 } : clearInsets
   const firstCellRef = useRef(null)
   const [cell, setCell] = useState(null)
   // null: each screen fitted and centered in its cell (following the cell's
@@ -289,8 +291,8 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
       data-draft-board
       aria-label={ko ? '시안 비교' : 'Draft comparison'}
       ref={paneRef}
-      className="flex h-full min-h-0 min-w-0 shrink-0 flex-col px-3"
-      style={{ width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
+      className={cn('flex h-full min-h-0 min-w-0 flex-col', embedded ? 'w-full' : 'shrink-0 px-3')}
+      style={embedded ? undefined : { width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <div className="mb-2 flex shrink-0 items-center gap-2">
         {/* The view: all of them, or the drafts picked here, side by side. */}
