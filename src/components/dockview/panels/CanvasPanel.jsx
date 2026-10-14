@@ -43,30 +43,6 @@ const toolIcons = {
   MessageSquarePlus,
 }
 
-// Opens a frame/layer's inspection tab docked in the same tab strip as the
-// code editor's file tabs — "exactly like opening a file" — but leaves the
-// code editor in front: selecting on the canvas jumps the editor to that
-// layer's line in the page's code file (design ↔ code sync), and the
-// inspect tab is one click away beside it.
-function openLayerInspectTab(dockApi, node) {
-  if (!dockApi || !node) return
-  const panelId = `inspect-${node.id}`
-  if (dockApi.getPanel(panelId)) return
-
-  const anchor =
-    dockApi.getPanel(panelById.editor.id) ??
-    dockApi.panels.find((p) => panelById[p.id]?.group === 'main')
-
-  dockApi.addPanel({
-    id: panelId,
-    component: 'layerInspect',
-    title: node.name,
-    params: { iconName: 'ScanEye', targetId: node.id },
-    position: anchor ? { direction: 'within', referencePanel: anchor.id } : undefined,
-  })
-  dockApi.getPanel(panelById.editor.id)?.api.setActive()
-}
-
 // Figma-style pill toolbar docked at the top-right of the canvas — a
 // real tool *picker*: the active tool both gets a highlight state here and
 // changes what clicking the canvas surface does (see CanvasPanel) and what
@@ -319,7 +295,7 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
 // Merge Studio's StaticLayer (actual copy, inputs, buttons, charts) rather
 // than wireframe bars. Text is edited in place by double-clicking it, and
 // every edit — plus fill/radius from the Inspect panel's Appearance
-// section (opened automatically on selection, see `openLayerInspectTab`)
+// section (the side panel's Inspect view, opened on selection)
 // — is synced to the page's code file (see lib/prototypeSync).
 // `measure`: the select tool's spacing redlines (SpacingOverlay) — what's
 // under the pointer, its size and its spacing.
@@ -397,14 +373,38 @@ function CanvasPanel() {
   const [canvasHeight, setCanvasHeight] = useState(0)
   const compactToolbar = canvasWidth > 0 && canvasWidth < 380
 
+  // `settling`: the canvas is moving (gliding to a spot, or being resized as a pane beside it opens or
+  // closes) — the change outlines wait for it to stop, so none is ever drawn where the element was.
+  const [settling, setSettling] = useState(false)
+  const settleTimer = useRef(0)
+  const unsettle = useCallback((ms = 260) => {
+    setSettling(true)
+    window.clearTimeout(settleTimer.current)
+    settleTimer.current = window.setTimeout(() => setSettling(false), ms)
+  }, [])
+  useEffect(() => () => window.clearTimeout(settleTimer.current), [])
   useEffect(() => {
     const viewport = scrollRef.current
     if (!viewport) return
-    const measure = () => { setCanvasWidth(viewport.clientWidth); setCanvasHeight(viewport.clientHeight) }
+    // Resized (a pane opening or closing beside it): what was at its centre stays at its centre — the
+    // content moves by half of what the canvas gained or lost, along with it, never jumping.
+    let last = null
+    const measure = () => {
+      const next = { width: viewport.clientWidth, height: viewport.clientHeight }
+      if (last && last.width && next.width !== last.width) {
+        const dx = (next.width - last.width) / 2
+        setView((v) => ({ ...v, x: v.x + dx }))
+        unsettle()
+      }
+      last = next
+      setCanvasWidth(next.width)
+      setCanvasHeight(next.height)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(viewport)
     return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const surfaceRef = useRef(null)
   // selectedLayerId and activePageId both live in workspace context (not
@@ -496,7 +496,7 @@ function CanvasPanel() {
     // (Selecting an element never opens Conflict Points: only a pin does.)
     const target = findCanvasTarget(id)
     if (target) {
-      openLayerInspectTab(dockApi, target.layer ?? target.frame)
+      // (Its properties are the side panel's Inspect view — no tab of its own in the main window.)
       // Selection editing belongs to Properties; Assets stays a library.
       setFilesWindow({ tab: 'inspect', open: true })
       openOrFocusPanel(dockApi, panelById.navigator)
@@ -644,8 +644,13 @@ function CanvasPanel() {
   // its pin for a moment. A target without a comment pulses its element.
   const handledFocus = useRef(null)
   const [flashPinId, setFlashPinId] = useState(null)
-  // Moving to a pin picked in the list glides (250ms) rather than jumps.
+  // Moving to a pin picked in the list glides (250ms) rather than jumps — on the screen already showing.
+  // Arriving from another screen (or the board) it's put there at once: one move, never a swoop across.
   const [gliding, setGliding] = useState(false)
+  const pageShownAt = useRef({ id: null, at: 0 })
+  useEffect(() => {
+    if (pageShownAt.current.id !== activePage?.id) pageShownAt.current = { id: activePage?.id ?? null, at: performance.now() }
+  }, [activePage?.id])
   useEffect(() => {
     if (!canvasFocus || handledFocus.current === canvasFocus.nonce || activePage?.id !== canvasFocus.pageId) return
     const viewport = scrollRef.current
@@ -654,7 +659,9 @@ function CanvasPanel() {
     if (dockApi) openOrFocusPanel(dockApi, panelById.canvas)
     const scale = Math.max(view.zoom, 100) / 100
     // A little above center: the thread opens below the pin.
-    setGliding(Boolean(canvasFocus.smooth))
+    const justShown = performance.now() - pageShownAt.current.at < 500
+    setGliding(Boolean(canvasFocus.smooth) && !justShown)
+    unsettle()
     setView({ zoom: scale * 100, x: viewport.clientWidth / 2 - canvasFocus.x * scale, y: viewport.clientHeight * 0.4 - canvasFocus.y * scale })
     setPendingComment(null)
     if (canvasFocus.commentId) {
@@ -676,8 +683,11 @@ function CanvasPanel() {
   // canvas glides by just enough to bring them back into view.
   const pickedLayerId = conflictPin.selected?.layerId
   useEffect(() => {
+    if (!pickedLayerId || !canvasHeight) return undefined
+    // (Once the canvas has stopped changing size — a pane animating open beside it — not at every frame of it.)
+    const timer = window.setTimeout(() => {
     const viewport = scrollRef.current
-    if (!viewport || !pickedLayerId || !canvasHeight) return
+    if (!viewport) return
     const element = viewport.querySelector(`[data-layer-id="${CSS.escape(pickedLayerId)}"]`)
     if (!element) return
     const origin = viewport.getBoundingClientRect()
@@ -695,8 +705,11 @@ function CanvasPanel() {
     const dx = canvasWidth && (left < margin || right > canvasWidth - margin) ? Math.round(canvasWidth / 2 - (left + right) / 2) : 0
     if (!dy && !dx) return
     setGliding(true)
+    unsettle(320)
     setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }))
     window.setTimeout(() => setGliding(false), 300)
+    }, 240)
+    return () => window.clearTimeout(timer)
     // (Only when the pick or the canvas's height changes — not on every pan.)
   }, [pickedLayerId, canvasHeight, canvasWidth])
 
@@ -772,6 +785,7 @@ function CanvasPanel() {
               hoverId={conflictPin.hoverId}
               pulse={conflictPin.pulse}
               version={`${view.x}:${view.y}:${zoom}:${activePage?.id}:${JSON.stringify(prototypeEdits)}`}
+              settling={settling}
               onHover={hoverConflictPin}
               // Like a click on the element itself: it's selected, and Conflict
               // Points comes up below with its changes lit. (A detail open in

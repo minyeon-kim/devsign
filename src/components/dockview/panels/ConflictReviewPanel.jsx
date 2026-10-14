@@ -3525,10 +3525,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     </FoldSection>
   ) : null
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
+    <div className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
         {conflict && (
           <>
-            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
+            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3', page ? 'bg-background' : 'bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-2 pb-5') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
               <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
                 <div className={cn('flex min-w-0 items-center gap-2.5', !page && 'flex-wrap')}>
                   {!page && <button

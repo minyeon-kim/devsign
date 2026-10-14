@@ -71,7 +71,9 @@ console.log('doc-link: ok')
 {
   const overlay = read('src/components/docs/DocsOverlay.jsx')
   assert.ok(overlay.includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card') && overlay.includes('animate-in fade-in duration-150'), 'the same layer as the change\'s detail: over the work area, same level, same surface')
-  assert.ok(read('src/components/conflicts/ConflictReviewOverlay.jsx').includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card animate-in fade-in duration-150'))
+  // (The change's detail: the same layer, on the app's own ground (#141414), and in place at once — swapped
+  // for the list it's opened from, never faded over it.)
+  assert.ok(read('src/components/conflicts/ConflictReviewOverlay.jsx').includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-background">'))
   const provider = read('src/state/WorkspaceProvider.jsx')
   const rule = provider.slice(provider.indexOf('const openedDocs = useRef(false)'), provider.indexOf('  const value = {'))
   assert.ok(rule.includes('exitMergeStudio()') && rule.includes('requestDocsDrawer()'), 'open ⇒ the Workspace\'s own view and the Docs drawer')

@@ -81,7 +81,8 @@ function contentRect(element) {
   return { left: left - 3, top: top - 2, right: right + 3, bottom: bottom + 2 }
 }
 
-function ConflictPins({ container, pins, conflicts, selection, hoverId, version, onHover, onSelect, onClear }) {
+// `settling`: the canvas is moving or being resized — the outlines wait (they'd be drawn where the element was).
+function ConflictPins({ container, pins, conflicts, selection, hoverId, version, settling = false, onHover, onSelect, onClear }) {
   const language = useLanguage()
   const [boxes, setBoxes] = useState(new Map())
   const [openCluster, setOpenCluster] = useState(null)
@@ -185,7 +186,7 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, version,
       {/* Every element a pointed-at or picked change is about: an outline
           that follows its corners, and a light tint. Nothing else is outlined
           or dimmed. */}
-      {pins.filter((pin) => boxes.has(pin.id) && (pin.conflictId === hoverId || pin.conflictId === selection?.conflictId)).map((pin) => {
+      {!settling && pins.filter((pin) => boxes.has(pin.id) && (pin.conflictId === hoverId || pin.conflictId === selection?.conflictId)).map((pin) => {
         const { rect, radius } = boxes.get(pin.id)
         const picked = pin.conflictId === selection?.conflictId
         return (
@@ -194,8 +195,8 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, version,
             aria-hidden
             data-pin-outline={picked ? 'selected' : 'hover'}
             // (Picked — the change open beside the canvas: a heavier outline with a halo, so the element
-            // reads at a glance from the detail; it comes in with a short zoom.)
-            className={cn('absolute', picked && 'animate-in zoom-in-105 fade-in duration-300 motion-reduce:animate-none')}
+            // reads at a glance from the detail; it fades in once the canvas has stopped.)
+            className={cn('absolute', picked && 'animate-in fade-in duration-200 motion-reduce:animate-none')}
             style={{
               left: rect.left, top: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top, borderRadius: radius,
               border: picked ? '2px solid var(--color-orange-500)' : '1.5px solid color-mix(in srgb, var(--color-amber-400) 70%, transparent)',
