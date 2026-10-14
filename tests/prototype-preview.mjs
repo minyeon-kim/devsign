@@ -124,8 +124,9 @@ try {
   // Pressed, a marker's popover — right there: each change's risk, status, a line of it, and a way to its detail.
   assert.ok(board.includes('<PopoverContent side="right"') && board.includes('data-marker-open={conflict.id}') && board.includes('line-clamp-2'))
   assert.ok(board.includes('transform: `scale(${1 / shown.zoom})`'), 'the same size on screen at any zoom')
-  assert.ok(board.includes('onOpen={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }}') && board.includes('onDoubleClick={(event) => event.stopPropagation()}') && board.includes('onPointerDown={(event) => event.stopPropagation()}'))
-  assert.ok(board.includes('setChangesOfScreenOnly(true); requestConflictDrawer()'), 'its changes open in the pane beside the Workspace, narrowed to that screen')
+  // (The count, pressed: the board glides in on that screen, near enough for its markers — and the markers are the change's red.)
+  assert.ok(board.includes('onOpen={(event) => { event.stopPropagation(); zoomToCard(card) }}') && board.includes('Math.max(DETAIL_ZOOM + 0.1,') && read('components/conflicts/ConflictPins.jsx').includes("default: '#F04E5A'"))
+  assert.ok(board.includes('onDoubleClick={(event) => event.stopPropagation()}') && board.includes('onPointerDown={(event) => event.stopPropagation()}'))
   assert.ok(board.includes('data-board-changes') && board.includes('data-board-change-prev') && board.includes('data-board-change-next') && board.includes('label={openLabel(rest.length)}'))
   console.log('Passed: the prototype engine and its one session, Preview playing it, and per-screen change counts on the board.')
 } finally { await server.close() }

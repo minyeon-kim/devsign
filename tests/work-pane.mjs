@@ -78,8 +78,8 @@ try {
   // Design Compare is no longer a mode of the main window.
   assert.ok(!/compareMode|setCompareMode|panelById\.designCompare/.test(layout + provider) && !read('data/mockData.js').includes("id: 'designCompare'"))
   assert.ok(read('components/workspace/WorkspaceDesignCompare.jsx').includes('const ofScreen = items.filter(item => item.designPageId === activePageId)'), 'what’s compared follows the screen in view')
-  // The change list can be narrowed to the screen in view; the board's pin turns that on.
-  assert.ok(read('components/dashboard/ConflictsDrawer.jsx').includes('data-screen-only') && board.includes('setChangesOfScreenOnly(true); requestConflictDrawer()'))
+  // The change list can be narrowed to the screen in view (the board's count zooms in on the screen instead — its markers are there).
+  assert.ok(read('components/dashboard/ConflictsDrawer.jsx').includes('data-screen-only') && board.includes('zoomToCard(card)'))
   // The board keeps its centre as its room changes — fitted while it's never been moved.
   assert.ok(board.includes('if (last && !fitted.current && (last.width !== next.width || last.height !== next.height)) {'))
   console.log('Passed: the work pane — which menus split, its width and limits, its address, one thing at a time at the left, and the change detail inside it.')

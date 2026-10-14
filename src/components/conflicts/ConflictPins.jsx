@@ -13,7 +13,7 @@ import { PIN, anchorOf, layoutPins, markerRect, markersOf } from '@/lib/canvasPi
 // several elements (four cards) says how many on the pin. They live in a
 // layer of their own over the canvas — placed from where the elements are on
 // screen, so they follow panning and zooming while staying one size.
-// A pin is a button: its state is its color alone (amber; orange and larger
+// A pin is a button: its state is its color alone (red; a deeper red and larger
 // when picked; grey with a check when the change is done). Pointing at one —
 // or at its row in the list — outlines and tints every element it's about;
 // otherwise no element is outlined. Picking one picks its element: the
@@ -22,7 +22,8 @@ import { PIN, anchorOf, layoutPins, markerRect, markersOf } from '@/lib/canvasPi
 // lists them, and zooming in separates them again.
 
 const TOOLTIP_DELAY = 150
-export const HEAD_COLOR = { default: 'var(--color-amber-400)', selected: 'var(--color-orange-500)', resolved: 'var(--color-slate-500)' }
+// (One red for a change wherever it's marked — the canvas, the Screens board, its count: #F04E5A; deeper when picked.)
+export const HEAD_COLOR = { default: '#F04E5A', selected: '#D92D3A', resolved: 'var(--color-slate-500)' }
 
 // A head with a tail under it, tip at the bottom center.
 // The same pin, standing for a count rather than one change — on a screen's
@@ -199,9 +200,9 @@ function ConflictPins({ container, pins, conflicts, selection, hoverId, version,
             className={cn('absolute', picked && 'animate-in fade-in duration-200 motion-reduce:animate-none')}
             style={{
               left: rect.left, top: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top, borderRadius: radius,
-              border: picked ? '2px solid var(--color-orange-500)' : '1.5px solid color-mix(in srgb, var(--color-amber-400) 70%, transparent)',
-              background: picked ? 'color-mix(in srgb, var(--color-orange-500) 12%, transparent)' : 'color-mix(in srgb, var(--color-amber-400) 12%, transparent)',
-              boxShadow: picked ? '0 0 0 4px color-mix(in srgb, var(--color-orange-500) 28%, transparent), 0 0 24px 4px color-mix(in srgb, var(--color-orange-500) 30%, transparent)' : undefined,
+              border: picked ? '2px solid #D92D3A' : '1.5px solid color-mix(in srgb, #F04E5A 70%, transparent)',
+              background: picked ? 'color-mix(in srgb, #F04E5A 12%, transparent)' : 'color-mix(in srgb, #F04E5A 10%, transparent)',
+              boxShadow: picked ? '0 0 0 4px color-mix(in srgb, #F04E5A 28%, transparent), 0 0 24px 4px color-mix(in srgb, #F04E5A 30%, transparent)' : undefined,
             }}
           />
         )

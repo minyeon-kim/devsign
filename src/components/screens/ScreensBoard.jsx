@@ -190,7 +190,7 @@ function ScreenDrawing({ frame }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, requestConflictDrawer, setChangesOfScreenOnly, continuePrototype, openConflictReview } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, openConflictReview } = useWorkspace()
   const language = useLanguage()
   const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
@@ -399,6 +399,15 @@ function ScreensBoard() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [Boolean(proto)]) // eslint-disable-line react-hooks/exhaustive-deps
+  // In on one screen, near enough to see its changes' markers: the whole card in view, never under the
+  // markers' zoom (DETAIL_ZOOM) nor past 120% — gliding there, and the screen selected.
+  const zoomToCard = (card) => {
+    const zoom = Math.min(1.2, Math.max(DETAIL_ZOOM + 0.1, Math.min((room.height - 120) / (card.height + 64), (room.width - 160) / card.width)))
+    setActivePageId(card.id)
+    setGliding(true)
+    window.setTimeout(() => setGliding(false), 360)
+    setView({ zoom, x: room.width / 2 - (card.x + card.width / 2) * zoom, y: room.height / 2 - (card.y - 16 + card.height / 2) * zoom })
+  }
   const reveal = (id) => {
     const card = cardOf(id)
     if (!card) return
@@ -577,7 +586,7 @@ function ScreensBoard() {
                       const lit = hotMarker === `${card.id}:${marker.layer.id}`
                       return (
                         <Fragment key={marker.layer.id}>
-                          {lit && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px var(--color-amber-400)`, background: 'color-mix(in srgb, var(--color-amber-400) 12%, transparent)' }} />}
+                          {lit && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #F04E5A`, background: 'color-mix(in srgb, #F04E5A 12%, transparent)' }} />}
                           <div data-board-chrome className="absolute z-10" style={{ left: marker.layer.x + marker.layer.width - PIN.inset, top: 32 + marker.layer.y + PIN.inset, transform: `scale(${1 / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
                             <MarkerButton
                               marker={marker}
@@ -597,8 +606,8 @@ function ScreensBoard() {
                       return (
                         <div data-board-chrome className="absolute z-10" style={{ left: cx, top: 32 + cy, transform: `translate(-50%, -50%) scale(${1 / shown.zoom})`, transformOrigin: 'center' }} {...stop}>
                           <CountBubble count={countLabel(rest.length)} label={openLabel(rest.length)} cardId={card.id}
-                            // (Its changes, in the pane beside the Workspace — the list narrowed to this screen.)
-                            onOpen={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }} />
+                            // (Pressed: the board glides in on that screen, near enough for its markers.)
+                            onOpen={(event) => { event.stopPropagation(); zoomToCard(card) }} />
                         </div>
                       )
                     })()}
