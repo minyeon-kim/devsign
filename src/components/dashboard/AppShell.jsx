@@ -57,6 +57,13 @@ function AppShell({ topBar, project, children }) {
       workspace.setBoardConflicts({ open: !workspace.boardConflicts.open, conflictId: null })
       return
     }
+    // (Design Compare in the Workspace floats over the canvas's left — CanvasComparePanel.)
+    if (panel === 'compare' && workspace?.activeView === 'workspace') {
+      setDrawer(null)
+      if (workPane) workspace.setWorkPane(null)
+      workspace.setCompareOpen(!workspace.compareOpen)
+      return
+    }
     if (isSplit(panel)) {
       setDrawer(null)
       workspace?.setWorkPane(shown === panel ? null : panel)

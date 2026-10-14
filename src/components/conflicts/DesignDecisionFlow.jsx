@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, Eye, Maximize2 } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, Eye, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { ReviewHeaderPortal } from '@/components/conflicts/ReviewHeaderSlot'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RECORD_ROWS, StepProgressCount, StepRow, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
@@ -9,7 +10,7 @@ import { Fold, FoldBody, useFoldState } from '@/components/conflicts/Fold'
 import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
-import { ElementCrop, ElementPreviewDialog, PreviewFrame, SIDEBAR_PROBE, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
+import { ElementCrop, PreviewFrame, SIDEBAR_PROBE, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueScale from '@/components/conflicts/ValueScale'
@@ -120,6 +121,32 @@ const canDraw = (conflict, shape) => drawableOf(shape) || Boolean(!conflict.layo
 // A picture's caption: two lines of fixed height, each on one line (cut with an
 // ellipsis, figures of equal width) — so no value, long or missing, changes
 // the card's height. The full text is the tooltip.
+// A section's title that folds it: the title and a chevron, pressed — what's beside it stays put.
+function FoldTitle({ open, onToggle, children, ...rest }) {
+  return (
+    <button type="button" aria-expanded={open} onClick={onToggle} {...rest}
+      className="ds-intrinsic group/fold -ml-1 flex min-w-0 items-center gap-1 rounded-md px-1 text-left text-[13px] font-semibold text-white transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
+      <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform duration-150 group-hover/fold:text-slate-300 motion-reduce:transition-none', !open && '-rotate-90')} />
+      <span className="min-w-0 truncate">{children}</span>
+    </button>
+  )
+}
+
+// A picture of the comparison, pressed: the same drawing larger, in a popover right there.
+function ZoomPicture({ label, children, big }) {
+  return (
+    <Popover>
+      <PopoverTrigger data-picture-zoom aria-label={`${label} · 크게 보기`} className="ds-intrinsic block w-full cursor-zoom-in rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+        {children}
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="center" sideOffset={8} data-picture-zoomed data-control-tooltip="off" className="w-[min(440px,calc(100vw-32px))] gap-2 p-3">
+        <p className="text-[11.5px] font-medium text-slate-300">{label}</p>
+        <div className="flex justify-center rounded-lg bg-black/30 p-3">{big}</div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function PictureCaption({ title, sub, titleProps = {}, subProps = {} }) {
   return (
     <figcaption className="mt-3 min-w-0 text-center">
@@ -237,13 +264,14 @@ function ReasonField({ label, value, onChange, suggestions = [], placeholder, er
 
 function RequestCard({ conflict, bare = false }) {
   const request = conflict.decisionRequest
+  const [open, setOpen] = useState(true)
   return (
     <section data-decision-request className={bare ? undefined : CARD}>
-      {!bare && <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h3 className="text-[13px] font-semibold text-white">{nameOf(request.by)}님의 승인 요청</h3>
+      {!bare && <div className={cn('flex flex-wrap items-center gap-2', open && 'mb-3')}>
+        <FoldTitle open={open} onToggle={() => setOpen((value) => !value)} data-fold-section="request">{nameOf(request.by)}님의 승인 요청</FoldTitle>
         <span className="text-[11px] text-slate-500">개발자 · {request.sentAt ? formatTime(request.sentAt) : request.at}{request.round > 1 ? ` · ${request.round}차 요청` : ''}</span>
       </div>}
-      <dl className={bare ? RECORD_ROWS : CARD_ROWS}>
+      {(bare || open) && <dl className={bare ? RECORD_ROWS : CARD_ROWS}>
         <dt className="text-slate-400">변경 사유</dt>
         <dd className="text-slate-100">{request.reason}</dd>
         <dt className="text-slate-400">수정안</dt>
@@ -261,7 +289,7 @@ function RequestCard({ conflict, bare = false }) {
         </>}
         {!bare && <><dt className="text-slate-400">영향 범위</dt>
         <dd className="text-slate-200">{[...(conflict.impact?.screens ?? []), ...(conflict.impact?.components ?? [])].join(' · ')}</dd></>}
-      </dl>
+      </dl>}
     </section>
   )
 }
@@ -277,16 +305,17 @@ const NEXT_STEP = {
 function DecisionCard({ conflict, viewerId, bare = false }) {
   const decision = conflict.designDecision
   const mine = decision.by === viewerId
+  const [open, setOpen] = useState(true)
   return (
     <section data-decision-result={decision.choice} className={bare ? undefined : cn(CARD, 'ring-emerald-400/25')}>
-      {!bare && <div className="mb-2 flex flex-wrap items-center gap-2">
-        <CircleCheck className="size-4 text-emerald-300" />
-        <h3 className="text-[13px] font-semibold text-white">
+      {!bare && <div className={cn('flex flex-wrap items-center gap-2', open && 'mb-2')}>
+        <FoldTitle open={open} onToggle={() => setOpen((value) => !value)} data-fold-section="decision">
+          <CircleCheck className="mr-1 inline size-4 -translate-y-px text-emerald-300" />
           {mine ? '내 결정' : `${nameOf(decision.by)}님의 결정`}: <span className={DECISION_TONE[decision.choice]}>{DECISION_LABEL[decision.choice]}</span>
-        </h3>
+        </FoldTitle>
         <span className="text-[11px] text-slate-500">{decision.decidedAt ? formatTime(decision.decidedAt) : decision.at}</span>
       </div>}
-      <dl className={bare ? RECORD_ROWS : CARD_ROWS}>
+      {(bare || open) && <dl className={bare ? RECORD_ROWS : CARD_ROWS}>
         <dt className="text-slate-400">이유</dt>
         <dd className="text-slate-100">{decision.reason}</dd>
         {/* (It goes in at once unless the approver put it off: only then is there a time to say.) */}
@@ -295,7 +324,7 @@ function DecisionCard({ conflict, viewerId, bare = false }) {
         {/* (In the record the proposal is the request's line — not said again here.) */}
         {!bare && <><dt className="text-slate-400">다음 할 일</dt>
         <dd className="text-slate-200">{decision.choice === 'keep' ? NEXT_STEP.keep(conflict) : typeof NEXT_STEP[decision.choice] === 'function' ? NEXT_STEP[decision.choice](decisionOutcomeOf(conflict)?.name ?? '수정안') : NEXT_STEP[decision.choice]}</dd></>}
-      </dl>
+      </dl>}
     </section>
   )
 }
@@ -439,7 +468,8 @@ const CARD_MODES = {
   done: { chip: ['반영 완료', 'bg-emerald-400/15 text-emerald-200'], result: '반영된 결과' },
   view: { chip: ['요청 전', 'bg-white/[0.07] text-slate-300'], result: null },
 }
-function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, onFullscreen, mode = 'pick', chip = null, resultLabel = null, overlap }) {
+function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, mode = 'pick', chip = null, resultLabel = null, overlap }) {
+  const [open, setOpen] = useState(true)
   const readOnly = mode !== 'pick'
   const modeChip = chip ?? CARD_MODES[mode].chip
   const resultWord = resultLabel ?? CARD_MODES[mode].result
@@ -547,7 +577,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   return (
     <section data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <h3 className="text-sm font-semibold text-white">해결 방법{!readOnly && <> <span aria-hidden className="text-rose-300">*</span></>}</h3>
+        <FoldTitle open={open} onToggle={() => setOpen((value) => !value)} data-fold-section="proposal">해결 방법{!readOnly && <> <span aria-hidden className="text-rose-300">*</span></>}</FoldTitle>
         {readOnly
           ? modeChip && <span data-proposal-state className={cn('inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>
           : <span className="text-xs text-slate-500">{conflict.layouts ? '768px에서 어떻게 바꿀지 골라 주세요' : '어떤 값으로 맞출지 골라 주세요'}</span>}
@@ -585,13 +615,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           <Eye className="size-4" />
         </button>
         )}
-        {onFullscreen && (
-          <button type="button" data-proposal-fullscreen aria-label="전체 화면으로 보기" title="전체 화면으로 보기" onClick={onFullscreen} className={HEADER_ICON}>
-            <Maximize2 className="size-4" />
-          </button>
-        )}
         </ReviewHeaderPortal>
       </div>
+      {open && (<>
       {/* What was found, in a line — under the title, where it's read first. */}
       {(conflict.summary ?? conflict.message) && <p data-proposal-about className="-mt-1 mb-4 text-[13px] leading-5 text-slate-300">{conflict.summary ?? conflict.message}</p>}
 
@@ -599,7 +625,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           side by side with an arrow between; stacked (before first) when narrow. */}
       <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
-          <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
+          <ZoomPicture label={showDesign ? '디자인 원안' : '현재 구현'} big={<Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={2.6} maxWidth={150} />}>
+            <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
+          </ZoomPicture>
           <PictureCaption
             titleProps={{ 'data-before-title': '' }}
             title={valueChange ? `${mode === 'done' ? '수정 전' : '현재 구현'} · ${builtSpecOf(conflict)}` : showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현'}
@@ -611,9 +639,11 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
               It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
           <div data-after-picture>
-            <div className="flex justify-center">
-              <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
-            </div>
+            <ZoomPicture label={after.title} big={<Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={2.6} maxWidth={150} />}>
+              <div className="flex justify-center">
+                <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
+              </div>
+            </ZoomPicture>
             <PictureCaption titleProps={{ 'data-after-title': '' }} subProps={{ 'data-after-sub': '' }} title={after.title} sub={after.sub} />
           </div>
         </figure>
@@ -741,6 +771,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       </div>}
       </div>
       </SmoothHeight>
+      </>)}
     </section>
   )
 }
@@ -1051,8 +1082,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const request = conflict.decisionRequest
   const decision = conflict.designDecision
   const folds = useFoldState(conflict.id)
-  const { link } = useDesignLink(conflict)
-  const [viewerOpen, setViewerOpen] = useState(false)
   // The screen thumbnail beside it (BreakpointScreen) asks to be taken to the
   // 768px check: open it, then scroll there once it has unfolded.
   useEffect(() => {
@@ -1187,7 +1216,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       proposal={cardWay[0]}
       custom={cardWay[1] ?? EMPTY_CUSTOM}
       onProposal={setProposal}
-      onFullscreen={() => setViewerOpen(true)}
       onCustom={setCustom}
       onDirect={(next) => {
         workspace.startDirectFix(conflict.id, next)
@@ -1200,19 +1228,32 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     />
   )
 
+  // (The designer's view, once decided: what came of it — said in the status block's second line, once.)
+  const delivered = !developer && decision && stage !== 'requested' ? [
+    `${nameOf(request?.by)}님에게 전달됨`,
+    '승인 기록 저장됨',
+    stage === 'rework' ? '새 수정안이 오면 알려 드려요'
+      : stage === 'decided' ? scheduleOf(conflict, releaseOf(conflict))
+        : stage === 'fixed' ? `${nameOf(request?.by)}님이 반영했어요`
+          : stage === 'verified' ? `${nameOf(request?.by)}님이 반영하고 검증했어요` : null,
+  ].filter(Boolean).join(' · ') : null
   return (
     <div data-design-decision-flow={developer ? 'developer' : 'designer'} data-step-live={reveal.live ? '' : undefined} className="flex min-w-0 flex-col gap-5">
       {/* (The merge banner is the list's first item: the same gap as between cards.) */}
       {banner && <div className="[&>[data-merged-banner]]:mb-0">{banner}</div>}
-      {viewerOpen && <ElementPreviewDialog conflict={conflict} link={link} open startFullscreen onOpenChange={setViewerOpen} />}
 
       {/* Steps still to go: the next action, first — what to act on (the ways
           forward, the request, the decision) is right under it. */}
+      {/* (One status, said once: where it stands, and — once it's been decided — a line of what came of it:
+          who it went to, that it's on the record, when it goes in.) */}
       {!post && stage !== 'resolved' && decisionFlowOf(conflict, viewer).next && (
-        <p data-status-block="next" role="status" className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-5 font-semibold text-white ring-1 ring-white/[0.08] ring-inset">
-          <span aria-hidden className="size-2 shrink-0 rounded-full bg-sky-300" />
-          {decisionFlowOf(conflict, viewer).next}
-        </p>
+        <div data-status-block="next" role="status" className="flex items-start gap-2 rounded-xl bg-white/[0.04] px-4 py-3 ring-1 ring-white/[0.08] ring-inset">
+          <span aria-hidden className={cn('mt-1.5 size-2 shrink-0 rounded-full', delivered ? (stage === 'rework' ? 'bg-amber-300' : 'bg-emerald-300') : 'bg-sky-300')} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] leading-5 font-semibold text-white">{decisionFlowOf(conflict, viewer).next}</p>
+            {delivered && <p data-decision-delivered className="mt-0.5 text-xs leading-[18px] text-slate-400">{delivered}</p>}
+          </div>
+        </div>
       )}
       {/* (Sent back: what the designer said, first — then the ways forward again.) */}
       {!post && developer && askingNow && stage === 'rework' && <DecisionCard conflict={conflict} viewerId={viewer.id} />}
@@ -1309,23 +1350,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               }}
             />
           )}
-          {decision && stage !== 'requested' && (
-            <>
-              <DecisionCard conflict={conflict} viewerId={viewer?.id} />
-              <p data-decision-delivered className="flex flex-wrap items-center gap-2 rounded-xl bg-emerald-400/[0.08] px-4 py-3 text-[13px] text-emerald-100 ring-1 ring-emerald-400/30 ring-inset">
-                <Send className="size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  {nameOf(request?.by)}님에게 전달됐어요 · 승인 기록이 남았어요.
-                  {stage === 'rework' && ' 새 수정안이 오면 다시 알려 드려요.'}
-                  {stage === 'decided' && scheduleOf(conflict, releaseOf(conflict)) && ` ${scheduleOf(conflict, releaseOf(conflict))}.`}
-                  {stage === 'fixed' && ` ${nameOf(request?.by)}님이 결정을 반영했어요.`}
-                  {stage === 'verified' && ` ${nameOf(request?.by)}님이 반영하고 검증했어요.`}
-                  {stage === 'resolved' && ' 변경 확인이 끝났어요.'}
-                </span>
-                {stage === 'rework' && <RotateCcw className="size-3.5 shrink-0 text-amber-300" />}
-              </p>
-            </>
-          )}
+          {decision && stage !== 'requested' && <DecisionCard conflict={conflict} viewerId={viewer?.id} />}
         </>
       )}
     </div>

@@ -3580,8 +3580,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className={cn('min-w-0 text-lg leading-7 font-semibold tracking-tight text-white sm:text-xl', page ? 'break-words [overflow-wrap:anywhere]' : 'truncate')}>
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
                   </h2>
-                  {(!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                  {!page && (!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 </div>
+                {/* (On the page its code is under the title — the title has the whole width.) */}
+                {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="-mt-1 font-mono text-[13px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 <div data-conflict-meta className={cn('flex flex-wrap items-center gap-1.5', !page && 'pl-10')}>
                   <ConflictTypeTag conflict={conflict} header />
                   {severity && (
@@ -3638,7 +3640,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 foot — its impact and evidence, the comments and the activity (no column of its own beside
                 it: the pane stays narrow, so the canvas next to it keeps its room). */}
             <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
-              {page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]')}
+              {/* (No hairline under them: the selected tab's underline is the only line there.) */}
+              {page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4')}
               <div data-review-scroll="main" className={cn(
                 'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto pt-1',
                 REVIEW_GUTTER

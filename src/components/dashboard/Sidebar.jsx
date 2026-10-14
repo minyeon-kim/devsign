@@ -7,7 +7,7 @@ import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompar
 import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, TriangleAlert, Users } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Ellipsis, Maximize2, Minimize2, History, House, Import, Layers3, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -23,7 +23,6 @@ import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
 import { projectTone } from '@/lib/projectTone'
-import { CONFLICT_DOT } from '@/lib/conflicts'
 
 // The global destinations, shown only outside a project: Home (the
 // project hub), Activity and Team. Inside a project they step aside so
@@ -77,7 +76,8 @@ const WORKSPACE_VIEWS = [
 ]
 function WorkspaceViews({ workspace, slots, drawer, onToggleDrawer }) {
   const { sidePanel, filesWindow, toggleSideView, mergeItems } = workspace
-  const comparing = drawer === 'compare'
+  // (Design Compare floats over the canvas's left — CanvasComparePanel; the pane is still there for a link.)
+  const comparing = drawer === 'compare' || Boolean(workspace.compareOpen)
   const designSets = mergeItems.filter((item) => item.hasDesign).length
   // Every icon is a switch: on, it shows its view; pressed again, it puts it away. (A side panel
   // view folds the panel; Design Compare is a work pane beside the Workspace — lib/workPane.)
@@ -174,7 +174,7 @@ function ProjectsMark({ project }) {
 //     Conflict Points opens the conflict list in the drawer — the same
 //     list as the Workspace's bottom panel, as a second way in.
 // Settings is pinned to the bottom.
-function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, workspace = null }) {
+function ActivityBar({ project, drawer, onToggleDrawer, workspace = null }) {
   // How many of the Workspace's icons fit under the main ones (each a 36px
   // button and a 4px gap; the rest of the bar's height is spoken for).
   const barRef = useRef(null)
@@ -255,23 +255,8 @@ function ActivityBar({ project, drawer, onToggleDrawer, openConflicts = 0, works
               aria-current={onHistory ? 'page' : undefined}
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
-            {/* The conflict list, in the drawer: a second way into what the
-                Workspace's bottom panel lists. While any conflict is open a
-                red dot sits on its corner — no count, just that there is
-                one right now (the label still says how many). */}
-            <div className="relative">
-              <RailButton
-                label={openConflicts > 0 ? `Conflict Points · ${openConflicts} open` : 'Conflict Points'}
-                icon={TriangleAlert}
-                data-conflicts-entry
-                onClick={() => onToggleDrawer('conflicts')}
-                aria-expanded={drawer === 'conflicts' || Boolean(workspace?.boardConflicts?.open)}
-                className={cn((drawer === 'conflicts' || workspace?.boardConflicts?.open) && activeClass)}
-              />
-              {openConflicts > 0 && (
-                <span aria-hidden data-conflict-dot className={cn('pointer-events-none absolute top-1.5 right-2 size-2 rounded-full ring-2 ring-background', CONFLICT_DOT)} />
-              )}
-            </div>
+            {/* (No Conflict Points here: the changes are on the canvas — the Screens board's list and counts,
+                the canvas's pins — and a notice or a link still opens their pane.) */}
             {/* A drawer beside the current view, like Docs. */}
             <RailButton
               label="Import"
@@ -466,7 +451,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     const before = wasOpen.current
     wasOpen.current = drawer
     if (isSplit(drawer) && before !== drawer) requestAnimationFrame(() => asideRef.current?.querySelector('input, button:not([data-pane-chrome]), [tabindex="0"]')?.focus({ preventScroll: true }))
-    else if (!drawer && isSplit(before) && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-conflicts-entry]')?.focus()
+    else if (!drawer && isSplit(before) && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-sidebar-toggle]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
   const targetWidth = drawer ? shownWidth + 8 : 0

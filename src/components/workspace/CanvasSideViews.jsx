@@ -1,6 +1,7 @@
 import { Component, Files, Layers, ScanEye, X } from 'lucide-react'
 import { cn } from 'cn'
 import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
+import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
@@ -77,5 +78,29 @@ export function CanvasViewPanel() {
         <div className="min-h-0 flex-1">{open && <NavigatorPanel inCanvas />}</div>
       </div>
     </div>
+  )
+}
+
+// Design Compare, floating over the canvas's left beside the column of icons (the activity bar's Design
+// Compare): the design sets as a list at its left and their drafts beside it — wide enough for both.
+export function CanvasComparePanel() {
+  const { compareOpen, setCompareOpen } = useWorkspace()
+  if (!compareOpen) return null
+  return (
+    <section
+      id="canvas-compare-panel"
+      data-canvas-compare
+      aria-label="Design Compare"
+      className="absolute inset-y-2 left-14 z-30 flex w-[min(760px,calc(100%-72px))] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-card shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none"
+    >
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/[0.06] pr-1.5 pl-3">
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-100"><LocalizedText text="Design Compare" /></span>
+        <button type="button" data-canvas-compare-close aria-label="Close" title="Close" onClick={() => setCompareOpen(false)}
+          className="ds-intrinsic flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+          <X className="size-3.5" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1"><WorkspaceDesignCompare /></div>
+    </section>
   )
 }

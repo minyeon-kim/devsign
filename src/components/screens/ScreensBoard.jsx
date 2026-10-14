@@ -730,7 +730,8 @@ function ScreensBoard() {
         >
           <ChevronLeft className="size-4 text-slate-300" />
           <LocalizedText text="Conflict list" />
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F04E5A] px-1.5 text-[11px] leading-none font-bold text-white tabular-nums">{countLabel(changes.total)}</span>
+          {/* (A true circle — one size for one, two digits or "99+".) */}
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#F04E5A] text-[10.5px] leading-none font-bold text-white tabular-nums">{countLabel(changes.total)}</span>
         </button>
       )}
       {listOpen && (

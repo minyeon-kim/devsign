@@ -5,7 +5,7 @@ import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
-import { CanvasViewPanel, CanvasViewRail } from '@/components/workspace/CanvasSideViews'
+import { CanvasComparePanel, CanvasViewPanel, CanvasViewRail } from '@/components/workspace/CanvasSideViews'
 import { inCanvasViewOf, AI_CHAT, SIDE_PANEL, SIDE_TABS, clampWidth, panelToFold } from '@/lib/panelPrefs'
 import WorkspaceViewTabs, { VIEW_PANEL_ID, viewTabId } from '@/components/workspace/WorkspaceViewTabs'
 import ScreensBoard from '@/components/screens/ScreensBoard'
@@ -158,7 +158,7 @@ function zoneRect(rect, zone) {
 // (Layout presets, the Preview button, the command palette, the canvas's
 // layer-inspect tabs) works unchanged.
 function WorkspaceSplitLayout({ mergeStudio = false, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, bottomPanel, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -598,7 +598,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             // (Files · Layers · Assets · Inspect: a column of icons at the main window's left, under its tabs,
             // each opening its view over the canvas's left.)
             viewRail={!mergeStudio && group.id === mainGroupId ? <CanvasViewRail /> : null}
-            viewOverlay={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
+            viewOverlay={!mergeStudio && group.id === mainGroupId ? <><CanvasViewPanel /><CanvasComparePanel /></> : null}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.

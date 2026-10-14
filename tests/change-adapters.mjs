@@ -79,7 +79,8 @@ try {
       seen.add(`${decisionStageOf(conflict)}:${role}:${mode}`)
       // Only a way being picked has radios and a button; anything else is read-only.
       assert.equal(html.includes('role="radio"') && html.includes('data-proposal-action'), mode === 'pick', `${where}: ${mode}`)
-      assert.ok(html.includes('data-show-design') && html.includes('data-proposal-fullscreen'), `${where}: 원안 보기 · 전체 화면으로 보기`)
+      // 원안 보기 is the card's; its pictures open larger in a popover — no separate full-screen viewer.
+      assert.ok(html.includes('data-show-design') && html.includes('data-picture-zoom') && !html.includes('data-proposal-fullscreen'), `${where}: 원안 보기 · 크게 보기`)
     }
   }
   // (The seeds cover a way being picked, one waiting, and one that went in — seen by both.)
