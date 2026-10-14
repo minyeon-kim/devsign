@@ -1,7 +1,7 @@
+import CompareBoard from '@/components/conflicts/CompareBoard'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RECORD_ROWS, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { appendEvent, eventsOf, formatTime, formatTimeLabel } from '@/lib/conflictEvents'
@@ -130,18 +130,13 @@ function FoldTitle({ open, onToggle, children, ...rest }) {
   )
 }
 
-// A picture of the comparison, pressed: the same drawing larger, in a popover right there.
-function ZoomPicture({ label, children, big }) {
+// A picture of the comparison, pressed: the comparison board opens on it (CompareBoard) — beside the
+// detail, so the ways stay in view and can be picked while it's up.
+function ZoomPicture({ label, children, onOpen }) {
   return (
-    <Popover>
-      <PopoverTrigger data-picture-zoom aria-label={`${label} · 크게 보기`} className="ds-intrinsic grid h-full min-h-0 w-full items-center overflow-hidden cursor-zoom-in rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
-        {children}
-      </PopoverTrigger>
-      <PopoverContent side="bottom" align="center" sideOffset={8} data-picture-zoomed data-control-tooltip="off" className="w-[min(440px,calc(100vw-32px))] gap-2 p-3">
-        <p className="text-[11.5px] font-medium text-slate-300">{label}</p>
-        <div className="flex justify-center rounded-lg bg-black/30 p-3">{big}</div>
-      </PopoverContent>
-    </Popover>
+    <button type="button" data-picture-zoom aria-label={`${label} · 크게 보기`} aria-haspopup="dialog" onClick={onOpen} className="ds-intrinsic grid h-full min-h-0 w-full cursor-zoom-in items-center overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+      {children}
+    </button>
   )
 }
 
@@ -466,6 +461,8 @@ const CARD_MODES = {
   done: { chip: ['반영 완료', 'bg-emerald-400/15 text-emerald-200'], result: '반영된 결과' },
   view: { chip: ['요청 전', 'bg-white/[0.07] text-slate-300'], result: null },
 }
+const OPEN_BOARDS = new Map()
+
 function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, mode = 'pick', chip = null, resultLabel = null, overlap }) {
   const [open, setOpen] = useState(true)
   const readOnly = mode !== 'pick' && mode !== 'pending'
@@ -567,6 +564,22 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     : !drawable ? { title: '디자인 원안', sub: shown.described ? '미리보기 없음' : '값을 골라 주세요' }
     : { title: peeking ? '미리보기' : mode === 'done' ? '수정 후' : '선택한 결과' }
   const PICTURE = cn('grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border-2 bg-black/20 p-4', conflict.layouts ? 'h-[304px]' : 'h-[240px]')
+  // The comparison board: what's built now and every way, enlarged — opened from either picture, on that one.
+  // (Kept by change, not by this card: picking a way can draw the card anew, and the board stays up through it.)
+  const [board, setBoardState] = useState(() => OPEN_BOARDS.get(conflict.id) ?? null)
+  const setBoard = (value) => { OPEN_BOARDS.set(conflict.id, value); setBoardState(value) }
+  const openBoard = (focus, event) => {
+    const from = event?.currentTarget
+    setBoard({ focus, anchor: from?.closest('[data-review-overlay]') ?? from?.closest('[data-work-pane]') ?? from?.closest('aside') ?? null })
+  }
+  const currentWay = ways.find((option) => option.side === 'before')
+  const boardRows = [
+    { id: '__current', title: '현재', spec: currentWay?.spec ?? '', which: 'implementation', drawable: true, current: true },
+    ...ways.map((option) => {
+      const shape = proposalOf(option.id, custom, conflict)
+      return { id: option.id, title: option.name, spec: option.id === 'other' ? (shape?.described ? shape.spec : '') : option.spec, which: shape, drawable: canDraw(conflict, shape) }
+    }),
+  ]
   return (
     <section data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -583,7 +596,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           side by side with an arrow between; stacked (before first) when narrow. */}
       <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
-          <ZoomPicture label={showDesign ? '디자인 원안' : '현재 구현'} big={<Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={2.6} maxWidth={150} />}>
+          <ZoomPicture label={showDesign ? '디자인 원안' : '현재 구현'} onOpen={(event) => openBoard('__current', event)}>
             <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
           </ZoomPicture>
           <PictureCaption
@@ -596,7 +609,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
               It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
           <div data-after-picture className="contents">
-            <ZoomPicture label={after.title} big={<Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={2.6} maxWidth={150} />}>
+            <ZoomPicture label={after.title} onOpen={(event) => openBoard(proposal ?? ways[0]?.id, event)}>
               <div className="flex justify-center">
                 <Picture conflict={conflict} which={holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'} overlap={overlap} scale={1.5} />
               </div>
@@ -605,6 +618,19 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           </div>
         </figure>
       </div>
+
+      <CompareBoard
+        open={Boolean(board)}
+        onClose={() => setBoard(null)}
+        conflict={conflict}
+        rows={boardRows}
+        picked={proposal}
+        onPick={readOnly ? () => {} : pick}
+        focusId={board?.focus}
+        opening={board}
+        anchor={board?.anchor}
+        render={(which, width) => <Picture conflict={conflict} which={which} overlap={which === 'implementation' ? undefined : overlap} maxWidth={width} />}
+      />
 
       {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}
       <SmoothHeight trigger={mode}>
