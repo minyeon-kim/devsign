@@ -96,15 +96,15 @@ export function StepDot({ state, moves: animate = false, arrive = false }) {
   return <span aria-hidden data-step-dot="pending" className={cn(base, 'border-[1.5px] border-white/20')} />
 }
 
-// A step's icon, at the front of its card's head (16px): done, a green disc
-// with a white check (drawn when new); under way, a blue ring with a small
-// dot, breathing softly (still under reduced motion); needs a person, an
-// amber disc with "!"; waiting, an empty grey ring.
+// A step's icon, at the front of its card's head (16px): done, the accent's
+// check on its faint disc (drawn when new); under way, a ring of the accent
+// with a dot in it; needs a person, a grey ring with "!"; waiting, an empty
+// grey ring.
 export function StepIcon({ state, moves: animate = false }) {
   const base = 'relative flex size-4 shrink-0 items-center justify-center rounded-full'
   if (state === 'done') {
     return (
-      <span aria-hidden data-step-icon="done" className={cn(base, 'bg-emerald-500 text-white', animate && 'ds-step-pop')}>
+      <span aria-hidden data-step-icon="done" className={cn(base, 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]', animate && 'ds-step-pop')}>
         <svg viewBox="0 0 16 16" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3.5 8.5l3 3 6-7" pathLength="1" className={cn('ds-step-check', animate && 'ds-step-check-draw')} />
         </svg>
@@ -113,15 +113,14 @@ export function StepIcon({ state, moves: animate = false }) {
   }
   if (state === 'current') {
     return (
-      <span aria-hidden data-step-icon="current" className={cn(base, 'border-2 border-sky-400')}>
-        <span className="absolute inset-[-3px] rounded-full ring-2 ring-sky-400/30 ds-step-breathe motion-reduce:hidden" />
-        <span className="size-1.5 rounded-full bg-sky-400" />
+      <span aria-hidden data-step-icon="current" className={cn(base, 'border-2 border-[var(--ds-accent-text)]')}>
+        <span className="size-1.5 rounded-full bg-[var(--ds-accent-text)]" />
       </span>
     )
   }
   if (state === 'problem') {
     return (
-      <span aria-hidden data-step-icon="problem" className={cn(base, 'bg-amber-400 text-slate-950')}>
+      <span aria-hidden data-step-icon="problem" className={cn(base, 'border-2 border-slate-300 text-slate-200')}>
         <svg viewBox="0 0 16 16" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><path d="M8 3.5v5.2M8 12.2v.1" /></svg>
       </span>
     )
@@ -139,24 +138,25 @@ export function StepIcon({ state, moves: animate = false }) {
 // finished and fills in (see StepTimeline); `strong`: the line below it is
 // deeper while a later step is hovered. A step with nothing inside (no
 // `children`) has no fold: its head is all there is.
-// A step's badge: what it stands at, as a soft pill — green when done, blue
-// under way, amber when it needs a person, grey waiting.
+// A step's badge: what it stands at, in greys — a finished step's quiet, the
+// step under way (or needing a person) brighter, with the accent's dot.
 const BADGE = {
-  done: 'bg-emerald-400/12 text-emerald-200',
-  current: 'bg-sky-400/15 text-sky-200',
-  problem: 'bg-amber-400/15 text-amber-200',
+  done: 'bg-white/[0.05] text-slate-500',
+  current: 'bg-white/[0.07] text-slate-200',
+  problem: 'bg-white/[0.07] text-slate-200',
   pending: 'bg-white/[0.06] text-slate-400',
 }
-// The card each step is, by where it stands. Done: the plain card. Under way
-// (or needing a person): the whole card set apart — an accent border and a
-// faint tint. Waiting: a dashed outline on no fill, its text at half strength.
+// The card each step is, by where it stands — told apart by lightness, not
+// colour. Done: the plain card. Under way (or needing a person): a step
+// lighter, with a brighter hairline. Waiting: a dashed outline on no fill,
+// its text at half strength.
 const CARD = {
-  done: 'border-white/[0.07] bg-white/[0.035]',
-  current: 'border-sky-300/45 bg-sky-400/[0.06]',
-  problem: 'border-amber-300/45 bg-amber-400/[0.05]',
+  done: 'border-[var(--ds-border-subtle)] bg-[var(--ds-surface-1)]',
+  current: 'border-[var(--ds-border-strong)] bg-[var(--ds-surface-2)]',
+  problem: 'border-[var(--ds-border-strong)] bg-[var(--ds-surface-2)]',
   pending: 'border-dashed border-white/[0.12] bg-transparent',
 }
-const HOVER = { done: 'hover:bg-white/[0.055]', current: 'hover:bg-sky-400/[0.09]', problem: 'hover:bg-amber-400/[0.08]', pending: '' }
+const HOVER = { done: 'hover:bg-white/[0.055]', current: 'hover:bg-white/[0.085]', problem: 'hover:bg-white/[0.085]', pending: '' }
 // (`last`, `arrive`, `strong`: kept for the callers — the record has no line between its cards any more.)
 export function StepRow({ state, title, who, summary: _summary, time, open, onToggle, onReplay, last: _last, moves = false, arrive: _arrive = false, delay = 0, anim, strong: _strong = false, onHover, children, ...rest }) {
   const pending = state === 'pending'
@@ -179,7 +179,11 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
     <>
       <StepIcon state={state} moves={moves} />
       <span data-step-title className={cn('min-w-0 truncate text-[13.5px] leading-5 font-semibold', state === 'done' ? 'text-slate-200' : pending ? 'text-slate-300' : 'text-white')}>{title}</span>
-      <span data-step-state className={cn('inline-flex h-[18px] shrink-0 items-center rounded-full px-1.5 text-[11px] leading-none font-medium', BADGE[state] ?? BADGE.pending)}>{WORD(state)}</span>
+      <span data-step-state className={cn('inline-flex h-[18px] shrink-0 items-center gap-1 rounded-full px-1.5 text-[11px] leading-none font-medium', BADGE[state] ?? BADGE.pending)}>
+        {/* (Under way: the accent's 6px dot, breathing softly — still under reduced motion.) */}
+        {(state === 'current' || state === 'problem') && <span aria-hidden data-step-live className="size-1.5 shrink-0 rounded-full bg-[var(--ds-accent)] ds-step-breathe motion-reduce:animate-none" />}
+        {WORD(state)}
+      </span>
       <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5 pl-2">
         {aside && (time ? <time data-step-time className="shrink-0 text-[12px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time> : <span data-step-who className="shrink-0 truncate text-[12px] text-slate-500">{who}</span>)}
         {foldable && <ChevronRight aria-hidden data-step-chevron className={cn('size-3.5 shrink-0 text-slate-400 transition-transform duration-[180ms] ease-out motion-reduce:transition-none', open && 'rotate-90')} />}

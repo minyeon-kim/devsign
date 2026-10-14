@@ -554,7 +554,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const after = !shown || holding ? { title: '디자인 원안' }
     : !drawable ? { title: '디자인 원안', sub: shown.described ? '미리보기 없음' : '값을 골라 주세요' }
     : { title: peeking ? '미리보기' : mode === 'done' ? '수정 후' : '선택한 결과' }
-  const PICTURE = cn('grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border-2 bg-black/20 p-4', conflict.layouts ? 'h-[304px]' : 'h-[240px]')
+  const PICTURE = cn('grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border bg-black/20 p-4', conflict.layouts ? 'h-[304px]' : 'h-[240px]')
   // The two pictures open large (PictureViewer): what's built now, and the result — drawn from the
   // same state as here, so a way picked while it's open is what it shows.
   const afterWhich = holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'
@@ -584,7 +584,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {/* Before → After: the section's picture. Two cards of the same kind,
           side by side with an arrow between; stacked (before first) when narrow. */}
       <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-        <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-transparent')}>
+        <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-[var(--ds-border-subtle)]')}>
           <ExpandablePicture id="before" label={viewerItems[0].label} onOpen={setViewing}>
             <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
           </ExpandablePicture>
@@ -594,7 +594,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           />
         </figure>
         <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 self-center text-slate-500 min-[769px]:rotate-0" />
-        <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'ds-tone', chosen && drawable && !peeking && !holding ? 'border-emerald-400' : 'border-transparent')}>
+        <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'ds-tone', chosen && drawable && !peeking && !holding ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
           {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
               It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
           <div data-after-picture className="contents">
@@ -630,7 +630,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
             const shape = proposalOf(option.id, on ? custom : null, conflict)
             return (
               <li key={option.id} data-way={option.id} aria-current={on ? 'true' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-lg px-3 py-2', on && 'bg-emerald-400/[0.08]')}>
-                <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full', on ? 'bg-emerald-400 text-slate-950' : 'border-2 border-white/15')}>{on && <Check className="size-3" strokeWidth={3} />}</span>
+                <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full', on ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]' : 'border-2 border-white/15')}>{on && <Check className="size-3" strokeWidth={3} />}</span>
                 <span className="min-w-0 flex-1 truncate text-[13px] leading-5 tabular-nums">
                   <span className={cn('font-medium', on ? 'text-slate-100' : 'text-slate-400')}>{option.name}</span>
                   <span className="text-slate-500"> · {option.id === 'other' ? (shape?.described ? shape.spec : '직접 입력') : option.spec}</span>
@@ -674,7 +674,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
                   <span className="font-medium text-slate-100">{option.name}</span>
                   <span className="text-slate-400"> · {option.id === 'other' ? (shape.described ? shape.spec : valueChange ? '직접 고르기' : '직접 입력') : option.spec}</span>
                   {/* Suggested, not chosen for you: nothing is picked by default. */}
-                  {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-white/[0.07] px-1.5 align-middle text-[10.5px] font-medium text-slate-300">추천</span>}
+                  {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-[var(--ds-accent-bg)] px-1.5 align-middle text-[10.5px] font-medium text-[var(--ds-accent-text)]">추천</span>}
                 </span>
               </button>
               {/* Controls belong to 다른 수정안 alone, right under its row. */}
@@ -966,8 +966,8 @@ function DecisionForm({ conflict, onDecide }) {
               choice === id ? 'bg-emerald-400/10 ring-emerald-400/60' : 'bg-white/[0.03] ring-white/10 hover:bg-white/[0.06]')}
           >
             <span className={cn('flex items-center gap-1.5 text-[13px] font-semibold', choice === id ? 'text-emerald-100' : 'text-slate-100')}>
-              <span className={cn('flex size-3.5 items-center justify-center rounded-full border', choice === id ? 'border-emerald-300 bg-emerald-400' : 'border-white/30')}>
-                {choice === id && <span className="size-1.5 rounded-full bg-slate-950" />}
+              <span className={cn('flex size-3.5 items-center justify-center rounded-full border', choice === id ? 'border-[var(--ds-accent)]' : 'border-white/30')}>
+                {choice === id && <span className="size-1.5 rounded-full bg-[var(--ds-accent)]" />}
               </span>
               {title}
             </span>
