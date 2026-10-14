@@ -1,12 +1,13 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
 import SidebarToggle from '@/components/layout/SidebarToggle'
+import Logo from '@/components/layout/Logo'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, User as UserIcon, Users } from 'lucide-react'
+import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutPanelLeft, PanelLeftClose, User as UserIcon, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -81,7 +82,8 @@ function railArrowKeys(event) {
 // color, see projectTone), swapping in with a quick scale/fade whenever
 // the project changes.
 function ProjectsMark({ project }) {
-  if (!project) return <LayoutGrid className="size-[18px]" />
+  // (Outside a project: the app's own mark — a grid read as a second Home.)
+  if (!project) return <Logo iconOnly />
   return (
     <span
       key={project.id}

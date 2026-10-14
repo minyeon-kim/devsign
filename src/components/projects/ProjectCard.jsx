@@ -4,7 +4,6 @@ import { Check, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
 import { PAGE_CARD } from '@/components/mergestudio/floatingStyles'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
-import ProjectThumbnail from '@/components/dashboard/ProjectThumbnail'
 import { allPeople } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
 import { prefetchProject } from '@/lib/projectPages'
@@ -28,7 +27,8 @@ function SelectIndicator({ selected }) {
 // A count on a card that is also a way in: "Review requests 2" filters My
 // tasks to this project (or, without that, opens its Conflict list on that filter). Not shown at zero. It sits above
 // the card's own click target (see ProjectCard), so it takes the click.
-function CountBadge({ label, count, accent = false, pressed, onClick }) {
+// `tone`: 'review' (mint — it's waiting on you) or 'conflict' (amber — the workspace's colour for changes to check).
+function CountBadge({ label, count, tone = 'conflict', pressed, onClick }) {
   if (!count) return null
   return (
     <button
@@ -38,9 +38,9 @@ function CountBadge({ label, count, accent = false, pressed, onClick }) {
       onClick={onClick}
       className={cn(
         'ds-intrinsic relative z-10 inline-flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
-        accent
+        tone === 'review'
           ? cn('border-emerald-400/25 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20', pressed && 'border-emerald-300/60 bg-emerald-400/25 text-white')
-          : 'border-white/[0.14] bg-white/[0.04] text-slate-200 hover:border-white/25 hover:bg-white/[0.09]'
+          : 'border-amber-300/25 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20'
       )}
     >
       <LocalizedText text={label} />
@@ -72,7 +72,7 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
   const openList = (conflictFilter) => navigate(changesHref(project.id, conflictFilter))
   const badges = !selectable && (
     <>
-      <CountBadge accent label="Review requests" count={counts?.needsMyReview} onClick={() => openList('mine')} />
+      <CountBadge tone="review" label="Review requests" count={counts?.needsMyReview} onClick={() => openList('mine')} />
       <CountBadge label="Conflicts" count={counts?.open} onClick={() => openList('open')} />
     </>
   )
@@ -115,16 +115,14 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
         selected && 'border-primary ring-2 ring-primary/40'
       )}
     >
-      <div className="relative">
-        <ProjectThumbnail type={project.thumbnailType} className="h-36 w-full rounded-none border-0 border-b border-border" />
-        {selectable && (
-          <div className="absolute top-2 left-2">
-            <SelectIndicator selected={selected} />
-          </div>
-        )}
-      </div>
+      {/* (No preview: a placeholder picture read as still loading. The name, who's on it and what's waiting say enough.) */}
+      {selectable && (
+        <div className="absolute top-3 right-3 z-10">
+          <SelectIndicator selected={selected} />
+        </div>
+      )}
 
-      <div className="flex items-center gap-3 px-4 py-3.5">
+      <div className={cn('flex items-center gap-3 px-4 pt-4', hasBadges ? 'pb-3' : 'pb-4')}>
         <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', tone)}>
           <FolderKanban className="size-4 text-white" />
         </span>
@@ -138,7 +136,7 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
         </div>
 
         {/* Overlapped just enough that every initial still reads. */}
-        <AvatarGroup className="shrink-0 -space-x-0.5">
+        {!selectable && <AvatarGroup className="shrink-0 -space-x-0.5">
           {visibleMembers.map((member) => (
             <Avatar key={member.id} size="sm">
               <AvatarFallback className={cn('text-[10px] font-medium text-white', member.colorClass)}>
@@ -147,10 +145,10 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
             </Avatar>
           ))}
           {overflowCount > 0 && <AvatarGroupCount>+{overflowCount}</AvatarGroupCount>}
-        </AvatarGroup>
+        </AvatarGroup>}
       </div>
 
-      {hasBadges && <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5">{badges}</div>}
+      {hasBadges && <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">{badges}</div>}
     </div>
   )
 }

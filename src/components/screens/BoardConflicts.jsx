@@ -48,7 +48,7 @@ const DUE_ORDER = { overdue: 0, today: 1, soon: 2, week: 3, later: 4, none: 5 }
 const RISK_ORDER = { high: 0, medium: 1, low: 2 }
 export const sortRows = (conflicts) => [...conflicts].sort((a, b) => (DUE_ORDER[a.dueBucket] ?? 5) - (DUE_ORDER[b.dueBucket] ?? 5) || (RISK_ORDER[a.severity] ?? 1) - (RISK_ORDER[b.severity] ?? 1))
 // Where it stands, as an icon (said in its tooltip): ○ not asked yet, ◐ under way, ✓ done.
-function StatusIcon({ status, label }) {
+export function StatusIcon({ status, label }) {
   const done = status === 'done'
   const going = !done && status !== 'detected'
   return (
@@ -59,7 +59,7 @@ function StatusIcon({ status, label }) {
     </span>
   )
 }
-const RISK_CHIP = { high: ['Risk high', 'bg-rose-400/[0.14] text-rose-300'], medium: ['Risk medium', 'bg-amber-300/[0.14] text-amber-200'] }
+export const RISK_CHIP = { high: ['Risk high', 'bg-rose-400/[0.14] text-rose-300'], medium: ['Risk medium', 'bg-amber-300/[0.14] text-amber-200'] }
 const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
 // `focusScreenId`: the screen it was opened for (its count, pressed) — brought into view.

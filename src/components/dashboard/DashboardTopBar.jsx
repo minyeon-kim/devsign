@@ -39,7 +39,9 @@ function searchAll(query) {
 // pill, and the notifications/profile controls on the right: equal 1fr
 // side columns with symmetric padding keep the pill exactly centered
 // over the content column.
-function DashboardTopBar() {
+// `column`: the content's own column (DashboardLayout's max width and side padding), so the search starts at the
+// content's left edge and the bell ends at its right — the bar lines up with the page under it.
+function DashboardTopBar({ column = 'max-w-[1680px] px-6 sm:px-10 lg:px-14' }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
@@ -79,11 +81,10 @@ function DashboardTopBar() {
   return (
     // Equal 1fr columns either side of the search pin it to the bar's exact
     // center regardless of how wide the profile cluster on the right is.
-    <header className="z-20 grid h-[var(--ds-chrome-size)] shrink-0 grid-cols-[1fr_minmax(0,480px)_1fr] items-center gap-3 px-5">
-      <div />
+    <header className={cn('z-20 mx-auto flex h-[var(--ds-chrome-size)] w-full shrink-0 items-center justify-between gap-3', column)}>
 
       <SearchField
-        className="w-full"
+        className="w-full max-w-[480px]"
         ref={inputRef}
         shortcut="⌘K"
         onKeyDown={onSearchKey}

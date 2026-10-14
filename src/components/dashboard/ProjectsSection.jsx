@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from '@/i18n/toast'
-import { ChevronDown, Folder, LayoutGrid, List, Plus, Trash2, X } from 'lucide-react'
+import { ChevronDown, LayoutGrid, List, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
+import { LocalizedText } from '@/i18n/runtime'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,6 +22,8 @@ import { useConflictStore } from '@/state/ConflictStore'
 // never opened keeps its place after the ones that were.
 const typeOptions = ['All types', 'Has conflicts', 'No conflicts']
 const sortOptions = ['Last modified', 'Recently viewed', 'Name', 'Most conflicts']
+// (Filters, sort and grid / list only once there are enough projects to need them.)
+const TOOLS_FROM = 6
 
 function ProjectsSection() {
   const [view, setView] = useState('grid')
@@ -92,16 +95,11 @@ function ProjectsSection() {
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={toggleSelectMode}
-          aria-pressed={selectMode}
-          className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1 transition-colors hover:bg-muted"
-        >
-          <Folder className="size-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold text-foreground">Projects</h1>
-          <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', selectMode && 'rotate-180')} />
-        </button>
+        {/* (A plain title and how many — selecting is in the ⋯ menu, not behind the title.) */}
+        <h1 className="flex items-baseline gap-1.5 text-[15px] font-semibold text-foreground">
+          <LocalizedText text="Projects" />
+          <span className="font-normal text-slate-500 tabular-nums">{projectList.length}</span>
+        </h1>
 
         {selectMode ? (
           <div className="flex shrink-0 items-center gap-2">
@@ -127,6 +125,7 @@ function ProjectsSection() {
           </div>
         ) : (
         <div className="flex shrink-0 items-center gap-2">
+          {projectList.length >= TOOLS_FROM && (<>
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
               {type}
@@ -177,8 +176,18 @@ function ProjectsSection() {
               <List className="size-3.5" />
             </button>
           </div>
+          </>)}
 
-          <Button size="sm" className="gap-1" aria-description="Create a new project" onClick={() => setCreateOpen(true)}>
+          <DropdownMenu>
+            <DropdownMenuTrigger aria-label="More" title="More" className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={toggleSelectMode}><LocalizedText text="Select projects" /></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" className="gap-1 rounded-full" aria-description="Create a new project" onClick={() => setCreateOpen(true)}>
             <Plus className="size-3.5" />
             New project
           </Button>

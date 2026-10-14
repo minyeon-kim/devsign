@@ -2680,3 +2680,6 @@ Object.assign(ko, {
 
 // Merge Studio's way out.
 Object.assign(ko, { 'Back to Workspace': '워크스페이스로 돌아가기' })
+
+// Home's review queue.
+Object.assign(ko, { 'Waiting on your review': '내 검토 대기', 'More': '더 보기', 'Select projects': '프로젝트 선택' })
