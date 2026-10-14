@@ -16,6 +16,7 @@ import { LocalizedText } from '@/i18n/runtime'
 import { boardLayout, screenOf, transitionsOf } from '@/lib/screens'
 import { boardFit, clampZoom, focusView, glideAt, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { liveOverridesOf, useCanvasPreview } from '@/lib/canvasPreview'
 import { WindowHeaderPortal, WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 
 // Screens — the project's screens on one board, in the order its flows say
@@ -155,11 +156,12 @@ class CardBoundary extends Component {
   }
 }
 
-function ScreenDrawing({ frame }) {
+// `overrides`: a fix previewed in place (lib/canvasPreview) — values put over what's built, by layer id.
+function ScreenDrawing({ frame, overrides = null }) {
   return (
     <CardBoundary>
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} />)}
+        {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} />)}
       </div>
     </CardBoundary>
   )
@@ -509,6 +511,11 @@ function ScreensBoard() {
   }
 
   const drawn = useMemo(() => new Set(visibleCards(layout.cards, shown, room).map((card) => card.id)), [layout, shown, room])
+  // A fix previewed in place: the way picked in the detail drawn on the screens it reaches, the cards
+  // dashed green and saying it isn't applied. (Picking a way never moves the board.)
+  const preview = useCanvasPreview()
+  const previewOverrides = liveOverridesOf(preview)
+  const previewWay = preview?.ways.find((way) => way.id === preview.picked) ?? null
   // Near enough to read a screen (55% and up): its changes are markers on their elements.
   const detailed = shown.zoom >= DETAIL_ZOOM
   const single = prototype.kind === 'single-page'
@@ -632,8 +639,17 @@ function ScreensBoard() {
                 className={cn('relative block overflow-hidden rounded-xl bg-white text-left shadow-xl shadow-black/40 outline-none transition-shadow', proto ? (leads.some((entry) => entry.transition.id === hot) ? 'ring-[3px] ring-sky-400' : 'ring-1 ring-white/15') : selected ? 'ring-[3px] ring-emerald-300' : 'ring-1 ring-white/15 hover:ring-2 hover:ring-white/40')}
                 style={{ width: card.width, height: card.height }}
               >
-                {drawn.has(card.id) && <ScreenDrawing frame={screen.frame} />}
+                {drawn.has(card.id) && <ScreenDrawing frame={screen.frame} overrides={preview?.pages.includes(card.id) ? previewOverrides : null} />}
               </button>
+              )}
+              {previewWay && !proto && preview.pages.includes(card.id) && (
+                <>
+                  <span aria-hidden data-preview-border={card.id} className="pointer-events-none absolute rounded-[16px]" style={{ left: -6, right: -6, top: 32 - 6, height: card.height + 12, outline: `${2 / shown.zoom}px dashed var(--ds-accent)` }} />
+                  {/* (Kept one size whatever the zoom, standing on the card's top right.) */}
+                  <span data-preview-badge={card.id} className="pointer-events-none absolute z-20 flex origin-bottom-right items-center gap-1.5 rounded-full border border-[var(--ds-accent-border)] bg-[#0f1a15] px-2.5 py-1 text-[11.5px] leading-4 font-medium whitespace-nowrap text-[var(--ds-accent-text)] shadow-lg" style={{ right: 0, bottom: `calc(100% - 32px + 8px)`, transform: `scale(${1 / shown.zoom})` }}>
+                    <span aria-hidden className="size-1.5 rounded-full bg-[var(--ds-accent)]" />옵션 {previewWay.n} 미리보기 · 적용 안 됨
+                  </span>
+                </>
               )}
               {/* Its open changes: the change pin with their number, at the card's top right — kept the
                   size it is on screen whatever the zoom. Its presses are its own: they never reach the

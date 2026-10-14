@@ -60,6 +60,10 @@ try {
   // Picking a way never moves the camera: no zoom of its own left on the canvas.
   assert.ok(!canvas.includes('focusView') && !canvas.includes('focusNonce') && canvas.includes('data-preview-reach') && canvas.includes('data-preview-banner') && canvas.includes('<PreviewLens'))
   assert.ok(canvas.includes("if (event.key !== ' ' || typing(event)) return") && canvas.includes('peek: true'))
+  // The Screens board (its own detail at the right) draws the same preview on its cards — the store is the one link.
+  const board = read('components/screens/ScreensBoard.jsx')
+  assert.ok(board.includes('const previewOverrides = liveOverridesOf(preview)') && board.includes('overrides={preview?.pages.includes(card.id) ? previewOverrides : null}') && board.includes('override={overrides?.[layer.id]}'))
+  assert.ok(board.includes('data-preview-border={card.id}') && board.includes('미리보기 · 적용 안 됨'))
   const compare = read('components/canvas/CompareCanvas.jsx')
   assert.ok(compare.includes("['side', '나란히'], ['swipe', 'Swipe'], ['onion', 'Onion']") && compare.includes('clipPath: `inset(0 0 0 ${preview.mix * 100}%)`') && compare.includes('{ opacity: preview.mix }'))
   assert.ok(compare.includes('preview.onPick?.(cellId)') && compare.includes("event.key !== 'Escape'") && compare.includes('<StaticLayer'))
