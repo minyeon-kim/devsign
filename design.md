@@ -57,3 +57,13 @@ The dark theme variables live in `src/index.css`. Shared action classes live bes
 - History playback toolbar has a transparent background, no bounding border/ring and no container shadow in both full and compact views. Individual controls and the slider retain their own fills.
 - History Current/Restore controls use `.ds-pill` with `border-radius: 9999px`, including disabled Current states.
 - The review sidebar's Status, Reviewers and Comments boxes share `.ds-review-context`: 12px padding on every side, 12px gaps between boxes, and 8px between headings/progress and content. Section headings share a 32px height and zero top margin. Scrolling and content-driven heights remain intact.
+
+## Panels: one way to open
+
+Every panel opens the same way — in the same flex row as the work, taking its own width (never `position: absolute/fixed` over it):
+
+- **App sidebar** (Docs, History, Import, Design Compare's list): beside the activity bar, pushes the whole work area. Design Compare's list holds the design sets (search, groups by screen, the change list's own `DrawerRow`); the set picked opens in the canvas's place (`WorkspaceDesignCompare`), with "← canvas" to go back. The Preview · Screens · Code tabs are dimmed while it shows.
+- **Tool panel** (Files · Layers · Assets · Inspect): docked at the work area's left, under the tab row, pushing the canvas (or the comparison) only. 260px, dragged between 200 and 400, no card (no radius, shadow or margin), a 1px right edge at white 6%. Open state, tab and width are kept (`devsign:sidePanel.v2`, `devsign:toolPanel.v1`); ⌘\ / Ctrl+\ toggles it.
+- **Right panel** (the Screens board's change list): docked at the work area's right, beside the canvas or the comparison.
+- Widths ease in 200ms ease-out (none with `prefers-reduced-motion`). The camera keeps its scale and moves only as far as it takes (`lib/canvasCamera`): the picked frame / change stays in view; otherwise the canvas's centre stays its centre.
+- The canvas (or comparison) keeps at least 480px: the tool panel folds first, then the right panel, then AI Chat — the app sidebar stays (`foldForRoom`, `lib/panelPrefs`).

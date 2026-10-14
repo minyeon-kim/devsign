@@ -3,7 +3,6 @@ import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
-import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { AI_CHAT, clampWidth } from '@/lib/panelPrefs'
 import { railSplit } from '@/lib/panelPrefs'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -19,6 +18,7 @@ import DocsDrawer from '@/components/dashboard/DocsDrawer'
 import HistoryDrawer, { HistoryCount } from '@/components/dashboard/HistoryDrawer'
 import ImportDrawer from '@/components/dashboard/ImportDrawer'
 import ConflictsDrawer, { ConflictCount } from '@/components/dashboard/ConflictsDrawer'
+import CompareDrawer, { CompareCount } from '@/components/dashboard/CompareDrawer'
 import ProjectSwitcher from '@/components/dashboard/ProjectSwitcher'
 import SplitHandle from '@/components/layout/SplitHandle'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
@@ -63,8 +63,8 @@ export function RailButton({ label, icon: Icon, className, iconClassName, side =
 }
 
 // The Workspace's own views, on the activity bar under the project's, past a
-// hairline: Design Compare (a work pane beside the canvas: it needs the
-// width). (Terminal and Console aren't on the bar.)
+// hairline: Design Compare (its list in the drawer, the pick shown in the
+// work area). (Terminal and Console aren't on the bar.)
 // A side panel icon opens the panel on its view, swaps the view, or — the
 // one that's showing — folds it. What doesn't fit the bar's height goes to
 // "More" at the end, so the bar itself never scrolls.
@@ -76,11 +76,11 @@ const WORKSPACE_VIEWS = [
 ]
 function WorkspaceViews({ workspace, slots, drawer, onToggleDrawer }) {
   const { sidePanel, filesWindow, toggleSideView, mergeItems } = workspace
-  // (Design Compare floats over the canvas's left — CanvasComparePanel; the pane is still there for a link.)
-  const comparing = drawer === 'compare' || Boolean(workspace.compareOpen)
+  // (Design Compare is a drawer like Docs: its list at the left, the set picked opening where the canvas is.)
+  const comparing = drawer === 'compare'
   const designSets = mergeItems.filter((item) => item.hasDesign).length
   // Every icon is a switch: on, it shows its view; pressed again, it puts it away. (A side panel
-  // view folds the panel; Design Compare is a work pane beside the Workspace — lib/workPane.)
+  // view folds the panel; Design Compare is a drawer — lib/workPane.)
   const showing = (view) => (view.side ? sidePanel.open && (filesWindow.tab === view.id || (view.id === 'inspect' && filesWindow.tab === 'blockDeck')) : comparing)
   const press = (view) => (view.side ? toggleSideView(view.id) : onToggleDrawer('compare'))
   const { shown, more } = railSplit(WORKSPACE_VIEWS, slots)
@@ -419,9 +419,8 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
   const dragStart = useRef(DRAWER_WIDTH)
   const resize = (w) => setWidth(Math.max(DRAWER_MIN, Math.min(DRAWER_MAX, w)))
 
-  // A work pane (lib/workPane: the changes to check, Design Compare) is as
-  // wide as its share of the room — its own default (a third for the changes,
-  // half for Design Compare), until its edge is dragged; each pane's share is kept. The room is the window less the bar and an open AI Chat,
+  // A work pane (lib/workPane: the changes to check) is as
+  // wide as its share of the room — its own default (a third), until its edge is dragged; each pane's share is kept. The room is the window less the bar and an open AI Chat,
   // so the pane and the Workspace split what's left. With too little to
   // split, or maximized, the pane has it all.
   const split = isSplit(panel)
@@ -451,7 +450,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     const before = wasOpen.current
     wasOpen.current = drawer
     if (isSplit(drawer) && before !== drawer) requestAnimationFrame(() => asideRef.current?.querySelector('input, button:not([data-pane-chrome]), [tabindex="0"]')?.focus({ preventScroll: true }))
-    else if (!drawer && isSplit(before) && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-sidebar-toggle]')?.focus()
+    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view="design-compare"]' : '[data-sidebar-toggle]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
   const targetWidth = drawer ? shownWidth + 8 : 0
@@ -515,6 +514,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
               {DRAWER_TITLES[panel]}
               {panel === 'history' && project && <HistoryCount />}
               {panel === 'conflicts' && project && <ConflictCount />}
+              {panel === 'compare' && project && context && <CompareCount />}
             </p>
             {split ? (
               <>
@@ -542,7 +542,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
             {panel === 'history' && project && <HistoryDrawer project={project} />}
             {panel === 'import' && project && <ImportDrawer project={project} />}
             {panel === 'conflicts' && project && <ConflictsDrawer project={project} />}
-            {panel === 'compare' && project && context && <WorkspaceDesignCompare />}
+            {panel === 'compare' && project && context && <CompareDrawer project={project} />}
           </div>
           {/* A change's detail opens here, over the list it was picked from (ConflictReviewOverlay). */}
           {panel === 'conflicts' && <div ref={setHost} data-work-pane-layer className="pointer-events-none absolute inset-0 z-20 [&>*]:pointer-events-auto" />}

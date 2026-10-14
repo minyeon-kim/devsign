@@ -31,6 +31,7 @@ import CompareCanvas from '@/components/canvas/CompareCanvas'
 import PreviewLens from '@/components/canvas/PreviewLens'
 import { liveOverridesOf, setCanvasPreview, useCanvasPreview } from '@/lib/canvasPreview'
 import { boardFit } from '@/lib/screensBoard'
+import { resizeShift } from '@/lib/canvasCamera'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -398,17 +399,25 @@ function CanvasPanel() {
     settleTimer.current = window.setTimeout(() => setSettling(false), ms)
   }, [])
   useEffect(() => () => window.clearTimeout(settleTimer.current), [])
+  // What the camera looks after while the canvas is resized: the change in view, else the frame/layer picked.
+  const watched = useRef([])
   useEffect(() => {
     const viewport = scrollRef.current
     if (!viewport) return
-    // Resized (a pane opening or closing beside it): what was at its centre stays at its centre — the
-    // content moves by half of what the canvas gained or lost, along with it, never jumping.
+    // Resized (a panel opening or closing beside it — the sidebar, the tool panel; every frame of its easing):
+    // the scale stays, and the canvas is moved only as far as it takes.
+    //  · a frame (or the change) picked and in view: if the narrower canvas would cut it off, the content moves
+    //    just enough to bring it back inside — and not at all while it's still whole;
+    //  · otherwise what was at the canvas's centre stays at its centre (half of what the canvas gained or lost).
     let last = null
     const measure = () => {
       const next = { width: viewport.clientWidth, height: viewport.clientHeight }
       if (last && last.width && next.width !== last.width) {
-        const dx = (next.width - last.width) / 2
-        setView((v) => ({ ...v, x: v.x + dx }))
+        const target = watched.current.map((id) => id && (viewport.querySelector(`[data-layer-id="${CSS.escape(id)}"]`) ?? viewport.querySelector(`[data-canvas-frame="${CSS.escape(id)}"]`))).find(Boolean)
+        const origin = viewport.getBoundingClientRect()
+        const rect = target?.getBoundingClientRect()
+        const dx = resizeShift({ box: rect && { left: rect.left - origin.left, right: rect.right - origin.left }, before: last.width, after: next.width })
+        if (dx) setView((v) => ({ ...v, x: v.x + dx }))
         unsettle()
       }
       last = next
@@ -454,6 +463,7 @@ function CanvasPanel() {
     hoverConflictPin,
     selectConflictPin,
   } = useWorkspace()
+  watched.current = [conflictPin.selected?.layerId, selectedLayerId]
   // The change pins on this page: one per element a change is about,
   // numbered as the "확인할 변경점" list numbers them.
   const pagePins = useMemo(() => {

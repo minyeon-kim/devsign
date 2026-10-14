@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowLeft, Check, ChevronDown, Layers3, X } from 'lucide-react'
 import { cn } from 'cn'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { LocalizedText } from '@/i18n/runtime'
@@ -9,7 +10,8 @@ import { listStatusOf, shortDue } from '@/lib/conflicts'
 import { conflictTypeOf } from '@/lib/conflictInsight'
 
 // The Screens board's change list (Conflict Points, pressed while Screens
-// shows): a panel floating over the board's right. It lists the open changes
+// shows): a panel at the right of the work area, docked in the same row as the board (it takes its width,
+// the board gets the rest — `host`, BoardDockSlot); without a place there it floats over the board's right. It lists the open changes
 // screen by screen, in the board's order; pressing one glides the board in
 // on it (its element lit) and shows its detail here, in the same panel —
 // Back returns to the list.
@@ -62,7 +64,10 @@ const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-ce
 
 // `focusScreenId`: the screen it was opened for (its count, pressed) — brought into view.
 // `currentScreenId`: the screen the board is on — its group's name in the plain text colour.
-export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose, focusScreenId = null, currentScreenId = null }) {
+// `host`: where it's docked (BoardDockSlot's element). `marked`: the change another view has picked (Design
+// Compare's) — its row is marked as the picked one is. `compareItem`/`onOpenCompare`: the picked change's design
+// set, and the way into its comparison (the icon in the detail's header).
+export default function BoardConflicts({ groups, total, picked, onPick, onBack, onClose, focusScreenId = null, currentScreenId = null, host = null, marked = null, compareItem = null, onOpenCompare = null }) {
   const language = useLanguage()
   const listRef = useRef(null)
   // (The row whose detail was last open stays marked once back on the list — and takes the focus.)
@@ -85,15 +90,18 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
     const next = rows[at === -1 ? 0 : Math.max(0, Math.min(rows.length - 1, at + (event.key === 'ArrowDown' ? 1 : -1)))]
     if (next) { event.preventDefault(); next.focus() }
   }
-  return (
+  const panel = (
     <section
       data-board-chrome
       data-board-conflicts={picked ? 'detail' : 'list'}
+      data-docked={host ? '' : undefined}
       aria-label="Changes on these screens"
       onPointerDown={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      className="absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none"
-      style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: 'calc(100% - 16px)', '--background': '#1C1C1C' }}
+      className={host
+        ? 'relative flex h-full flex-col overflow-hidden border-l border-white/[0.06] bg-background'
+        : 'absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none'}
+      style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
       <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
         {/* (On a change: the way back to the list — its title is the detail's own, right under.) */}
@@ -105,6 +113,9 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
           <h2 className="min-w-0 flex-1 truncate pl-1.5 text-[13px] font-semibold text-slate-100">
             <LocalizedText text="Conflicts" /> <span className="font-normal text-slate-500 tabular-nums">{total}</span>
           </h2>
+        )}
+        {picked && compareItem && onOpenCompare && (
+          <button type="button" data-board-conflicts-compare onClick={() => onOpenCompare(compareItem)} aria-label={translateText('Open in Design Compare', language)} title={translateText('Open in Design Compare', language)} className={HEADER_BUTTON}><Layers3 className="size-4" /></button>
         )}
         <button type="button" data-board-conflicts-close onClick={onClose} aria-label="Close" title="Close" className={HEADER_BUTTON}><X className="size-4" /></button>
       </header>
@@ -139,7 +150,7 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
                       const { target, property } = rowTitleOf(conflict)
                       const due = shortDue(conflict.dueLabel)
                       const chip = RISK_CHIP[conflict.severity]
-                      const selected = conflict.id === lastId
+                      const selected = conflict.id === (marked ?? lastId)
                       return (
                         <li key={conflict.id}>
                           <button type="button" data-board-conflict={conflict.id} data-selected={selected ? '' : undefined} onClick={() => onPick(conflict)}
@@ -168,4 +179,5 @@ export default function BoardConflicts({ groups, total, picked, onPick, onBack, 
       )}
     </section>
   )
+  return host ? createPortal(panel, host) : panel
 }

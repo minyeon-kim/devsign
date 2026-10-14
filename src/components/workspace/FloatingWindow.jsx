@@ -44,7 +44,10 @@ const DRAG_THRESHOLD = 4
 // `viewRail` / `viewOverlay` (the main window): anything floating over the content's left (none now — its
 // icons are in the tab row, CanvasSideViews), and
 // what opens from it over the content (CanvasSideViews) — the content itself runs under both.
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null, surface = 'card' }) {
+// `viewDockEnd`: the right panel, the same way after the content. `viewDock` (the main window): the tool panel, a flex child before the content in the same row — it takes
+// its width and the content gets the rest; `viewCovered`: something in `viewOverlay` stands in the content's
+// place (the comparison), so the content is out of reach under it.
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null, viewDock = null, viewDockEnd = null, viewCovered = false, surface = 'card' }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -269,16 +272,20 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
+      {viewDock}
       <div role={viewPanel ? 'tabpanel' : undefined} id={viewPanel?.id} aria-labelledby={viewPanel?.labelledBy} className={cn('relative min-h-0 min-w-0 flex-1 overflow-hidden', surface === 'base' ? 'bg-background' : 'bg-card')}>
         <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
           <WindowTabsContext.Provider value={docked || isNavigatorGroup}>
-            {ActiveContent && <ActiveContent params={activePanel.params} />}
+            <div className="contents" inert={viewCovered || undefined} aria-hidden={viewCovered || undefined}>
+              {ActiveContent && <ActiveContent params={activePanel.params} />}
+            </div>
           </WindowTabsContext.Provider>
           {/* (Over the content — the canvas runs under them to the window's edge.) */}
           {viewRail}
           {viewOverlay}
         </WindowHeaderSlotContext.Provider>
       </div>
+      {viewDockEnd}
       </div>
 
       {!isMaximized && !docked && (

@@ -1,21 +1,24 @@
-import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Component, Files, Layers, ScanEye, X } from 'lucide-react'
+import SplitHandle from '@/components/layout/SplitHandle'
 import { cn } from 'cn'
 import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
 import WorkspaceDesignCompare from '@/components/workspace/WorkspaceDesignCompare'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
-import { inCanvasViewOf } from '@/lib/panelPrefs'
-import { PANE_MOTION } from '@/lib/useAfterPaint'
+import { BOARD_DETAIL_WIDTH, BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
+import { TOOL_PANEL, foldForRoom, inCanvasViewOf } from '@/lib/panelPrefs'
+import { useAfterPaint } from '@/lib/useAfterPaint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Files · Layers · Assets · Inspect, in the main window: a row of icons in its tab row, right after the
 // Preview · Screens · Code tabs (a rule before them, and one before Inspect) — nothing floats over the
-// canvas. An icon opens its view in a panel just under it, over the canvas (or the preview, or the code)
-// — another icon swaps it, the same icon (or ×) puts it away. It's the side panel's own state (`sidePanel.open`, the
-// navigator's tab), so ⌘B and anything that asks for a view still work;
-// only Terminal and Console still open in the side panel itself.
+// canvas. An icon opens its view in a tool panel docked at the work area's left, under the tab row, in the same
+// row as the canvas (or the preview, or the code, or the comparison): the panel takes its own width and the
+// canvas gets what's left. Another icon swaps the view (the panel stays as wide), the same icon (or ×, or
+// ⌘\) puts it away. It's the side panel's own state (`sidePanel.open`, the navigator's tab), so ⌘B and
+// anything that asks for a view still work; only Terminal and Console still open in the side panel itself.
 const VIEWS = [
   { id: 'files', label: 'Files', icon: Files },
   { id: 'layers', label: 'Layers', icon: Layers },
@@ -23,7 +26,6 @@ const VIEWS = [
   { id: 'inspect', label: 'Inspect', icon: ScanEye, rule: true },
 ]
 const RULE = 'mx-1.5 h-4 w-px shrink-0 bg-white/10'
-export const CANVAS_VIEW_WIDTH = 280
 
 export function CanvasViewRail() {
   const { sidePanel, filesWindow, toggleSideView } = useWorkspace()
@@ -56,22 +58,52 @@ export function CanvasViewRail() {
   )
 }
 
-// The view, opened just under its icon (lined up with the row of icons, kept inside the window), over
-// the canvas, its width easing in and out.
+// How the panels ease in and out: 200ms, ease-out. (No motion at all for a reader who asked for none.)
+export const DOCK_MOTION = 'duration-200 ease-out motion-reduce:transition-none'
+
+// The tool panel: a flex child before the canvas in the main window's row (FloatingWindow's `viewDock`),
+// as wide as the person left it (260px to start, 200–400 by its right edge), no card — a hairline at its
+// right edge, white at 6%. Its width eases (the canvas follows it, keeping its place — CanvasPanel); its
+// content stays at the full width, so nothing re-wraps while it moves.
+// The canvas (or the comparison) keeps at least MIN_CANVAS: with less than that, this panel folds first,
+// then AI Chat at the right (the app sidebar stays).
+const boardDockWidth = (shown) => (shown === 'detail' ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
+
 export function CanvasViewPanel() {
-  const { sidePanel, filesWindow, setSidePanel } = useWorkspace()
+  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown, setBoardConflicts } = useWorkspace()
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
-  const title = VIEWS.find((view) => view.id === open)?.label
+  // (The view it showed stays while it eases shut.)
+  const [last, setLast] = useState(open)
+  if (open && open !== last) setLast(open)
+  const view = open ?? last
+  const title = VIEWS.find((entry) => entry.id === view)?.label
+  const [resizing, setResizing] = useState(false)
+  const dragStart = useRef(toolPanelWidth)
+  const target = open ? toolPanelWidth : 0
+  const eased = useAfterPaint(target)
+  const width = resizing ? target : eased
+
   const ref = useRef(null)
-  const [left, setLeft] = useState(8)
-  useLayoutEffect(() => {
-    const panel = ref.current
-    const host = panel?.offsetParent
-    const button = open && document.querySelector(`[data-canvas-view="${open}"]`)
-    if (!panel || !host || !button) return
-    const room = host.getBoundingClientRect()
-    setLeft(Math.round(Math.max(8, Math.min(room.width - CANVAS_VIEW_WIDTH - 8, button.getBoundingClientRect().left - room.left))))
-  }, [open])
+  const toolOpen = Boolean(open)
+  const chatOpen = aiChat.open
+  const rightWidth = boardDockShown ? boardDockWidth(boardDockShown) : 0
+  useEffect(() => {
+    const row = ref.current?.parentElement
+    if (!row) return undefined
+    const check = () => {
+      if (!row.clientWidth) return
+      const fold = foldForRoom({ room: row.clientWidth, tool: { open: toolOpen, width: toolPanelWidth }, right: { open: rightWidth > 0, width: rightWidth }, chat: chatOpen })
+      if (fold === 'tool') setSidePanel({ open: false })
+      else if (fold === 'right') setBoardConflicts({ open: false, conflictId: null })
+      else if (fold === 'chat') setAiChat({ open: false })
+    }
+    check()
+    const observer = new ResizeObserver(check)
+    observer.observe(row)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolOpen, chatOpen, toolPanelWidth, rightWidth])
+
   return (
     <div
       ref={ref}
@@ -79,44 +111,60 @@ export function CanvasViewPanel() {
       data-canvas-view-panel={open ?? undefined}
       inert={!open || undefined}
       aria-hidden={!open || undefined}
-      style={{ width: open ? CANVAS_VIEW_WIDTH : 0, left }}
-      className={cn('absolute top-1 bottom-2 z-30 overflow-hidden rounded-xl transition-[width,opacity] motion-reduce:transition-none', PANE_MOTION,
-        open ? 'border border-white/[0.08] bg-card opacity-100 shadow-2xl shadow-black/50' : 'opacity-0')}
+      style={{ width }}
+      className={cn('relative h-full shrink-0 overflow-hidden transition-[width]', DOCK_MOTION, resizing && 'transition-none')}
     >
-      {/* (At its full width whatever it's opened to, so nothing re-wraps while it eases.) */}
-      <div className="flex h-full flex-col" style={{ width: CANVAS_VIEW_WIDTH }}>
+      <div className="flex h-full flex-col border-r border-white/[0.06] bg-card" style={{ width: toolPanelWidth }}>
         <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/[0.06] pr-1.5 pl-3">
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-100">{title && <LocalizedText text={title} />}</span>
-          <button type="button" data-canvas-view-close aria-label="Close" title="Close" onClick={() => setSidePanel({ open: false })}
+          <button type="button" data-canvas-view-close aria-label="Close" title="Close · Ctrl+\" onClick={() => setSidePanel({ open: false })}
             className="ds-intrinsic flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
             <X className="size-3.5" />
           </button>
         </div>
-        <div className="min-h-0 flex-1">{open && <NavigatorPanel inCanvas />}</div>
+        <div className="min-h-0 flex-1">{view && <NavigatorPanel inCanvas />}</div>
       </div>
+      {open && (
+        <SplitHandle
+          label="Resize tool panel"
+          value={Math.round(((toolPanelWidth - TOOL_PANEL.min) / (TOOL_PANEL.max - TOOL_PANEL.min)) * 100)}
+          className="absolute inset-y-0 right-0 z-10"
+          onResizeStart={() => { dragStart.current = toolPanelWidth; setResizing(true) }}
+          onResize={(dx) => setToolPanelWidth(dragStart.current + dx)}
+          onResizeEnd={() => setResizing(false)}
+          onStep={(d) => setToolPanelWidth(toolPanelWidth + d)}
+          onReset={() => setToolPanelWidth(TOOL_PANEL.width)}
+        />
+      )}
     </div>
   )
 }
 
-// Design Compare, floating over the canvas's left (the activity bar's Design Compare): the design sets as a list at its left and their drafts beside it — wide enough for both.
-export function CanvasComparePanel() {
-  const { compareOpen, setCompareOpen } = useWorkspace()
-  if (!compareOpen) return null
+// Design Compare's comparison, in the work area where the canvas is (the set picked in the drawer): it fills
+// the canvas's place — beside the tool panel, if that's open — and "← canvas" gives the canvas back. The
+// canvas stays mounted under it (its view, its selection), out of reach until then.
+export function CompareWorkView() {
+  const { compareItemId } = useWorkspace()
+  if (compareItemId == null) return null
   return (
-    <section
-      id="canvas-compare-panel"
-      data-canvas-compare
-      aria-label="Design Compare"
-      className="absolute inset-y-2 left-2 z-30 flex w-[min(760px,calc(100%-16px))] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-card shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-left-2 duration-200 motion-reduce:animate-none"
-    >
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/[0.06] pr-1.5 pl-3">
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-100"><LocalizedText text="Design Compare" /></span>
-        <button type="button" data-canvas-compare-close aria-label="Close" title="Close" onClick={() => setCompareOpen(false)}
-          className="ds-intrinsic flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-          <X className="size-3.5" />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1"><WorkspaceDesignCompare /></div>
+    <section id="canvas-compare-panel" data-canvas-compare aria-label="Design Compare" className="absolute inset-0 z-30 flex min-w-0 flex-col overflow-hidden bg-card">
+      <WorkspaceDesignCompare />
     </section>
+  )
+}
+
+
+
+// The Screens board's change list, at the right of the work area (the "right panel"): a flex child after the
+// canvas (or the comparison) in the same row, its width easing like the tool panel's. BoardConflicts renders
+// into it (a portal, from the board — which keeps its data and its camera); this is only its place.
+export function BoardDockSlot() {
+  const { boardDockShown, setBoardDockHost } = useWorkspace()
+  const target = boardDockShown ? boardDockWidth(boardDockShown) : 0
+  const width = useAfterPaint(target)
+  return (
+    <div data-board-dock inert={!boardDockShown || undefined} style={{ width }} className={cn('h-full shrink-0 overflow-hidden transition-[width]', DOCK_MOTION)}>
+      <div ref={setBoardDockHost} className="h-full" style={{ width: Math.max(target, width) }} />
+    </div>
   )
 }

@@ -69,7 +69,8 @@ import { docForUpdate, docIdFor, updateFromConflict } from '@/lib/designSystemUp
 import { affectedDocuments, canProcessDocumentChange, mergeDocumentUpdate } from '@/lib/documentChanges'
 import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCategories'
 import { importKind } from '@/lib/importFiles'
-import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampWidth, pressSideView, readAiChat, readSidePanel, writeAiChat, writeSidePanel } from '@/lib/panelPrefs'
+import { reviewForDesign } from '@/lib/designReview'
+import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampToolPanelWidth, clampWidth, pressSideView, readAiChat, readSidePanel, readToolPanelWidth, writeAiChat, writeSidePanel, writeToolPanelWidth } from '@/lib/panelPrefs'
 import { prototypeOf } from '@/lib/screens'
 import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
 import { isSplit, readPanel, readSplit, withPanel, writeSplit } from '@/lib/workPane'
@@ -384,18 +385,32 @@ export function WorkspaceProvider({ children, projectId }) {
   // float at the left: the two can be open together.)
   const [boardConflicts, setBoardConflictsState] = useState({ open: false, conflictId: null, screenId: null })
   const setBoardConflicts = useCallback((patch) => setBoardConflictsState((prev) => ({ ...prev, ...patch })), [])
-  // Design Compare, floating over the canvas's left (CanvasComparePanel) — it and Files · Layers · Assets ·
-  // Inspect take turns there: one opening puts the other away.
-  const [compareOpen, setCompareOpenState] = useState(false)
-  const setCompareOpen = useCallback((open) => {
-    setCompareOpenState(Boolean(open))
-    if (open) setSidePanelState((prev) => (prev.open && SIDE_TABS.includes(sideViewNow.current?.tab) ? { ...prev, open: false } : prev))
+  // Design Compare: its list is an app sidebar (the drawer, like Docs) and the set picked there opens in the
+  // work area where the canvas is (`compareItemId`; null: the canvas shows). It opens and closes with the
+  // sidebar (AppShell), `closeCompareView` is its "← canvas" (defined with the pins, below).
+  const [compareItemId, setCompareItemId] = useState(null)
+  // The Screens board's change list at the right (BoardConflicts) is docked in the work area's row, beside the
+  // canvas or the comparison: `boardDockHost` is its place there, `boardDockShown` whether the board has it up.
+  const [boardDockHost, setBoardDockHost] = useState(null)
+  const [boardDockShown, setBoardDockShown] = useState(false)
+  const [compareDrawerRequest, setCompareDrawerRequest] = useState(null)
+  const requestCompareDrawer = useCallback(() => setCompareDrawerRequest({ nonce: nextId('compare-drawer') }), [])
+  const openCompareView = useCallback((itemId) => {
+    setCompareItemId(itemId)
+    setCompareDrawerRequest({ nonce: nextId('compare-drawer') })
   }, [])
+  // The tool panel's width (Files · Layers · Assets · Inspect, docked beside the canvas): kept for the browser.
+  const [toolPanelWidth, setToolPanelWidthState] = useState(() => readToolPanelWidth())
+  const setToolPanelWidth = useCallback((width) => {
+    const next = clampToolPanelWidth(width)
+    setToolPanelWidthState(next)
+    return next
+  }, [])
+  useEffect(() => { writeToolPanelWidth(toolPanelWidth) }, [toolPanelWidth])
   const toggleSideView = useCallback((view) => {
     const next = pressSideView(sideViewNow.current, view)
     setSidePanelState((prev) => ({ ...prev, open: next.open }))
     setFilesWindowState((prev) => ({ ...prev, tab: next.tab }))
-    if (next.open && SIDE_TABS.includes(next.tab)) setCompareOpenState(false)
   }, [])
   const openSideView = useCallback((view) => {
     if (!SIDE_VIEWS.includes(view)) return
@@ -996,7 +1011,7 @@ export function WorkspaceProvider({ children, projectId }) {
   // Where each of the bottom panel's views went (see `setBottomPanel`).
   workspaceViewOpener.current = (tab) => {
     if (tab === 'terminal' || tab === 'console') openSideView(tab)
-    else if (tab === 'design-compare') setWorkPane('compare')
+    else if (tab === 'design-compare') requestCompareDrawer()
     else requestConflictDrawer()
   }
   // (A notification's way in is the one way in: kept under its name for those that call it.)
@@ -2771,6 +2786,15 @@ export function WorkspaceProvider({ children, projectId }) {
     return true
   }, [canvasLocationFor, selectConflictPin, dockApi])
 
+  // Design Compare's "← canvas": the canvas shows again, and glides to where the set's change is (its pin is
+  // picked, so the change list has it picked too).
+  const closeCompareView = useCallback(({ focus = true } = {}) => {
+    const item = mergeItems.find((candidate) => candidate.id === compareItemId)
+    const record = item ? reviewForDesign(item, conflicts) : null
+    setCompareItemId(null)
+    if (focus && record) focusConflictPin(record)
+  }, [compareItemId, mergeItems, conflicts, focusConflictPin])
+
   // Dismissing a reviewer's change request (GitHub's "Dismiss review"):
   // never silent — it needs a reason, which is posted to the conflict's
   // Comments and logged to its History. The reviewer stays on the change,
@@ -2903,8 +2927,18 @@ export function WorkspaceProvider({ children, projectId }) {
     toggleSideView,
     boardConflicts,
     setBoardConflicts,
-    compareOpen,
-    setCompareOpen,
+    compareItemId,
+    setCompareItemId,
+    boardDockHost,
+    setBoardDockHost,
+    boardDockShown,
+    setBoardDockShown,
+    openCompareView,
+    closeCompareView,
+    compareDrawerRequest,
+    requestCompareDrawer,
+    toolPanelWidth,
+    setToolPanelWidth,
     openSideView,
     aiChat,
     setAiChat,
