@@ -1,4 +1,5 @@
 import PictureViewer, { ExpandablePicture } from '@/components/conflicts/PictureViewer'
+import { liveComponentOf } from '@/components/conflicts/live'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
@@ -558,48 +559,61 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // The two pictures open large (PictureViewer): what's built now, and the result — drawn from the
   // same state as here, so a way picked while it's open is what it shows.
   const afterWhich = holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'
-  const [viewing, setViewingState] = useState(() => OPEN_VIEWERS.get(conflict.id) ?? null)
-  const [reopened] = useState(() => Boolean(OPEN_VIEWERS.get(conflict.id)))
-  const setViewing = (id) => { OPEN_VIEWERS.set(conflict.id, id); setViewingState(id) }
+  const [viewing, setViewingState] = useState(() => Boolean(OPEN_VIEWERS.get(conflict.id)))
+  const setViewing = (on) => { OPEN_VIEWERS.set(conflict.id, on); setViewingState(on) }
   const sectionRef = useRef(null)
-  // In the viewer: what's built now, then each way — drawn with that way applied — to step through, pick
-  // and apply there. The way in view is the way picked here (both ways round).
-  const viewerItems = [
-    { id: 'before', label: showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현' },
-    ...ways.map((option) => {
-      const shape = proposalOf(option.id, custom, conflict)
-      return { id: option.id, label: option.name, sub: option.id === 'other' ? (shape?.described ? shape.spec : '직접 고르기') : option.spec, badge: option.id === 'original' && !readOnly ? '추천' : null, group: 'ways' }
-    }),
-  ]
+  // The comparison (PictureViewer): what's built now and every way, side by side, each the change's
+  // real component drawn with that way's values (components/conflicts/live) — or, a change with no
+  // component of its own here, its picture. The way picked there is the way picked here, both ways round.
+  const live = liveComponentOf(conflict)
+  const valuesOf = (id) => (id === 'before' ? conflict.preview?.before ?? null : drawingOf(conflict, null, proposalOf(id, custom, conflict))?.values ?? null)
   const wayWhich = (id) => {
     const shape = proposalOf(id, custom, conflict)
     return canDraw(conflict, shape) ? shape : valueChange && shape && !shape.described ? 'implementation' : 'original'
   }
-  const drawLarge = (id, width) => (id === 'before'
-    ? <Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} maxWidth={width} />
-    : <Picture conflict={conflict} which={wayWhich(id)} overlap={overlap} maxWidth={width} />)
-  // (Opened from the result: on the way picked — or the first, before one is.)
-  const openViewer = (id) => setViewing(id === 'after' ? proposal ?? ways[0]?.id : id)
-  const viewWay = (id) => {
-    setViewing(id)
-    if (id !== 'before' && !readOnly && id !== proposal) pick(id)
+  const drawCell = (id) => {
+    if (id === 'other' && !proposalOf('other', custom, conflict)?.described) return null
+    if (live) { const values = valuesOf(id); return values ? live(values) : null }
+    return id === 'before' ? <Picture conflict={conflict} which="implementation" maxWidth={320} /> : <Picture conflict={conflict} which={wayWhich(id)} overlap={overlap} maxWidth={320} />
   }
-  // A way picked here while it's open: the viewer follows.
-  const [seenProposal, setSeenProposal] = useState(proposal)
-  if (seenProposal !== proposal) {
-    setSeenProposal(proposal)
-    if (viewing && viewing !== 'before' && proposal && proposal !== viewing) setViewing(proposal)
-  }
-  const viewerAction = readOnly || !viewing ? null : (() => {
-    const way = viewing
+  // (Each cell's value, as its header says it: the property and the value — the design's way, from what's built to it.)
+  const wayOf = (id) => ways.find((option) => option.id === id)
+  const property = conflict.comparisonFields?.length === 1 ? conflict.comparisonFields[0].label : null
+  const said = (spec) => (spec && property && !/\s/.test(spec) ? `${property.toLowerCase()} ${spec}` : spec ?? null)
+  const builtSpec = wayOf('current')?.spec ?? null
+  const ownEditor = !readOnly && scale?.custom ? (
+    <input
+      data-compare-input
+      aria-label="다른 값"
+      placeholder="값 입력"
+      value={typed || (ownValue && !scale.steps.some((step) => step.key === ownKey) ? '' : String(ownValue ?? ''))}
+      onChange={(event) => { if (proposal !== 'other') pick('other'); typeValue(event.target.value) }}
+      onPointerDown={(event) => event.stopPropagation()}
+      className="h-7 w-24 min-w-0 shrink rounded-md border border-white/[0.12] bg-black/40 px-2 font-mono text-[12px] text-slate-100 tabular-nums outline-none placeholder:text-slate-500 focus:border-[var(--ds-accent-border)]"
+    />
+  ) : null
+  const compareCells = [
+    { id: 'before', base: true, label: `${mode === 'done' ? '수정 전' : '현재 구현'} · 기준`, value: said(builtSpec) },
+    ...ways.map((option) => ({
+      id: option.id,
+      label: option.name,
+      badge: option.id === 'original' && !readOnly ? '추천' : null,
+      value: option.id === 'original' ? (builtSpec && builtSpec !== option.spec ? `${said(builtSpec)} → ${option.spec}` : said(option.spec))
+        : option.id === 'other' ? (proposalOf('other', custom, conflict)?.described ? proposalOf('other', custom, conflict).spec : null) : said(option.spec),
+      editor: option.id === 'other' ? ownEditor : null,
+    })),
+  ]
+  const openViewer = () => setViewing(true)
+  const viewerAction = readOnly ? null : (() => {
+    const way = proposal
     const asks = way !== 'original'
-    const label = !asks || way === 'before' ? '이 수정안 적용하기' : reviewers.length === 1 ? `${reviewers[0]}님에게 승인 요청` : reviewers.length ? `검토자 ${reviewers.length}명에게 승인 요청` : '검토자 추가'
+    const label = !way || !asks ? '이 수정안 적용하기' : reviewers.length === 1 ? `${reviewers[0]}님에게 승인 요청` : reviewers.length ? `검토자 ${reviewers.length}명에게 승인 요청` : '검토자 추가'
     return {
       label,
-      disabled: way === 'before' || (way === 'other' && undescribed),
-      title: way === 'before' ? '해결 방법을 골라 주세요' : undefined,
+      disabled: !way || (way === 'other' && undescribed),
+      title: !way ? '해결 방법을 골라 주세요' : undefined,
       onClick: () => {
-        setViewing(null)
+        setViewing(false)
         if (!asks) { onDirect(payload()); return }
         if (!reviewers.length) { addReviewer(); return }
         // (Asking needs a reason: without one, the field it goes in comes up, said.)
@@ -636,7 +650,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           side by side with an arrow between; stacked (before first) when narrow. */}
       <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-[var(--ds-border-subtle)]')}>
-          <ExpandablePicture id="before" label={viewerItems[0].label} onOpen={openViewer}>
+          <ExpandablePicture id="before" label={mode === 'done' ? '수정 전' : '현재 구현'} onOpen={openViewer}>
             <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
           </ExpandablePicture>
           <PictureCaption
@@ -660,18 +674,16 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       </div>
 
       <PictureViewer
-        open={Boolean(viewing)}
-        items={viewerItems}
-        active={viewing ?? 'before'}
-        onActive={viewWay}
-        onClose={() => setViewing(null)}
-        sourceOf={(id) => sectionRef.current?.querySelector(`[data-zoom-source="${id === 'before' ? 'before' : 'after'}"]`) ?? null}
-        render={drawLarge}
-        instant={reopened}
-        base="before"
-        controlsFor={(id) => (id === 'other' && !readOnly ? ownControls : null)}
+        open={viewing}
+        title={`해결 방법 비교 · ${conflict.title}`}
+        cells={compareCells}
+        selected={proposal}
+        onSelect={(id) => { if (!readOnly && id !== proposal) pick(id) }}
+        onClose={() => setViewing(false)}
+        render={drawCell}
         action={viewerAction}
-        title={(id) => (id === 'before' ? viewerItems[0].label : `옵션 ${ways.findIndex((option) => option.id === id) + 1} · ${ways.find((option) => option.id === id)?.name ?? ''}`)}
+        // (A way whose values aren't one typed in its header — a layout's — keeps its own controls, under the grid.)
+        below={!readOnly && proposal === 'other' && !ownEditor ? ownControls : null}
       />
 
       {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}

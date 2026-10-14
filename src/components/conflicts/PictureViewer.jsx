@@ -1,263 +1,251 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Maximize2, Minus, Plus, Scan, X } from 'lucide-react'
 import { cn } from 'cn'
 
-// The resolution's two pictures — what's built now, and the result picked —
-// opened large, the way an image opens on Pinterest: the picture itself grows
-// from where it sits in the detail to the middle of the screen (and shrinks
-// back there on closing), over a dark canvas that fades in behind it. No card
-// around it; the few controls float.
+// The resolution's comparison, opened large: what's built now and every way to resolve it, side by side
+// at the same size and the same zoom — 2×2, or 1×4 on a screen 1600px wide and up. Each cell is the
+// change's real component drawn with that way's values (`render(id)`), on the product's light grey.
 //
-//   · Fitted to 84% of the screen to begin with; − / + step through
-//     50–200% of that (or the wheel / a pinch), and a picture bigger than the
-//     screen is dragged about. "Fit" puts it back.
-//   · At the left, what's built now and then each way to resolve it, each
-//     drawn small with that way applied: the one in view is marked, and any
-//     other is a press away — or ↑ / ↓, or 0 (what's built) and 1–3 (the
-//     ways). The large one cross-fades in place; the zoom and where it's
-//     panned to stay, so the same part is compared. Holding Space shows
-//     what's built until it's let go.
-//   · A way with values of one's own brings its controls under the picture
-//     (`controlsFor(id)`), and the detail's action can be taken here too
-//     (`action`).
-//   · Esc, ✕ or a press on the canvas closes it; a press on the picture doesn't.
-// The pictures are the detail's own, drawn live (`render(id, width)`), so a
-// way picked, or a value set, while it's open is what it shows.
+//   · One view for all four: { scale, x, y }. The wheel (or a pinch) zooms about the pointer, a drag pans
+//     — in any cell, and the other three do the same, so the same spot is compared. − / + step through
+//     맞춤 · 200% · 400% · 800%; 맞춤 is the component at 80% of a cell's width. Scaled with a transform,
+//     so an icon's lines stay sharp.
+//   · A way is picked by its cell (its header, or a press that isn't a drag) or ← / →; the pick is the
+//     detail's own (both ways round). Holding Space shows what's built in the picked cell until it's let go.
+//   · The way with a value of one's own takes it in its header (`cells[].editor`); the action at the bottom
+//     right is the detail's, for the way picked.
+//   · Esc or ✕ closes it.
 //
-//   items: [{ id, label, sub?, badge?, group? }] — `group: 'ways'` starts the ways' list under a caption.
-//   sourceOf(id): the thumbnail's element, where it grows from and goes back to.
-//   base: the item held up while Space is down (what's built).
+//   cells: [{ id, label, value?, base?, badge?, editor? }] — `base`: what's built (the reference: no radio).
 
-const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
-const DURATION = 300
-const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2]
-const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-// Where the picture sits large: its own shape, as big as fits in 84% of the screen.
-export function fitRect(aspect, viewport, share = 0.84) {
-  const maxW = viewport.width * share
-  const maxH = viewport.height * share
-  const width = Math.min(maxW, maxH * aspect)
-  const height = width / aspect
-  return { x: Math.round((viewport.width - width) / 2), y: Math.round((viewport.height - height) / 2), width: Math.round(width), height: Math.round(height) }
+// A component's width, as 맞춤 draws it: this share of a cell's (and never more of its height).
+export const FIT_SHARE = 0.8
+export const PRESETS = [2, 4, 8]
+const MAX = 8
+export function fitScaleOf(natural, box, share = FIT_SHARE) {
+  if (!natural?.width || !box?.width) return 1
+  return Math.min((box.width * share) / natural.width, (box.height * share) / Math.max(1, natural.height))
 }
-// The transform that puts the large picture over the small one (the start of opening, the end of closing).
-export const flipFrom = (source, target) => `translate(${source.left - target.x}px, ${source.top - target.y}px) scale(${source.width / target.width}, ${source.height / target.height})`
-export const nextZoom = (zoom, step) => {
-  if (step > 0) return ZOOMS.find((value) => value > zoom + 0.001) ?? ZOOMS[ZOOMS.length - 1]
-  return [...ZOOMS].reverse().find((value) => value < zoom - 0.001) ?? ZOOMS[0]
+// − / +: the presets around the zoom it's at, 맞춤 the lowest ("null": fitted).
+export function stepZoom(scale, fit, direction) {
+  const stops = [fit, ...PRESETS.filter((value) => value > fit + 0.001)]
+  const now = scale ?? fit
+  const next = direction > 0 ? stops.find((value) => value > now + 0.001) : [...stops].reverse().find((value) => value < now - 0.001)
+  if (next === undefined) return direction > 0 ? stops[stops.length - 1] : null
+  return Math.abs(next - fit) < 0.001 ? null : next
+}
+// The view at another scale, the point under `point` (px from a cell's middle) staying where it is.
+export function zoomAbout(view, scale, point) {
+  const k = scale / view.scale
+  return { scale, x: point.x - (point.x - view.x) * k, y: point.y - (point.y - view.y) * k }
 }
 
-// (`instant`: it was already open — the detail drew it anew, a way being picked — so it's just there, not grown again.)
-function PictureViewer({ open, items, active, onActive, onClose, sourceOf, render, instant = false, base = null, controlsFor = null, action = null, title = null }) {
-  const [phase, setPhase] = useState('closed') // 'opening' | 'open' | 'closing' | 'closed'
-  const [target, setTarget] = useState(null)
-  const [start, setStart] = useState(null)
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [dragging, setDragging] = useState(false)
-  const stageRef = useRef(null)
-  // (Space held: what's built, for as long as it's held.)
+const BUTTON = 'flex size-8 items-center justify-center rounded-lg text-slate-200 transition-colors duration-150 hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-40'
+
+function PictureViewer({ open, title, cells, selected, onSelect, onClose, render, action = null, below = null }) {
+  // { scale: null (맞춤) | number, x, y } — x, y: the component's middle, from each cell's middle.
+  const [view, setView] = useState({ scale: null, x: 0, y: 0 })
+  const [box, setBox] = useState(null)
+  const [natural, setNatural] = useState(null)
   const [peek, setPeek] = useState(false)
-  const shownId = peek && base ? base : active
-  const step = (by) => { const at = items.findIndex((item) => item.id === active); const next = items[Math.max(0, Math.min(items.length - 1, at + by))]; if (next) onActive(next.id) }
+  const [dragging, setDragging] = useState(false)
+  const areaRef = useRef(null)
+  const measureRef = useRef(null)
   const closeRef = useRef(null)
   const returnTo = useRef(null)
+  const fit = fitScaleOf(natural, box)
+  const scale = view.scale ?? fit
+  const ways = cells.filter((cell) => !cell.base)
+  const base = cells.find((cell) => cell.base)
 
-  // Opening: measured from the thumbnail, then grown to the middle.
+  // Opened: fitted, centred, the focus on ✕ (and back where it was on closing).
   useLayoutEffect(() => {
-    if (!open || phase !== 'closed') return
-    const source = sourceOf(active)
-    const box = source?.getBoundingClientRect()
+    if (!open) return undefined
     returnTo.current = document.activeElement
-    const aspect = box && box.height ? box.width / box.height : 4 / 3
-    const to = fitRect(aspect, { width: window.innerWidth, height: window.innerHeight })
-    setTarget(to)
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
-    if (instant) { setStart(null); setPhase('open'); return }
-    setStart(box && !reducedMotion() ? flipFrom(box, to) : null)
-    setPhase('opening')
-  }, [open, phase, active, sourceOf, instant])
-  useEffect(() => {
-    if (phase !== 'opening') return undefined
-    // (Two frames: the picture is painted where the thumbnail is before it moves.)
-    let second = 0
-    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => { setStart(null); setPhase('open'); closeRef.current?.focus({ preventScroll: true }) }) })
-    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second) }
-  }, [phase])
+    setView({ scale: null, x: 0, y: 0 })
+    closeRef.current?.focus({ preventScroll: true })
+    return () => { const back = returnTo.current; if (back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true }) }
+  }, [open])
+  // A cell's size (they're all one size), and the component's own (drawn unscaled, out of sight).
+  useLayoutEffect(() => {
+    if (!open) return undefined
+    const area = areaRef.current
+    const drawing = measureRef.current
+    if (!area || !drawing) return undefined
+    const measure = () => {
+      setBox((now) => (now && now.width === area.clientWidth && now.height === area.clientHeight ? now : { width: area.clientWidth, height: area.clientHeight }))
+      setNatural((now) => (now && now.width === drawing.offsetWidth && now.height === drawing.offsetHeight ? now : { width: drawing.offsetWidth, height: drawing.offsetHeight }))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(area)
+    observer.observe(drawing)
+    return () => observer.disconnect()
+  }, [open])
 
-  // Closing: back to where the thumbnail is now (it may have moved), then gone.
-  const close = () => {
-    if (phase === 'closing' || phase === 'closed') return
-    const box = sourceOf(active)?.getBoundingClientRect()
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
-    if (!box || !target || reducedMotion()) { finish(); return }
-    setStart(flipFrom(box, target))
-    setPhase('closing')
+  const zoomTo = (next, point = { x: 0, y: 0 }) => setView((now) => {
+    const from = { scale: now.scale ?? fit, x: now.x, y: now.y }
+    if (next === null) return { scale: null, x: 0, y: 0 }
+    return zoomAbout(from, Math.min(MAX, Math.max(fit / 2, next)), point)
+  })
+  const step = (by) => {
+    const at = ways.findIndex((cell) => cell.id === selected)
+    const next = ways[at === -1 ? (by > 0 ? 0 : ways.length - 1) : (at + by + ways.length) % ways.length]
+    if (next) onSelect(next.id)
   }
-  const finish = () => {
-    setPhase('closed')
-    setStart(null)
-    onClose()
-    const back = returnTo.current
-    if (back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true })
-  }
-  useEffect(() => {
-    if (phase !== 'closing') return undefined
-    const timer = window.setTimeout(finish, DURATION + 40)
-    return () => window.clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase])
-  // (Closed from outside — the detail gone: no animation to play.)
-  if (!open && phase !== 'closed' && phase !== 'closing') setPhase('closed')
 
-  // Esc; − / + / 0 from the keyboard.
+  // Keys: Esc (its own — the detail under it stays), ← / →, Space held, − / + / 0.
   const keyRef = useRef(null)
   keyRef.current = (event) => {
     if (event.defaultPrevented) return
-    // (Its Esc only: the detail under it doesn't close too.)
-    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); close(); return }
-    // (Typing a value in the bar: the keys are the field's.)
+    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); onClose(); return }
     if (event.target instanceof HTMLElement && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))) return
-    if (event.key === '+' || event.key === '=') { event.preventDefault(); setZoom((value) => nextZoom(value, 1)) }
-    else if (event.key === '-') { event.preventDefault(); setZoom((value) => nextZoom(value, -1)); setPan({ x: 0, y: 0 }) }
-    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); step(event.key === 'ArrowDown' ? 1 : -1) }
-    else if (/^[0-9]$/.test(event.key) && items[Number(event.key)]) { event.preventDefault(); onActive(items[Number(event.key)].id) }
-    else if (event.key === ' ' && base) { event.preventDefault(); if (!event.repeat) setPeek(true) }
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); step(event.key === 'ArrowRight' ? 1 : -1) }
+    else if (event.key === ' ') { event.preventDefault(); if (!event.repeat) setPeek(true) }
+    else if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomTo(stepZoom(view.scale, fit, 1)) }
+    else if (event.key === '-') { event.preventDefault(); zoomTo(stepZoom(view.scale, fit, -1)) }
+    else if (event.key === '0') { event.preventDefault(); zoomTo(null) }
   }
-  const keyUpRef = useRef(null)
-  keyUpRef.current = (event) => { if (event.key === ' ') setPeek(false) }
   useEffect(() => {
-    if (phase === 'closed') return undefined
+    if (!open) return undefined
     const onKey = (event) => keyRef.current(event)
-    const onUp = (event) => keyUpRef.current(event)
+    const onUp = (event) => { if (event.key === ' ') setPeek(false) }
+    const onBlur = () => setPeek(false)
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('keyup', onUp, true)
-    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onUp, true) }
-  }, [phase])
+    window.addEventListener('blur', onBlur)
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onUp, true); window.removeEventListener('blur', onBlur) }
+  }, [open])
 
-  // The wheel and a pinch zoom it; the page behind never scrolls.
+  // The wheel or a pinch, over any cell: zoomed about the pointer — the same in all four.
+  const gridRef = useRef(null)
+  const fitRef = useRef(fit)
+  fitRef.current = fit
   useEffect(() => {
-    const stage = stageRef.current
-    if (!stage) return undefined
+    const grid = gridRef.current
+    if (!open || !grid) return undefined
     const onWheel = (event) => {
+      const area = event.target.closest?.('[data-compare-area]')
+      if (!area) return
       event.preventDefault()
-      const factor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.002))
-      setZoom((value) => Math.min(2, Math.max(0.5, value * factor)))
+      const rect = area.getBoundingClientRect()
+      const point = { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 }
+      const factor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0025))
+      setView((now) => {
+        const from = { scale: now.scale ?? fitRef.current, x: now.x, y: now.y }
+        return zoomAbout(from, Math.min(MAX, Math.max(fitRef.current / 2, from.scale * factor)), point)
+      })
     }
-    stage.addEventListener('wheel', onWheel, { passive: false })
-    return () => stage.removeEventListener('wheel', onWheel)
-  }, [phase])
+    grid.addEventListener('wheel', onWheel, { passive: false })
+    return () => grid.removeEventListener('wheel', onWheel)
+  }, [open])
 
-  // Bigger than the screen: dragged about.
-  const pannable = target && (target.width * zoom > window.innerWidth || target.height * zoom > window.innerHeight)
-  function startPan(event) {
-    if (!pannable || event.button !== 0) return
+  // A drag in any cell pans all four; a press that doesn't move picks that cell's way.
+  function startPan(event, cell) {
+    if (event.button !== 0) return
     event.preventDefault()
-    const from = { x: event.clientX, y: event.clientY, pan }
-    setDragging(true)
-    const onMove = (move) => setPan({ x: from.pan.x + move.clientX - from.x, y: from.pan.y + move.clientY - from.y })
-    const onUp = () => { setDragging(false); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
+    const from = { x: event.clientX, y: event.clientY, view: { scale, x: view.x, y: view.y } }
+    let moved = false
+    const onMove = (move) => {
+      const dx = move.clientX - from.x
+      const dy = move.clientY - from.y
+      if (!moved && Math.hypot(dx, dy) < 4) return
+      if (!moved) { moved = true; setDragging(true) }
+      setView({ ...from.view, x: from.view.x + dx, y: from.view.y + dy })
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      setDragging(false)
+      if (!moved && !cell.base) onSelect(cell.id)
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
   }
 
-  if (phase === 'closed' || !target) return null
-  const shown = phase === 'open'
-  const moving = phase === 'opening' || phase === 'closing'
-  // (Always from the top left — the growing from the thumbnail is computed that way — the zoom kept about the middle by a shift.)
-  const transform = start ?? `translate(${pan.x + ((1 - zoom) * target.width) / 2}px, ${pan.y + ((1 - zoom) * target.height) / 2}px) scale(${zoom})`
-  const CONTROL = 'flex size-8 items-center justify-center rounded-lg border border-white/[0.08] bg-black/45 text-slate-200 backdrop-blur-sm transition-colors duration-150 hover:bg-white/[0.12] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-40'
-
+  if (!open) return null
+  const zoomLabel = view.scale === null ? '맞춤' : `${Math.round(scale * 100)}%`
   return createPortal(
-    <div data-picture-viewer role="dialog" aria-modal="true" aria-label={items.find((item) => item.id === shownId)?.label} className="fixed inset-0 z-[950]">
-      {/* The canvas: dark, a little blurred, fading in as the picture grows — pressed, it closes. */}
-      <div
-        data-viewer-backdrop
-        onClick={close}
-        className="absolute inset-0 bg-black/[0.76] backdrop-blur-[3px]"
-        style={{ opacity: shown ? 1 : 0, transition: `opacity ${DURATION}ms ${EASE}` }}
-      />
-      {/* The picture: placed at its large place and size, moved from the thumbnail by transform alone. */}
-      <div ref={stageRef} className="pointer-events-none absolute inset-0">
-        <div
-          data-viewer-picture={active}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={startPan}
-          className={cn('pointer-events-auto absolute origin-top-left', pannable ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default')}
-          style={{
-            left: target.x,
-            top: target.y,
-            width: target.width,
-            height: target.height,
-            transform,
-            transformOrigin: 'top left',
-            transition: dragging ? 'none' : `transform ${moving || !start ? DURATION : 0}ms ${EASE}`,
-            willChange: moving ? 'transform' : undefined,
-          }}
-        >
-          {/* Each picture in the same place, the one in view on top: switching cross-fades. */}
-          {items.map((item) => (
-            <div key={item.id} data-viewer-pane={item.id} aria-hidden={item.id !== shownId} className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl" style={{ opacity: item.id === shownId ? 1 : 0, transition: 'opacity 150ms ease-out' }}>
-              {render(item.id, target.width)}
-            </div>
-          ))}
-        </div>
-      </div>
+    <div data-picture-viewer data-compare-viewer role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[950] flex flex-col bg-black/[0.76] backdrop-blur-[3px] animate-in fade-in duration-200 motion-reduce:animate-none">
+      <header className="flex h-14 shrink-0 items-center gap-3 px-4">
+        <button ref={closeRef} type="button" data-viewer-close aria-label="닫기" title="닫기 · Esc" onClick={onClose} className={cn(BUTTON, 'border border-white/[0.08] bg-black/45')}><X className="size-4" /></button>
+        <h2 data-viewer-title className="min-w-0 truncate text-[14px] font-semibold text-slate-100">{title}</h2>
+      </header>
 
-      {/* The few controls, floating — they come in once the picture is in place. */}
-      <div className="pointer-events-none absolute inset-0" style={{ opacity: shown ? 1 : 0, transition: 'opacity 160ms ease-out' }}>
-        <button ref={closeRef} type="button" data-viewer-close aria-label="닫기" title="닫기 · Esc" onClick={close} className={cn(CONTROL, 'pointer-events-auto absolute top-4 left-4')}><X className="size-4" /></button>
-        {/* What's in view, said where it's always seen. */}
-        <p data-viewer-title className="pointer-events-none absolute top-5 left-16 rounded-lg bg-black/45 px-2.5 py-1 text-[12.5px] font-medium text-slate-100 backdrop-blur-sm">
-          {title ? title(shownId) : items.find((item) => item.id === shownId)?.label}
-        </p>
-        <nav aria-label="미리보기 전환" className="pointer-events-auto absolute top-1/2 left-4 flex max-h-[calc(100vh-140px)] -translate-y-1/2 flex-col gap-1.5 overflow-y-auto [scrollbar-width:none]">
-          {items.map((item, index) => (
-            <Fragment key={item.id}>
-              {item.group === 'ways' && items[index - 1]?.group !== 'ways' && (
-                <p aria-hidden className="mt-1.5 border-t border-white/[0.08] px-1 pt-2 text-[10.5px] font-medium text-slate-500">해결 방법</p>
-              )}
-              <button type="button" data-viewer-thumb={item.id} aria-pressed={item.id === active} aria-label={`${index}. ${item.label}${item.sub ? ` · ${item.sub}` : ''}`} title={`${item.label}${item.sub ? ` · ${item.sub}` : ''} · ${index}`} onClick={() => onActive(item.id)}
-                className={cn('flex w-[136px] flex-col gap-1 rounded-lg border p-1.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-emerald-300', item.id === active ? 'border-[var(--ds-accent-border)] bg-[var(--ds-accent-bg)]' : 'border-white/[0.08] bg-black/40 hover:bg-white/[0.08]')}>
-                <span className="pointer-events-none flex h-[68px] w-[120px] items-center justify-center overflow-hidden rounded-md">{render(item.id, 112)}</span>
-                <span className={cn('flex w-full min-w-0 items-center gap-1 text-[11px] font-medium', item.group === 'ways' ? 'text-slate-100' : 'text-slate-400')}>
-                  <span className="min-w-0 truncate">{item.label}</span>
-                  {item.badge && <span className="shrink-0 rounded bg-[var(--ds-accent-bg)] px-1 text-[9.5px] leading-[14px] text-[var(--ds-accent-text)]">{item.badge}</span>}
-                </span>
-                {item.sub && <span className="w-full truncate text-[10.5px] text-slate-500 tabular-nums">{item.sub}</span>}
-              </button>
-            </Fragment>
-          ))}
-        </nav>
-        {/* A way's own values, under the picture, while it's the one in view. */}
-        {controlsFor?.(active) && (
-          <div data-viewer-controls className="pointer-events-auto absolute bottom-20 left-1/2 w-[min(560px,calc(100vw-360px))] -translate-x-1/2 rounded-xl border border-white/[0.08] bg-[#161618]/95 p-3 shadow-2xl backdrop-blur-sm">
-            {controlsFor(active)}
-          </div>
-        )}
-        <p data-viewer-hint aria-hidden className="pointer-events-none absolute bottom-6 left-4 text-[11px] text-slate-500">↑↓ 옵션 전환{base ? ' · Space 현재와 비교' : ''}</p>
-        <div className="pointer-events-auto absolute right-4 bottom-4 flex items-center gap-2">
-        <div role="toolbar" aria-label="확대" className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-black/45 p-1 backdrop-blur-sm">
-          <button type="button" data-viewer-zoom-out aria-label="축소" title="축소 · −" disabled={zoom <= ZOOMS[0]} onClick={() => { setZoom((value) => nextZoom(value, -1)); setPan({ x: 0, y: 0 }) }} className={cn(CONTROL, 'border-0 bg-transparent')}><Minus className="size-4" /></button>
-          <span data-viewer-zoom className="w-12 text-center text-xs text-slate-300 tabular-nums">{Math.abs(zoom - 1) < 0.001 ? '맞춤' : `${Math.round(zoom * 100)}%`}</span>
-          <button type="button" data-viewer-zoom-in aria-label="확대" title="확대 · +" disabled={zoom >= ZOOMS[ZOOMS.length - 1]} onClick={() => setZoom((value) => nextZoom(value, 1))} className={cn(CONTROL, 'border-0 bg-transparent')}><Plus className="size-4" /></button>
-          <button type="button" data-viewer-fit aria-label="화면에 맞춤" title="화면에 맞춤" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} className={cn(CONTROL, 'border-0 bg-transparent')}><Scan className="size-4" /></button>
+      <div ref={gridRef} data-compare-grid className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-4 px-6 pb-2 min-[1600px]:grid-cols-4 min-[1600px]:grid-rows-1">
+        {cells.map((cell, index) => {
+          const on = !cell.base && cell.id === selected
+          const shown = on && peek && base ? base.id : cell.id
+          const drawing = render(shown)
+          return (
+            <section key={cell.id} data-compare-cell={cell.id} data-selected={on ? '' : undefined} aria-label={cell.label} className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border', on ? 'border-[var(--ds-accent-border)]' : 'border-white/[0.08]')}>
+              {/* Its header: what it is, its value, and — a way — its radio (the reference has none). */}
+              <div data-compare-head className={cn('flex h-10 shrink-0 items-center gap-2 px-3 text-[12.5px]', on ? 'bg-[var(--ds-accent-bg)]' : 'bg-[#161618]')}>
+                {cell.base ? (
+                  <span className="flex min-w-0 flex-1 items-center gap-2 text-slate-400">
+                    <span className="truncate font-medium">{cell.label}</span>
+                    {cell.value && <Chip>{cell.value}</Chip>}
+                  </span>
+                ) : (
+                  <>
+                    <button type="button" role="radio" aria-checked={on} data-compare-pick={cell.id} onClick={() => onSelect(cell.id)} className="ds-intrinsic flex min-w-0 shrink items-center gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+                      <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>{on && <span className="size-2 rounded-full bg-emerald-400" />}</span>
+                      <span className="truncate font-medium text-slate-100"><span className="text-slate-400">옵션 {index}</span> {cell.label}</span>
+                    </button>
+                    {cell.badge && <span className="shrink-0 rounded bg-[var(--ds-accent-bg)] px-1.5 text-[10.5px] leading-[18px] font-medium text-[var(--ds-accent-text)]">{cell.badge}</span>}
+                    {cell.editor ?? (cell.value && <Chip>{cell.value}</Chip>)}
+                    <span className="flex-1" />
+                    {on && <span data-compare-selected className="shrink-0 rounded bg-[var(--ds-accent-bg)] px-1.5 text-[10.5px] leading-[18px] font-medium text-[var(--ds-accent-text)] ring-1 ring-[var(--ds-accent-border)] ring-inset">{peek && base ? '현재 구현 보는 중' : '선택됨'}</span>}
+                  </>
+                )}
+              </div>
+              {/* The drawing: on the product's grey, at the one view all four share. */}
+              <div
+                ref={index === 0 ? areaRef : undefined}
+                data-compare-area={cell.id}
+                onPointerDown={(event) => startPan(event, cell)}
+                className={cn('relative min-h-0 flex-1 overflow-hidden bg-[#F5F5F5] touch-none select-none', dragging ? 'cursor-grabbing' : 'cursor-grab')}
+              >
+                {drawing ? (
+                  <div data-compare-drawing={shown} className="absolute top-1/2 left-1/2 w-max" style={{ transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${scale})` }}>
+                    {drawing}
+                  </div>
+                ) : (
+                  <p className="absolute inset-0 flex items-center justify-center text-[12.5px] text-slate-500">값을 입력하면 여기에 그려져요</p>
+                )}
+              </div>
+            </section>
+          )
+        })}
+      </div>
+      {/* (The component at its own size, out of sight: what 맞춤 is worked out from.) */}
+      <div aria-hidden className="pointer-events-none fixed top-0 left-[-10000px] invisible"><div ref={measureRef} className="w-max">{render(base?.id ?? cells[0]?.id)}</div></div>
+
+      {below && <div data-viewer-controls className="mx-auto w-[min(640px,calc(100vw-48px))] shrink-0 rounded-xl border border-white/[0.08] bg-[#161618]/95 p-3">{below}</div>}
+
+      <footer className="flex h-16 shrink-0 items-center gap-3 px-6">
+        <p data-viewer-hint className="min-w-0 flex-1 truncate text-[12px] text-slate-400">←→ 옵션 선택 · Space 누르고 있으면 현재와 비교</p>
+        <div role="toolbar" aria-label="확대" className="flex items-center gap-0.5 rounded-xl border border-white/[0.08] bg-black/45 p-1">
+          <button type="button" data-viewer-zoom-out aria-label="축소" title="축소 · −" disabled={view.scale === null} onClick={() => zoomTo(stepZoom(view.scale, fit, -1))} className={BUTTON}><Minus className="size-4" /></button>
+          <button type="button" data-viewer-zoom title="맞춤 · 0" onClick={() => zoomTo(null)} className="h-8 w-14 rounded-lg text-center text-xs text-slate-200 tabular-nums hover:bg-white/[0.1]">{zoomLabel}</button>
+          <button type="button" data-viewer-zoom-in aria-label="확대" title="확대 · +" disabled={scale >= MAX - 0.001} onClick={() => zoomTo(stepZoom(view.scale, fit, 1))} className={BUTTON}><Plus className="size-4" /></button>
+          <button type="button" data-viewer-fit aria-label="맞춤" title="맞춤 · 0" onClick={() => zoomTo(null)} className={BUTTON}><Scan className="size-4" /></button>
         </div>
-        {/* The detail's action, here too — the one solid green on the screen. */}
+        {/* The detail's action, for the way picked — the one solid green on the screen. */}
         {action && (
           <button type="button" data-viewer-apply disabled={action.disabled} title={action.title} onClick={action.onClick} className="ds-intrinsic inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--ds-accent)] px-4 text-[13px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500">
             {action.label}
           </button>
         )}
-        </div>
-      </div>
+      </footer>
     </div>,
     document.body
   )
+}
+
+function Chip({ children }) {
+  return <span data-compare-value className="min-w-0 shrink truncate rounded bg-white/[0.07] px-1.5 font-mono text-[11px] leading-[18px] text-slate-300 tabular-nums">{children}</span>
 }
 
 // A picture in the detail that opens large: the drawing as it is, and — on hover or focus only — an
@@ -266,7 +254,6 @@ export function ExpandablePicture({ id, label, onOpen, children }) {
   return (
     <div data-zoom-picture={id} className="group/zoom relative grid h-full min-h-0 w-full items-center">
       <button type="button" data-picture-zoom aria-label={`${label} · 크게 보기`} aria-haspopup="dialog" onClick={() => onOpen(id)} className="ds-intrinsic grid h-full min-h-0 w-full cursor-zoom-in items-center overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
-        {/* (Where it grows from: the drawing's own box.) */}
         <span data-zoom-source={id} className="mx-auto block w-full">{children}</span>
       </button>
       <button type="button" tabIndex={-1} aria-hidden data-picture-expand onClick={() => onOpen(id)}
