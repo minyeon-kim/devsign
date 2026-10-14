@@ -135,14 +135,14 @@ function WorkspacePage() {
   const inMergeStudio = activeView === 'mergeStudio'
 
   return (
-    // One persistent dock owns the AI and navigator panels in both modes.
-    // Merge Studio replaces only its canvas pane and owns its bottom panel.
+    // One persistent dock owns the AI and navigator panels. Merge Studio fills the main window's content
+    // (the Merge tab) and owns its bottom panel.
     <WorkspaceBottomPanelPortalContext.Provider value={workspaceRoot}>
     <div ref={setWorkspaceRoot} className="ds-workspace relative flex h-full flex-col overflow-hidden bg-background text-foreground">
       <div className="@container relative min-h-0 flex-1 overflow-hidden">
-        <WorkspaceSplitLayout mergeStudio={inMergeStudio}>
-          {inMergeStudio && (
-            <ErrorBoundary
+        {/* (Merge is the fourth view of the main window — the tab row, the header and the rail stay as they are.) */}
+        <WorkspaceSplitLayout studio={inMergeStudio ? (
+          <ErrorBoundary
               key={location.key}
               fallback={(error, reset) => (
                 <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-background p-6 text-center text-slate-400">
@@ -164,12 +164,12 @@ function WorkspacePage() {
             >
               <MergeStudioView />
             </ErrorBoundary>
-          )}
-        </WorkspaceSplitLayout>
+          
+        ) : null} />
 
         <TopBar project={project} />
-        {!inMergeStudio && <FollowMeBanner />}
-        {!inMergeStudio && <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />}
+        <FollowMeBanner />
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       </div>
       {/* A conflict's detail, full-screen over all of the above. */}
       <ConflictReviewOverlay inMergeStudio={inMergeStudio} />

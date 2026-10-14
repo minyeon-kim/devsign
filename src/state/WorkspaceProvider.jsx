@@ -73,7 +73,7 @@ import { reviewForDesign } from '@/lib/designReview'
 import { readCompare, withCompare } from '@/lib/compareLink'
 import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampToolPanelWidth, clampWidth, pressSideView, readAiChat, readSidePanel, readToolPanelWidth, writeAiChat, writeSidePanel, writeToolPanelWidth } from '@/lib/panelPrefs'
 import { prototypeOf } from '@/lib/screens'
-import { defaultViewOf, readLastView, readViewParams, withView, writeLastView } from '@/lib/viewLink'
+import { defaultViewOf, readLastView, readMergeParams, readViewParams, withMerge, withView, writeLastView } from '@/lib/viewLink'
 import { isSplit, readPanel, readSplit, withPanel, writeSplit } from '@/lib/workPane'
 import { follow, restart as restartSession, sessionAt, startSession, stepBack } from '@/lib/prototypeEngine'
 import {
@@ -510,8 +510,10 @@ export function WorkspaceProvider({ children, projectId }) {
   const sayView = useCallback((patch) => {
     const { location: at, onWorkspace: here } = route.current
     if (!here) return
-    const search = withView(at.search, patch)
-    if (search !== at.search) navigate({ pathname: at.pathname, search }, { replace: true, state: at.state })
+    // (The address as it is now — a step before this one may have changed it, and `route` hears of it only on the next render.)
+    const now = typeof window !== 'undefined' ? window.location.search : at.search
+    const search = withView(now, patch)
+    if (search !== now) navigate({ pathname: at.pathname, search }, { replace: true, state: at.state })
   }, [navigate])
   // (Picking a view leaves Design Compare: the view is what's wanted now.)
   const setWorkspaceView = useCallback((view) => {
@@ -657,6 +659,34 @@ export function WorkspaceProvider({ children, projectId }) {
     ?? mergeItems.find((item) => item.tag !== 'Merged')
     ?? mergeItems[0]
     ?? null
+  // The Merge tab is in the address (`?view=merge&item=`, lib/viewLink): opening it pushes it (Back goes to the tab
+  // before), switching items replaces it, and an address that names it opens it — a reload, a shared link.
+  const mergeSaid = onWorkspace ? readMergeParams(location.search) : { open: false, item: null }
+  const mergeAddressSettled = useRef(false)
+  const pendingMergeItem = useRef(null)
+  useEffect(() => {
+    const { location: at, onWorkspace: here } = route.current
+    if (!here) return
+    const said = readMergeParams(at.search)
+    // (`activeViewNow`: the view as it's just been set — the address may name it a render before `activeView` says so.)
+    if (activeViewNow.current === 'mergeStudio') {
+      const id = openMergeItem?.id ?? ''
+      // (Opened from the address, on an item it names: wait for that item to be the open one before saying it back.)
+      if (pendingMergeItem.current && pendingMergeItem.current === said.item && id !== said.item) return
+      pendingMergeItem.current = null
+      if (!said.open || (said.item ?? '') !== id) navigate({ pathname: at.pathname, search: withMerge(at.search, id) }, { replace: said.open, state: at.state })
+    } else if (said.open && mergeAddressSettled.current) {
+      navigate({ pathname: at.pathname, search: withMerge(at.search, null) }, { replace: true, state: at.state })
+    }
+    mergeAddressSettled.current = true
+  }, [activeView, openMergeItem?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!onWorkspace) return
+    if (mergeSaid.open && activeViewNow.current !== 'mergeStudio') {
+      if (mergeSaid.item && mergeItems.some((item) => item.id === mergeSaid.item)) { pendingMergeItem.current = mergeSaid.item; setSelectedMergeItemId(mergeSaid.item) }
+      setActiveView('mergeStudio')
+    } else if (!mergeSaid.open && activeViewNow.current === 'mergeStudio') setActiveView('workspace')
+  }, [mergeSaid.open, mergeSaid.item, onWorkspace]) // eslint-disable-line react-hooks/exhaustive-deps
   const chatThread = activeView === 'mergeStudio' && openMergeItem ? openMergeItem.id : null
   const chatThreadItem = chatThread ? openMergeItem : null
   const threadStart = useCallback((itemId) => {

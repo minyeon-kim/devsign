@@ -67,3 +67,7 @@ Every panel opens the same way — in the same flex row as the work, taking its 
 - **Right panel** (the Screens board's change list): docked at the work area's right, beside the canvas or the comparison.
 - Widths ease in 200ms ease-out (none with `prefers-reduced-motion`). The camera keeps its scale and moves only as far as it takes (`lib/canvasCamera`): the picked frame / change stays in view; otherwise the canvas's centre stays its centre.
 - The canvas (or comparison) keeps at least 480px: the tool panel folds first, then the right panel, then AI Chat — the app sidebar stays (`foldForRoom`, `lib/panelPrefs`).
+
+## Merge tab
+
+Merge Studio is the fourth view of the main window — Preview · Screens · Code · **병합** (text only, the open-change count beside it, none at 0) — at `?view=merge&item=<id>`, not a separate screen: the app header and the rail stay, the studio has no header of its own, and the view under it stays mounted (its zoom, scroll and selection come back). The tab row carries the open item's name (a switcher) and the studio's tools (undo / redo, preview, new merge). Ways in: the tab (last item, else the first open one), a change in the board's list, 조합하기 in Design Compare. ⌘/Ctrl or ⌥ with 1–4 switch tabs.

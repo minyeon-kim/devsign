@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import { cn } from 'cn'
 import { HeaderCommandSearch } from '@/components/layout/CommandPalette'
 import { PRESENCE_STACK } from '@/components/mergestudio/floatingStyles'
-import MergeStudioMenu from '@/components/mergestudio/MergeStudioMenu'
 import MergeInboxDrawer, { InboxButton } from '@/components/mergestudio/MergeInboxDrawer'
 import MergeShareButton from '@/components/mergestudio/MergeSharePanel'
 import UserPresence from '@/components/layout/UserPresence'
@@ -92,7 +91,6 @@ function ActionTooltip({ label, children }) {
 function TopBar({ project }) {
   const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, bottomPanel, mergeDrawer, setMergeDrawer } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
-  if (activeView === 'mergeStudio') return null
 
   return (
     <>
@@ -126,7 +124,6 @@ function TopBar({ project }) {
         <ActionTooltip label="Share project">
           <MergeShareButton title={project?.name} link={`https://devsign.app/projects/${project?.id}`} borderless />
         </ActionTooltip>
-        <MergeStudioMenu standalone borderless />
         <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
       </div>
 

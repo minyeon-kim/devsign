@@ -119,8 +119,8 @@ function AppShell({ topBar, project, children }) {
         openConflicts={openConflicts}
         onCloseDrawer={closeDrawer}
         context={workspace}
-        // (The Workspace's own views sit on the bar while it's the Workspace that's showing — not a layer over it.)
-        workspace={workspace && workspace.activeView === 'workspace' && pathname.replace(/\/$/, '').endsWith('/workspace') && !LAYER_PARAMS.some((key) => new URLSearchParams(search).has(key)) ? workspace : null}
+        // (The Workspace's own views sit on the bar while it's the Workspace that's showing — Merge too — not a layer over it.)
+        workspace={workspace && pathname.replace(/\/$/, '').endsWith('/workspace') && !LAYER_PARAMS.some((key) => new URLSearchParams(search).has(key)) ? workspace : null}
       />
 
       {/* (The 8px between the drawer and the work area is the drawer's own — it opens and shuts with it, never at once.) */}

@@ -48,6 +48,6 @@ try {
   assert.ok(board.includes('{focusAt + 1}<span className="text-slate-500"> / {countLabel(sequence.length)}</span>') && board.includes("wrapped > 0 && 'ds-count-flash'"))
   assert.ok(board.includes("{ j: 1, J: 1, ']': 1, k: -1, K: -1, '[': -1 }") && board.includes("event.key === 'Escape' && keys.current.focusOut()") && board.includes('if (!focusOut()) fit()'))
   assert.ok(board.includes('data-focus-outline') && board.includes('ds-focus-pulse') && read('index.css').includes('.ds-focus-pulse { animation: ds-focus-pulse 650ms'))
-  assert.ok(board.includes('setBoardConflicts({ open: true, conflictId: entry.conflict.id })') && board.includes('const pickBoardConflict = (conflict) => focusOn('))
+  assert.ok(board.includes('setBoardConflicts({ open: true, conflictId: entry.conflict.id })') && board.includes('focusOn(sequence.find((entry) => entry.conflict.id === conflict.id))') && board.includes('const pickBoardConflict = (conflict) => {'))
   console.log('Passed: the board’s ‹ › go one change at a time — the camera in on each, the panel on its detail.')
 } finally { await server.close() }

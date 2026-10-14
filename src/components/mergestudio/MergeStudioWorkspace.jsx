@@ -8,6 +8,8 @@ import { toast } from '@/i18n/toast'
 import { LocalizedText } from '@/i18n/runtime'
 import { notificationDestination } from '@/lib/inboxNotifications'
 import { createPortal } from 'react-dom'
+import { Skeleton } from '@/components/ui/skeleton'
+import { WindowHeaderSlotContext } from '@/components/workspace/WindowHeaderSlot'
 import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { signature } from '@/lib/demoStorage'
 import { studioAdjustmentsOf } from '@/lib/sizeAdjustment'
@@ -591,6 +593,48 @@ function defaultLineFor(item) {
 
 // Deck width plus its 16px right inset and 16px breathing room.
 
+// The Merge tab's row, middle: the open item's name and — comparing drafts — how far the picking is ("0/1 선택"),
+// small and grey; pressing the name lists the other changes to switch to.
+function MergeItemSwitcher({ item, progress, readOnly }) {
+  const { mergeItems, setSelectedMergeItemId } = useWorkspace()
+  const others = mergeItems.filter((candidate) => candidate.projectId === item?.projectId || !candidate.projectId)
+  if (!item) return null
+  return (
+    <div data-merge-switcher className="mr-auto ml-3 flex min-w-0 items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger data-merge-item aria-label="병합 항목 바꾸기" disabled={others.length < 2} className="ds-intrinsic flex h-7 min-w-0 max-w-[320px] items-center gap-1 rounded-md px-2 text-[13px] font-medium text-slate-100 transition-colors outline-none hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none">
+          <span className="min-w-0 truncate"><LocalizedText text={item.title} /></span>
+          {others.length > 1 && <ChevronDown className="size-3.5 shrink-0 text-slate-400" />}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[60vh] min-w-64 overflow-y-auto">
+          {others.map((candidate) => (
+            <DropdownMenuItem key={candidate.id} data-merge-item-option={candidate.id} onClick={() => setSelectedMergeItemId(candidate.id)} className="gap-2 text-xs">
+              <Check className={cn('size-3.5 shrink-0', candidate.id === item.id ? 'opacity-100' : 'opacity-0')} />
+              <span className="min-w-0 flex-1 truncate"><LocalizedText text={candidate.title} /></span>
+              {candidate.tag && <span className="shrink-0 text-[11px] text-slate-500"><LocalizedText text={candidate.tag} /></span>}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {progress && <span data-merge-progress className="shrink-0 text-xs text-slate-500 tabular-nums">{progress}</span>}
+      {readOnly && <span data-merge-readonly className="shrink-0 text-xs text-slate-500">읽기 전용</span>}
+    </div>
+  )
+}
+
+// Before the three areas are drawn: where they will be.
+function StudioSkeleton() {
+  return (
+    <div data-merge-skeleton aria-busy="true" aria-label="불러오는 중" className="absolute inset-0 z-50 flex gap-2 bg-background p-2 pt-2">
+      <Skeleton className="w-[34%] rounded-xl" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <Skeleton className="min-h-0 flex-1 rounded-xl" />
+        <Skeleton className="h-40 rounded-xl" />
+      </div>
+    </div>
+  )
+}
+
 function MergeStudioWorkspace({ item }) {
   const navigate = useNavigate()
   const {
@@ -611,6 +655,7 @@ function MergeStudioWorkspace({ item }) {
     mergePreviewOpen,
     setMergePreviewOpen,
     exitMergeStudio,
+    setWorkspaceView,
     setSelectedMergeItemId,
     openConflictReview,
     openConflictFromNotification,
@@ -630,6 +675,11 @@ function MergeStudioWorkspace({ item }) {
     mergeEntry,
   } = useWorkspace()
   const { element: deckElement } = useContext(MergeDeckSlotContext)
+  const headerSlot = useContext(WindowHeaderSlotContext)
+  const readOnly = currentUser?.canEdit === false
+  // (Drawn once the three areas have laid out: a skeleton of them for the moment before.)
+  const [ready, setReady] = useState(false)
+  useEffect(() => { const timer = window.setTimeout(() => setReady(true), 240); return () => window.clearTimeout(timer) }, [])
   const savedDraft = mergeDrafts.current[item?.id] ?? {}
   const [syncSelection, setSyncSelection] = useState(null)
   const [appliedPreset, setAppliedPreset] = useState(savedDraft.appliedPreset ?? null)
@@ -1608,6 +1658,7 @@ function MergeStudioWorkspace({ item }) {
 
   return (
     <div ref={studioRootRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+        {!ready && item && <StudioSkeleton />}
         {item && designComparison && (
           // In the header row, above the canvas panel: the "what am I
           // looking at / how do I leave" strip for comparing drafts.
@@ -1626,9 +1677,6 @@ function MergeStudioWorkspace({ item }) {
             >
               <X className="size-3.5" />
             </button>
-            <span className="flex items-baseline gap-2 pr-2 pl-0.5 whitespace-nowrap">
-              <span className="text-[13px] font-semibold text-white"><LocalizedText text={designComparison.item.title} /></span>
-            </span>
             {/* Where it stands — said, not a button to finish from: that's the
                 parts bar's, where the picking is. Pressing it goes there. */}
             {/* (Saved: said by the parts bar, where the work is — not here too.) */}
@@ -1646,11 +1694,12 @@ function MergeStudioWorkspace({ item }) {
         )}
       {/* The header row's right side: the canvas's session controls
           (presence, Share, Preview, Inbox) land here, left of the files pill. */}
-      <div data-studio-header-slot className="absolute top-2 right-[104px] z-40 flex h-8 items-center" />
+      {/* The tab row carries the item switcher (and, from the canvas, the tools); a read-only reader is told so. */}
+      {headerSlot && createPortal(<MergeItemSwitcher item={item} progress={designComparison ? `${mixPicked}/${mixRows.length} 선택` : null} readOnly={readOnly} />, headerSlot)}
       {/* The canvas is a panel like the Workspace's: under the header row,
           rounded and bordered, ending where the bottom panel begins — not
           a full-bleed sheet the bottom panel slices across. */}
-      <div data-studio-stage className={cn('relative mt-12 mr-2 flex min-h-0 flex-1 overflow-hidden border border-white/10', PANEL_RADIUS)}>
+      <div data-studio-stage inert={readOnly || undefined} title={readOnly ? '읽기 전용이에요' : undefined} className={cn('relative mr-2 flex min-h-0 flex-1 overflow-hidden border border-white/10', designComparison || adjustingFor ? 'mt-12' : 'mt-2', PANEL_RADIUS)}>
 
       {item ? (
         <div className="flex min-h-0 min-w-0 flex-1">
@@ -1847,11 +1896,12 @@ function MergeStudioWorkspace({ item }) {
             <MousePointerClick className="size-5" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-300">No saved merge work</p>
+            <p className="text-sm font-medium text-slate-300">병합할 변경점이 없어요</p>
             <p className="max-w-[260px] text-xs text-slate-500">
-              Pick the changed files to start your first merge.
+              Pick the changed files to start a merge, or go back to the screens.
             </p>
           </div>
+          <button type="button" data-merge-empty-back onClick={() => { exitMergeStudio(); setWorkspaceView('screens') }} className="ds-intrinsic inline-flex h-8 items-center rounded-full bg-white/10 px-3.5 text-xs font-medium text-slate-100 transition-colors hover:bg-white/15">화면으로 돌아가기</button>
           {/* The same way to start as the list's: pick what to merge (the changed files first). */}
           <NewMergeMenu variant="empty" />
           <p data-merge-empty-changed className="text-xs text-slate-500"><LocalizedText text={mergeEntry?.changedCount > 0 ? `${mergeEntry.changedCount} changed file${mergeEntry.changedCount === 1 ? '' : 's'}` : 'No changed files yet'} /></p>

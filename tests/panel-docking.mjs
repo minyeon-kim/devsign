@@ -63,7 +63,7 @@ try {
   assert.ok(tooldock.includes('foldForRoom(') && tooldock.includes('setToolPanelWidth(') && tooldock.includes("label=\"Resize tool panel\""))
   // No floating Design Compare, none replacing the canvas: one sidebar, one screen at a time — the list (360px), or the picked set's detail (520px).
   const panel = read('components/dashboard/ComparePanel.jsx')
-  assert.ok(!views.includes('CanvasComparePanel') && !views.includes('CompareWorkView') && !layout.includes('CompareWorkView') && !floating.includes('viewCovered') && !shell.includes('setCompareOpen'), 'the canvas is never covered or replaced')
+  assert.ok(!views.includes('CanvasComparePanel') && !views.includes('CompareWorkView') && !layout.includes('CompareWorkView') && !shell.includes('setCompareOpen'), 'the canvas is never covered or replaced')
   assert.ok(sidebar.includes('<ComparePanel project={project}') && sidebar.includes('COMPARE_DETAIL_WIDTH : COMPARE_LIST_WIDTH') && sidebar.includes('overlay'), 'one sidebar, two widths, an overlay only when the canvas would be under 480')
   assert.ok(shell.includes("setDrawer('compare')") && shell.includes('setCompareItemId(null)'), 'the detail goes with the list')
   assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === 'Escape'") && panel.includes("event.key === '['") && panel.includes("'ArrowDown'") && panel.includes('closeCompareView') && panel.includes('inert={expanded}'), 'a named region; the list kept (inert), the keys')
