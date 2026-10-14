@@ -118,8 +118,8 @@ function CompareDrawer() {
       {groups.map(([label, list]) => {
         const open_ = terms.length > 0 || !folded.has(label)
         return (
-          <section key={label} data-drawer-group={label} data-compare-group={label}>
-            <h4 style={{ height: GROUP_HEIGHT }} className="sticky top-0 z-10 flex items-center bg-background text-[11px] leading-4 font-semibold text-slate-400">
+          <section key={label} data-drawer-group={label} data-compare-group={label} className="mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 last:mb-0">
+            <h4 style={{ height: GROUP_HEIGHT }} className="flex items-center text-[11px] leading-4 font-semibold text-slate-400">
               <button type="button" aria-expanded={open_} onClick={() => toggleGroup(label)} className="ds-intrinsic flex h-full min-w-0 flex-1 items-center gap-1 rounded-lg px-2 text-left transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-white/60">
                 <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none', !open_ && '-rotate-90')} />
                 <span className="min-w-0 truncate"><LocalizedText text={label} /></span>
@@ -127,7 +127,7 @@ function CompareDrawer() {
               </button>
             </h4>
             {open_ && (
-              <ul role="listbox" aria-label={label} className="flex flex-col">
+              <ul role="listbox" aria-label={label} className="flex flex-col gap-0.5">
                 {list.map((row) => (
                   <li key={row.item.id}>
                     <DesignSetRow item={row.item} state={row.state} count={designCompareOptions(row.item).length} selected={isPicked(row)} onOpen={() => open(row)} />
