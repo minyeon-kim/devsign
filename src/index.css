@@ -1079,6 +1079,9 @@ button.editor-line-comment {
 @keyframes ds-step-line-x { from { transform: scaleX(0); } }
 @keyframes ds-step-arrive { from { opacity: 0; } }
 @keyframes ds-step-tick { from { opacity: 0; transform: translateY(4px); } }
+/* The step under way breathes: a soft ring swelling and fading, slowly. */
+@keyframes ds-step-breathe { 0%, 100% { opacity: 0.25; transform: scale(0.9); } 50% { opacity: 0.8; transform: scale(1.1); } }
+.ds-step-breathe { animation: ds-step-breathe 2.4s ease-in-out infinite; }
 .ds-step-check { stroke-dasharray: 1; stroke-dashoffset: 0; }
 @media (prefers-reduced-motion: no-preference) {
   [data-step-anim='wait'] { opacity: 0; }
