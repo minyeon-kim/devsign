@@ -99,9 +99,9 @@ export function StepDot({ state, moves: animate = false, arrive = false }) {
 // The line down from a step to the next: success-tinted once the step is
 // done (runs down when new, deeper while a later step is hovered), a grey
 // dashed line while it isn't.
-export function StepLine({ filled, strong = false, moves: animate = false, className }) {
+export function StepLine({ filled, strong = false, moves: animate = false, className, style }) {
   return (
-    <span aria-hidden data-step-line={filled ? 'done' : 'pending'} className={cn('pointer-events-none absolute w-px', className)}>
+    <span aria-hidden data-step-line={filled ? 'done' : 'pending'} className={cn('pointer-events-none absolute w-px', className)} style={style}>
       {filled ? (
         <>
           <span className="absolute inset-0 bg-white/[0.08]" />
@@ -122,9 +122,30 @@ export function StepLine({ filled, strong = false, moves: animate = false, class
 // finished and fills in (see StepTimeline); `strong`: the line below it is
 // deeper while a later step is hovered. A step with nothing inside (no
 // `children`) has no fold: its head is all there is.
-export function StepRow({ state, title, who: _who, summary: _summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
+// A step's badge: what it stands at, as a soft pill — green when done, blue
+// under way, amber when it needs a person, grey waiting.
+const BADGE = {
+  done: 'bg-emerald-400/12 text-emerald-200',
+  current: 'bg-sky-400/15 text-sky-200',
+  problem: 'bg-amber-400/15 text-amber-200',
+  pending: 'bg-white/[0.06] text-slate-400',
+}
+// The card each step is, by where it stands. Done: the plain card. Under way
+// (or needing a person): the whole card set apart — an accent border and a
+// faint tint. Waiting: a dashed outline on no fill, its text at half strength.
+const CARD = {
+  done: 'border-white/[0.07] bg-white/[0.035]',
+  current: 'border-sky-300/45 bg-sky-400/[0.06]',
+  problem: 'border-amber-300/45 bg-amber-400/[0.05]',
+  pending: 'border-dashed border-white/[0.12] bg-transparent',
+}
+const HOVER = { done: 'hover:bg-white/[0.055]', current: 'hover:bg-sky-400/[0.09]', problem: 'hover:bg-amber-400/[0.08]', pending: '' }
+// (Where a card's head sits: its 1px border and 12px padding, then a 20px line — the dot is centred on that line.)
+const HEAD_MID = 1 + 12 + 10
+const GAP = 8
+
+export function StepRow({ state, title, who, summary: _summary, time, open, onToggle, onReplay, last, moves = false, arrive = false, delay = 0, anim, strong = false, onHover, children, ...rest }) {
   const pending = state === 'pending'
-  const current = state === 'current' || state === 'problem'
   // (Nothing inside — or only conditions that didn't hold: no fold.)
   const foldable = Children.toArray(children).length > 0
   const bodyId = useId()
@@ -138,13 +159,14 @@ export function StepRow({ state, title, who: _who, summary: _summary, time, open
     const timer = window.setTimeout(() => rowRef.current?.scrollIntoView({ block: 'nearest', behavior: motionOk() ? 'smooth' : 'auto' }), 230)
     return () => window.clearTimeout(timer)
   }, [open])
-  // One line, folded or not: the step's name, where it stands, when — and the chevron.
+  // The card's head, one line: [the step] [its badge] ··· [when, or who] [›].
+  const aside = time ?? who ?? null
   const head = (
     <>
-      <span data-step-title className={cn('min-w-0 truncate text-[13px] leading-5', pending ? 'text-slate-500' : state === 'done' ? 'font-medium text-slate-300' : 'font-semibold text-white')}>{title}</span>
-      <span data-step-state className={cn('shrink-0 text-[11px] leading-5', current ? 'text-sky-200' : 'text-slate-500')}>{WORD(state)}</span>
-      <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5">
-        {time && <time data-step-time className="shrink-0 text-[11px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time>}
+      <span data-step-title className={cn('min-w-0 truncate text-[13.5px] leading-5 font-semibold', state === 'done' ? 'text-slate-200' : pending ? 'text-slate-300' : 'text-white')}>{title}</span>
+      <span data-step-state className={cn('inline-flex h-[18px] shrink-0 items-center rounded-full px-1.5 text-[11px] leading-none font-medium', BADGE[state] ?? BADGE.pending)}>{WORD(state)}</span>
+      <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5 pl-2">
+        {aside && (time ? <time data-step-time className="shrink-0 text-[12px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time> : <span data-step-who className="shrink-0 truncate text-[12px] text-slate-500">{who}</span>)}
         {foldable && <ChevronRight aria-hidden data-step-chevron className={cn('size-3.5 shrink-0 text-slate-400 transition-transform duration-[180ms] ease-out motion-reduce:transition-none', open && 'rotate-90')} />}
       </span>
     </>
@@ -160,33 +182,32 @@ export function StepRow({ state, title, who: _who, summary: _summary, time, open
       onMouseLeave={onHover && (() => onHover(false))}
       {...rest}
     >
-      {/* (The line runs on to the next step's dot, whatever the height of this one — it's drawn from the row's top to past its bottom.) */}
-      {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="top-[18px] bottom-[-18px] left-[5.5px]" />}
-      {/* (12px from the mark to the step's name; the mark centred on the name's line.) */}
-      <span className="absolute top-1 left-0"><StepDot state={state} moves={moves} arrive={arrive} /></span>
-      {/* The step under way is set apart: a faint accent behind it (no change to where anything sits). */}
-      <div data-step-row={state} data-open={open} className={cn('-mx-2 rounded-lg px-2', current && 'bg-sky-400/[0.05] ring-1 ring-sky-300/15')}>
-        <div data-step-head className="flex min-w-0 items-start gap-1">
+      {/* The line: from this card's dot to the next one's, through the 8px between the cards — however tall this card grows. (The dots sit over it.) */}
+      {!last && <StepLine filled={state === 'done'} strong={strong} moves={moves} className="left-[5.5px]" style={{ top: HEAD_MID, bottom: -(GAP + HEAD_MID) }} />}
+      {/* The dot, centred on the card head's line, on the panel's own colour so the line stops at its edge. */}
+      <span className="absolute left-0 z-[1] rounded-full bg-card" style={{ top: HEAD_MID - 6 }}><StepDot state={state} moves={moves} arrive={arrive} /></span>
+      <div data-step-row={state} data-open={open} className={cn('rounded-[10px] border transition-colors duration-150', CARD[state] ?? CARD.pending, foldable && HOVER[state])}>
+        <div data-step-head className={cn('flex min-w-0 items-center gap-1', pending && 'opacity-50')}>
           {foldable ? (
-            // The whole head is the switch: Enter or Space folds and opens it.
+            // The whole head is the switch: a press, Enter or Space folds and opens it.
             <button
               type="button"
               aria-expanded={open}
               aria-controls={bodyId}
               onClick={onToggle}
-              className={cn('ds-intrinsic -mx-2 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-emerald-300', !open && 'hover:bg-white/[0.05]')}
+              className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] px-3.5 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300"
             >
               {head}
             </button>
-          ) : <div className="flex min-w-0 flex-1 items-center gap-2">{head}</div>}
+          ) : <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5 py-3">{head}</div>}
           {onReplay && (
-            <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic h-5 shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
+            <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic mr-2 h-5 shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
               이 단계부터 보기
             </button>
           )}
         </div>
-        {/* Opened: 12px under its head, from the name's own left edge; 16px between its blocks, a readable measure. */}
-        {foldable && <div id={bodyId} role="region" aria-label={title}><FoldBody open={open}><div data-step-body className="flex flex-col gap-4 pt-3 pb-2 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]">{children}</div></FoldBody></div>}
+        {/* Opened: its contents inside the card, under the head (the card's 14px sides). */}
+        {foldable && <div id={bodyId} role="region" aria-label={title}><FoldBody open={open}><div data-step-body className={cn('flex flex-col gap-4 px-3.5 pb-3.5 [&_dl]:max-w-[640px] [&_p]:max-w-[640px]', pending && 'opacity-50')}>{children}</div></FoldBody></div>}
       </div>
     </li>
   )

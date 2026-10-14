@@ -2573,7 +2573,7 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
           </button>
         )}
       </div>
-      <ol ref={ref} data-step-list className="m-0 flex list-none flex-col gap-4 p-0">
+      <ol ref={ref} data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
         {steps.map((step, index) => (
           <StepRow
             key={step.key}

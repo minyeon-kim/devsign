@@ -1255,7 +1255,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           </button>
           {post && onReplay && <button type="button" data-replay-open onClick={() => onReplay('start')} className={SECONDARY}><Play className="size-3 fill-current" />리플레이</button>}
         </div>
-        <ol ref={listRef} data-step-list className="m-0 flex list-none flex-col gap-4 p-0">
+        <ol ref={listRef} data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
           {steps.map((step, index) => (
             <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time}
               open={isOpen(step.key)} onToggle={() => toggle(step.key)} last={index === steps.length - 1}
