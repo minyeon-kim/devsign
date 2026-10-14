@@ -117,8 +117,8 @@ try {
   assert.match(linkPath({ kind: 'branch' }, at('page-login'), at('page-home'), layout).d, /H[\d.]+V[\d.]+H[\d.]+V/, 'between flows: around the cards')
   assert.notEqual(linkPath({ kind: 'branch' }, at('page-login'), at('page-login-error'), layout).d, linkPath({ kind: 'back' }, at('page-login-error'), at('page-login'), layout).d.split('').reverse().join(''))
 
-  // The view: fitted whole, zoomed between 10% and 200% about a point, only what's in view drawn.
-  assert.deepEqual([ZOOM_MIN, ZOOM_MAX, clampZoom(5), clampZoom(0.01)], [0.1, 2, 2, 0.1])
+  // The view: fitted whole, zoomed between 10% and 400% about a point, only what's in view drawn.
+  assert.deepEqual([ZOOM_MIN, ZOOM_MAX, clampZoom(5), clampZoom(0.01)], [0.1, 4, 4, 0.1])
   const fitted = boardFit(layout, { width: 1200, height: 800 })
   assert.ok(fitted.zoom <= 1 && layout.width * fitted.zoom <= 1200 && layout.height * fitted.zoom <= 800)
   assert.equal(boardFit({ width: 100, height: 100 }, { width: 1200, height: 800 }).zoom, 1, 'never past 100%')

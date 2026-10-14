@@ -119,10 +119,10 @@ try {
   assert.ok(board.includes('ds-ripple pointer-events-none') && board.includes('ds-ripple ds-ripple-late') && read('index.css').includes('.ds-ripple { animation: ds-ripple 2s'))
   assert.ok(board.includes('const DETAIL_ZOOM = 0.55') && board.includes('const detailed = shown.zoom >= DETAIL_ZOOM'))
   assert.ok(board.includes('<CountBubble count={countLabel(rest.length)}') && board.includes('+{count}</span>') && board.includes('const rest = detailed && !proto ? [] : open'), 'near: only the markers')
-  assert.ok(board.includes('function markersOf(screen, conflicts)') && board.includes('data-screen-marker') && board.includes('data-marker-outline') && board.includes('onOpen={(conflict) => openConflictReview(conflict.id)}'))
+  assert.ok(board.includes('function markersOf(screen, conflicts)') && board.includes('data-screen-marker') && board.includes('data-marker-outline') && board.includes('onPress={() => pressMarker(card.id, marker)}'))
   assert.ok(board.includes('<PinShape head=') && read('components/conflicts/ConflictPins.jsx').includes('export function PinShape('), 'the same pin as the canvas’s')
-  // Pressed, a marker's popover — right there: each change's risk, status, a line of it, and a way to its detail.
-  assert.ok(board.includes('<PopoverContent side="right"') && board.includes('data-marker-open={conflict.id}') && board.includes('line-clamp-2'))
+  // Pressed, a marker closes in on its change (several on it: the next of them); the one the board is on is bigger, the rest at 40%.
+  assert.ok(board.includes('focusOn(here[(at + 1) % here.length])') && board.includes('faded={Boolean(focused) && !current}') && board.includes("opacity: faded ? 0.4 : 1"))
   assert.ok(board.includes('transform: `scale(${1 / shown.zoom})`'), 'the same size on screen at any zoom')
   // (The count, pressed: the board glides in on that screen, near enough for its markers — and the markers are the change's red.)
   assert.ok(board.includes("zoomToCard(card, BOARD_PANEL_WIDTH + 64); setBoardConflicts({ open: true, conflictId: null, screenId: card.id })") && board.includes('data-board-conflicts-open') && board.includes('Math.max(DETAIL_ZOOM + 0.1,') && read('components/conflicts/ConflictPins.jsx').includes("default: '#F04E5A'"))

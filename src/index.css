@@ -1116,6 +1116,23 @@ button.editor-line-comment {
   .ds-ripple { animation: none; opacity: 0; }
 }
 
+/* The change the board's ‹ › are on: its element's red outline pulses once as the camera arrives (after
+   the 300ms glide), and the toolbar's count flashes once when ‹ › go round from the last to the first. */
+@keyframes ds-focus-pulse {
+  0% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.18); }
+}
+.ds-focus-pulse { animation: ds-focus-pulse 650ms cubic-bezier(0.2, 0, 0, 1) 300ms 1 both; }
+@keyframes ds-count-flash {
+  0%, 100% { background-color: transparent; }
+  35% { background-color: rgb(240 78 90 / 0.38); }
+}
+.ds-count-flash { animation: ds-count-flash 520ms ease-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .ds-focus-pulse { animation: none; opacity: 0; }
+  .ds-count-flash { animation: none; }
+}
+
 /* The narrow floating review has its own gutter, independent of page spacing. */
 [data-board-conflicts="detail"] [data-review-header],
 [data-board-conflicts="detail"] [data-review-body] {

@@ -3,7 +3,7 @@
 // draws what these say.
 
 export const ZOOM_MIN = 0.1
-export const ZOOM_MAX = 2
+export const ZOOM_MAX = 4
 export const clampZoom = (zoom) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom))
 
 // The view that shows a box whole, centred, never past 100%.
@@ -82,4 +82,35 @@ export function linkPath(link, from, to, layout = {}) {
   const lane = forward ? to.y - LABEL - 44 : to.y + Math.max(to.height, gap) + 40
   const ey = forward ? to.y - LABEL - 6 : to.y + to.height + 6
   return { d: `M${R(sx)} ${R(sy)}H${R(out)}V${R(lane)}H${R(ex)}V${R(ey)}`, label: { x: R((out + ex) / 2), y: R(lane - 8) } }
+}
+
+// Close in on a box (board units): centred in `area` — what's clear of the panels, { x, y, width, height } in
+// view px — at the zoom where it takes about `share` of that width, between `min` and `max`; with at least
+// `margin` px of what's around it in view (a box too big for that at `min` — a whole screen — fits instead).
+export const FOCUS = { share: 0.4, min: 1.5, max: 4, margin: 48 }
+export function focusView(box, area, { share = FOCUS.share, min = FOCUS.min, max = FOCUS.max, margin = FOCUS.margin } = {}) {
+  const width = Math.max(1, box.width)
+  const height = Math.max(1, box.height)
+  const fits = Math.min((area.width - margin * 2) / width, (area.height - margin * 2) / height)
+  const zoom = Math.max(ZOOM_MIN, Math.min(Math.max(min, Math.min(max, (area.width * share) / width)), fits))
+  return { zoom, x: area.x + area.width / 2 - (box.x + width / 2) * zoom, y: area.y + area.height / 2 - (box.y + height / 2) * zoom }
+}
+
+// The camera on its way from one view to another, at `t` (0 → 1, eased in and out): the point in the
+// middle of `area` travels in a straight line on the board, the zoom in proportion (on a log scale) —
+// and when the two are far apart (more than the area's width apart at the zoom it's at) it backs out a
+// little on the way, so where it's going is seen coming.
+export const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
+export function glideAt(from, to, t, area) {
+  const e = easeInOut(Math.min(1, Math.max(0, t)))
+  const cx = area.x + area.width / 2
+  const cy = area.y + area.height / 2
+  const a = { x: (cx - from.x) / from.zoom, y: (cy - from.y) / from.zoom }
+  const b = { x: (cx - to.x) / to.zoom, y: (cy - to.y) / to.zoom }
+  const far = Math.hypot(b.x - a.x, b.y - a.y) * Math.min(from.zoom, to.zoom) > area.width
+  const dip = far ? 1 - 0.35 * Math.sin(Math.PI * e) : 1
+  const zoom = Math.exp(Math.log(from.zoom) + (Math.log(to.zoom) - Math.log(from.zoom)) * e) * dip
+  const px = a.x + (b.x - a.x) * e
+  const py = a.y + (b.y - a.y) * e
+  return { zoom, x: cx - px * zoom, y: cy - py * zoom }
 }

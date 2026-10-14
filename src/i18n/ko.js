@@ -821,6 +821,11 @@ Resize pane|창 크기 조절
 View from this screen in Preview|미리보기에서 이 화면부터 보기
 Previous screen with changes|충돌이 있는 이전 화면
 Next screen with changes|충돌이 있는 다음 화면
+Previous conflict · K|이전 충돌 · K
+Next conflict · J|다음 충돌 · J
+Previous conflict|이전 충돌
+Next conflict|다음 충돌
+Back to the full view · Esc|줌인 전으로 돌아가기 · Esc
 Show hotspots|핫스팟 표시
 Show on Screens|화면 탭에서 위치 보기
 This is the end of the flow.|플로우의 끝입니다.
