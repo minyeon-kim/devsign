@@ -14,6 +14,7 @@ import { ElementCrop, PreviewFrame, SampleCrop, hasElement } from '@/components/
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueScale from '@/components/conflicts/ValueScale'
+import ValueCards from '@/components/conflicts/ValueCards'
 import { SmoothHeight } from '@/components/ui/SmoothHeight'
 import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import CodeRender from '@/components/history/CodeRender'
@@ -642,21 +643,17 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {/* What was found, in a line — under the title, where it's read first. */}
       {(conflict.summary ?? conflict.message) && <p data-proposal-about className="-mt-1 mb-4 text-[13px] leading-5 text-slate-300">{conflict.summary ?? conflict.message}</p>}
 
-      {inPlace ? (
-        // The change in a line: the value from what's built to the way picked (the design's, before one is),
-        // the token it's about, and how many screens it reaches — pressed, the canvas shows them all.
-        <p data-preview-diff className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-5 text-slate-300 tabular-nums">
-          <span className="font-mono text-slate-100">{said(builtSpec)} → {diffTo}</span>
-          <button type="button" data-preview-lens-toggle aria-pressed={lens} title={lens ? '돋보기 끄기' : '돋보기 켜기'} aria-label="돋보기" onClick={() => setLens(!lens)}
-            className={cn('ds-intrinsic inline-flex size-6 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', lens ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)] ring-1 ring-[var(--ds-accent-border)] ring-inset' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white')}>
-            <ZoomIn className="size-3.5" />
-          </button>
-          {targets[0]?.token && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="font-mono text-slate-400">{targets[0].token}</span></>}
-          <span aria-hidden className="text-slate-600">·</span>
-          <button type="button" data-preview-affected onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: null, fitNonce: prev.fitNonce + 1 } : prev))} className="ds-intrinsic rounded text-slate-300 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white hover:decoration-white/60 focus-visible:outline-2 focus-visible:outline-emerald-300">
-            영향 화면 {affected.length}개
-          </button>
-        </p>
+      {/* Before → After: the section's picture. A value change: the element itself, cut out and enlarged
+          to fill both cards at one scale (ValueCards); a layout: its two screens, as before. */}
+      {valueChange ? (
+        <ValueCards
+          conflict={conflict}
+          pages={pages}
+          sides={[
+            { id: 'before', title: showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현', values: conflict.preview?.before ?? null },
+            { id: 'after', title: after.title, sub: drawable ? null : after.sub, values: afterWhich === 'original' ? conflict.preview?.after ?? null : afterWhich === 'implementation' ? conflict.preview?.before ?? null : drawingOf(conflict, null, afterWhich)?.values ?? null, picked: Boolean(chosen && drawable && !peeking && !holding) },
+          ]}
+        />
       ) : (
       // Before → After: the section's picture. Two cards of the same kind, side by side with an arrow
       // between; stacked (before first) when narrow.
@@ -678,6 +675,22 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           </div>
         </figure>
       </div>
+      )}
+      {inPlace && (
+        // The change in a line: the value from what's built to the way picked (the design's, before one is),
+        // the token it's about, and how many screens it reaches — pressed, the canvas shows them all.
+        <p data-preview-diff className="mt-3 mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-5 text-slate-300 tabular-nums">
+          <span className="font-mono text-slate-100">{said(builtSpec)} → {diffTo}</span>
+          <button type="button" data-preview-lens-toggle aria-pressed={lens} title={lens ? '돋보기 끄기' : '돋보기 켜기'} aria-label="돋보기" onClick={() => setLens(!lens)}
+            className={cn('ds-intrinsic inline-flex size-6 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', lens ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)] ring-1 ring-[var(--ds-accent-border)] ring-inset' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white')}>
+            <ZoomIn className="size-3.5" />
+          </button>
+          {targets[0]?.token && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="font-mono text-slate-400">{targets[0].token}</span></>}
+          <span aria-hidden className="text-slate-600">·</span>
+          <button type="button" data-preview-affected onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: null, fitNonce: prev.fitNonce + 1 } : prev))} className="ds-intrinsic rounded text-slate-300 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white hover:decoration-white/60 focus-visible:outline-2 focus-visible:outline-emerald-300">
+            영향 화면 {affected.length}개
+          </button>
+        </p>
       )}
 
       {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}
