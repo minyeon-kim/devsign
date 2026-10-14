@@ -11,7 +11,8 @@ function ChatPanel() {
   const { openHistory } = useWorkspace()
 
   return (
-    <div className="flex h-full flex-col bg-card pt-2">
+    // (On its window's own surface — the Workspace's AI Chat is on the app's ground, #141414.)
+    <div className="flex h-full flex-col pt-2">
       <WindowHeaderPortal fallbackClassName="flex shrink-0 justify-end px-2 pt-1">
         <button
           type="button"

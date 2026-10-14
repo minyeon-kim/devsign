@@ -599,6 +599,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, children }) {
             // each opening its view over the canvas's left.)
             viewRail={!mergeStudio && group.id === mainGroupId ? <CanvasViewRail /> : null}
             viewOverlay={!mergeStudio && group.id === mainGroupId ? <CanvasViewPanel /> : null}
+            // (AI Chat on the app's ground, #141414 — as what opens at the left.)
+            surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
             // The side panel's and AI Chat's own tab rows carry their fold buttons.
             sideToggle={mergeStudio ? null
               : group.id === sideGroupId ? { label: 'Collapse panel', hint: SIDE_SHORTCUT, controls: SIDE_ID, onToggle: () => setSidePanel({ open: false }) }

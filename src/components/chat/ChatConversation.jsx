@@ -562,7 +562,8 @@ function ChatConversation() {
         </p>
       )}
       <div className="relative flex min-h-0 flex-1">
-        <div ref={listRef} className="scroll-fade-bottom flex-1 space-y-5 overflow-auto px-5 pt-3" style={{ '--scroll-fade-size': '8px', '--scroll-fade-edge': 'rgb(0 0 0 / 65%)', paddingBottom: suggestionsHeight }}>
+        {/* (Ends where the suggestions begin: no message ever runs under them, so nothing has to fade.) */}
+        <div ref={listRef} className="flex-1 space-y-5 overflow-auto px-5 pt-3 pb-3" style={{ marginBottom: suggestionsHeight }}>
         {chatMessages.map((message, index) => (
           <div key={message.id} className={cn('group/chat flex w-full flex-col', message.role === 'user' ? 'items-end gap-1.5' : 'items-start gap-0.5')}>
             {/* A request that asks (or asked) for approval comes first, above what the AI wrote about it. */}
@@ -625,10 +626,8 @@ function ChatConversation() {
             Approval requested
           </button>
         )}
-          {/* The suggestions sit over the end of the conversation, and the
-              messages fade out behind them — from where the suggestions begin
-              down to the input, instead of a hard edge above the chips. */}
-          <div ref={suggestionsRef} className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap gap-2 bg-gradient-to-t from-card from-55% to-transparent px-2 pt-8 pb-2 [&>button]:pointer-events-auto">
+          {/* The suggestions, under the conversation and over the input — no gradient behind them. */}
+          <div ref={suggestionsRef} className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap gap-2 px-2 pt-2 pb-2 [&>button]:pointer-events-auto">
           {suggestions.map((suggestion) => {
             const Icon = suggestionIcons[suggestion.iconName]
             const fixedTarget = suggestion.targetLayerId ? elementTarget(suggestion.targetLayerId) : null

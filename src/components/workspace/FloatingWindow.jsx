@@ -43,7 +43,7 @@ const DRAG_THRESHOLD = 4
 // then `headerEnd` (AI Chat's pill, while it's folded).
 // `viewRail` / `viewOverlay` (the main window): a column at the content's left, and what opens from it
 // over the content (CanvasSideViews).
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null }) {
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null, surface = 'card' }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -111,6 +111,9 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
       className={cn(
         'absolute flex flex-col overflow-hidden',
         FLOATING_PANEL,
+        // (`surface: 'base'` — the app's own ground, #141414, as the panes that open at the left: AI Chat.)
+        // (and no outline: it's a surface of the app, not a card lifted off it).
+        surface === 'base' && '!border-transparent !bg-background !shadow-none',
         isMaximized ? 'rounded-none' : PANEL_RADIUS
       )}
       style={{ ...geom, zIndex: isMaximized ? 500 : group.z }}
@@ -127,7 +130,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
         <div
           onPointerDown={beginDrag}
           data-window-header={docked ? group.id : undefined}
-          className={cn('@container/nav flex h-10 shrink-0 cursor-grab items-center gap-0.5 px-2 active:cursor-grabbing', !viewTabs && 'border-b border-white/[0.06]')}
+          className={cn('@container/nav flex h-10 shrink-0 cursor-grab items-center gap-0.5 px-2 active:cursor-grabbing', !viewTabs && surface !== 'base' && 'border-b border-white/[0.06]')}
         >
           {docked || isNavigatorGroup ? (
             // The real tabs — open files, canvas pages, the navigator's
@@ -266,7 +269,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
 
       <div className={cn('flex min-h-0 flex-1 overflow-hidden', viewRail && 'bg-card')}>
       {viewRail}
-      <div role={viewPanel ? 'tabpanel' : undefined} id={viewPanel?.id} aria-labelledby={viewPanel?.labelledBy} className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-card">
+      <div role={viewPanel ? 'tabpanel' : undefined} id={viewPanel?.id} aria-labelledby={viewPanel?.labelledBy} className={cn('relative min-h-0 min-w-0 flex-1 overflow-hidden', surface === 'base' ? 'bg-background' : 'bg-card')}>
         <WindowHeaderSlotContext.Provider value={group.hideHeader ? null : headerSlot}>
           <WindowTabsContext.Provider value={docked || isNavigatorGroup}>
             {ActiveContent && <ActiveContent params={activePanel.params} />}
