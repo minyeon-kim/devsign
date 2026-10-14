@@ -28,8 +28,9 @@ import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
 import CompareCanvas from '@/components/canvas/CompareCanvas'
+import PreviewLens from '@/components/canvas/PreviewLens'
 import { liveOverridesOf, setCanvasPreview, useCanvasPreview } from '@/lib/canvasPreview'
-import { boardFit, focusView } from '@/lib/screensBoard'
+import { boardFit } from '@/lib/screensBoard'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -730,8 +731,9 @@ function CanvasPanel() {
   // ── A fix previewed in place (lib/canvasPreview, said by the change's detail) ──
   // This page's screens drawn with the way picked put over what's built — the frame dashed green and
   // saying it isn't applied — and every other screen it reaches laid out beside them, drawn the same way.
-  // Space held: what's built, for as long as it's held. A way picked: the canvas closes in on the element
-  // (the change list's own zoom: lib/screensBoard's focusView); "영향 화면 N개": all of them in view.
+  // Space held: what's built, for as long as it's held. A way picked never moves the camera — it's shown
+  // where the canvas is looking (only entering a change, or a hand, moves it); "영향 화면 N개": all in view.
+  // A change too small to see at that size has a magnifier beside its element (PreviewLens).
   const preview = useCanvasPreview()
   const previewHere = preview && activePage && preview.pages.includes(activePage.id) ? preview : null
   const previewOverrides = liveOverridesOf(previewHere)
@@ -760,21 +762,6 @@ function CanvasPanel() {
     setView(next)
     window.setTimeout(() => setGliding(false), 300)
   }
-  // (Again if the canvas changes size just after — the detail's pane opening beside it — so the element stays in the middle.)
-  const focusedNonce = useRef({ nonce: 0, at: 0 })
-  useEffect(() => {
-    if (!previewHere?.focusNonce || previewHere.compare) return
-    const again = focusedNonce.current.nonce === previewHere.focusNonce
-    if (again && performance.now() - focusedNonce.current.at > 1200) return
-    if (previewHere.focus.pageId !== activePage?.id || !canvasWidth) return
-    if (!again) focusedNonce.current = { nonce: previewHere.focusNonce, at: performance.now() }
-    const frame = activePage.frames.find((entry) => entry.layers.some((layer) => layer.id === previewHere.focus.layerId))
-    const layer = frame?.layers.find((entry) => entry.id === previewHere.focus.layerId)
-    if (!layer) return
-    const next = focusView({ x: frame.x + layer.x, y: frame.y + layer.y, width: layer.width, height: layer.height }, { x: 0, y: 0, width: canvasWidth, height: canvasHeight }, { max: MAX_CANVAS_ZOOM / 100 })
-    glideTo({ zoom: Math.round(next.zoom * 100), x: next.x, y: next.y })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewHere?.focusNonce, previewHere?.compare, activePage?.id, canvasWidth, canvasHeight])
   const fittedNonce = useRef(0)
   useEffect(() => {
     if (!previewHere?.fitNonce || fittedNonce.current === previewHere.fitNonce || !canvasWidth) return
@@ -922,12 +909,18 @@ function CanvasPanel() {
           {/* What the canvas shows, said where it's always seen — however far in it is (the frame's own badge
               can be out of view): a preview, not applied. */}
           {previewHere && pickedWay && !previewHere.compare && (
-            <div data-preview-banner={previewHere.peek ? 'peek' : 'option'} data-canvas-chrome className="pointer-events-none absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-dashed border-[var(--ds-accent)] bg-[#0f1a15]/95 px-3 py-1.5 text-[12px] font-medium whitespace-nowrap text-[var(--ds-accent-text)] shadow-lg">
+            <div data-preview-banner={previewHere.peek ? 'peek' : 'option'} data-canvas-chrome className="pointer-events-none absolute bottom-4 left-1/2 z-20 flex max-w-[calc(100%-96px)] -translate-x-1/2 items-center gap-1.5 truncate rounded-full border border-dashed border-[var(--ds-accent)] bg-[#0f1a15]/95 px-3 py-1.5 text-[12px] font-medium whitespace-nowrap text-[var(--ds-accent-text)] shadow-lg">
               <span aria-hidden className="size-1.5 rounded-full bg-[var(--ds-accent)]" />
               {previewHere.peek ? `현재 구현 보는 중 · Space를 떼면 옵션 ${pickedWay.n}` : `옵션 ${pickedWay.n} 미리보기 · 적용 안 됨`}
               {!previewHere.peek && <span className="font-normal text-slate-400">· Space 누르면 현재 구현</span>}
             </div>
           )}
+          {/* The magnifier: beside the element, on the canvas — following it, one size whatever the zoom. */}
+          {previewHere?.lens && !previewHere.compare && (() => {
+            const frame = activePage.frames.find((entry) => entry.layers.some((layer) => layer.id === previewHere.focus.layerId))
+            const layer = frame?.layers.find((entry) => entry.id === previewHere.focus.layerId)
+            return layer ? <PreviewLens frame={frame} layer={layer} view={view} room={{ width: canvasWidth, height: canvasHeight }} overrides={previewOverrides} edits={prototypeEdits} label={previewHere.peek ? '현재 구현' : pickedWay ? `옵션 ${pickedWay.n}` : '현재 화면'} /> : null
+          })()}
           {/* The ways side by side (or one over the other), over the canvas — the detail beside it stays. */}
           {compareFrame && compareBox && <CompareCanvas preview={previewHere} frame={compareFrame} box={compareBox} edits={prototypeEdits} />}
 

@@ -1,7 +1,7 @@
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
-import { affectedPagesOf, getCanvasPreview, overridesFor, previewTargetsOf, setCanvasPreview, useCanvasPreview } from '@/lib/canvasPreview'
+import { affectedPagesOf, getCanvasPreview, isSubtleChange, overridesFor, previewTargetsOf, readLens, setCanvasPreview, useCanvasPreview, writeLens } from '@/lib/canvasPreview'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, Columns4, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
+import { ArrowRight, Check, Columns4, ZoomIn, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { RECORD_ROWS, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
@@ -586,18 +586,20 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const specOf = (id) => (id === 'before' ? builtSpec : id === 'other' ? (described ? proposalOf('other', custom, conflict).spec : null) : ways.find((option) => option.id === id)?.spec ?? null)
   const cellOf = (id, n, label) => {
     const empty = id === 'other' && !described
-    return { id, n, label, chip: empty ? '값 입력 전' : said(specOf(id)), overrides: empty ? {} : overridesFor(conflict, targets, valuesOf(id)), empty }
+    return { id, n, label, chip: empty ? '값 입력 전' : said(specOf(id)), overrides: empty ? {} : overridesFor(conflict, targets, valuesOf(id), pages), empty }
   }
   const pickRef = useRef(pick)
   pickRef.current = pick
-  const previewKey = inPlace ? JSON.stringify([conflict.id, proposal, custom.values ?? null, affected]) : null
+  // The magnifier beside the element: by itself when what changes is too small to see (a stroke, a few px),
+  // else only when asked for — and as it was last set by hand.
+  const [lens, setLensState] = useState(() => readLens(conflict.id) ?? isSubtleChange(conflict))
+  const setLens = (on) => { writeLens(conflict.id, on); setLensState(on) }
+  const previewKey = inPlace ? JSON.stringify([conflict.id, proposal, custom.values ?? null, affected, lens]) : null
   useEffect(() => {
     if (!previewKey) return
     const focus = { pageId: ownPageId, layerId: targets.find((target) => target.pageId === ownPageId)?.layerId ?? null }
     setCanvasPreview((prev) => {
       const same = prev?.conflictId === conflict.id
-      // (A way newly picked brings the canvas in on the element — not while the screens are side by side.)
-      const refocus = Boolean(proposal) && (!same || prev.picked !== proposal) && !(same && prev.compare)
       return {
         conflictId: conflict.id,
         targets,
@@ -610,7 +612,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         compare: same ? prev.compare : null,
         mix: same ? prev.mix : 0.5,
         fitNonce: same ? prev.fitNonce : 0,
-        focusNonce: (same ? prev.focusNonce : 0) + (refocus ? 1 : 0),
+        lens,
         onPick: (id) => pickRef.current(id),
       }
     })
@@ -645,6 +647,10 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         // the token it's about, and how many screens it reaches — pressed, the canvas shows them all.
         <p data-preview-diff className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-5 text-slate-300 tabular-nums">
           <span className="font-mono text-slate-100">{said(builtSpec)} → {diffTo}</span>
+          <button type="button" data-preview-lens-toggle aria-pressed={lens} title={lens ? '돋보기 끄기' : '돋보기 켜기'} aria-label="돋보기" onClick={() => setLens(!lens)}
+            className={cn('ds-intrinsic inline-flex size-6 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', lens ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)] ring-1 ring-[var(--ds-accent-border)] ring-inset' : 'text-slate-400 hover:bg-white/[0.06] hover:text-white')}>
+            <ZoomIn className="size-3.5" />
+          </button>
           {targets[0]?.token && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="font-mono text-slate-400">{targets[0].token}</span></>}
           <span aria-hidden className="text-slate-600">·</span>
           <button type="button" data-preview-affected onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: null, fitNonce: prev.fitNonce + 1 } : prev))} className="ds-intrinsic rounded text-slate-300 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white hover:decoration-white/60 focus-visible:outline-2 focus-visible:outline-emerald-300">
