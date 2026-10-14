@@ -10,10 +10,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { HEAD_COLOR, PinShape } from '@/components/conflicts/ConflictPins'
 import BoardConflicts, { BOARD_PANEL_WIDTH, BOARD_DETAIL_WIDTH } from '@/components/screens/BoardConflicts'
 import { layerIdsOf } from '@/lib/conflictInsight'
+import { reviewForDesign } from '@/lib/designReview'
 import { useLanguage } from '@/i18n/language'
 import { conflictSequence, conflictsByScreen, countLabel } from '@/lib/screenConflicts'
 import { LocalizedText } from '@/i18n/runtime'
 import { boardLayout, screenOf, transitionsOf } from '@/lib/screens'
+import { resizeShift } from '@/lib/canvasCamera'
 import { boardFit, clampZoom, focusView, glideAt, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { liveOverridesOf, useCanvasPreview } from '@/lib/canvasPreview'
@@ -168,7 +170,7 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown } = useWorkspace()
   const language = useLanguage()
   const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
@@ -238,19 +240,36 @@ function ScreensBoard() {
       return value
     })
   }, [boardView, prototype.id])
+  // (What the camera looks after when the room changes: the change the board is on, else the screen selected.)
+  const watchedCards = useRef([])
+  const windowResizedAt = useRef(-Infinity)
+  useEffect(() => {
+    const mark = () => { windowResizedAt.current = performance.now() }
+    window.addEventListener('resize', mark)
+    return () => window.removeEventListener('resize', mark)
+  }, [])
   useLayoutEffect(() => {
     const el = rootRef.current
     if (!el) return undefined
-    // (The board's room changing — a pane opening beside it, the window resized — keeps what was at
-    // its centre at its centre: nothing is refitted, the zoom is left alone.)
+    // (The board's room changing — a panel opening or closing beside it, the sidebar, the tool panel; every frame
+    // of its easing — keeps what was at its centre at its centre: nothing is refitted, the zoom is left alone.
+    // Only the window itself being resized, or the room settling as the board first appears, refits a board that
+    // is still fitted.)
     let last = null
+    const born = performance.now()
     const measure = () => {
       const next = { width: el.clientWidth, height: el.clientHeight }
-      if (last && !fitted.current && (last.width !== next.width || last.height !== next.height)) {
-        const dx = (next.width - last.width) / 2
-        const dy = (next.height - last.height) / 2
-        setView((prev) => (prev ? { ...prev, x: prev.x + dx, y: prev.y + dy } : prev))
-        fitted.current = false
+      if (last && (last.width !== next.width || last.height !== next.height)) {
+        const byPanel = performance.now() - born > 1200 && performance.now() - windowResizedAt.current > 300
+        if (byPanel || !fitted.current) {
+          const card = watchedCards.current.map((id) => id && el.querySelector(`[data-screen-card="${CSS.escape(id)}"]`)).find(Boolean)
+          const origin = el.getBoundingClientRect()
+          const rect = card?.getBoundingClientRect()
+          const dx = resizeShift({ box: rect && { left: rect.left - origin.left, right: rect.right - origin.left }, before: last.width, after: next.width })
+          const dy = (next.height - last.height) / 2
+          setView((prev) => (prev ? { ...prev, x: prev.x + dx, y: prev.y + dy } : prev))
+          fitted.current = false
+        }
       }
       last = next
       setRoom(next)
@@ -417,11 +436,21 @@ function ScreensBoard() {
     ...order.filter((id) => changes.byScreen.has(id)).map((id) => ({ id, n: cardOf(id)?.n ?? null, name: screenOf(prototype, id).name, conflicts: changes.byScreen.get(id) })),
     ...(changes.unplaced.length ? [{ id: null, n: null, name: 'Not on a screen', conflicts: changes.unplaced }] : []),
   ]
+  // (The list is docked at the right of the work area, so the board is only as wide as what's left of it: the
+  // panel is no longer over the board, and the camera has nothing of it to keep clear — `docked`.)
+  const docked = Boolean(boardDockHost)
+  // Design Compare's pick is marked in the list; the picked change's design set has its comparison one press away.
+  const comparedConflictId = (() => { const item = mergeItems.find((entry) => entry.id === compareItemId); return item ? reviewForDesign(item, conflicts)?.id ?? null : null })()
   const pickedConflict = boardConflicts.conflictId ? conflicts.find((conflict) => conflict.id === boardConflicts.conflictId) ?? null : null
+  useEffect(() => {
+    setBoardDockShown(listOpen ? (pickedConflict ? 'detail' : 'list') : false)
+    return () => setBoardDockShown(false)
+  }, [listOpen, Boolean(pickedConflict), setBoardDockShown]) // eslint-disable-line react-hooks/exhaustive-deps
   // The change the board is on: the one whose detail the panel shows (one state for both — the panel and
   // the board can't disagree). -1: none.
   const focusAt = listOpen && pickedConflict ? sequence.findIndex((entry) => entry.conflict.id === pickedConflict.id) : -1
   const focused = focusAt === -1 ? null : sequence[focusAt]
+  watchedCards.current = [focused?.screenId, activePageId]
   // (Where the camera was before it first closed in — Esc and ⛶ go back there.)
   const homeView = useRef(null)
   useEffect(() => { if (focusAt === -1) homeView.current = null }, [focusAt])
@@ -430,7 +459,7 @@ function ScreensBoard() {
   const [wrapped, setWrapped] = useState(0)
   // What's clear of the panel at the right (it floats over the board, 8px in): where the camera centres.
   const focusArea = () => {
-    const width = room.width - (BOARD_DETAIL_WIDTH + 16)
+    const width = room.width - (docked ? 0 : BOARD_DETAIL_WIDTH + 16)
     return width >= 240 ? { x: 0, y: 0, width, height: room.height } : { x: 0, y: 0, width: room.width, height: room.height }
   }
   // In on a change: the panel shows it, its screen is the one selected, the camera glides in on its
@@ -702,7 +731,7 @@ function ScreensBoard() {
                           <CountBubble count={countLabel(rest.length)} label={openLabel(rest.length)} cardId={card.id}
                             // (Pressed: the board glides in on that screen, near enough for its markers.)
                             // (…and the change list comes up with it, on that screen's changes.)
-                            onOpen={(event) => { event.stopPropagation(); zoomToCard(card, BOARD_PANEL_WIDTH + 64); setBoardConflicts({ open: true, conflictId: null, screenId: card.id }) }} />
+                            onOpen={(event) => { event.stopPropagation(); zoomToCard(card, docked ? 0 : BOARD_PANEL_WIDTH + 64); setBoardConflicts({ open: true, conflictId: null, screenId: card.id }) }} />
                         </div>
                       )
                     })()}
@@ -813,6 +842,10 @@ function ScreensBoard() {
           focusScreenId={boardConflicts.screenId ?? null}
           currentScreenId={activePageId}
           picked={pickedConflict}
+          host={boardDockHost}
+          marked={comparedConflictId}
+          compareItem={pickedConflict ? mergeItems.find((item) => item.hasDesign && reviewForDesign(item, conflicts)?.id === pickedConflict.id) ?? null : null}
+          onOpenCompare={(item) => openCompareView(item.id)}
           onPick={pickBoardConflict}
           onBack={() => setBoardConflicts({ conflictId: null })}
           onClose={() => setBoardConflicts({ open: false, conflictId: null })}

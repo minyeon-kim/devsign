@@ -125,7 +125,7 @@ try {
   assert.ok(board.includes('focusOn(here[(at + 1) % here.length])') && board.includes('faded={Boolean(focused) && !current}') && board.includes("opacity: faded ? 0.4 : 1"))
   assert.ok(board.includes('transform: `scale(${1 / shown.zoom})`'), 'the same size on screen at any zoom')
   // (The count, pressed: the board glides in on that screen, near enough for its markers — and the markers are the change's red.)
-  assert.ok(board.includes("zoomToCard(card, BOARD_PANEL_WIDTH + 64); setBoardConflicts({ open: true, conflictId: null, screenId: card.id })") && board.includes('data-board-conflicts-open') && board.includes('Math.max(DETAIL_ZOOM + 0.1,') && read('components/conflicts/ConflictPins.jsx').includes("default: '#F04E5A'"))
+  assert.ok(board.includes("zoomToCard(card, docked ? 0 : BOARD_PANEL_WIDTH + 64); setBoardConflicts({ open: true, conflictId: null, screenId: card.id })") && board.includes('data-board-conflicts-open') && board.includes('Math.max(DETAIL_ZOOM + 0.1,') && read('components/conflicts/ConflictPins.jsx').includes("default: '#F04E5A'"))
   assert.ok(board.includes('onDoubleClick={(event) => event.stopPropagation()}') && board.includes('onPointerDown={(event) => event.stopPropagation()}'))
   assert.ok(board.includes('data-board-changes') && board.includes('data-board-change-prev') && board.includes('data-board-change-next') && board.includes('label={openLabel(rest.length)}'))
   console.log('Passed: the prototype engine and its one session, Preview playing it, and per-screen change counts on the board.')

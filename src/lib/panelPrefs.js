@@ -16,7 +16,11 @@ export const SIDE_VIEWS = [...SIDE_TABS, ...SIDE_TOOLS]
 // (`maxShare`: of the window's width — whichever limit is smaller holds.)
 export const SIDE_PANEL = { key: 'devsign:sidePanel.v2', width: 240, min: 240, max: 480, maxShare: 0.4 }
 export const AI_CHAT = { key: 'devsign:aiChat.v2', width: 380, min: 300, max: 640, maxShare: 0.45 }
-// What's left for the canvas with both open, at the least.
+// The tool panel (Files · Layers · Assets · Inspect), docked beside the canvas: 260px to start with, dragged
+// between 200 and 400.
+export const TOOL_PANEL = { key: 'devsign:toolPanel.v1', width: 260, min: 200, max: 400 }
+export const clampToolPanelWidth = (width) => Math.round(Math.max(TOOL_PANEL.min, Math.min(TOOL_PANEL.max, Number.isFinite(width) ? width : TOOL_PANEL.width)))
+// What's left for the canvas (or the comparison) at the least.
 export const MIN_CANVAS = 480
 
 // A width kept inside a panel's limits (`viewport`: the window's width, when known).
@@ -84,4 +88,19 @@ export function railSplit(items, slots) {
   if (items.length <= slots) return { shown: items, more: [] }
   const keep = Math.max(0, slots - 1)
   return { shown: items.slice(0, keep), more: items.slice(keep) }
+}
+
+export const readToolPanelWidth = (storage) => clampToolPanelWidth(read(TOOL_PANEL, storage).width)
+export const writeToolPanelWidth = (width, storage) => write(TOOL_PANEL, { width: clampToolPanelWidth(width) }, storage)
+
+// The canvas (or the comparison) needs MIN_CANVAS: narrower than that, the tool panel closes first, then the
+// right panel (the board's change list), then AI Chat — the app sidebar stays. `room`: the work window's width
+// (what's left of the app sidebar and AI Chat); `tool` / `right`: { open, width }; `chat`: whether AI Chat is open.
+// (One at a time: asked again once it has gone, the next goes if there's still too little.)
+export function foldForRoom({ room, tool, right = { open: false, width: 0 }, chat = false }) {
+  const rightWidth = right.open ? right.width : 0
+  if (tool.open && room - rightWidth - tool.width < MIN_CANVAS) return 'tool'
+  if (right.open && room - right.width < MIN_CANVAS) return 'right'
+  if (chat && room < MIN_CANVAS) return 'chat'
+  return null
 }

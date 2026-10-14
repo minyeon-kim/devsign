@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Layers3, X } from 'lucide-react'
 import { conflictListRecord } from '@/lib/conflicts'
+import { reviewForDesign } from '@/lib/designReview'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
@@ -17,7 +18,7 @@ import { ReviewHeaderSlotContext } from '@/components/conflicts/ReviewHeaderSlot
 // there's never a second copy and closing it always returns to where you
 // were: the Close button, Escape, or the review's own back arrow.
 function ConflictReviewOverlay({ inMergeStudio = false }) {
-  const { conflicts, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost } = useWorkspace()
+  const { conflicts, mergeItems, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost, openCompareView, selectConflictPin } = useWorkspace()
   const conflict = reviewView === 'overlay' ? conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null : null
   const closeRef = useRef(null)
   // (The header's slot for the detail's view controls — 원안 보기, 전체 화면 — beside Close.)
@@ -48,6 +49,14 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   }, [open])
 
   if (!conflict) return null
+  // The design set this change is about, if it has one: its comparison opens from here (the Design Compare
+  // drawer with the set picked, the comparison where the canvas is).
+  const designSet = mergeItems.find((item) => item.hasDesign && reviewForDesign(item, conflicts)?.id === conflict.id) ?? null
+  function openInCompare() {
+    selectConflictPin(conflict.id, conflict.layerId ?? null)
+    openConflictReview(null)
+    openCompareView(designSet.id)
+  }
   // In the work pane when it's the change list's (lib/workPane): the detail takes the list's place
   // there and the Workspace stays in view beside it. Without the pane it covers the work area, as before.
   const inPane = !inMergeStudio && workPane === 'conflicts' && workPaneHost
@@ -65,6 +74,18 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
       <BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">
         <Breadcrumb items={[{ label: 'Workspace', onClick: () => openConflictReview(null) }, { label: 'Conflicts', onClick: () => requestConflictDrawer(conflict.id) }]} />
         <div className="ml-auto flex shrink-0 items-center gap-1">
+        {designSet && (
+          <button
+            type="button"
+            data-review-open-compare
+            aria-label={translateText('Open in Design Compare', language)}
+            title={translateText('Open in Design Compare', language)}
+            onClick={openInCompare}
+            className="ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+          >
+            <Layers3 className="size-4" />
+          </button>
+        )}
         <div ref={setActionsSlot} data-review-actions className="flex shrink-0 items-center gap-0.5 empty:hidden" />
         <button
           ref={closeRef}

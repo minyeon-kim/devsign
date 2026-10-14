@@ -4,8 +4,9 @@
 //
 //   'split' — a work pane beside the Workspace, half and half: what needs
 //             room, or is read with the canvas beside it (the changes to
-//             check, Design Compare);
-//   'list'  — the narrow drawer: a list to pick from (Docs, History, Import).
+//             check);
+//   'list'  — the narrow drawer: a list to pick from (Docs, History, Import,
+//             Design Compare — whose pick opens in the work area).
 //
 // (Files · Layers · Assets · Inspect, Terminal and Console are the side
 // panel's views — lib/panelPrefs — and stay as narrow as they are.)
@@ -13,8 +14,8 @@ export const PANELS = {
   // (The changes to check are read against the canvas — the element each is about lit there — so the
   // canvas keeps two thirds: the pane is one column, a third wide, until it's dragged wider.)
   conflicts: { kind: 'split', label: 'Conflict Points', ratio: 0.34 },
-  compare: { kind: 'split', label: 'Design Compare' },
   docs: { kind: 'list', label: 'Docs' },
+  compare: { kind: 'list', label: 'Design Compare' },
   history: { kind: 'list', label: 'History' },
   import: { kind: 'list', label: 'Import' },
 }

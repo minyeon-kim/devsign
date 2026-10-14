@@ -43,7 +43,7 @@ function AppShell({ topBar, project, children }) {
   }
 
   // What's open at the left: a narrow list drawer (this state), or a work
-  // pane beside the Workspace — the changes to check, Design Compare — which
+  // pane beside the Workspace — the changes to check — which
   // is the address's `?panel` (lib/workPane, WorkspaceProvider's `workPane`).
   // One at a time: a pane opening puts the drawer away, and a drawer
   // opening closes the pane.
@@ -55,13 +55,6 @@ function AppShell({ topBar, project, children }) {
       setDrawer(null)
       if (workPane) workspace.setWorkPane(null)
       workspace.setBoardConflicts({ open: !workspace.boardConflicts.open, conflictId: null })
-      return
-    }
-    // (Design Compare in the Workspace floats over the canvas's left — CanvasComparePanel.)
-    if (panel === 'compare' && workspace?.activeView === 'workspace') {
-      setDrawer(null)
-      if (workPane) workspace.setWorkPane(null)
-      workspace.setCompareOpen(!workspace.compareOpen)
       return
     }
     if (isSplit(panel)) {
@@ -93,6 +86,22 @@ function AppShell({ topBar, project, children }) {
     setHandledDocsRequest(docsDrawerRequest)
     setDrawer('docs')
   }
+  // Design Compare is a drawer like Docs (its list); the set picked in it opens in the work area. Asked for
+  // (a change's "open in the comparison", the Workspace's views) it opens the same way.
+  const { compareDrawerRequest, compareItemId, setCompareItemId } = workspace ?? {}
+  const [handledCompareRequest, setHandledCompareRequest] = useState(null)
+  if (compareDrawerRequest && compareDrawerRequest !== handledCompareRequest) {
+    setHandledCompareRequest(compareDrawerRequest)
+    setDrawer('compare')
+  }
+  useEffect(() => {
+    if (compareDrawerRequest && workPane) workspace.setWorkPane(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compareDrawerRequest])
+  // The comparison is the list's: with the list put away (or another menu in its place), the canvas is back.
+  useEffect(() => {
+    if (shown !== 'compare' && compareItemId != null) setCompareItemId(null)
+  }, [shown, compareItemId, setCompareItemId])
   const openConflicts = workspace ? conflictCounts(workspace.conflicts).open : 0
 
   return (

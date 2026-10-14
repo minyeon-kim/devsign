@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import HistoryCompare from '@/components/history/HistoryCompare'
 import { LocalizedText } from '@/i18n/runtime'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { draftRows } from '@/lib/driftDecisions'
 import { cn } from 'cn'
@@ -31,7 +31,9 @@ export function designCompareOptions(item) {
   ]
 }
 
-function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false }) {
+// `hideSets` / `onBack` (the Workspace's comparison, where the sets are the drawer's list): no column of sets
+// beside the drafts, and "← canvas" before the title.
+function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggleVariant, onSelectAll, onCompare, inMergeStudio = false, hideSets = false, onBack = null }) {
   // Where a change opened from here shows: full screen with the left list — the one way — except inside Merge Studio, whose bottom panel keeps it.
   const reviewIn = inMergeStudio ? { view: 'panel' } : undefined
   const { conflicts, addComment, openConflictReview, reviewConflictId, reviewView, decisionsFor, historyEntries, createMergeRequest, updateConflict, updateMergeItem, currentUser, otherMembers } = useWorkspace()
@@ -146,7 +148,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
     <div className="@container/compare flex h-full min-h-0 bg-card text-xs">
       {/* The sets to choose from: a column beside the drafts — as the pane opens (560px and up); only
           narrower than that is the title above the drafts a menu of them instead. */}
-      {(
+      {!hideSets && (
         <nav aria-label="Design sets" data-design-sets className="hidden w-[196px] shrink-0 flex-col gap-0.5 overflow-auto border-r border-white/[0.06] p-2 @[560px]/compare:flex">
           <h2 className="px-2.5 pt-1 pb-1.5 text-[11px] font-semibold text-slate-400">Design sets</h2>
           {items.length === 0 && <p className="px-2.5 py-2 text-[11px] text-slate-500">No design sets are available in this project yet.</p>}
@@ -188,9 +190,15 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             all, then the one next step. Nothing floats in between. */}
         <div data-design-compare-head className="@container mb-3 flex min-w-0 items-center gap-3">
           <div data-design-title className="flex min-w-0 flex-1 items-center gap-2">
-            <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100 @[560px]/compare:block hidden">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
+            {onBack && (
+              <button type="button" data-compare-back onClick={onBack} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.06] pr-3 pl-2 text-xs font-medium whitespace-nowrap text-slate-200 transition-colors hover:bg-white/[0.1] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                <ArrowLeft className="size-3.5" />
+                캔버스로
+              </button>
+            )}
+            <h2 className={cn('min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100', hideSets ? 'block' : '@[560px]/compare:block hidden')}>{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
             {/* (Narrow: the title is the menu of sets — the column beside the drafts is folded into it.) */}
-            <DropdownMenu>
+            {!hideSets && <DropdownMenu>
               <DropdownMenuTrigger data-design-set-menu disabled={items.length < 2} className="ds-intrinsic flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-[13px] font-semibold text-slate-100 transition-colors hover:bg-white/[0.06] disabled:pointer-events-none @[560px]/compare:hidden">
                 <span className="min-w-0 truncate">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</span>
                 {items.length > 1 && <ChevronDown className="size-3.5 shrink-0 text-slate-400" />}
@@ -211,7 +219,7 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                   )
                 })}
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu>}
           </div>
           <div data-design-actions className="flex shrink-0 items-center">
             {/* (Picking which drafts to compare: only with more than two, and only while there's a mix to start.) */}

@@ -19,7 +19,8 @@ const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 // `editing`: Screens is showing a screen on the canvas rather than the board
 // — pressing Screens again goes back to the board (`onBoard`). Nothing else
 // sits in the row: no page or file tabs, no back button.
-function WorkspaceViewTabs({ editing = false, onBoard }) {
+// `disabled`: the Design Compare comparison has the canvas's place — the tabs show, dimmed, and wait for it to go.
+function WorkspaceViewTabs({ editing = false, disabled = false, onBoard }) {
   const { workspaceView, setWorkspaceView } = useWorkspace()
   const language = useLanguage()
   const names = VIEW_NAME[language] ?? VIEW_NAME.en
@@ -32,7 +33,7 @@ function WorkspaceViewTabs({ editing = false, onBoard }) {
   }
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <div role="tablist" aria-label="Workspace view" data-workspace-views onKeyDown={onKeyDown} className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+      <div role="tablist" aria-label="Workspace view" data-workspace-views aria-disabled={disabled || undefined} onKeyDown={onKeyDown} className={cn('flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5', disabled && 'opacity-45')}>
         {VIEWS.map((view, index) => {
           const selected = view === workspaceView
           return (
@@ -43,14 +44,15 @@ function WorkspaceViewTabs({ editing = false, onBoard }) {
               id={viewTabId(view)}
               data-workspace-view-tab={view}
               aria-selected={selected}
+              disabled={disabled}
               aria-controls={VIEW_PANEL_ID}
               tabIndex={selected ? 0 : -1}
-              title={view === 'screens' && selected && editing ? translateText('Back to the board', language) : `${names[view]} · ${MAC ? '⌥' : 'Alt+'}${index + 1}`}
+              title={disabled ? translateText('Back to the canvas to switch views', language) : view === 'screens' && selected && editing ? translateText('Back to the board', language) : `${names[view]} · ${MAC ? '⌥' : 'Alt+'}${index + 1}`}
               translate="no"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => (view === 'screens' && selected && editing ? onBoard?.() : setWorkspaceView(view))}
               className={cn(
-                'relative flex h-7 items-center rounded-md px-3 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+                'relative flex h-7 items-center rounded-md px-3 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:cursor-not-allowed',
                 selected ? 'bg-white/[0.12] font-semibold text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
               )}
             >
