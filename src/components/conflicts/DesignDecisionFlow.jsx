@@ -1,7 +1,7 @@
-import PictureViewer, { ExpandablePicture } from '@/components/conflicts/PictureViewer'
-import { liveComponentOf } from '@/components/conflicts/live'
+import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
+import { affectedPagesOf, getCanvasPreview, overridesFor, previewTargetsOf, setCanvasPreview, useCanvasPreview } from '@/lib/canvasPreview'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
+import { ArrowRight, Check, Columns4, ChevronRight, CircleCheck, LoaderCircle, Paperclip, RotateCcw, Send, Play, ShieldCheck, TriangleAlert, GitMerge, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import { RECORD_ROWS, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
@@ -453,7 +453,14 @@ const CARD_MODES = {
   view: { chip: ['요청 전', 'bg-white/[0.07] text-slate-300'], result: null },
 }
 // (Which picture is open large, by change: picking a way can draw the card anew, and the viewer stays open through it.)
-const OPEN_VIEWERS = new Map()
+// (How many of a change's proposal sections are up: the canvas's preview is let go once none is — a
+// section drawn anew, a way being picked, keeps it.)
+const LIVE_PREVIEWS = new Map()
+// Whether the canvas has this change's screens side by side.
+function useCanvasPreviewCompare(conflictId) {
+  const preview = useCanvasPreview()
+  return preview?.conflictId === conflictId && Boolean(preview.compare)
+}
 
 function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, mode = 'pick', chip = null, resultLabel = null, overlap }) {
   const [open, setOpen] = useState(true)
@@ -559,93 +566,68 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // The two pictures open large (PictureViewer): what's built now, and the result — drawn from the
   // same state as here, so a way picked while it's open is what it shows.
   const afterWhich = holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'
-  const [viewing, setViewingState] = useState(() => Boolean(OPEN_VIEWERS.get(conflict.id)))
-  const setViewing = (on) => { OPEN_VIEWERS.set(conflict.id, on); setViewingState(on) }
   const sectionRef = useRef(null)
-  // The comparison (PictureViewer): what's built now and every way, side by side, each the change's
-  // real component drawn with that way's values (components/conflicts/live) — or, a change with no
-  // component of its own here, its picture. The way picked there is the way picked here, both ways round.
-  const live = liveComponentOf(conflict)
+  // ── The fix previewed in place, on the canvas (lib/canvasPreview) ──
+  // No picture of its own: the canvas's screens are drawn with the way's values put over what's built —
+  // on the change's own screen and on every screen with the same element and token. The way picked here
+  // is what the canvas shows (and a frame picked there is picked here); the section going lets it go.
+  const workspace = useWorkspaceOptional()
+  const pages = workspace?.projectPages ?? []
+  const targets = readOnly ? [] : previewTargetsOf(conflict, pages)
+  const inPlace = targets.length > 0
+  const ownPageId = targets.find((target) => pages.find((page) => page.id === target.pageId)?.frames.some((frame) => frame.layers.some((layer) => layer.id === conflict.layerId)))?.pageId ?? targets[0]?.pageId ?? null
+  const affected = affectedPagesOf(targets, ownPageId)
+  const described = Boolean(proposalOf('other', custom, conflict)?.described)
   const valuesOf = (id) => (id === 'before' ? conflict.preview?.before ?? null : drawingOf(conflict, null, proposalOf(id, custom, conflict))?.values ?? null)
-  const wayWhich = (id) => {
-    const shape = proposalOf(id, custom, conflict)
-    return canDraw(conflict, shape) ? shape : valueChange && shape && !shape.described ? 'implementation' : 'original'
-  }
-  const drawCell = (id) => {
-    if (id === 'other' && !proposalOf('other', custom, conflict)?.described) return null
-    if (live) { const values = valuesOf(id); return values ? { focus: live.focus(values), context: live.context(values) } : null }
-    return { focus: id === 'before' ? <Picture conflict={conflict} which="implementation" maxWidth={320} /> : <Picture conflict={conflict} which={wayWhich(id)} overlap={overlap} maxWidth={320} />, context: null }
-  }
-  // (Each cell's value, as its header says it: the property and the value — the design's way, from what's built to it.)
-  const wayOf = (id) => ways.find((option) => option.id === id)
+  // (Each way's value, as a chip says it: the property and the value.)
   const property = conflict.comparisonFields?.length === 1 ? conflict.comparisonFields[0].label : null
   const said = (spec) => (spec && property && !/\s/.test(spec) ? `${property.toLowerCase()} ${spec}` : spec ?? null)
-  const builtSpec = wayOf('current')?.spec ?? null
-  const ownEditor = !readOnly && scale?.custom ? (
-    <input
-      data-compare-input
-      aria-label="다른 값"
-      placeholder="값 입력"
-      value={typed || (ownValue && !scale.steps.some((step) => step.key === ownKey) ? '' : String(ownValue ?? ''))}
-      onChange={(event) => { if (proposal !== 'other') pick('other'); typeValue(event.target.value) }}
-      onPointerDown={(event) => event.stopPropagation()}
-      className="h-7 w-24 min-w-0 shrink rounded-md border border-white/[0.12] bg-black/40 px-2 font-mono text-[12px] text-slate-100 tabular-nums outline-none placeholder:text-slate-500 focus:border-[var(--ds-accent-border)]"
-    />
-  ) : null
-  const compareCells = [
-    { id: 'before', base: true, label: `${mode === 'done' ? '수정 전' : '현재 구현'} · 기준`, value: said(builtSpec) },
-    ...ways.map((option) => ({
-      id: option.id,
-      label: option.name,
-      badge: option.id === 'original' && !readOnly ? '추천' : null,
-      value: option.id === 'original' ? (builtSpec && builtSpec !== option.spec ? `${builtSpec} → ${option.spec}` : said(option.spec))
-        : option.id === 'other' ? (proposalOf('other', custom, conflict)?.described ? proposalOf('other', custom, conflict).spec : null) : said(option.spec),
-      editor: option.id === 'other' ? ownEditor : null,
-      // (다른 값 before it has one: values to try in a press — drawn at once.)
-      empty: option.id === 'other' && !readOnly && live?.quick && scale?.custom ? (
-        <div data-compare-quick className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
-          <div className="flex flex-wrap justify-center gap-2">
-            {live.quick.map((value) => (
-              <button key={value} type="button" data-quick-value={value} onPointerDown={(event) => event.stopPropagation()} onClick={() => { if (proposal !== 'other') pick('other'); typeValue(value) }}
-                className="ds-intrinsic h-8 min-w-12 rounded-full border border-slate-300 bg-white px-3 font-mono text-[12.5px] font-medium text-slate-800 tabular-nums shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-emerald-500">{value}</button>
-            ))}
-          </div>
-          <p className="text-[12px] text-slate-500">값을 고르거나 위에 입력하면 바로 그려져요</p>
-        </div>
-      ) : null,
-    })),
-  ]
-  const openViewer = () => setViewing(true)
-  const viewerAction = readOnly ? null : (() => {
-    const way = proposal
-    const asks = way !== 'original'
-    const label = !way || !asks ? '이 수정안 적용하기' : reviewers.length === 1 ? `${reviewers[0]}님에게 승인 요청` : reviewers.length ? `검토자 ${reviewers.length}명에게 승인 요청` : '검토자 추가'
-    return {
-      label,
-      disabled: !way || (way === 'other' && undescribed),
-      title: !way ? '해결 방법을 골라 주세요' : undefined,
-      onClick: () => {
-        setViewing(false)
-        if (!asks) { onDirect(payload()); return }
-        if (!reviewers.length) { addReviewer(); return }
-        // (Asking needs a reason: without one, the field it goes in comes up, said.)
-        if (!reason.trim()) { setTried(true); window.setTimeout(() => { const field = document.getElementById(`reason-${conflict.id}`); field?.scrollIntoView({ block: 'center', behavior: 'smooth' }); field?.focus({ preventScroll: true }) }, 60); return }
-        send()
-      },
+  const builtSpec = ways.find((option) => option.id === 'current')?.spec ?? null
+  const specOf = (id) => (id === 'before' ? builtSpec : id === 'other' ? (described ? proposalOf('other', custom, conflict).spec : null) : ways.find((option) => option.id === id)?.spec ?? null)
+  const cellOf = (id, n, label) => {
+    const empty = id === 'other' && !described
+    return { id, n, label, chip: empty ? '값 입력 전' : said(specOf(id)), overrides: empty ? {} : overridesFor(conflict, targets, valuesOf(id)), empty }
+  }
+  const pickRef = useRef(pick)
+  pickRef.current = pick
+  const previewKey = inPlace ? JSON.stringify([conflict.id, proposal, custom.values ?? null, affected]) : null
+  useEffect(() => {
+    if (!previewKey) return
+    const focus = { pageId: ownPageId, layerId: targets.find((target) => target.pageId === ownPageId)?.layerId ?? null }
+    setCanvasPreview((prev) => {
+      const same = prev?.conflictId === conflict.id
+      // (A way newly picked brings the canvas in on the element — not while the screens are side by side.)
+      const refocus = Boolean(proposal) && (!same || prev.picked !== proposal) && !(same && prev.compare)
+      return {
+        conflictId: conflict.id,
+        targets,
+        pages: affected,
+        focus,
+        base: cellOf('before', 0, mode === 'done' ? '수정 전' : '현재 구현'),
+        ways: ways.map((option, index) => cellOf(option.id, index + 1, option.name)),
+        picked: proposal,
+        peek: same ? prev.peek : false,
+        compare: same ? prev.compare : null,
+        mix: same ? prev.mix : 0.5,
+        fitNonce: same ? prev.fitNonce : 0,
+        focusNonce: (same ? prev.focusNonce : 0) + (refocus ? 1 : 0),
+        onPick: (id) => pickRef.current(id),
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey])
+  useEffect(() => {
+    if (!inPlace) return undefined
+    const id = conflict.id
+    LIVE_PREVIEWS.set(id, (LIVE_PREVIEWS.get(id) ?? 0) + 1)
+    return () => {
+      LIVE_PREVIEWS.set(id, (LIVE_PREVIEWS.get(id) ?? 1) - 1)
+      window.setTimeout(() => { if (!LIVE_PREVIEWS.get(id) && getCanvasPreview()?.conflictId === id) setCanvasPreview(null) }, 0)
     }
-  })()
-  // The values of one's own, in the viewer too — the same controls as the row's, the same values.
-  const ownControls = scale ? (
-    <ValueScale
-      scale={scale}
-      selectedKey={ownKey}
-      onTry={setTriedStep}
-      onPick={takeStep}
-      customText={typed}
-      onCustom={typeValue}
-      customNote={typedValue && !typedValue.onScale && scale.steps.some((step) => step.token) ? '디자인 토큰에 없는 값이에요' : null}
-    />
-  ) : <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />
+  }, [conflict.id, inPlace])
+  const comparing = useCanvasPreviewCompare(conflict.id)
+  const pickedSpec = proposal && proposal !== 'current' ? specOf(proposal) : null
+  const diffTo = pickedSpec ?? ways.find((option) => option.id === 'original')?.spec ?? null
   return (
     <section ref={sectionRef} data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -658,13 +640,23 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {/* What was found, in a line — under the title, where it's read first. */}
       {(conflict.summary ?? conflict.message) && <p data-proposal-about className="-mt-1 mb-4 text-[13px] leading-5 text-slate-300">{conflict.summary ?? conflict.message}</p>}
 
-      {/* Before → After: the section's picture. Two cards of the same kind,
-          side by side with an arrow between; stacked (before first) when narrow. */}
+      {inPlace ? (
+        // The change in a line: the value from what's built to the way picked (the design's, before one is),
+        // the token it's about, and how many screens it reaches — pressed, the canvas shows them all.
+        <p data-preview-diff className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-5 text-slate-300 tabular-nums">
+          <span className="font-mono text-slate-100">{said(builtSpec)} → {diffTo}</span>
+          {targets[0]?.token && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="font-mono text-slate-400">{targets[0].token}</span></>}
+          <span aria-hidden className="text-slate-600">·</span>
+          <button type="button" data-preview-affected onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: null, fitNonce: prev.fitNonce + 1 } : prev))} className="ds-intrinsic rounded text-slate-300 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white hover:decoration-white/60 focus-visible:outline-2 focus-visible:outline-emerald-300">
+            영향 화면 {affected.length}개
+          </button>
+        </p>
+      ) : (
+      // Before → After: the section's picture. Two cards of the same kind, side by side with an arrow
+      // between; stacked (before first) when narrow.
       <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-[var(--ds-border-subtle)]')}>
-          <ExpandablePicture id="before" label={mode === 'done' ? '수정 전' : '현재 구현'} onOpen={openViewer}>
-            <div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div>
-          </ExpandablePicture>
+          <div className="grid min-h-0 items-center"><div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div></div>
           <PictureCaption
             titleProps={{ 'data-before-title': '' }}
             title={showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현'}
@@ -675,28 +667,12 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
               It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
           <div data-after-picture className="contents">
-            <ExpandablePicture id="after" label={after.title} onOpen={openViewer}>
-              <div className="flex justify-center">
-                <Picture conflict={conflict} which={afterWhich} overlap={overlap} scale={1.5} />
-              </div>
-            </ExpandablePicture>
+            <div className="grid min-h-0 items-center"><div className="flex justify-center"><Picture conflict={conflict} which={afterWhich} overlap={overlap} scale={1.5} /></div></div>
             <PictureCaption titleProps={{ 'data-after-title': '' }} subProps={{ 'data-after-sub': '' }} title={after.title} sub={after.sub} />
           </div>
         </figure>
       </div>
-
-      <PictureViewer
-        open={viewing}
-        title={`해결 방법 비교 · ${conflict.title}`}
-        cells={compareCells}
-        selected={proposal}
-        onSelect={(id) => { if (!readOnly && id !== proposal) pick(id) }}
-        onClose={() => setViewing(false)}
-        render={drawCell}
-        action={viewerAction}
-        // (A way whose values aren't one typed in its header — a layout's — keeps its own controls, under the grid.)
-        below={!readOnly && proposal === 'other' && !ownEditor ? ownControls : null}
-      />
+      )}
 
       {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}
       <SmoothHeight trigger={mode}>
@@ -775,6 +751,16 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
           )
         })}
       </div>
+      )}
+      {/* The screens side by side on the canvas — what's built and each way — with the panel still here. */}
+      {inPlace && (
+        <div className="mt-3 flex items-center gap-2 pl-3 text-[11.5px] text-slate-500">
+          <button type="button" data-preview-compare aria-pressed={comparing} onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: prev.compare ? null : 'side', peek: false } : prev))}
+            className={cn('ds-intrinsic inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', comparing ? 'border-[var(--ds-accent-border)] bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]' : 'border-white/[0.1] text-slate-200 hover:bg-white/[0.06]')}>
+            <Columns4 className="size-3.5" />{comparing ? '비교 종료' : '나란히 비교'}
+          </button>
+          <span>캔버스에서 미리보는 중 · Space를 누르고 있으면 현재 구현</span>
+        </div>
       )}
 
       {/* What a way that differs from the design needs: asked for, with why.

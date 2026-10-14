@@ -87,8 +87,8 @@ try {
       seen.add(`${decisionStageOf(conflict)}:${role}:${mode}`)
       // Only a way being picked has radios and a button; anything else is read-only.
       assert.equal(html.includes('role="radio"') && html.includes('data-proposal-action'), ['pick', 'pending'].includes(mode), `${where}: ${mode}`)
-      // 원안 보기 is the card's; its pictures open larger in a popover — no separate full-screen viewer.
-      assert.ok(!html.includes('data-show-design') && html.includes('data-picture-zoom') && !html.includes('data-proposal-fullscreen'), `${where}: no 원안 보기 toggle; 크게 보기`)
+      // No 원안 보기 toggle, and no full-screen viewer: a fix is previewed on the canvas (tests/canvas-preview).
+      assert.ok(!html.includes('data-show-design') && !html.includes('data-picture-zoom') && !html.includes('data-proposal-fullscreen'), `${where}: no 원안 보기 toggle; no viewer`)
     }
   }
   // (The seeds cover a way being picked, one waiting, and one that went in — seen by both.)

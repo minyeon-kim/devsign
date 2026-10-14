@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createServer } from 'vite'
 
+// (Kept, not used: the detail previews on the canvas instead — see tests/canvas-preview.)
 // The resolution's comparison, opened large: what's built and every way, side by side at one size and one
 // zoom (2×2, 1×4 from 1600px) — each the change's real component drawn with that way's values.
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8')
@@ -43,9 +44,8 @@ try {
   // Picked: the header or a press that isn't a drag, ← / →; the accent border and header, '선택됨'; Space shows what's built there.
   assert.ok(viewer.includes('if (!moved && !cell.base) onSelect(cell.id)') && viewer.includes("event.key === 'ArrowRight'") && viewer.includes("const shown = on && peek && base ? base.id : cell.id"))
   assert.ok(viewer.includes("on ? 'border-[var(--ds-accent-border)]'") && viewer.includes("on ? 'bg-[var(--ds-accent-bg)]'") && viewer.includes("'선택됨'") && viewer.includes('←→ 옵션 선택 · Space 누르고 있으면 현재와 비교'))
-  // The pick is the detail's own; the action is the detail's, for the way picked.
-  assert.ok(flow.includes('selected={proposal}') && flow.includes('if (!readOnly && id !== proposal) pick(id)') && flow.includes('render={drawCell}') && flow.includes('action={viewerAction}'))
-  assert.ok(flow.includes("if (proposal !== 'other') pick('other'); typeValue(event.target.value)") && flow.includes("if (proposal !== 'other') pick('other'); typeValue(value)"), '다른 값: typed in its header or a chip pressed, drawn at once')
+  // Out of the detail's flow: the fix is previewed on the canvas now (tests/canvas-preview) — the viewer stays, used by nothing.
+  assert.ok(!flow.includes('<PictureViewer') && !flow.includes("from '@/components/conflicts/PictureViewer'") && !flow.includes('data-picture-expand'))
   assert.ok(viewer.includes('const zoomLabel = `${Math.round(scale * 100)}%`'), 'the zoom said as the square’s')
   console.log('Passed: the comparison viewer — four cells, one shared view, the real component per way, and the pick shared with the detail.')
 } finally { await server.close() }

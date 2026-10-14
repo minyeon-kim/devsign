@@ -3,7 +3,7 @@ import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -417,6 +417,12 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
         </div>
       </div>
     )
+  } else if (type === 'glyph') {
+    // An icon of the icon set, as the product draws it — its stroke as built, or as a preview puts it
+    // (`override.strokeWidth`: the canvas's in-place preview of a fix, never a drawing of its own).
+    const Glyph = { truck: Truck }[mock.icon] ?? Blocks
+    const stroke = override?.strokeWidth ?? mock.stroke ?? 2
+    content = <Glyph data-glyph={mock.icon} data-stroke={stroke} className={cn('h-full w-full text-slate-700', extra)} strokeWidth={stroke} />
   } else if (type === 'image' && mock.role === 'photo') {
     // A picture's place (a product photo, an illustration): a soft block with the picture glyph — no chart.
     content = (

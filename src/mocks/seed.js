@@ -308,7 +308,7 @@ export const CHECKOUT_SEED = {
       fileId: 'shipping',
       line: 4,
       code: { built: '<Truck className="size-4" strokeWidth={2.5} />', design: '<Truck className="size-4" />' },
-      layer: 'shipping-label',
+      layer: 'shipping-icon',
       frame: 'Checkout · Shipping',
       screens: ['Checkout · Shipping step'],
       components: ['ShippingOptions'],

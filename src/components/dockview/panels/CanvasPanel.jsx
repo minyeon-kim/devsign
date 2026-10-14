@@ -27,6 +27,9 @@ import { overrideFromEdit } from '@/lib/prototypeSync'
 import { conflictCountOnPage, openConflictsByLayer } from '@/lib/conflictInsight'
 import { WindowHeaderPortal, WindowTabsContext } from '@/components/workspace/WindowHeaderSlot'
 import CanvasZoomControl, { MAX_CANVAS_ZOOM, MIN_CANVAS_ZOOM } from '@/components/workspace/CanvasZoomControl'
+import CompareCanvas from '@/components/canvas/CompareCanvas'
+import { liveOverridesOf, setCanvasPreview, useCanvasPreview } from '@/lib/canvasPreview'
+import { boardFit, focusView } from '@/lib/screensBoard'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -299,7 +302,9 @@ function PinComposer({ pending, value, onChange, onSubmit, onCancel }) {
 // — is synced to the page's code file (see lib/prototypeSync).
 // `measure`: the select tool's spacing redlines (SpacingOverlay) — what's
 // under the pointer, its size and its spacing.
-function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom }) {
+// `preview`: a fix previewed in place (lib/canvasPreview) — `overrides` put over what's built, by layer id;
+// `badge`: what the frame says over it ('옵션 1 미리보기 · 적용 안 됨'), its border dashed green while it does.
+function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditText, aiPulseId, genLayerId, genProgress, measure = false, zoom, preview = null }) {
   const { mergedBaseline } = useWorkspace()
   const merged = Object.values(mergedBaseline).filter((entry) => entry.design?.frame?.id === frame.id).sort((a, b) => b.savedAt - a.savedAt)[0]
   if (merged) frame = { ...merged.design.frame, x: frame.x, y: frame.y }
@@ -314,6 +319,15 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
   return (
     <div data-canvas-frame={frame.id} className="absolute" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
       <span className="absolute -top-5 left-0 text-[10px] text-muted-foreground select-none">{frame.name}</span>
+      {preview?.badge && (
+        <>
+          <span aria-hidden data-preview-border className="pointer-events-none absolute -inset-1.5 rounded-[16px]" style={{ outline: `${(2 * 100) / zoom}px dashed var(--ds-accent)`, outlineOffset: 0 }} />
+          {/* (Kept one size whatever the zoom, standing on the frame's top right.) */}
+          <span data-preview-badge={preview.state} className="absolute right-0 bottom-full mb-2 flex origin-bottom-right items-center gap-1.5 rounded-full border border-[var(--ds-accent-border)] bg-[#0f1a15] px-2.5 py-1 text-[11.5px] leading-4 font-medium whitespace-nowrap text-[var(--ds-accent-text)] shadow-lg select-none" style={{ transform: `scale(${100 / zoom})` }}>
+            <span aria-hidden className="size-1.5 rounded-full bg-[var(--ds-accent)]" />{preview.badge}
+          </span>
+        </>
+      )}
       <div
         ref={setContainer}
         onClick={(event) => {
@@ -334,7 +348,7 @@ function CanvasFrame({ frame, selectedId, onSelect, commentMode, edits, onEditTe
             <StaticLayer
               key={layer.id}
               layer={layer}
-              override={overrideFromEdit(edits[layer.id])}
+              override={preview?.overrides?.[layer.id] ? { ...overrideFromEdit(edits[layer.id]), ...preview.overrides[layer.id] } : overrideFromEdit(edits[layer.id])}
               selected={selectedId === layer.id}
               dimmed={Boolean(selectedId) && selectedId !== frame.id}
               onSelect={() => onSelect(layer.id)}
@@ -713,6 +727,94 @@ function CanvasPanel() {
     // (Only when the pick or the canvas's height changes — not on every pan.)
   }, [pickedLayerId, canvasHeight, canvasWidth])
 
+  // ── A fix previewed in place (lib/canvasPreview, said by the change's detail) ──
+  // This page's screens drawn with the way picked put over what's built — the frame dashed green and
+  // saying it isn't applied — and every other screen it reaches laid out beside them, drawn the same way.
+  // Space held: what's built, for as long as it's held. A way picked: the canvas closes in on the element
+  // (the change list's own zoom: lib/screensBoard's focusView); "영향 화면 N개": all of them in view.
+  const preview = useCanvasPreview()
+  const previewHere = preview && activePage && preview.pages.includes(activePage.id) ? preview : null
+  const previewOverrides = liveOverridesOf(previewHere)
+  const pickedWay = previewHere?.ways.find((way) => way.id === previewHere.picked) ?? null
+  const previewOf = (pageId) => {
+    if (!previewHere || !previewHere.pages.includes(pageId)) return null
+    const badge = !pickedWay ? null : previewHere.peek ? `현재 구현 보는 중 · 떼면 옵션 ${pickedWay.n}` : `옵션 ${pickedWay.n} 미리보기 · 적용 안 됨`
+    return { overrides: previewOverrides, badge, state: previewHere.peek ? 'peek' : 'option' }
+  }
+  const reachFrames = useMemo(() => {
+    if (!previewHere || !activePage?.frames.length) return []
+    let x = Math.max(...activePage.frames.map((frame) => frame.x + frame.width)) + 120
+    const y = Math.min(...activePage.frames.map((frame) => frame.y))
+    return previewHere.pages.filter((id) => id !== activePage.id).flatMap((id) => {
+      const page = projectPages.find((entry) => entry.id === id)
+      return (page?.frames ?? []).map((frame) => {
+        const placed = { ...frame, x, y, name: `${page.name} · 영향 화면` }
+        x += frame.width + 120
+        return { pageId: id, frame: placed }
+      })
+    })
+  }, [previewHere, activePage, projectPages])
+  const glideTo = (next) => {
+    setGliding(true)
+    unsettle(320)
+    setView(next)
+    window.setTimeout(() => setGliding(false), 300)
+  }
+  // (Again if the canvas changes size just after — the detail's pane opening beside it — so the element stays in the middle.)
+  const focusedNonce = useRef({ nonce: 0, at: 0 })
+  useEffect(() => {
+    if (!previewHere?.focusNonce || previewHere.compare) return
+    const again = focusedNonce.current.nonce === previewHere.focusNonce
+    if (again && performance.now() - focusedNonce.current.at > 1200) return
+    if (previewHere.focus.pageId !== activePage?.id || !canvasWidth) return
+    if (!again) focusedNonce.current = { nonce: previewHere.focusNonce, at: performance.now() }
+    const frame = activePage.frames.find((entry) => entry.layers.some((layer) => layer.id === previewHere.focus.layerId))
+    const layer = frame?.layers.find((entry) => entry.id === previewHere.focus.layerId)
+    if (!layer) return
+    const next = focusView({ x: frame.x + layer.x, y: frame.y + layer.y, width: layer.width, height: layer.height }, { x: 0, y: 0, width: canvasWidth, height: canvasHeight }, { max: MAX_CANVAS_ZOOM / 100 })
+    glideTo({ zoom: Math.round(next.zoom * 100), x: next.x, y: next.y })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewHere?.focusNonce, previewHere?.compare, activePage?.id, canvasWidth, canvasHeight])
+  const fittedNonce = useRef(0)
+  useEffect(() => {
+    if (!previewHere?.fitNonce || fittedNonce.current === previewHere.fitNonce || !canvasWidth) return
+    fittedNonce.current = previewHere.fitNonce
+    const frames = [...activePage.frames, ...reachFrames.map((entry) => entry.frame)]
+    const left = Math.min(...frames.map((frame) => frame.x))
+    const top = Math.min(...frames.map((frame) => frame.y)) - 40
+    const box = { x: left, y: top, width: Math.max(...frames.map((frame) => frame.x + frame.width)) - left, height: Math.max(...frames.map((frame) => frame.y + frame.height)) - top }
+    // (At a whole percent, centred at it.)
+    const z = Math.max(MIN_CANVAS_ZOOM, Math.round(boardFit(box, { width: canvasWidth, height: canvasHeight }, 48).zoom * 100)) / 100
+    glideTo({ zoom: Math.round(z * 100), x: (canvasWidth - box.width * z) / 2 - box.x * z, y: (canvasHeight - box.height * z) / 2 - box.y * z })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewHere?.fitNonce, canvasWidth])
+  // Space held: what's built — taken before anything else has it (a focused button, the hand tool), and
+  // never while typing.
+  const peekable = Boolean(previewHere && pickedWay && !previewHere.compare)
+  useEffect(() => {
+    if (!peekable) return undefined
+    const typing = (event) => event.target instanceof HTMLElement && (event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))
+    const onDown = (event) => {
+      if (event.key !== ' ' || typing(event)) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      if (!event.repeat) setCanvasPreview((prev) => (prev ? { ...prev, peek: true } : prev))
+    }
+    const onUp = (event) => {
+      if (event.key !== ' ' || typing(event)) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      setCanvasPreview((prev) => (prev?.peek ? { ...prev, peek: false } : prev))
+    }
+    const onBlur = () => setCanvasPreview((prev) => (prev?.peek ? { ...prev, peek: false } : prev))
+    window.addEventListener('keydown', onDown, true)
+    window.addEventListener('keyup', onUp, true)
+    window.addEventListener('blur', onBlur)
+    return () => { window.removeEventListener('keydown', onDown, true); window.removeEventListener('keyup', onUp, true); window.removeEventListener('blur', onBlur) }
+  }, [peekable])
+  const compareFrame = previewHere?.compare ? activePage.frames.find((frame) => frame.layers.some((layer) => layer.id === previewHere.focus.layerId)) : null
+  const compareBox = compareFrame ? (({ x, y, width, height }) => ({ x, y, width, height }))(compareFrame.layers.find((layer) => layer.id === previewHere.focus.layerId)) : null
+
   const pinsForPage = comments.filter(
     (c) => c.target?.type === 'canvas' && c.target.pageId === activePage?.id
   )
@@ -760,7 +862,14 @@ function CanvasPanel() {
                 genProgress={genProgress}
                 measure={!commentMode && canvasTool === 'move'}
                 zoom={zoom}
+                preview={previewOf(activePage.id)}
               />
+            ))}
+            {/* The other screens the previewed fix reaches — drawn as this page's are, only to be looked at. */}
+            {reachFrames.map(({ pageId, frame }) => (
+              <div key={frame.id} data-preview-reach={pageId} className="pointer-events-none">
+                <CanvasFrame frame={frame} selectedId={null} onSelect={() => {}} commentMode={false} edits={prototypeEdits} zoom={zoom} preview={previewOf(pageId)} />
+              </div>
             ))}
 
             {pinsForPage.map((comment) => (
@@ -809,6 +918,18 @@ function CanvasPanel() {
               }}
             />
           )}
+
+          {/* What the canvas shows, said where it's always seen — however far in it is (the frame's own badge
+              can be out of view): a preview, not applied. */}
+          {previewHere && pickedWay && !previewHere.compare && (
+            <div data-preview-banner={previewHere.peek ? 'peek' : 'option'} data-canvas-chrome className="pointer-events-none absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-dashed border-[var(--ds-accent)] bg-[#0f1a15]/95 px-3 py-1.5 text-[12px] font-medium whitespace-nowrap text-[var(--ds-accent-text)] shadow-lg">
+              <span aria-hidden className="size-1.5 rounded-full bg-[var(--ds-accent)]" />
+              {previewHere.peek ? `현재 구현 보는 중 · Space를 떼면 옵션 ${pickedWay.n}` : `옵션 ${pickedWay.n} 미리보기 · 적용 안 됨`}
+              {!previewHere.peek && <span className="font-normal text-slate-400">· Space 누르면 현재 구현</span>}
+            </div>
+          )}
+          {/* The ways side by side (or one over the other), over the canvas — the detail beside it stays. */}
+          {compareFrame && compareBox && <CompareCanvas preview={previewHere} frame={compareFrame} box={compareBox} edits={prototypeEdits} />}
 
           <div className="pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-1.5">
             <CanvasToolbar tool={canvasTool} onSelectTool={handleSelectTool} compact={compactToolbar} />

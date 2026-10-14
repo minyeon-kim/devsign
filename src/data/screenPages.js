@@ -26,6 +26,8 @@ const input = (id, name, y, label) => ({ id, name, kind: 'component', type: 'inp
 const card = (id, name, y, h, mock, { x = 20, w = 240 } = {}) => ({ id, name, kind: 'component', type: 'card', x, y, width: w, height: h, mock })
 const image = (id, name, y, h, { x = 20, w = 240, role = 'photo' } = {}) => ({ id, name, kind: 'vector', type: 'image', x, y, width: w, height: h, mock: { role } })
 const icon = (id, name, x, y, label) => ({ id, name, kind: 'component', type: 'iconbtn', x, y, width: 28, height: 28, label })
+// The shipping option's Truck icon (ShippingOptions' own — the icon set's stroke token), 16px, as built: stroke 2.5.
+const truck = (id, x, y) => ({ id, name: 'Shipping icon', kind: 'vector', type: 'glyph', x, y, width: 16, height: 16, mock: { icon: 'truck', stroke: 2.5, token: 'icon/stroke-default', component: 'ShippingOptions' } })
 const tabs = (p) => ({ id: `${p}-tabbar`, name: 'Tab Bar', kind: 'group', type: 'tabs', x: 0, y: H - 44, width: W, height: 44 })
 
 const CHECKOUT = 'checkout-redesign'
@@ -116,7 +118,8 @@ export const shopScreenPages = [
     title('ct-title', 'Title', 40, 'Cart', { x: 56, w: 160 }),
     card('ct-item-1', 'Oak desk lamp', 84, 84, { icon: 'zap', title: 'Oak desk lamp', body: 'Qty 1 · $84.00' }),
     card('ct-item-2', 'Linen cushion', 180, 84, { icon: 'chart', title: 'Linen cushion', body: 'Qty 1 · $44.00' }),
-    text('ct-shipping', 'Shipping', 396, 'Standard shipping · Free', {}),
+    truck('ct-shipping-icon', 20, 394),
+    text('ct-shipping', 'Shipping', 396, 'Standard shipping · Free', { x: 42, w: 218 }),
     text('ct-total', 'Subtotal', 420, 'Subtotal  $128.00', { tone: 'strong', weight: 600, h: 14 }),
     button('ct-checkout', 'Checkout button', 476, 'Checkout'),
   ]),
@@ -133,6 +136,8 @@ export const shopScreenPages = [
     title('oc-title', 'Title', 216, 'Order placed', { x: 76, w: 140 }),
     text('oc-number', 'Order number', 244, 'Order #MM-20418', { x: 84, w: 120 }),
     card('oc-summary', 'Summary', 276, 80, { icon: 'shield', title: '2 items · $128.00', body: 'Arrives in 3–5 days' }),
+    truck('oc-shipping-icon', 20, 372),
+    text('oc-shipping', 'Shipping', 374, 'Standard shipping · 3–5 days', { x: 42, w: 218 }),
     button('oc-home', 'Back to Home button', 476, 'Back to Home'),
   ]),
 ]

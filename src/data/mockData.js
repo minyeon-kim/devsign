@@ -827,11 +827,10 @@ export const designMergeVariants = {
       'payment-label': { fileId: 'payment-form', line: 4, span: 1 },
     },
   },
-  // `shipping-label` stands in for the (unmodeled) Truck icon — page-checkout
-  // has no dedicated icon layer, same reasoning as tab-bar/primary-button.
+  // The shipping option's Truck icon (`shipping-icon`, page-checkout's own icon layer).
   'merge-checkout-shipping-icon': {
     layerDiffs: {
-      'shipping-label': [
+      'shipping-icon': [
         {
           id: 'icon-stroke',
           label: 'Icon stroke',
@@ -843,7 +842,7 @@ export const designMergeVariants = {
       ],
     },
     layerCodeMap: {
-      'shipping-label': { fileId: 'shipping', line: 4, span: 1 },
+      'shipping-icon': { fileId: 'shipping', line: 4, span: 1 },
     },
   },
   'merge-flowbank': {
@@ -1793,7 +1792,9 @@ export const canvasPages = [
           { id: 'order-summary', name: 'Order summary', kind: 'component', type: 'card', x: 20, y: 90, width: 240, height: 112 },
           { id: 'payment-label', name: 'Card number label', kind: 'text', type: 'text', x: 20, y: 224, width: 120, height: 10 },
           { id: 'card-input', name: 'Card number', kind: 'component', type: 'input', x: 20, y: 240, width: 240, height: 40, label: '1234 5678 9012 3456' },
-          { id: 'shipping-label', name: 'Shipping option', kind: 'text', type: 'text', x: 20, y: 300, width: 200, height: 10 },
+          // (The shipping option: its Truck icon — ShippingOptions' own, the icon set's stroke token — and its label.)
+          { id: 'shipping-icon', name: 'Shipping icon', kind: 'vector', type: 'glyph', x: 20, y: 297, width: 16, height: 16, mock: { icon: 'truck', stroke: 2.5, token: 'icon/stroke-default', component: 'ShippingOptions' } },
+          { id: 'shipping-label', name: 'Shipping option', kind: 'text', type: 'text', x: 42, y: 300, width: 200, height: 10 },
           { id: 'total-text', name: 'Total', kind: 'text', type: 'text', x: 20, y: 468, width: 160, height: 14 },
           {
             id: 'place-order',
