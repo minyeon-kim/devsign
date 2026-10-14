@@ -556,6 +556,15 @@ export function WorkspaceProvider({ children, projectId }) {
   }, [moveSession])
   const prototypeBack = useCallback(() => moveSession(stepBack(prototypeNow.current.session)), [moveSession])
   const prototypeRestart = useCallback((flowId = null) => moveSession(restartSession(prototypeNow.current.prototype, prototypeNow.current.session, flowId)), [moveSession])
+  // Straight to a screen (Preview's ‹ ›): it joins what's been passed through, so Back returns.
+  const prototypeGo = useCallback((id) => {
+    const { session } = prototypeNow.current
+    if (!id || session.history[session.history.length - 1] === id) return
+    moveSession({ history: [...session.history, id] })
+  }, [moveSession])
+  // A prototype played elsewhere (the Screens board's frame) carries on here: its screens passed
+  // through become this session, on the one it was showing.
+  const continuePrototype = useCallback((session) => { if (session?.history?.length) moveSession(session) }, [moveSession])
   useEffect(() => {
     if (viewSaid.screen) setActivePageIdState(viewSaid.screen)
   }, [viewSaid.screen])
@@ -2937,6 +2946,8 @@ export function WorkspaceProvider({ children, projectId }) {
     prototypeFollow,
     prototypeBack,
     prototypeRestart,
+    prototypeGo,
+    continuePrototype,
     boardView,
     dockApi,
     setDockApi,

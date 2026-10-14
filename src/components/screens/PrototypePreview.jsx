@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, LocateFixed, MousePointerClick, RotateCcw } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, LocateFixed, MousePointerClick, RotateCcw } from 'lucide-react'
 import { cn } from 'cn'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import { canStepBack, isEnd, positionOf } from '@/lib/prototypeEngine'
-import { screenOf, transitionsOf } from '@/lib/screens'
+import { screenOf, screenOrder, transitionsOf } from '@/lib/screens'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // Preview, as the prototype it is: the screen in view with its hotspots live.
@@ -22,13 +22,14 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // flow controls step aside. ⌥←: back · R: start over · H: hotspots — not
 // while typing, and only while Preview is what's showing.
 const TOOL = 'ds-intrinsic flex h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 rounded-md px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
+const STEP = 'ds-intrinsic flex size-10 items-center justify-center rounded-xl border border-white/10 bg-card/95 text-slate-200 shadow-lg transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-30'
 const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 const HOTSPOTS_KEY = 'devsign.previewHotspots'
 const isTyping = (target) => target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function PrototypePreview(props) {
-  const { prototype, activePageId, workspaceView, prototypeSession, prototypeFollow, prototypeBack, prototypeRestart, showScreenIn } = useWorkspace()
+  const { prototype, activePageId, workspaceView, prototypeSession, prototypeFollow, prototypeBack, prototypeRestart, prototypeGo, showScreenIn } = useWorkspace()
   const screen = screenOf(prototype, activePageId)
   const { live, broken } = transitionsOf(prototype, activePageId)
   const single = prototype.kind === 'single-page'
@@ -55,6 +56,19 @@ function PrototypePreview(props) {
       return
     }
     if (result.moved) setMotion((prev) => ({ key: prev.key + 1, how: reducedMotion() ? 'none' : transition.animation ?? 'none' }))
+  }
+  // ‹ ›: the screen before or after this one in the board's order (1 → 2 → 3 …), as the Screens board's
+  // frame steps — by its hotspot when one goes there (its own animation), else with a slide.
+  const order = single ? [] : screenOrder(prototype)
+  const at = order.indexOf(activePageId)
+  const stepTo = (direction) => {
+    const target = order[at + direction]
+    if (!target) return
+    const via = live.find((transition) => transition.targetScreenId === target && !transition.scrollTo)
+    if (direction > 0 && via) { press(via); return }
+    if (direction < 0 && prototypeSession.history[prototypeSession.history.length - 2] === target) { back(); return }
+    setMotion((prev) => ({ key: prev.key + 1, how: reducedMotion() ? 'none' : 'slide' }))
+    prototypeGo(target)
   }
   const back = () => { if (!canStepBack(prototypeSession)) return; setMotion((prev) => ({ key: prev.key + 1, how: 'none' })); prototypeBack() }
   const startOver = (flowId = null) => { setMotion((prev) => ({ key: prev.key + 1, how: 'none' })); prototypeRestart(flowId) }
@@ -144,8 +158,16 @@ function PrototypePreview(props) {
           <>
             {/* (Said as the screen changes.) */}
             <span role="status" aria-live="polite" className="sr-only">{screen && <LocalizedText text={screen.name} />}</span>
+            {/* ‹ n / total ›, fixed at the bottom centre — the same as the Screens board's while it plays. */}
+            {at !== -1 && (
+              <div data-preview-steps role="group" aria-label="Screens" className="pointer-events-auto absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
+                <button type="button" data-preview-prev title="Previous screen" aria-label="Previous screen" disabled={at <= 0} onClick={() => stepTo(-1)} className={STEP}><ChevronLeft className="size-5" /></button>
+                <span translate="no" className="min-w-12 text-center text-xs tabular-nums text-slate-400">{at + 1} / {order.length}</span>
+                <button type="button" data-preview-next title="Next screen" aria-label="Next screen" disabled={at >= order.length - 1} onClick={() => stepTo(1)} className={STEP}><ChevronRight className="size-5" /></button>
+              </div>
+            )}
             {end && (
-              <div data-proto-end className="pointer-events-auto absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-white/10 bg-card/95 py-1.5 pr-1.5 pl-3 text-xs text-slate-200 shadow-lg">
+              <div data-proto-end className="pointer-events-auto absolute bottom-[72px] left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-white/10 bg-card/95 py-1.5 pr-1.5 pl-3 text-xs text-slate-200 shadow-lg">
                 <LocalizedText text="This is the end of the flow." />
                 <button type="button" onClick={() => startOver()} className="rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-300"><LocalizedText text="Start over" /></button>
               </div>

@@ -1,5 +1,5 @@
-import { Component, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { Component, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PlayFrame from '@/components/screens/PlayFrame'
 import { cameraFor, interactionsOf, pathAhead, readProto, tierOf, withProto } from '@/lib/boardPrototype'
@@ -7,7 +7,11 @@ import { canStepBack, currentOf, follow, isEnd, positionOf, restart as restartSe
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { ConflictCountPin } from '@/components/conflicts/ConflictPins'
+import { HEAD_COLOR, PinShape } from '@/components/conflicts/ConflictPins'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { RISK_LABEL, listStatusOf, shortDue } from '@/lib/conflicts'
+import { PIN } from '@/lib/canvasPins'
+import { layerIdsOf } from '@/lib/conflictInsight'
 import { useLanguage } from '@/i18n/language'
 import { conflictsByScreen, countLabel } from '@/lib/screenConflicts'
 import { LocalizedText } from '@/i18n/runtime'
@@ -48,6 +52,108 @@ import { WindowHeaderPortal, WindowHeaderSlotContext } from '@/components/worksp
 const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-md px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
 const BAR = 'flex items-center gap-0.5 rounded-lg border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
 const PANEL_KEY = 'devsign.protoPanel'
+// The zoom from which a screen's changes are shown on their elements rather than counted.
+const DETAIL_ZOOM = 0.55
+
+// A screen's changes by element: [{ layer, conflicts }] — one marker per element (several changes on one say how many).
+function markersOf(screen, conflicts) {
+  const byLayer = new Map()
+  for (const conflict of conflicts) {
+    for (const layerId of layerIdsOf(conflict)) {
+      const layer = screen.frame.layers.find((entry) => entry.id === layerId)
+      if (!layer) continue
+      const marker = byLayer.get(layer.id) ?? { layer, conflicts: [] }
+      if (!marker.conflicts.includes(conflict)) marker.conflicts.push(conflict)
+      byLayer.set(layer.id, marker)
+    }
+  }
+  return [...byLayer.values()]
+}
+
+// One element's marker: the canvas's change pin (its tip on the element's corner). Pressed, a small
+// popover opens right there with what it is — the change (or each, several on one element): its risk,
+// where it stands, a line of what's wrong — and a way to its detail.
+const RISK_DOT = { high: 'bg-rose-400', medium: 'bg-amber-300', low: 'bg-sky-300' }
+function MarkerButton({ marker, lit, onHover, onOpen }) {
+  const many = marker.conflicts.length > 1
+  const label = many ? `${marker.conflicts.length} changes · ${marker.layer.name ?? ''}` : marker.conflicts[0].title
+  const head = lit ? PIN.headSelected : PIN.head
+  const height = lit ? PIN.heightSelected : PIN.height
+  // (While its popover is open the element stays outlined, wherever the pointer goes.)
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); onHover(next) }}>
+      <PopoverTrigger
+        type="button"
+        data-screen-marker={marker.layer.id}
+        data-count={marker.conflicts.length}
+        aria-label={label}
+        onMouseEnter={() => onHover(true)}
+        onMouseLeave={() => { if (!open) onHover(false) }}
+        onFocus={() => onHover(true)}
+        onBlur={() => { if (!open) onHover(false) }}
+        className="ds-intrinsic ds-pin absolute block cursor-pointer rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+        // (Its tip at the anchor: the element's top right corner, a little inside.)
+        style={{ left: -head / 2, top: -height, width: head, height }}
+      >
+        <PinShape head={head} height={height} color={lit ? HEAD_COLOR.selected : HEAD_COLOR.default} />
+        {many && <span data-pin-badge className="absolute flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-slate-900 px-1 text-[9px] leading-none font-semibold text-white tabular-nums ring-1 ring-white" style={{ top: -6, right: -9 }}>{marker.conflicts.length}</span>}
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" sideOffset={10} data-marker-popover={marker.layer.id} data-control-tooltip="off" className="w-64 gap-0 p-0" onPointerDown={(event) => event.stopPropagation()}>
+        <p className="border-b border-white/[0.06] px-3 py-2 text-[11px] text-slate-400"><LocalizedText text={marker.layer.name ?? ''} />{many && <span className="tabular-nums"> · {marker.conflicts.length}</span>}</p>
+        <ul className="m-0 flex list-none flex-col p-1">
+          {marker.conflicts.map((conflict) => {
+            const status = listStatusOf(conflict)
+            return (
+              <li key={conflict.id} data-marker-item={conflict.id} className="rounded-md px-2 py-2">
+                <p className="flex items-center gap-1.5 text-[12.5px] leading-5 font-semibold text-slate-100">
+                  <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', RISK_DOT[conflict.severity] ?? RISK_DOT.medium)} />
+                  <span className="min-w-0 truncate"><LocalizedText text={conflict.title} /></span>
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-slate-400">
+                  <LocalizedText text={`${RISK_LABEL[conflict.severity] ?? RISK_LABEL.medium} risk`} />
+                  <span aria-hidden>·</span>
+                  <LocalizedText text={status.label} />
+                  {shortDue(conflict.dueLabel) && <><span aria-hidden>·</span><LocalizedText text={shortDue(conflict.dueLabel)} /></>}
+                </p>
+                {(conflict.summary ?? conflict.message) && <p className="mt-1 line-clamp-2 text-[11.5px] leading-4 text-slate-300"><LocalizedText text={conflict.summary ?? conflict.message} /></p>}
+                <button type="button" data-marker-open={conflict.id} onClick={() => onOpen(conflict)} className="ds-intrinsic mt-2 inline-flex h-7 items-center gap-1 rounded-full bg-white/[0.08] px-2.5 text-[11.5px] font-medium text-slate-100 transition-colors hover:bg-white/[0.14] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  <LocalizedText text="View details" /><ArrowRight className="size-3" />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// Far: how many changes a screen has, as a soft spreading circle over where they are (their elements'
+// middle — the screen's, when none is on an element), the same size on screen at any zoom.
+// (`compact`: near, beside the markers — only the changes about the screen as a whole: smaller, at the card's corner.)
+function CountBubble({ count, label, onOpen, cardId, compact = false }) {
+  return (
+    <button
+      type="button"
+      data-screen-changes={cardId}
+      data-count={count}
+      aria-label={label}
+      title={label}
+      translate="no"
+      onClick={onOpen}
+      className={cn('ds-intrinsic group/bubble relative flex cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300', compact ? 'size-7' : 'size-11')}
+    >
+      {/* The rings it spreads into: two soft halos, opening out once as it appears (nothing loops but
+          loading — and none of it under reduced motion). */}
+      <span aria-hidden className={cn('pointer-events-none absolute rounded-full bg-[#F04E5A]/[0.12] animate-in fade-in zoom-in-50 duration-700 motion-reduce:animate-none', compact ? '-inset-2' : '-inset-6')} />
+      <span aria-hidden className={cn('pointer-events-none absolute rounded-full bg-[#F04E5A]/25 animate-in fade-in zoom-in-75 duration-500 motion-reduce:animate-none', compact ? '-inset-1' : '-inset-2.5')} />
+      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A] shadow-lg shadow-[#F04E5A]/40 transition-transform group-hover/bubble:scale-105" />
+      <span className={cn('relative leading-none font-bold text-white tabular-nums', compact ? 'text-[11px]' : 'text-[15px]')}>+{count}</span>
+    </button>
+  )
+}
+
 // The ‹ › at the bottom of the board while a prototype plays.
 const STEP = 'flex size-10 items-center justify-center rounded-xl border border-white/10 bg-card/95 text-slate-200 shadow-lg transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-30'
 // How far a flow's region reaches past its cards, on the board's scale.
@@ -84,7 +190,7 @@ function ScreenDrawing({ frame }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, requestConflictDrawer, setChangesOfScreenOnly } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, requestConflictDrawer, setChangesOfScreenOnly, continuePrototype, openConflictReview } = useWorkspace()
   const language = useLanguage()
   const inHeader = Boolean(useContext(WindowHeaderSlotContext))
   const layout = useMemo(() => boardLayout(prototype), [prototype])
@@ -93,6 +199,8 @@ function ScreensBoard() {
   const changes = useMemo(() => conflictsByScreen(prototype, conflicts), [prototype, conflicts])
   const withChanges = order.filter((id) => changes.byScreen.has(id))
   const [marking, setMarking] = useState(false)
+  // (Which element's marker is pointed at — its outline shows.)
+  const [hotMarker, setHotMarker] = useState(null)
   const openLabel = (count) => (language === 'ko' ? `미해결 충돌 ${count}건` : `${count} open ${count === 1 ? 'change' : 'changes'}`)
   const cardOf = (id) => layout.cards.find((card) => card.id === id) ?? null
 
@@ -111,6 +219,13 @@ function ScreensBoard() {
     if (search !== at.current.search) navigate({ pathname: at.current.pathname, search }, { replace: true, state: at.current.state })
   }, [navigate])
   const frameRef = useRef(null)
+  // Left while it plays (another tab — Preview — or another view): it carries on there, from the screen it
+  // was showing, with the screens passed through (WorkspaceProvider's continuePrototype).
+  const playing = useRef(null)
+  playing.current = proto
+  const carryOn = useRef(continuePrototype)
+  carryOn.current = continuePrototype
+  useEffect(() => () => { if (playing.current) carryOn.current?.(playing.current.session) }, [])
   // (The panel sits over the board's left: in a board wide enough, the camera centres on what's clear of it.)
   const cameraOf = (frameId, zoomNow) => {
     const inset = room.width >= 900 ? 312 : 0
@@ -316,6 +431,8 @@ function ScreensBoard() {
   }
 
   const drawn = useMemo(() => new Set(visibleCards(layout.cards, shown, room).map((card) => card.id)), [layout, shown, room])
+  // Near enough to read a screen (55% and up): its changes are markers on their elements.
+  const detailed = shown.zoom >= DETAIL_ZOOM
   const single = prototype.kind === 'single-page'
 
   if (!prototype.screens.length) {
@@ -443,23 +560,53 @@ function ScreensBoard() {
               {/* Its open changes: the change pin with their number, at the card's top right — kept the
                   size it is on screen whatever the zoom. Its presses are its own: they never reach the
                   card (no select-then-preview) or the board (no drag). */}
-              {open.length > 0 && (
-                <div data-board-chrome className="absolute z-10" style={{ top: 32 - 10, right: -6, transform: `scale(${1 / shown.zoom})`, transformOrigin: 'top right' }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-                  <button
-                    type="button"
-                    data-screen-changes={card.id}
-                    data-count={open.length}
-                    aria-label={openLabel(open.length)}
-                    title={openLabel(open.length)}
-                    translate="no"
-                    // (Its changes, in the pane beside the Workspace — the list narrowed to this screen.)
-                    onClick={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }}
-                    className="ds-intrinsic flex cursor-pointer rounded-full p-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                  >
-                    <ConflictCountPin label={countLabel(open.length)} />
-                  </button>
-                </div>
-              )}
+              {/* Its open changes — by distance. Far (under 55%): "+3" at the card's top right, how many. Near:
+                  a marker on every element a change is about (pointing at it outlines the element; pressing it
+                  opens the change — or, several on one element, a list of them), and "+N" only for changes
+                  about the screen as a whole. Kept the size they are on screen whatever the zoom; their
+                  presses are their own — they never reach the card or the board. */}
+              {(() => {
+                if (!open.length) return null
+                const markers = detailed && !proto ? markersOf(screen, open) : []
+                const onElements = new Set(markers.flatMap((marker) => marker.conflicts.map((conflict) => conflict.id)))
+                const rest = detailed && !proto ? open.filter((conflict) => !onElements.has(conflict.id)) : open
+                const stop = { onPointerDown: (event) => event.stopPropagation(), onDoubleClick: (event) => event.stopPropagation() }
+                return (
+                  <>
+                    {markers.map((marker) => {
+                      const lit = hotMarker === `${card.id}:${marker.layer.id}`
+                      return (
+                        <Fragment key={marker.layer.id}>
+                          {lit && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px var(--color-amber-400)`, background: 'color-mix(in srgb, var(--color-amber-400) 12%, transparent)' }} />}
+                          <div data-board-chrome className="absolute z-10" style={{ left: marker.layer.x + marker.layer.width - PIN.inset, top: 32 + marker.layer.y + PIN.inset, transform: `scale(${1 / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
+                            <MarkerButton
+                              marker={marker}
+                              lit={lit}
+                              onHover={(on) => setHotMarker(on ? `${card.id}:${marker.layer.id}` : null)}
+                              onOpen={(conflict) => openConflictReview(conflict.id)}
+                            />
+                          </div>
+                        </Fragment>
+                      )
+                    })}
+                    {rest.length > 0 && (() => {
+                      // (Over where they are: the middle of their elements on this screen — the screen's middle when none is.)
+                      // (Near, beside the markers: at the card's top right corner, out of their way.)
+                      const boxes = markersOf(screen, rest).map((marker) => marker.layer)
+                      const corner = detailed && !proto
+                      const cx = corner ? card.width : boxes.length ? boxes.reduce((sum, b) => sum + b.x + b.width / 2, 0) / boxes.length : card.width / 2
+                      const cy = corner ? 0 : boxes.length ? boxes.reduce((sum, b) => sum + b.y + b.height / 2, 0) / boxes.length : card.height / 2
+                      return (
+                        <div data-board-chrome className="absolute z-10" style={{ left: cx, top: 32 + cy, transform: `translate(-50%, -50%) scale(${1 / shown.zoom})`, transformOrigin: 'center' }} {...stop}>
+                          <CountBubble compact={corner} count={countLabel(rest.length)} label={openLabel(rest.length)} cardId={card.id}
+                            // (Its changes, in the pane beside the Workspace — the list narrowed to this screen.)
+                            onOpen={(event) => { event.stopPropagation(); setActivePageId(card.id); setChangesOfScreenOnly(true); requestConflictDrawer() }} />
+                        </div>
+                      )
+                    })()}
+                  </>
+                )
+              })()}
             </div>
           )
         })}

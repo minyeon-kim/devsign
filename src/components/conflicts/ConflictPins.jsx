@@ -22,7 +22,7 @@ import { PIN, anchorOf, layoutPins, markerRect, markersOf } from '@/lib/canvasPi
 // lists them, and zooming in separates them again.
 
 const TOOLTIP_DELAY = 150
-const HEAD_COLOR = { default: 'var(--color-amber-400)', selected: 'var(--color-orange-500)', resolved: 'var(--color-slate-500)' }
+export const HEAD_COLOR = { default: 'var(--color-amber-400)', selected: 'var(--color-orange-500)', resolved: 'var(--color-slate-500)' }
 
 // A head with a tail under it, tip at the bottom center.
 // The same pin, standing for a count rather than one change — on a screen's
@@ -37,7 +37,7 @@ export function ConflictCountPin({ label }) {
   )
 }
 
-function PinShape({ head, height, color }) {
+export function PinShape({ head, height, color }) {
   const r = head / 2
   // The tail leaves the head's lower sides and meets at the tip.
   const spread = r * 0.62
