@@ -633,14 +633,14 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
       onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
       onPointerDown={(event) => event.stopPropagation()}
-      className={cn('flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', conflictCount > 0 ? 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/20' : 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1] hover:text-white')}>
+      className={cn('flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', conflictCount > 0 ? 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/20' : 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1] hover:text-white')}>
       <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
       Conflict
       {conflictCount > 0 && <span className="text-xs tabular-nums text-amber-300">{conflictCount}</span>}
     </button>
     <span aria-hidden className="mx-1 h-4 w-px bg-white/10" />
     <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
-      className={cn('flex h-7 shrink-0 items-center rounded-md px-2.5 text-[12px] font-medium transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', activeView === 'mergeStudio' ? 'bg-white/[0.12] text-white' : 'bg-white/[0.06] text-slate-300')}>병합 <span data-merge-count className="ml-1.5 text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
+      className={cn('flex h-7 shrink-0 items-center rounded-full px-3 text-[12px] font-medium transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', activeView === 'mergeStudio' ? 'bg-white/[0.12] text-white' : 'bg-white/[0.06] text-slate-300')}>병합 <span data-merge-count className="ml-1.5 text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
     </div>
   )
 

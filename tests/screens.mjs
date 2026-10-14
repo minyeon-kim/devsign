@@ -152,7 +152,7 @@ try {
   const provider = read('state/WorkspaceProvider.jsx')
   const board = read('components/screens/ScreensBoard.jsx')
   assert.ok(tabs.includes('role="tablist"') && tabs.includes('role="tab"') && tabs.includes('aria-selected={selected}') && tabs.includes('aria-controls={VIEW_PANEL_ID}') && tabs.includes('tabIndex={selected ? 0 : -1}'))
-  assert.ok(tabs.includes("selected ? 'bg-white/[0.12] font-semibold text-white'") && tabs.includes('{selected && <span aria-hidden className="absolute inset-x-2.5 bottom-0.5'), 'the one showing: weight and a bar, not color alone')
+  assert.ok(tabs.includes("selected ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]'") && tabs.includes('rounded-full px-3.5'), 'the one showing: weight and a raised thumb (iOS), not color alone')
   assert.ok(read('components/workspace/FloatingWindow.jsx').includes("role={viewPanel ? 'tabpanel' : undefined}"))
   assert.ok(layoutSource.includes("const VIEW_PANELS = { preview: ['preview'], screens: ['screens', 'canvas'], code: ['editor'] }"), 'Screens is its board, or the canvas a screen is edited on')
   assert.ok(layoutSource.includes("/^Digit[1-4]$/.test(event.code)"), '⌘/⌥ 1–4, not while typing')

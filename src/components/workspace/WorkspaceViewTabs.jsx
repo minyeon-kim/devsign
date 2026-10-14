@@ -39,7 +39,7 @@ function WorkspaceViewTabs({ editing = false, onBoard }) {
   }
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <div role="tablist" aria-label="Workspace view" data-workspace-views onKeyDown={onKeyDown} className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+      <div role="tablist" aria-label="Workspace view" data-workspace-views onKeyDown={onKeyDown} className="flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
         {TABS.map((view, index) => {
           const selected = view === 'merge' ? merging : !merging && view === workspaceView
           return (
@@ -57,12 +57,12 @@ function WorkspaceViewTabs({ editing = false, onBoard }) {
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => (view === 'screens' && selected && editing ? onBoard?.() : show(view))}
               className={cn(
-                'relative flex h-7 items-center rounded-md px-3 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
-                selected ? 'bg-white/[0.12] font-semibold text-white' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
+                // (iOS's segmented control: a capsule, the one showing on a raised thumb.)
+                'relative flex h-7 items-center rounded-full px-3.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+                selected ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]' : 'text-slate-400 hover:text-slate-200'
               )}
             >
               {names[view]}
-              {selected && <span aria-hidden className="absolute inset-x-2.5 bottom-0.5 h-0.5 rounded-full bg-white/80" />}
             </button>
           )
         })}

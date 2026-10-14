@@ -49,7 +49,7 @@ export function CanvasViewRail() {
             title={translateText(label, language)}
             aria-label={translateText(label, language)}
             onClick={() => toggleSideView(id)}
-            className={cn('ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[6px] transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+            className={cn('ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
               open === id ? 'bg-[var(--ds-surface-2)] text-slate-100' : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-200')}
           >
             <Icon className="size-4" />
