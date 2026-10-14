@@ -21,7 +21,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // detail · 3 / 6"), Show hotspots, and Show on Screens. On a single page the
 // flow controls step aside. ⌥←: back · R: start over · H: hotspots — not
 // while typing, and only while Preview is what's showing.
-const TOOL = 'ds-intrinsic flex h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 rounded-md px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
+const TOOL = 'ds-intrinsic flex h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 rounded-full px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
 const STEP = 'ds-intrinsic flex size-10 items-center justify-center rounded-xl border border-white/10 bg-card/95 text-slate-200 shadow-lg transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-30'
 const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 const HOTSPOTS_KEY = 'devsign.previewHotspots'
@@ -97,7 +97,7 @@ function PrototypePreview(props) {
   })
 
   const toolbar = screen && (
-    <div data-prototype-toolbar role="toolbar" aria-label="Prototype" className="flex min-w-0 shrink items-center gap-0.5">
+    <div data-prototype-toolbar role="toolbar" aria-label="Prototype" className="flex h-8 min-w-0 shrink items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
       {!single && (
         <>
           <button type="button" data-proto-back title={`Back · ${MAC ? '⌥←' : 'Alt+←'}`} aria-label="Back" disabled={!canStepBack(prototypeSession)} onClick={back} className={TOOL}><ArrowLeft className="size-3.5" /></button>

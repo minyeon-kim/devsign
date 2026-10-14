@@ -52,8 +52,10 @@ import { WindowHeaderPortal, WindowHeaderSlotContext } from '@/components/worksp
 //     view are drawn.
 // Viewing and playing only: links and hotspots aren't edited here.
 
-const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-md px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
-const BAR = 'flex items-center gap-0.5 rounded-lg border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
+const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-full px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
+// (iOS: the tools as one capsule — in the tab row a quiet track, over the board a floating one.)
+const CAPSULE = 'h-8 rounded-full bg-white/[0.06] p-0.5'
+const BAR = 'flex items-center gap-0.5 rounded-full border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
 const PANEL_KEY = 'devsign.protoPanel'
 // The zoom from which a screen's changes are shown on their elements rather than counted.
 const DETAIL_ZOOM = 0.55
@@ -836,7 +838,7 @@ function ScreensBoard() {
 
       {/* The board's tools: up in the window's tab row, at its right end (in place, over the board, outside a window). */}
       <WindowHeaderPortal fallbackClassName="absolute top-3 right-3 z-20">
-      <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('flex items-center gap-0.5', !inHeader && BAR)}>
+      <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('flex items-center gap-0.5', inHeader ? CAPSULE : BAR)}>
         {prototype.flows.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger data-board-flows title="Go to a flow" className={cn(TOOL, 'px-2')}><LocalizedText text="Flows" /></DropdownMenuTrigger>
