@@ -1,6 +1,6 @@
 import { DAY_GROUP_LABEL, badgeOf, dayGroupOf, defaultTabOf, isUnread, showsIn } from '@/lib/notifications'
 import { Fragment, useState } from 'react'
-import { ArrowRight, Bell, CheckCheck, ChevronDown, ChevronRight, Send } from 'lucide-react'
+import { ArrowRight, Bell, CheckCheck, ChevronDown, ChevronRight, Send, TriangleAlert } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import { cn } from 'cn'
@@ -360,25 +360,31 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
   const notice = card.type === 'notice'
 
   return (
-    <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-xl transition-colors', expanded ? 'bg-white/[0.05]' : group.unread ? 'bg-emerald-400/[0.05]' : 'bg-white/[0.025]')}>
-      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-xl py-3 pr-3 pl-2 text-left transition-colors hover:bg-white/[0.03]', !group.unread && !expanded && 'opacity-60 hover:opacity-100')}>
+    // (A flat list: no box per notification — only the open one, and the one under the pointer, are lit.)
+    <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-xl transition-colors', expanded && 'bg-white/[0.04]')}>
+      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-xl py-2.5 pr-3 pl-2 text-left transition-colors', !expanded && 'hover:bg-white/[0.03]')}>
         {/* Unread: a dot at the left (its place is kept when read, so the rows line up). */}
         <span aria-label={group.unread ? 'Unread' : undefined} data-inbox-dot={group.unread ? '' : undefined} className={cn('mt-2 size-1.5 shrink-0 rounded-full', group.unread ? 'bg-[#5EEAB5]' : 'bg-transparent')} />
         {!openThread && <span className="mt-0.5 flex w-6 shrink-0 justify-center">
+          {/* A person's avatar, or — from the app — an icon in a circle the same size, so every row lines up. */}
           {card.authorId ? <Person id={card.authorId} /> : (
-            <span className={cn('mt-1.5 size-2 rounded-full', card.severity === 'high' ? 'bg-rose-400' : card.severity === 'medium' ? 'bg-amber-400' : 'bg-sky-400')} />
+            <span data-inbox-system-icon={card.severity ?? 'low'} aria-label={card.severity ? translateText(RISK_LABEL[card.severity], getLanguage()) : undefined} className="flex size-6 items-center justify-center rounded-full bg-white/[0.06]">
+              {card.severity === 'high'
+                ? <TriangleAlert aria-hidden className="size-3 text-rose-300" />
+                : <Bell aria-hidden className={cn('size-3', card.severity === 'medium' ? 'text-amber-300' : 'text-slate-400')} />}
+            </span>
           )}
         </span>}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-baseline gap-2">
             {notice ? (
               // The kind and the thing it's about: only the thing is cut short.
-              <span className="flex min-w-0 flex-1 text-[13px] leading-5 font-medium text-white">
+              <span className={cn('flex min-w-0 flex-1 text-[13px] leading-5 font-medium', group.unread || expanded ? 'text-white' : 'text-slate-300')}>
                 <span className="shrink-0 whitespace-pre"><LocalizedText text={card.summary.label} /> · </span>
                 <span className={cn('min-w-0', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
               </span>
             ) : (
-              <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium text-white', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
+              <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium', group.unread || expanded ? 'text-white' : 'text-slate-300', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
             )}
             <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={group.timeLabel} /></span>
           </span>
@@ -398,9 +404,8 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
           )}
           {!notice && (card.summary || card.severity) && !openThread && (
             <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-slate-400">
-              {/* The level, once per card. */}
-              {card.severity && <span className={cn('shrink-0 font-medium', card.severity === 'high' ? 'text-rose-300' : 'text-slate-300')}><LocalizedText text={RISK_LABEL[card.severity]} /></span>}
-              {card.severity && card.summary && <span aria-hidden className="text-slate-600">·</span>}
+              {/* (The level is the icon's colour; said in words only when there's nothing else to say.) */}
+              {card.severity && !card.summary && <span className={cn('shrink-0 font-medium', card.severity === 'high' ? 'text-rose-300' : 'text-slate-300')}><LocalizedText text={RISK_LABEL[card.severity]} /></span>}
               {card.summary && (
                 <span className="min-w-0 flex-1 truncate">
                   {card.summaryLead && <span className="text-slate-300"><LocalizedText text={card.summaryLead} />: </span>}
@@ -413,7 +418,7 @@ function InboxCard({ group, expanded, onToggle, conflicts, mergeItems, onJump })
           )}
         </span>
         <span className="mt-1 flex shrink-0 items-center gap-1.5">
-          <ChevronDown className={cn('size-3.5 text-slate-500 transition-transform duration-200', expanded && 'rotate-180')} />
+          <ChevronDown className={cn('size-3.5 text-slate-500 transition-[transform,opacity] duration-200', expanded ? 'rotate-180' : 'opacity-0 group-hover/inbox:opacity-100')} />
         </span>
       </button>
 
@@ -528,7 +533,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
       </div>
       <div
         data-inbox-list
-        className="scroll-fade-bottom min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3"
+        className="scroll-fade-bottom min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3"
         onScroll={(event) => { const list = event.currentTarget; if (limit < matching.length && list.scrollTop + list.clientHeight >= list.scrollHeight - 80) setLimit((count) => count + PAGE) }}
       >
         {visible.map((group, index) => {
@@ -546,7 +551,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
                   aria-label={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
                   title={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
                   onClick={(event) => { event.stopPropagation(); setRead(group, group.unread) }}
-                  className="ds-intrinsic absolute top-2.5 right-8 flex h-6 items-center rounded-md bg-[#1c1e22] px-1.5 text-[10.5px] whitespace-nowrap text-slate-300 opacity-0 ring-1 ring-white/10 transition-opacity hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-300 group-hover/inbox:opacity-100"
+                  className="ds-intrinsic absolute top-2 right-8 flex h-6 items-center rounded-md bg-[#1c1e22] px-1.5 text-[10.5px] whitespace-nowrap text-slate-300 opacity-0 ring-1 ring-white/10 transition-opacity hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-300 group-hover/inbox:opacity-100"
                 >
                   {group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
                 </button>
