@@ -735,7 +735,7 @@ button.editor-line-comment {
   --notification-bg: var(--ds-notice-surface);
   --notification-bg-hover: var(--ds-notice-surface-hover);
   --notification-border: rgb(255 255 255 / 10%);
-  --notification-shadow: 0 16px 40px rgb(0 0 0 / 55%), 0 2px 8px rgb(0 0 0 / 35%);
+  --notification-shadow: 0 8px 24px rgb(0 0 0 / 28%), 0 1px 3px rgb(0 0 0 / 20%);
   --notification-text: var(--foreground);
   --notification-text-secondary: var(--color-slate-300);
   --notification-text-meta: var(--color-slate-400);
