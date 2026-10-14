@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import HistoryCompare from '@/components/history/HistoryCompare'
 import { LocalizedText } from '@/i18n/runtime'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Check, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
+import { Check, ChevronDown, Ellipsis, Layers3, MapPin, MessageSquarePlus, Send, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { draftRows } from '@/lib/driftDecisions'
 import { cn } from 'cn'
@@ -143,10 +143,11 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
   }
 
   return (
-    <div className="flex h-full min-h-0 bg-card text-xs">
-      {/* The sets to choose from, always in view — one or many. */}
+    <div className="@container/compare flex h-full min-h-0 bg-card text-xs">
+      {/* The sets to choose from: a column beside the drafts when there's room for both (880px and up) —
+          narrower, the title above the drafts is a menu of them instead, so the drafts keep the width. */}
       {(
-        <nav aria-label="Design sets" data-design-sets className="flex w-[220px] shrink-0 flex-col gap-0.5 overflow-auto border-r border-white/[0.06] p-2">
+        <nav aria-label="Design sets" data-design-sets className="hidden w-[220px] shrink-0 flex-col gap-0.5 overflow-auto border-r border-white/[0.06] p-2 @[880px]/compare:flex">
           <h2 className="px-2.5 pt-1 pb-1.5 text-[11px] font-semibold text-slate-400">Design sets</h2>
           {items.length === 0 && <p className="px-2.5 py-2 text-[11px] text-slate-500">No design sets are available in this project yet.</p>}
           {items.map((candidate) => {
@@ -187,7 +188,30 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
             all, then the one next step. Nothing floats in between. */}
         <div data-design-compare-head className="@container mb-3 flex min-w-0 items-center gap-3">
           <div data-design-title className="flex min-w-0 flex-1 items-center gap-2">
-            <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
+            <h2 className="min-w-0 truncate px-0.5 text-[13px] font-semibold text-slate-100 @[880px]/compare:block hidden">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</h2>
+            {/* (Narrow: the title is the menu of sets — the column beside the drafts is folded into it.) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger data-design-set-menu disabled={items.length < 2} className="ds-intrinsic flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-[13px] font-semibold text-slate-100 transition-colors hover:bg-white/[0.06] disabled:pointer-events-none @[880px]/compare:hidden">
+                <span className="min-w-0 truncate">{item?.title ?? (items.length ? 'Choose a design set' : 'No design sets are available in this project yet.')}</span>
+                {items.length > 1 && <ChevronDown className="size-3.5 shrink-0 text-slate-400" />}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-[60vh] min-w-64 overflow-y-auto">
+                {items.map((candidate) => {
+                  const review = reviewForDesign(candidate, conflicts)
+                  const state = draftScreens[candidate.id] ? mixStatusOf(candidate, review && isDesignReview(review) ? review : null, mixRecordsOf(candidate, historyEntries).length > 0) : designReviewStatus(candidate, review)
+                  return (
+                    <DropdownMenuItem key={candidate.id} data-design-set-option={candidate.id} onClick={() => pickItem(candidate.id)} className="gap-2 text-xs">
+                      <Check className={cn('size-3.5 shrink-0', candidate.id === itemId ? 'opacity-100' : 'opacity-0')} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{candidate.title}</span>
+                        <span className={cn('block text-[10.5px]', state.className)}>{state.label}</span>
+                      </span>
+                      <span className="shrink-0 text-[10.5px] text-slate-500 tabular-nums">{designCompareOptions(candidate).length}</span>
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div data-design-actions className="flex shrink-0 items-center">
             {/* (Picking which drafts to compare: only with more than two, and only while there's a mix to start.) */}
@@ -269,7 +293,8 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
         {item && (
           // Every draft side by side, each carrying what sets it apart — the
           // same properties in the same order, so the cards read across.
-          <div className="grid min-h-[220px] flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(options.length, 4) + (current ? 1 : 0)}, minmax(0, 1fr))` }}>
+          // (As tall as they are — never stretched to the pane — and as many to a row as fit at 200px or more, sharing the row between them.)
+          <div data-design-grid className="grid content-start items-start gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${options.length + (current ? 1 : 0) <= 2 ? 220 : 200}px), 1fr))` }}>
             {options.map((option, index) => (
               <DesignOptionCard
                 key={option.key}
@@ -295,7 +320,6 @@ function DesignComparePanel({ items, itemId, selectedKeys, onSelectItem, onToggl
                 // (Once there's a mix: which of its properties went in, and how many parts it gave.)
                 traits={(item.differences ?? []).map((difference) => ({ id: difference.id, label: difference.label, value: difference.values[index], used: current ? traitUsedOf(difference, current.sources, option.key) : null }))}
                 usedCount={current ? usedCountOf(current.sources, option.key) : null}
-                wide={options.length <= 2 && !current}
               />
             ))}
             {current && <MixResultCard item={item} record={current} older={saves.slice(1)} status={status} onViewCode={current.hasCode && current.id ? () => setCodeEntryId(current.id) : null} />}
@@ -398,9 +422,18 @@ function MixResultCard({ item, record, older = [], status, onViewCode }) {
 // can still be ticked.
 // `usedCount`: once there's a mix, how many parts it took from this draft
 // ("요소 N개 사용" — the count Merge Studio's draft cards show).
-function DesignOptionCard({ option, index, choosing, selected, used = null, usedCount = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [], wide = false }) {
+function DesignOptionCard({ option, index, choosing, selected, used = null, usedCount = null, onToggle, commentMode, onStartComment, onSelectLayer, frame, effects, traits = [] }) {
   const boardRef = useRef(null)
+  const cardRef = useRef(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
+  // (Wide enough — 520px — the screen and what it is sit side by side; narrower, one under the other.)
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    if (!cardRef.current) return undefined
+    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 520))
+    observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!boardRef.current) return undefined
@@ -412,7 +445,8 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, used
   const letter = String.fromCharCode(65 + index)
   const name = `${option.label.startsWith('AI ') ? 'AI ' : ''}시안 ${letter}`
   // The whole screen, fit inside the preview box (by width and height).
-  const scale = frame && box.width && box.height ? Math.min(box.width / frame.width, box.height / frame.height) : 0
+  // (Less the box's 8px padding on each side.)
+  const scale = frame && box.width && box.height ? Math.max(0, Math.min((box.width - 16) / frame.width, (box.height - 16) / frame.height)) : 0
   const toggle = choosing ? onToggle : undefined
   const pickable = choosing ? { role: 'checkbox', tabIndex: 0, 'aria-checked': selected, 'aria-label': `Select ${option.label}`, onClick: toggle, onKeyDown: (event) => {
     if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
@@ -421,7 +455,7 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, used
   } } : {}
 
   return (
-    <article data-design-option={option.key} className={cn('group flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border transition-colors', choosing && selected ? 'border-emerald-400/50 bg-emerald-400/[0.04]' : 'border-white/[0.07] bg-white/[0.02]', choosing && !selected && 'opacity-60')}>
+    <article ref={cardRef} data-design-option={option.key} data-wide={wide ? '' : undefined} className={cn('group flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border transition-colors', choosing && selected ? 'border-emerald-400/50 bg-emerald-400/[0.04]' : 'border-white/[0.07] bg-white/[0.02]', choosing && !selected && 'opacity-60')}>
       <div className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-2.5 pb-2">
         <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold', choosing && selected ? 'bg-emerald-300 text-slate-950' : 'bg-white/[0.08] text-slate-200')}>{letter}</span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-100" title={option.label}>{traits.length ? name : option.label}</span>
@@ -453,12 +487,14 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, used
         </button>
       </div>
       {/* (Two drafts, each card wide: the screen and what it is side by side.) */}
-      <div className={cn('flex min-h-0 flex-1', wide ? 'flex-row items-stretch gap-1 pb-3' : 'flex-col')}>
+      <div className={cn('flex min-h-0', wide ? 'flex-row items-center gap-1 pb-3' : 'flex-col')}>
       {frame ? (
         <div
           {...pickable}
           ref={boardRef}
-          className={cn('relative mx-3 flex min-h-[140px] flex-1 justify-center overflow-hidden rounded-lg bg-black/20 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', commentMode && 'cursor-crosshair', choosing && !commentMode && 'cursor-pointer')}
+          // (In the screen's own proportions, no taller than 420px: the whole screen, never a sliver or a void.)
+          style={{ aspectRatio: `${frame.width} / ${frame.height}` }}
+          className={cn('relative mx-3 flex max-h-[420px] min-w-0 items-center justify-center overflow-hidden rounded-lg bg-black/20 p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300', wide ? 'flex-1' : '', commentMode && 'cursor-crosshair', choosing && !commentMode && 'cursor-pointer')}
         >
           <div className="relative overflow-hidden rounded-md bg-white shadow-lg shadow-black/20 ring-1 ring-slate-200/80" style={{ width: frame.width * scale, height: frame.height * scale }}>
           <div className="absolute top-0 left-0 origin-top-left" style={{ width: frame.width, height: frame.height, transform: `scale(${scale})` }}>
@@ -469,7 +505,7 @@ function DesignOptionCard({ option, index, choosing, selected, used = null, used
           </div>
         </div>
       ) : (
-        <div {...pickable} className="mx-3 flex min-h-28 flex-1 items-center justify-center rounded-lg bg-black/10 text-[10px] text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
+        <div {...pickable} className="mx-3 flex min-h-28 items-center justify-center rounded-lg bg-black/10 text-[10px] text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">
           No design preview
         </div>
       )}
