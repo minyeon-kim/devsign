@@ -120,11 +120,11 @@ function CountBubble({ count, label, onOpen, cardId }) {
       title={label}
       translate="no"
       onClick={onOpen}
-      className="ds-intrinsic group/bubble relative flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300"
+      className="ds-intrinsic group/bubble relative flex size-7 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300"
     >
       {/* Its halo, and ripples that keep spreading out to its edge and fading (ds-ripple: two, half a beat
           apart) — still under reduced motion. */}
-      <span aria-hidden className="pointer-events-none absolute -inset-4 rounded-full bg-[#F04E5A]/[0.12]" />
+      <span aria-hidden className="pointer-events-none absolute -inset-2 rounded-full bg-[#F04E5A]/[0.12]" />
       <span aria-hidden data-ripple className="ds-ripple pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A]/40" />
       <span aria-hidden data-ripple className="ds-ripple ds-ripple-late pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A]/40" />
       <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A] shadow-md shadow-[#F04E5A]/40 transition-transform group-hover/bubble:scale-105" />
