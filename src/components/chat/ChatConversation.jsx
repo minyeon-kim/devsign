@@ -663,12 +663,13 @@ function ChatConversation() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-transparent bg-white/[0.035] transition-[border-color,box-shadow] duration-200 focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/15 ">
+        {/* (iOS: one well-rounded field — 24px corners, its contents kept clear of them.) */}
+        <div className="rounded-[24px] border border-transparent bg-white/[0.035] transition-[border-color,box-shadow] duration-200 focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/15 ">
           {/* In Merge Studio the conversation is about the open item, so a
               file chip only shows for an element selected on its canvas —
               never a stray code file the item doesn't touch. */}
           {(!chatThreadItem || target) && (
-            <div className="flex min-w-0 items-center px-3 pt-2">
+            <div className="flex min-w-0 items-center px-3.5 pt-2.5">
               <TargetChip
                 target={target}
                 options={options}
@@ -682,9 +683,9 @@ function ChatConversation() {
             onKeyDown={handleKeyDown}
             rows={2}
             placeholder={translateText('Ask Devsign to tweak the design or code...', language)}
-            className="w-full resize-none border-none bg-transparent px-3 py-2 text-xs outline-none placeholder:text-muted-foreground"
+            className="w-full resize-none border-none bg-transparent px-4 py-2 text-xs outline-none placeholder:text-muted-foreground"
           />
-          <div className="flex items-center justify-between px-1.5 pb-1.5">
+          <div className="flex items-center justify-between px-2.5 pb-2.5">
             <div className="flex items-center gap-0.5">
               <Button type="button" variant="ghost" size="icon-xs" onClick={handleAttach} title="Attach file" aria-label="Attach file">
                 <Paperclip className="size-3.5" />

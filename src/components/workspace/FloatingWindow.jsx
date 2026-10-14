@@ -46,7 +46,7 @@ const DRAG_THRESHOLD = 4
 // what opens from it over the content (CanvasSideViews) — the content itself runs under both.
 // `viewDockEnd`: the right panel, the same way after the content. `viewDock` (the main window): the tool panel, a flex child before the content in the same row — it takes
 // its width and the content gets the rest.
-function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, viewRail = null, viewOverlay = null, viewDock = null, viewDockEnd = null, viewCovered = false, surface = 'card' }) {
+function FloatingWindow({ group, panelsById, dockApi, components, docked = false, onDockDragStart, sideToggle = null, viewTabs = null, viewPanel = null, headerEnd = null, bareHeader = false, viewRail = null, viewOverlay = null, viewDock = null, viewDockEnd = null, viewCovered = false, surface = 'card' }) {
   const dragRef = useRef(null)
   // The header's slot for the active panel's own toolbar (see
   // WindowHeaderSlot) — file tabs / page tabs sit on the title line.
@@ -143,7 +143,7 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
             <>
               {viewTabs}
               <div role={isNavigatorGroup ? 'tablist' : undefined} aria-label={isNavigatorGroup ? 'Side panel views' : undefined} className={cn("flex min-w-0 items-center gap-1", isNavigatorGroup ? 'flex-1 overflow-hidden' : 'shrink overflow-x-auto [scrollbar-width:none]')}>
-                {group.panelIds.map((pid) =>
+                {!bareHeader && group.panelIds.map((pid) =>
                   // (The main window's row is its three views and nothing else: no tab for a canvas page or an open file.)
                   panelsById[pid] && !(viewTabs && ['preview', 'screens', 'canvas', 'editor'].includes(panelsById[pid].component)) ? (
                     <PanelTabs
@@ -157,7 +157,8 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
                   ) : null
                 )}
               </div>
-              {!isNavigatorGroup && !viewTabs && <AddViewMenu group={group} dockApi={dockApi} />}
+              {/* (`bareHeader`: AI Chat's row — no tab naming it, no `+`; only what it puts there itself.) */}
+              {!isNavigatorGroup && !viewTabs && !bareHeader && <AddViewMenu group={group} dockApi={dockApi} />}
             </>
           ) : (
           <div className="flex min-w-0 flex-1 items-center gap-1">

@@ -612,6 +612,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
             viewCovered={!mergeStudio && group.id === mainGroupId && Boolean(studio)}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
+            bareHeader={!mergeStudio && group.id === chatGroupId}
             // (No fold button in either side's own row: the side panel folds from the top bar's sidebar toggle, AI Chat from its button there.)
             sideToggle={null}
           />
