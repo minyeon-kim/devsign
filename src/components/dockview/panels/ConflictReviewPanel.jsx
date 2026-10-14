@@ -895,11 +895,13 @@ function CheckBlocks({ checks, state, actions }) {
 }
 
 
-function CodeDiffColumns({ rows, codeConflict = false }) {
+// `location`: the file and line, said at the left of the row the layout tabs are on.
+function CodeDiffColumns({ rows, codeConflict = false, location = null }) {
   return (
     <div className="min-w-0 space-y-2">
       <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
         {!codeConflict && <><Sparkles className="size-3 shrink-0 text-emerald-300" /><LocalizedText text="AI suggestion" /></>}
+        {location && <span data-conflict-code-location translate="no" title={location} className="min-w-0 truncate font-mono text-[11px] font-normal text-slate-500">{location.split('/').at(-1)}</span>}
         {/* (How the diff is laid out is a view control: up in the detail's header, beside Close.) */}
         <ReviewHeaderPortal fallbackClassName="ml-auto"><DiffLayoutTabs /></ReviewHeaderPortal>
       </div>
@@ -1347,7 +1349,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       {pairedPreview && flow && !readOnly && hideReference && breaks('B').length > 0 && (
         <p data-no-reference className="-mt-1.5 mb-3 text-xs leading-[18px] text-slate-400"><LocalizedText text="The design reference doesn’t keep the rule either. Adjusting it by hand can." /></p>
       )}
-      {!pairedPreview && flow?.editing && flow.openStudio && (
+      {/* (Not for a merge conflict in code: there's nothing to adjust in Merge Studio.) */}
+      {!pairedPreview && !codeConflict && flow?.editing && flow.openStudio && (
         <div className="mb-3 flex min-w-0 items-center">
           <button type="button" title="Adjust the design in Merge Studio. This doesn't approve or merge the change." onClick={flow.openStudio} className={cn(NAV_BUTTON, 'ml-auto')}>
             <LocalizedText text="Adjust in Merge Studio" />
@@ -1643,8 +1646,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             )}
             {codeConflict && conflict.diff && !readOnly && (
               <section data-code-conflict className="min-w-0 space-y-3">
-                <div className={SECTION_HEAD}><h3 className={SECTION_TITLE}><LocalizedText text="Change summary" /></h3></div>
-                {/* (One line on what overlaps; each branch's change is said on its own choice below.) */}
+                {/* (One line on what overlaps; what each way does is said on the one picked.) */}
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.conflict ?? conflict.cause ?? conflict.message} /></p>
                 {(() => {
                   const before = conflict.diff.before ?? []
@@ -1664,14 +1666,13 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                                   ? <span className="shrink-0 rounded bg-emerald-400/10 px-1.5 text-[10.5px] leading-4 font-medium text-emerald-200"><LocalizedText text={option.note} /></span>
                                   : <span translate="no" className="ml-auto min-w-0 truncate font-mono text-[10.5px] text-slate-500" title={option.note}>{option.note}</span>)}
                               </span>
-                              {option.desc && <span className="text-xs leading-5 text-slate-400"><LocalizedText text={option.desc} /></span>}
+                              {on && option.desc && <span className="text-xs leading-5 text-slate-400"><LocalizedText text={option.desc} /></span>}
                             </span>
                           </button>
                         )
                       })}
                     </div>
-                    <p data-conflict-code-location className="break-all font-mono text-[11px] text-slate-500">{conflict.file}:{conflict.line ?? 1}</p>
-                    <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict />
+                    <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict location={`${conflict.file}:${conflict.line ?? 1}`} />
                   </>
                 })()}
               </section>
