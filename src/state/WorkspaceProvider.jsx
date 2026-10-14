@@ -624,6 +624,11 @@ export function WorkspaceProvider({ children, projectId }) {
     const file = prototypeFileForPage(activePageId)
     if (file) setActiveFileIdState(file.id)
   }, [workspaceView, activePageId])
+  // The navigator follows the view: Code shows Files; Screens shows Layers / Assets / Inspect (see PanelTabs).
+  useEffect(() => {
+    if (workspaceView === 'code' && ['layers', 'assets', 'inspect', 'blockDeck'].includes(filesWindow.tab)) setFilesWindow({ tab: 'files' })
+    else if (workspaceView === 'screens' && filesWindow.tab === 'files') setFilesWindow({ tab: 'layers' })
+  }, [workspaceView]) // eslint-disable-line react-hooks/exhaustive-deps
   // Where the Screens board was left (its pan and zoom), kept while other views are up.
   const boardView = useRef(null)
   // The dockview API, handed up once DockLayout's onReady fires — stored

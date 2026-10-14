@@ -38,7 +38,7 @@ function SidebarToggle() {
   const { leftOpen: open, toggleLeft } = useWorkspace()
   const label = open ? 'Close sidebar' : 'Open sidebar'
   return (
-    <div className="group/sidebar-toggle relative flex shrink-0">
+    <div className="relative flex shrink-0">
       <button
         type="button"
         data-sidebar-toggle={open ? 'open' : 'closed'}
@@ -54,10 +54,6 @@ function SidebarToggle() {
           {open && <path data-sidebar-filled d="M5 3h4v18H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor" stroke="none" />}
         </svg>
       </button>
-      {/* (From the button's left edge: it's the first thing in the bar.) */}
-      <span role="tooltip" className="pointer-events-none absolute top-[calc(100%+8px)] left-0 z-[100] whitespace-nowrap rounded-md border border-[color:var(--ds-border-subtle)] bg-popover px-2 py-1 text-[11px] text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/sidebar-toggle:opacity-100 group-focus-within/sidebar-toggle:opacity-100">
-        {label}
-      </span>
     </div>
   )
 }

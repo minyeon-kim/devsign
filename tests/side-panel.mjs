@@ -109,8 +109,8 @@ try {
   assert.ok(layout.includes('onReset: () => setSidePanel({ width: SIDE_PANEL.width })') && read('components/layout/SplitHandle.jsx').includes('onDoubleClick={onReset}'))
   // Shortcuts: ⌘/Ctrl+B or \ — not while typing; ⌘/Ctrl+L for AI Chat.
   assert.ok(layout.includes("if (key === 'b' || key === '\\\\') {") && layout.includes('if (!sideGroup || isTyping(event.target)) return') && layout.includes("} else if (key === 'l') {"))
-  // Its fold button says what it does and what it folds.
-  assert.ok(layout.includes("{ label: 'Collapse panel', hint: SIDE_SHORTCUT, controls: SIDE_ID") && windowSource.includes('aria-controls={sideToggle.controls}') && sidebar.includes('aria-expanded={expanded}'))
+  // No fold button of its own: the top bar's sidebar toggle is the one switch.
+  assert.ok(!layout.includes("label: 'Collapse panel'") && windowSource.includes('aria-controls={sideToggle.controls}') && sidebar.includes('aria-expanded={expanded}'))
 
   // --- AI Chat: its own window at the right, folded by default, kept while folded ---
   assert.ok(panels.includes("position: { direction: 'right', referencePanel: panelById.canvas.id },\n    share: 0.3,"))

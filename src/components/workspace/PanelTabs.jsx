@@ -67,7 +67,10 @@ function PanelTabs({ pid, panel, group, dockApi, onDragStart }) {
     })
   } else if (panel.component === 'navigator') {
     const tool = TOOL_TABS.find((entry) => entry.id === workspace.filesWindow.tab)
-    items = (tool ? [tool] : NAVIGATOR_TABS).map(({ id, label, icon: Icon }) => ({
+    // (Code: its files. Screens: the canvas's layers, assets and properties. Preview: all four.)
+    const view = workspace.activeView === 'mergeStudio' ? null : workspace.workspaceView
+    const shown = view === 'code' ? NAVIGATOR_TABS.filter((tab) => tab.id === 'files') : view === 'screens' ? NAVIGATOR_TABS.filter((tab) => tab.id !== 'files') : NAVIGATOR_TABS
+    items = (tool ? [tool] : shown).map(({ id, label, icon: Icon }) => ({
       key: id,
       label,
       icon: <Icon className="size-3.5 shrink-0" />,

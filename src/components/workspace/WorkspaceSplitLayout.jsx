@@ -62,7 +62,6 @@ const NAVIGATOR_W = 240
 // the left) and AI Chat (at the right) fold away; whether they're open and
 // how wide is kept for the browser (lib/panelPrefs). Their shortcuts:
 const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
-const SIDE_SHORTCUT = MAC ? '⌘B' : 'Ctrl+B'
 const CHAT_SHORTCUT = MAC ? '⌘L' : 'Ctrl+L'
 // (The ids their toggles name with `aria-controls`.)
 const SIDE_ID = 'workspace-side-panel'
@@ -613,9 +612,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
             viewCovered={!mergeStudio && group.id === mainGroupId && Boolean(studio)}
             // (AI Chat on the app's ground, #141414 — as what opens at the left.)
             surface={!mergeStudio && group.id === chatGroupId ? 'base' : 'card'}
-            // The side panel's and AI Chat's own tab rows carry their fold buttons.
+            // AI Chat's tab row carries its fold button; the side panel folds from the top bar's sidebar toggle only.
             sideToggle={mergeStudio ? null
-              : group.id === sideGroupId ? { label: 'Collapse panel', hint: SIDE_SHORTCUT, controls: SIDE_ID, onToggle: () => setSidePanel({ open: false }) }
               : group.id === chatGroupId ? { label: 'Collapse AI Chat', hint: CHAT_SHORTCUT, controls: CHAT_ID, mirrored: true, onToggle: () => setAiChat({ open: false }) }
               : null}
           />
