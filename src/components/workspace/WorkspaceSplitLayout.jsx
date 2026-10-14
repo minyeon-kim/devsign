@@ -644,7 +644,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     <div data-panel-tabs={openPanel ?? undefined} onPointerDown={(event) => event.stopPropagation()}
       style={panelWidth ? { width: panelWidth - 8 } : undefined}
       className={cn('flex shrink-0 items-center gap-1.5 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'pl-2')}>
-      {/* (Open: the tabs at the right, beside ×.) */}
+      {/* (One capsule — Conflict · Merge, and × as its last segment while either is open — at the right.) */}
       <div className={cn('flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5', openPanel && 'ml-auto')}>
         <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
           onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
@@ -656,14 +656,14 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
         </button>
         <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-expanded={designComparePanelOpen} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
           className={cn(SEGMENT, openPanel === 'merge' ? cn(RAISED, 'font-semibold text-white') : 'text-slate-400 hover:text-slate-200')}>병합 <span data-merge-count className="text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
+        {openPanel && (
+          <button type="button" data-panel-close data-board-conflicts-close={openPanel === 'conflicts' ? '' : undefined} data-design-compare-close={openPanel === 'merge' ? '' : undefined}
+            aria-label={openPanel === 'conflicts' ? '변경확인 닫기' : '디자인 비교 닫기'} onClick={closePanel}
+            className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 animate-in fade-in zoom-in-90 duration-150 motion-reduce:animate-none">
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
-      {openPanel && (
-        <button type="button" data-panel-close data-board-conflicts-close={openPanel === 'conflicts' ? '' : undefined} data-design-compare-close={openPanel === 'merge' ? '' : undefined}
-          aria-label={openPanel === 'conflicts' ? '변경확인 닫기' : '디자인 비교 닫기'} onClick={closePanel}
-          className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-          <X className="size-4" />
-        </button>
-      )}
     </div>
   )
 
