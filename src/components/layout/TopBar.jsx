@@ -28,40 +28,10 @@ import { Sparkles } from 'lucide-react'
 // here — so repeating both of those a few pixels away added nothing
 // (the old "Workspace" segment even linked to the page already open).
 // This keeps just what the rail can't show: which project you're in.
-// The left area's switch, first in the bar: always here (the bar narrowing
-// never takes it away). It shows whether anything is open at the left — the
-// side panel or a work pane (WorkspaceProvider's `leftOpen`, the same state
-// the activity bar's icons and ⌘B change) — as the sidebar icon with its
-// side filled while something is; off, that closes; on, what was last open
-// comes back.
-function SidebarToggle() {
-  const { leftOpen: open, toggleLeft } = useWorkspace()
-  const label = open ? 'Close sidebar' : 'Open sidebar'
-  return (
-    <div className="relative flex shrink-0">
-      <button
-        type="button"
-        data-sidebar-toggle={open ? 'open' : 'closed'}
-        aria-label={label}
-        aria-expanded={open}
-        aria-controls="work-pane"
-        onClick={toggleLeft}
-        className="ds-header-pill flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
-      >
-        <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M9 3v18" />
-          {open && <path data-sidebar-filled d="M5 3h4v18H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor" stroke="none" />}
-        </svg>
-      </button>
-    </div>
-  )
-}
-
+// (The sidebar's switch is in the activity rail now: SidebarToggle.)
 function ProjectTitle({ project }) {
   return (
     <div className="workspace-canvas-toolbar absolute top-2 left-2 z-40 flex h-8 max-w-[480px] min-w-0 items-center gap-1.5 text-[13px]">
-      <SidebarToggle />
       <Link
         to={`/projects/${project?.id}`}
         title={`Open ${project?.name}`}

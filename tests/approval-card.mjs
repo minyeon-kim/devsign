@@ -90,11 +90,13 @@ try {
   assert.ok(layout.includes('data-chat-awaiting') && layout.indexOf('data-chat-awaiting') < layout.indexOf('data-chat-unread'))
   assert.ok(chat.includes('if (chatOpen && awaiting) requestAnimationFrame(showPending)'))
 
-  // --- The top bar's sidebar switch: the side panel's own state, nothing kept beside it ---
-  assert.ok(topBar.includes('const { leftOpen: open, toggleLeft } = useWorkspace()') && !/useState/.test(topBar.slice(topBar.indexOf('function SidebarToggle'), topBar.indexOf('function ProjectTitle'))))
-  assert.ok(topBar.includes('aria-expanded={open}') && topBar.includes('aria-controls="work-pane"') && topBar.includes("const label = open ? 'Close sidebar' : 'Open sidebar'"))
-  assert.ok(topBar.includes('{open && <path data-sidebar-filled') && !/Chevron/.test(topBar), 'filled when open — not an arrow')
-  assert.ok(topBar.indexOf('<SidebarToggle />') < topBar.indexOf('{project?.name}'), 'first in the bar')
+  // --- The sidebar's switch, in the activity rail under the project's mark: the side panel's own state, nothing kept beside it ---
+  const toggle = readFileSync(new URL('../src/components/layout/SidebarToggle.jsx', import.meta.url), 'utf8')
+  const sidebarSource = readFileSync(new URL('../src/components/dashboard/Sidebar.jsx', import.meta.url), 'utf8')
+  assert.ok(toggle.includes('const { leftOpen: open, toggleLeft } = workspace') && !/useState/.test(toggle))
+  assert.ok(toggle.includes('aria-expanded={open}') && toggle.includes('aria-controls="work-pane"') && toggle.includes("const label = open ? 'Close sidebar' : 'Open sidebar'"))
+  assert.ok(toggle.includes('{open && <path data-sidebar-filled') && !/Chevron/.test(toggle), 'filled when open — not an arrow')
+  assert.ok(sidebarSource.indexOf('<SidebarToggle />') < sidebarSource.indexOf('<nav aria-label="Main"') && !topBar.includes('<SidebarToggle'), 'in the rail, right under the project — not in the top bar')
   assert.ok(layout.includes("document.querySelector('[data-sidebar-toggle]') ??"), 'folded with the focus inside: the focus goes to it')
   console.log('Passed: approval cards from the request’s own data, above the message and folded once decided; the top bar’s sidebar switch.')
 } finally { await server.close() }

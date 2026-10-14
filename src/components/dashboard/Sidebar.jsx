@@ -1,11 +1,12 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
+import SidebarToggle from '@/components/layout/SidebarToggle'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
 import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Maximize2, Minimize2, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutGrid, LayoutPanelLeft, PanelLeftClose, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -146,6 +147,9 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         </span>
       </div>
 
+      {/* (The sidebar's switch: under the project's mark, in the same place open or folded.) */}
+      {project && <SidebarToggle />}
+
       <nav aria-label="Main" className="flex flex-col gap-1">
         {project ? (
           <>
@@ -230,38 +234,6 @@ export function PanelToggleButton({ label, tip = label, hint = null, onClick, mi
       </TooltipTrigger>
       <TooltipContent side={side}>{tip}{hint && <span className="ml-1.5 opacity-60">{hint}</span>}</TooltipContent>
     </Tooltip>
-  )
-}
-
-// Claude-style back / forward icons in the drawer header — through the
-// browser history, so ‹ from anywhere in Docs returns to where you
-// came from (e.g. the Workspace), and › goes forward again.
-function HistoryNavButtons() {
-  const navigate = useNavigate()
-  useLocation() // re-render on every navigation so the enabled states stay current
-  // Only enabled when there's somewhere to go inside the app — never back
-  // out of it: Back uses react-router's own history index (0 = the first
-  // page of this visit); Forward asks the Navigation API where supported.
-  const canGoBack = (window.history.state?.idx ?? 0) > 0
-  const canGoForward = window.navigation?.canGoForward ?? true
-
-  const buttonClass =
-    'flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35'
-  return (
-    <div className="flex shrink-0 items-center">
-      <Tooltip>
-        <TooltipTrigger type="button" aria-label="Back" disabled={!canGoBack} onClick={() => navigate(-1)} className={buttonClass}>
-          <ChevronLeft className="size-4" />
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Back</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger type="button" aria-label="Forward" disabled={!canGoForward} onClick={() => navigate(1)} className={buttonClass}>
-          <ChevronRight className="size-4" />
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Forward</TooltipContent>
-      </Tooltip>
-    </div>
   )
 }
 
@@ -456,7 +428,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
                   </Tooltip>
                 )}
               </>
-            ) : <HistoryNavButtons />}
+            ) : null}
           </div>
           {/* (The list drawers keep their top — search, filters — and scroll their list themselves.) */}
           <div className={cn('min-h-0 flex-1 px-2', panel === 'history' || panel === 'conflicts' || panel === 'compare' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto')}>

@@ -70,6 +70,17 @@ function GraphRow({ row, lanes, colors, currentBranch, selected, current, height
 // When a checkpoint was made, as its group and its time of day: "Yesterday,
 // 5:20 PM" → the group "Yesterday" and "오후 5:20" (the day is the group's).
 // A group is today, yesterday, this week, or before that.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAY_KO = { Mon: '월요일', Tue: '화요일', Wed: '수요일', Thu: '목요일', Fri: '금요일', Sat: '토요일', Sun: '일요일' }
+function dayWord(day, language) {
+  const weekday = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.exec(day)?.[1]
+  if (weekday) return language === 'ko' ? WEEKDAY_KO[weekday] : weekday
+  const ago = /^(\d+) days? ago$/.exec(day)
+  if (ago) return language === 'ko' ? `${ago[1]}일 전` : `${ago[1]}d ago`
+  const date = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w* (\d{1,2})$/.exec(day)
+  if (date && language === 'ko') return `${MONTHS.indexOf(date[1]) + 1}월 ${date[2]}일`
+  return translateText(day, language)
+}
 export function stampOf(timestamp, language) {
   const text = String(timestamp ?? '')
   const comma = text.indexOf(', ')
@@ -82,7 +93,10 @@ export function stampOf(timestamp, language) {
       : (ago && Number(ago[1]) < 7) || /^(Mon|Tues?|Wed(nes)?|Thu(rs)?|Fri|Sat(ur)?|Sun)(day)?$/.test(day) ? 'This week'
         : 'Before that'
   const match = /^(\d{1,2}:\d{2}) (AM|PM)$/.exec(clock)
-  const time = match ? (language === 'ko' ? `${match[2] === 'AM' ? '오전' : '오후'} ${match[1]}` : clock) : translateText(clock || day, language)
+  const clockText = match ? (language === 'ko' ? `${match[2] === 'AM' ? '오전' : '오후'} ${match[1]}` : clock) : translateText(clock || day, language)
+  // (Today / yesterday: the group says the day, so the time alone. Earlier: which day, alone — "월요일",
+  // "4일 전", "10월 3일" — short enough to leave the title its room; a time of day that long ago says little.)
+  const time = group === 'Today' || group === 'Yesterday' ? clockText : dayWord(day, language)
   return { group, time }
 }
 
@@ -359,23 +373,24 @@ function HistoryDrawer() {
                       selected={selected}
                       onOpen={() => open(entry.id)}
                       title={entry.label}
-                      aria-label={whole ? `${entry.label} — ${whole}` : entry.label}
-                      titleAdornment={isCurrent ? <span data-history-current className="inline-flex h-4 shrink-0 items-center rounded bg-white/10 px-1.5 text-[11px] font-medium text-slate-200"><LocalizedText text="Current" /></span> : null}
+                      // (Current: its dot on the rail is filled — said in words to a screen reader only. The branch: on the meta line's hover.)
+                      aria-label={`${entry.label}${isCurrent ? ' (Current)' : ''}${whole ? ` — ${whole}` : ''}${showBranch ? ` · ${branchLabel}` : ''}`}
+                      data-history-current={isCurrent ? '' : undefined}
                       time={<span translate="no">{time}</span>}
                       meta={(
                         <>
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0 truncate" title={showBranch ? branchLabel : undefined} data-branch={showBranch ? branchLabel : undefined}>
                             {who && <LocalizedText text={who} />}{who && KIND_LABEL[entry.kind] && ' · '}{KIND_LABEL[entry.kind] && <LocalizedText text={KIND_LABEL[entry.kind]} />}
                           </span>
-                          {showBranch && <span translate="no" data-branch className="min-w-0 shrink-[3] truncate font-mono text-[11px]">· {branchLabel}</span>}
                           {marks.length > 0 && (
                             <span
                               data-conflict-mark={openMarks.length ? 'open' : 'resolved'}
+                              // (An icon only, the changes it caused on hover — no word crowding the line.)
                               title={marks.map((mark) => mark.label).join(' · ')}
-                              className={cn('ds-intrinsic ml-auto inline-flex h-4 shrink-0 items-center gap-0.5 font-medium', openMarks.length ? 'text-amber-300' : 'text-slate-500')}
+                              aria-label={openMarks.length ? '변경 확인' : '해결됨'}
+                              className={cn('ds-intrinsic ml-auto inline-flex h-4 shrink-0 items-center', openMarks.length ? 'text-amber-300' : 'text-slate-500')}
                             >
-                              {openMarks.length ? <TriangleAlert className="size-3" /> : <Check className="size-3" />}
-                              <LocalizedText text={openMarks.length ? 'Check change' : 'Resolved'} />
+                              {openMarks.length ? <TriangleAlert aria-hidden className="size-3" /> : <Check aria-hidden className="size-3" />}
                             </span>
                           )}
                         </>
