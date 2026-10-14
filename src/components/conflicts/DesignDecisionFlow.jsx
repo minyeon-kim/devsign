@@ -573,8 +573,8 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   }
   const drawCell = (id) => {
     if (id === 'other' && !proposalOf('other', custom, conflict)?.described) return null
-    if (live) { const values = valuesOf(id); return values ? live(values) : null }
-    return id === 'before' ? <Picture conflict={conflict} which="implementation" maxWidth={320} /> : <Picture conflict={conflict} which={wayWhich(id)} overlap={overlap} maxWidth={320} />
+    if (live) { const values = valuesOf(id); return values ? { focus: live.focus(values), context: live.context(values) } : null }
+    return { focus: id === 'before' ? <Picture conflict={conflict} which="implementation" maxWidth={320} /> : <Picture conflict={conflict} which={wayWhich(id)} overlap={overlap} maxWidth={320} />, context: null }
   }
   // (Each cell's value, as its header says it: the property and the value — the design's way, from what's built to it.)
   const wayOf = (id) => ways.find((option) => option.id === id)
@@ -598,9 +598,21 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       id: option.id,
       label: option.name,
       badge: option.id === 'original' && !readOnly ? '추천' : null,
-      value: option.id === 'original' ? (builtSpec && builtSpec !== option.spec ? `${said(builtSpec)} → ${option.spec}` : said(option.spec))
+      value: option.id === 'original' ? (builtSpec && builtSpec !== option.spec ? `${builtSpec} → ${option.spec}` : said(option.spec))
         : option.id === 'other' ? (proposalOf('other', custom, conflict)?.described ? proposalOf('other', custom, conflict).spec : null) : said(option.spec),
       editor: option.id === 'other' ? ownEditor : null,
+      // (다른 값 before it has one: values to try in a press — drawn at once.)
+      empty: option.id === 'other' && !readOnly && live?.quick && scale?.custom ? (
+        <div data-compare-quick className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
+          <div className="flex flex-wrap justify-center gap-2">
+            {live.quick.map((value) => (
+              <button key={value} type="button" data-quick-value={value} onPointerDown={(event) => event.stopPropagation()} onClick={() => { if (proposal !== 'other') pick('other'); typeValue(value) }}
+                className="ds-intrinsic h-8 min-w-12 rounded-full border border-slate-300 bg-white px-3 font-mono text-[12.5px] font-medium text-slate-800 tabular-nums shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-emerald-500">{value}</button>
+            ))}
+          </div>
+          <p className="text-[12px] text-slate-500">값을 고르거나 위에 입력하면 바로 그려져요</p>
+        </div>
+      ) : null,
     })),
   ]
   const openViewer = () => setViewing(true)
