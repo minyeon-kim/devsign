@@ -11,7 +11,7 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // The detail is the address's (`?compare=`), so Back is the list too. ↑ / ↓ walk the sets, ⌘/Ctrl+[ goes back.
 // Going in, the detail slides 16px from the right and fades in as the sidebar widens (200ms); going back, the
 // other way. Focus goes to the detail's title as it opens and back to the row it came from as it closes.
-export default function ComparePanel({ project, expanded, overlay }) {
+export default function ComparePanel({ project, expanded, overlay, closeButton }) {
   const { mergeItems, projectPages, compareItemId, setCompareItemId, closeCompareView } = useWorkspace()
   const order = orderedDesignSets(mergeItems, projectPages)
   const at = order.findIndex((item) => item.id === compareItemId)
@@ -97,11 +97,13 @@ export default function ComparePanel({ project, expanded, overlay }) {
       <div inert={expanded} aria-hidden={expanded || undefined} className={cn('absolute inset-0 flex w-full flex-col transition-[opacity,transform] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', expanded ? 'pointer-events-none -translate-x-4 opacity-0' : 'translate-x-0 opacity-100')}>
         <div className="mb-1 flex h-[var(--ds-chrome-size)] shrink-0 items-center justify-between gap-1 pr-2 pl-2">
           <p className="min-w-0 flex-1 truncate px-2.5 text-[14px] font-semibold text-foreground">디자인 비교<CompareCount /></p>
+          {closeButton}
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2"><CompareDrawer project={project} /></div>
       </div>
       <section role="complementary" aria-label="디자인 비교 상세" data-compare-detail inert={!expanded} aria-hidden={!expanded || undefined}
         className={cn('absolute inset-0 flex min-h-0 min-w-0 flex-col bg-background transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none', expanded ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-4 opacity-0')}>
+        <div className="absolute top-2 right-2 z-20">{closeButton}</div>
         {mountedId && (
           <div key={mountedId} className="flex min-h-0 min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
