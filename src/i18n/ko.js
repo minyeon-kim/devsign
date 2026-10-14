@@ -822,6 +822,11 @@ View from this screen in Preview|미리보기에서 이 화면부터 보기
 Previous screen with changes|충돌이 있는 이전 화면
 Next screen with changes|충돌이 있는 다음 화면
 Previous conflict · K|이전 충돌 · K
+Behavior conflict|동작 충돌
+Calculation conflict|계산 충돌
+Code merge conflict|병합 충돌
+Risk high|높음
+Risk medium|중간
 Next conflict · J|다음 충돌 · J
 Previous conflict|이전 충돌
 Next conflict|다음 충돌

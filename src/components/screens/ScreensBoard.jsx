@@ -811,6 +811,7 @@ function ScreensBoard() {
           groups={boardGroups}
           total={changes.total}
           focusScreenId={boardConflicts.screenId ?? null}
+          currentScreenId={activePageId}
           picked={pickedConflict}
           onPick={pickBoardConflict}
           onBack={() => setBoardConflicts({ conflictId: null })}
