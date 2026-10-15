@@ -372,19 +372,22 @@ function ApprovalCard({ message }) {
           <button type="button" onClick={() => act(failed)} className="ds-intrinsic rounded-full px-2 py-0.5 font-medium text-slate-100 underline-offset-2 hover:underline">Retry</button>
         </p>
       )}
+      {/* Details at the left; the answer — Decline, then Approve last — at the card's right, where its way on goes. */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" data-approval-approve disabled={Boolean(busy)} aria-busy={busy === 'approve'} onClick={() => act('approve')}
-          className="ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-full bg-emerald-400 px-3 text-[11px] font-semibold leading-none text-slate-950 transition-colors hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-60">
-          {busy === 'approve' ? 'Applying…' : 'Approve'}
-        </button>
-        <button type="button" data-approval-decline disabled={Boolean(busy)} aria-busy={busy === 'decline'} onClick={() => act('decline')} className={cn(RESULT_ACTION, 'disabled:pointer-events-none disabled:opacity-60')}>
-          Decline
-        </button>
         <button type="button" data-approval-more aria-expanded={open} onClick={() => setOpen((value) => !value)}
-          className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300">
+          className="ds-intrinsic -ml-2.5 inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300">
           {open ? 'Hide details' : 'Show details'}
           <ChevronDown className={cn('size-3 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-180')} />
         </button>
+        <span className="ml-auto flex items-center gap-2">
+          <button type="button" data-approval-decline disabled={Boolean(busy)} aria-busy={busy === 'decline'} onClick={() => act('decline')} className={cn(RESULT_ACTION, 'disabled:pointer-events-none disabled:opacity-60')}>
+            Decline
+          </button>
+          <button type="button" data-approval-approve disabled={Boolean(busy)} aria-busy={busy === 'approve'} onClick={() => act('approve')}
+            className="ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-full bg-emerald-400 px-3 text-[11px] font-semibold leading-none text-slate-950 transition-colors hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-60">
+            {busy === 'approve' ? 'Applying…' : 'Approve'}
+          </button>
+        </span>
       </div>
       {open && <ApprovalDetails result={message.result} />}
     </div>
