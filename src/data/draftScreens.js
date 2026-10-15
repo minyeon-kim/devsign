@@ -339,11 +339,12 @@ export function composeDraftFrame(itemId, base, picks, fallback = null, layout =
     regions.push(...children)
     y += height + GAP
   }
-  // The screen grows to hold everything in it — a part added never spills
-  // past the artboard's bottom edge.
-  const height = Math.max(base.height, y + GAP, reach + GAP)
+  // The artboard keeps the screen's own size, whatever's added to it; what reaches past its foot is the
+  // screen's to scroll (`contentHeight` — StaticFrame scrolls it, as a phone does).
+  const height = base.height
+  const contentHeight = Math.max(base.height, y + GAP, reach + GAP)
   const moved = Object.entries(offsets).map(([id, at]) => `${id}@${at.dx},${at.dy}`).join('-')
-  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => `${region.id}${parents[region.id] ? `>${parents[region.id]}` : ''}`).join('-')}${moved ? `:${moved}` : ''}` : ''}`, height, layers, regions }
+  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => `${region.id}${parents[region.id] ? `>${parents[region.id]}` : ''}`).join('-')}${moved ? `:${moved}` : ''}` : ''}`, height, contentHeight, layers, regions }
 }
 
 // A whole draft as a screen.

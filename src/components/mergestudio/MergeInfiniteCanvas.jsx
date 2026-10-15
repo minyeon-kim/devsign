@@ -615,7 +615,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
 // `tools`: { selected, zoom, onMove(id, by), onRemove(id), onReorder(id,
 // index), letterOf(draftKey) }. The pointer is read against the artboard's
 // own box on screen, so it's right at any zoom.
-function RegionTools({ frame, scale, boxH, tools, overrides }) {
+function RegionTools({ frame, scale, boxH, tools, overrides, scrollTop = 0 }) {
   // The Result is laid out like an auto layout: its parts stack top to
   // bottom, and a part can hold others (stacked inside it, as in Figma).
   // Dragging a part follows the pointer; dropped, it goes between two parts
@@ -700,7 +700,10 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   const ACTION = 'ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
   const zoom = tools.zoom || 1
   return (
-    <div className="pointer-events-none absolute inset-0 z-10">
+    <>
+    {/* (Scrolled with the screen; what's scrolled past its top or foot is cut off there — the icons beside it aren't.) */}
+    <div className="pointer-events-none absolute inset-0 z-10" style={scrollTop || (frame.contentHeight ?? 0) > frame.height ? { clipPath: `inset(-28px -400px 0 -400px)` } : undefined}>
+      <div className="absolute inset-0" style={scrollTop ? { transform: `translateY(${-scrollTop}px)` } : undefined}>
       <div ref={bandRef} data-region-selected={region.id} onPointerDown={startDrag} onClick={(event) => { stop(event); tools.onFocus?.(region.id) }} title={ko ? '끌어서 옮기기 · 원하는 곳에 놓거나, 요소 사이에 놓으면 그 순서로, 다른 요소 위에 놓으면 그 안에 · 더블클릭: 안의 요소 하나' : 'Drag to move · let go anywhere, between parts to reorder, or on a part to put it inside · double-click for one element'} className={cn('pointer-events-auto absolute inset-x-0 cursor-grab rounded-sm ring-2 ring-sky-400 ring-inset active:cursor-grabbing', drag && 'bg-sky-400/10 opacity-80 shadow-xl')} style={{ top: (region.y + offset.y) * scale, height: region.height * scale, transform: `translate(${(offset.x + (drag?.dx ?? 0)) * scale}px, ${(drag?.dy ?? 0) * scale}px)` }} />
       {/* Where it'll land: the line between the parts it snaps into, with the
           spacing it gets there — the layout's gap above and below, and the
@@ -741,18 +744,23 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
             <LocalizedText text={region.label} />{region.copyOf && (ko ? ' · 복제' : ' · copy')}
             {parent && <span className="font-medium text-white/80">{ko ? ' · ' : ' · in '}<LocalizedText text={parent.label} />{ko ? ' 안' : ''}</span>}
           </span>
-          <div data-region-toolbar role="toolbar" aria-label={ko ? '요소 편집' : 'Part'} onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute flex flex-col items-center gap-0.5 rounded-full border border-white/10 bg-[#2B2B2B] p-0.5 shadow-lg" style={{ top: (region.y + offset.y) * scale, left: frame.width * scale + 8 / zoom, transform: `scale(${1 / zoom})`, transformOrigin: 'top left' }}>
-            <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={ACTION}><ArrowUp className="size-3.5" /></button>
-            <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === siblings.length - 1} onClick={() => tools.onMove(region.id, 1)} className={ACTION}><ArrowDown className="size-3.5" /></button>
-            {parent && tools.onUnnest && <button type="button" data-region-unnest aria-label={ko ? '밖으로 빼기' : 'Take out'} title={ko ? `${translateText(parent.label, 'ko')} 밖으로 (바로 아래에)` : `Out of ${parent.label} (right below it)`} onClick={() => tools.onUnnest(region.id)} className={ACTION}><ArrowUpLeft className="size-3.5" /></button>}
-            {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '복제 · 바로 아래에 하나 더' : 'Duplicate · one more, right below'} onClick={() => tools.onDuplicate(region.id)} className={ACTION}><Copy className="size-3.5" /></button>}
-            {placed && tools.onUnplace && <button type="button" data-region-unplace aria-label={ko ? '제자리로' : 'Back in place'} title={ko ? '제자리로 · 쌓인 순서의 자리로' : 'Back in place · its place in the stack'} onClick={() => tools.onUnplace(region.id)} className={ACTION}><RotateCcw className="size-3.5" /></button>}
-            <span aria-hidden className="my-0.5 h-px w-4 bg-white/10" />
-            <button type="button" data-region-remove aria-label={ko ? '빼기' : 'Remove'} title={ko ? '결과에서 빼기 (Delete)' : 'Take out of the Result (Delete)'} onClick={() => tools.onRemove(region.id)} className={cn(ACTION, 'hover:bg-rose-500/15 hover:text-rose-300')}><Trash2 className="size-3.5" /></button>
-          </div>
         </>
       )}
+      </div>
     </div>
+    {/* (The icons: beside the screen, at the part's height as scrolled — kept within the artboard's height.) */}
+    {!drag && (
+      <div data-region-toolbar role="toolbar" aria-label={ko ? '요소 편집' : 'Part'} onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute z-10 flex flex-col items-center gap-0.5 rounded-full border border-white/10 bg-[#2B2B2B] p-0.5 shadow-lg" style={{ top: Math.max(0, Math.min(boxH - 40, (region.y + offset.y) * scale - scrollTop)), left: frame.width * scale + 8 / zoom, transform: `scale(${1 / zoom})`, transformOrigin: 'top left' }}>
+        <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={ACTION}><ArrowUp className="size-3.5" /></button>
+        <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === siblings.length - 1} onClick={() => tools.onMove(region.id, 1)} className={ACTION}><ArrowDown className="size-3.5" /></button>
+        {parent && tools.onUnnest && <button type="button" data-region-unnest aria-label={ko ? '밖으로 빼기' : 'Take out'} title={ko ? `${translateText(parent.label, 'ko')} 밖으로 (바로 아래에)` : `Out of ${parent.label} (right below it)`} onClick={() => tools.onUnnest(region.id)} className={ACTION}><ArrowUpLeft className="size-3.5" /></button>}
+        {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '복제 · 바로 아래에 하나 더' : 'Duplicate · one more, right below'} onClick={() => tools.onDuplicate(region.id)} className={ACTION}><Copy className="size-3.5" /></button>}
+        {placed && tools.onUnplace && <button type="button" data-region-unplace aria-label={ko ? '제자리로' : 'Back in place'} title={ko ? '제자리로 · 쌓인 순서의 자리로' : 'Back in place · its place in the stack'} onClick={() => tools.onUnplace(region.id)} className={ACTION}><RotateCcw className="size-3.5" /></button>}
+        <span aria-hidden className="my-0.5 h-px w-4 bg-white/10" />
+        <button type="button" data-region-remove aria-label={ko ? '빼기' : 'Remove'} title={ko ? '결과에서 빼기 (Delete)' : 'Take out of the Result (Delete)'} onClick={() => tools.onRemove(region.id)} className={cn(ACTION, 'hover:bg-rose-500/15 hover:text-rose-300')}><Trash2 className="size-3.5" /></button>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -784,6 +792,11 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
   const [measureHover, setMeasureHover] = useState(null)
   // (Region tools sit over the unscrolled screen — not in a device's frame.)
   if (device) regionTools = undefined
+  // What's drawn may reach past the artboard's foot (parts added to a composed screen): the artboard keeps its
+  // size and the screen scrolls inside it, as in a device's frame. The region tools scroll with it.
+  const contentH = Math.max(frame.height, frame.contentHeight ?? 0)
+  const scrolls = Boolean(device) || contentH > frame.height
+  const [scrollTop, setScrollTop] = useState(0)
 
   return (
     <div
@@ -819,15 +832,15 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         className={cn('relative overflow-hidden rounded-lg bg-white shadow-2xl shadow-black/40', frameKey === 'result' ? 'ring-2 ring-emerald-300 ring-offset-4 ring-offset-background' : 'ring-1 ring-slate-200/80')}
         style={{ width: boxW, height: boxH }}
       >
-        <div data-device-scroll={device ? device.id : undefined} className={device ? 'h-full overflow-y-auto overscroll-contain [scrollbar-width:thin]' : 'contents'}>
-        <div style={device ? { width: boxW, height: frame.height * scale } : undefined} className={device ? 'relative' : 'contents'}>
+        <div data-device-scroll={scrolls ? (device?.id ?? 'screen') : undefined} onScroll={scrolls ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined} className={scrolls ? 'h-full overflow-y-auto overscroll-contain [scrollbar-width:thin]' : 'contents'}>
+        <div style={scrolls ? { width: boxW, height: contentH * scale } : undefined} className={scrolls ? 'relative' : 'contents'}>
         <div
           ref={measure ? setMeasureBox : undefined}
           data-frame-content
           className="relative"
           style={{
             width: frame.width,
-            height: frame.height,
+            height: contentH,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
           }}
@@ -869,7 +882,7 @@ function StaticFrame({ frameKey, frame, label, accentClass, editable, onEditText
         </div>
         <ResizeHandles onResizeStart={onResizeStart} />
       </div>
-      {regionTools && <RegionTools frame={frame} scale={scale} boxH={boxH} tools={regionTools} overrides={overrides} />}
+      {regionTools && <RegionTools frame={frame} scale={scale} boxH={boxH} tools={regionTools} overrides={overrides} scrollTop={scrollTop} />}
       </div>
     </div>
   )

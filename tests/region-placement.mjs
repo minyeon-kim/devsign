@@ -26,7 +26,8 @@ try {
   const bandOf = (frame, region) => frame.regions.find((entry) => entry.id === region)
   assert.equal(bandOf(moved, last).y - bandOf(still, last).y, 120, 'the part is drawn where it was let go')
   assert.equal(bandOf(moved, ids[0]).y, bandOf(still, ids[0]).y, 'the others keep their places')
-  assert.ok(moved.height >= still.height, 'the screen holds it')
+  assert.equal(moved.height, base.height, 'the artboard keeps its size')
+  assert.ok(moved.contentHeight > still.contentHeight - 1 && moved.contentHeight >= bandOf(moved, last).y, 'what reaches past its foot is the screen\'s to scroll')
   assert.notEqual(moved.id, still.id, 'a new drawing, not the old one cached')
   // A zero move is no move.
   assert.equal(layoutDecision(id, { order: ids, removed: [], offsets: { [last]: { dx: 0, dy: 0 } } }), null)
