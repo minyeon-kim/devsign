@@ -26,6 +26,7 @@ function DropdownMenuContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  collisionAvoidance,
   className,
   positionerClassName,
   ...props
@@ -38,6 +39,7 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        {...(collisionAvoidance ? { collisionAvoidance } : {})}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"

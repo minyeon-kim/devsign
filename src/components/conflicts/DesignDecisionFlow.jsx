@@ -38,7 +38,8 @@ import { layoutAt } from '@/lib/codeRender'
 // Every step is saved on the conflict and as a History checkpoint.
 
 // (A section of the detail, not a card: a hairline above it and room — never a box with more boxes inside.)
-const CARD = 'border-t border-white/[0.07] pt-5'
+// (Inside a step's card, under its head: no rule of its own between them — the head is the title.)
+const CARD = 'pt-1'
 const LABEL = 'text-[11px] leading-4 font-medium text-slate-400'
 const CARD_ROWS = 'grid grid-cols-[68px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs leading-[18px]'
 // (Exported: a value change's page puts its merge in the same button — ConflictReviewPanel.)
@@ -819,7 +820,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {!readOnly && (() => {
         const missing = asking && reviewers.length > 0 ? (undescribed ? '값을 입력해 주세요' : !reason.trim() ? '변경 사유를 입력해 주세요' : null) : null
         return (
-          <div ref={actionRef} data-proposal-action className="mt-4 flex scroll-mb-4 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4">
+          <div ref={actionRef} data-proposal-action className="mt-4 flex scroll-mb-4 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             {inPlace ? (
               <button type="button" data-preview-compare aria-pressed={comparing} title="Space: 현재와 비교" onClick={() => setCanvasPreview((prev) => (prev ? { ...prev, compare: prev.compare ? null : 'side', peek: false } : prev))}
                 className={cn('ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', comparing ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white')}>
@@ -1120,7 +1121,7 @@ function DecisionForm({ conflict, onDecide }) {
       )}
       {/* The decision: 승인 is the one mint button; the other two sit beside it, quieter. (On the step card's own
           ground — no panel-coloured box of its own inside the card.) */}
-      <div data-decision-action className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4">
+      <div data-decision-action className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-2">
         <div data-decision-segments role="group" aria-label="디자인 결정" className="flex flex-wrap items-center gap-1">
           {DECISION_ORDER.filter((id) => id !== 'approve').map((id) => (
             <button key={id} type="button" data-decision-choice={id} aria-pressed={choice === id} onClick={() => setChoice(choice === id ? null : id)}

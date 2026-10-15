@@ -14,6 +14,6 @@ for (const text of ['캔버스에서 미리보는 중', '원안과 다른 수정
 assert.ok(flow.includes('<ReasonField\n            compact') && flow.includes('placeholder="이 값을 고른 이유"') && flow.includes('<FoldBody open={asking}>'))
 assert.ok(flow.includes('Math.min(Math.max(node.scrollHeight, 36), 76)') && flow.includes('compact ? (value.trim() ? [] : suggestions.slice(0, 1))'))
 // One action bar: a rule, 나란히 비교 (ghost, one line, its tooltip the Space hint) at the left, the action at the right.
-assert.ok(flow.includes('border-t border-white/[0.06] pt-4') && flow.includes('title="Space: 현재와 비교"') && flow.includes('whitespace-nowrap'))
+assert.ok(!flow.includes('data-proposal-action className="mt-4 flex scroll-mb-4 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t') && flow.includes('title="Space: 현재와 비교"') && flow.includes('whitespace-nowrap'))
 assert.ok(flow.includes("'변경 사유를 입력해 주세요'") && flow.includes('disabled={Boolean(missing)}'), 'asking without a reason waits')
 console.log('Passed: 해결 방법’s lower part — the value in its row, the reason when asked, one action bar.')

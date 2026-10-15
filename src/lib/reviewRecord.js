@@ -128,7 +128,8 @@ export function reviewRecordOf(conflict, { t = (text) => text, nameOf = (id) => 
           : reviewers.length > 1 ? `${approved.length}/${reviewers.length} 승인` : '결정 대기',
     time: decided ? clock(lastReview) : null,
     preview: false,
-    rows: asked ? reviewers.flatMap((reviewer) => [
+    // (Who's still to decide is the step's head — its names; a row only for one who has: approved, asked for changes, said why.)
+    rows: asked ? reviewers.filter((reviewer) => reviewer.status !== 'pending' || reviewer.note).flatMap((reviewer) => [
       { label: nameOf(reviewer.id) ?? reviewer.id, value: REVIEW_WORD[reviewer.status] ?? REVIEW_WORD.pending, tone: reviewer.status === 'approved' ? 'done' : reviewer.status === 'changes_requested' ? 'warn' : null },
       reviewer.note && { label: '이유', value: t(reviewer.note) },
     ].filter(Boolean)) : [],

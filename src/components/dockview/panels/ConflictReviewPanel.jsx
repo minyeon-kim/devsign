@@ -1028,14 +1028,17 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const [mergedCodeOpen, setMergedCodeOpen] = useState(false)
   // The code section: open by default; folding it is remembered.
   // (Designers start with it folded, developers with it open; whichever they choose is kept.)
+  // (A designer always starts with it folded — what's asked of them is the design, not the code; opened, it's for
+  // this time only.)
   const [showCode, setShowCode] = useState(() => {
+    if (!isDeveloperViewer(conflict.projectId)) return false
     try {
       const kept = localStorage.getItem('devsign.review.showCode')
       if (kept === '0' || kept === '1') return kept === '1'
     } catch { /* not kept */ }
     return page ? false : isDeveloperViewer(conflict.projectId)
   })
-  const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
+  const toggleCode = () => setShowCode((value) => { if (isDeveloperViewer(conflict.projectId)) { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } } return !value })
   const [showAlternatives, setShowAlternatives] = useState(false)
   // A merge conflict: which side's code to take — the suggested mix by default.
   const codeChoice = conflict.codeChoice ?? 'both'
@@ -1684,7 +1687,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       </div>
       {/* The one action, at the card's lower right: 24px over it, no rule. */}
       {/* (Nothing in it for this viewer — a reviewer before the request — no bar: an empty one is a dark strip.) */}
-      {page && action && <div data-resolution-action className="mt-5 [&:not(:has(button))]:hidden flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">{action}</div>}
+      {page && action && <div data-resolution-action className="mt-4 [&:not(:has(button))]:hidden flex flex-wrap items-center justify-end gap-3">{action}</div>}
     </div>
   )
 }
@@ -3622,7 +3625,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       {/* The difference itself, on the left with the most room:
                           the two cards compared, and the code diff under them. */}
                       {/* (A section under a hairline on the page — no card around it, so nothing inside is a card in a card.) */}
-                      <section data-review-diff className={cn('flex min-w-0 flex-col', page ? 'border-t border-white/[0.07] pt-5' : cn(REVIEW_CARD, 'min-h-0 overflow-hidden p-4 sm:p-5 xl:flex-1'))}>
+                      <section data-review-diff className={cn('flex min-w-0 flex-col', page ? 'pt-1' : cn(REVIEW_CARD, 'min-h-0 overflow-hidden p-4 sm:p-5 xl:flex-1'))}>
                         {/* ① What's different: the summary, under the same kind
                             of title as the sections below it. */}
                         <div data-review-scroll="diff" className={page ? 'min-w-0' : 'min-h-0 min-w-0 flex-1 overflow-auto'}>
@@ -3668,7 +3671,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             />
                           ) : (
                           <DiffTab
-                            viewOnly={!involved}
+                            // (The way is the author's to pick: a reviewer approves it, from the approval bar; anyone else looks.)
+                            viewOnly={!involved || (Boolean(myReviewer) && !ownChange)}
                             codeChange={codeChange}
                             conflict={conflict}
                             code={codeView}
