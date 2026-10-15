@@ -40,6 +40,55 @@ function RegionCandidate({ part, option, letter, region, selected, live, scale, 
   </div>
 }
 
+// Before a part is picked: every part as a card — its name, where it stands (the draft taken, or 고르기), and its
+// drafts drawn small side by side — so the room is the overview, and a press opens that part's choice.
+function RegionOverview({ screen, options, picks, letterOf, onFocus, onHover }) {
+  return <div data-region-overview className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto [scrollbar-width:thin]" onMouseLeave={() => onHover?.(null)}>
+    {screen.regions.map((entry) => {
+      const parts = options.map((option) => ({ option, part: screen.drafts[option.key]?.[entry.id] })).filter(({ part }) => part)
+      const commonWidth = Math.max(1, ...parts.map(({ part }) => partBounds(part).width))
+      const commonHeight = Math.max(1, ...parts.map(({ part }) => partBounds(part).height))
+      const picked = picks[entry.id]
+      return <button key={entry.id} type="button" data-region-overview-card={entry.id} onClick={() => onFocus(entry.id)} onMouseEnter={() => onHover?.(entry.id)} onFocus={() => onHover?.(entry.id)} onBlur={() => onHover?.(null)}
+        className="ds-intrinsic flex w-full shrink-0 flex-col gap-2 rounded-[14px] border border-white/[0.08] bg-[#232323] p-3 text-left transition-colors hover:bg-[#272727] focus-visible:outline-2 focus-visible:outline-sky-300">
+        <span className="flex w-full items-center gap-2 text-xs">
+          <span className="font-semibold text-slate-100"><LocalizedText text={entry.label} /></span>
+          <span className="text-slate-500">시안 {parts.length}개</span>
+          <span className={cn('ml-auto', picked ? 'font-medium text-emerald-300' : 'text-slate-400')}>{picked ? `시안 ${letterOf(picked)}` : '고르기 ›'}</span>
+        </span>
+        <span className="grid w-full gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, parts.length)}, minmax(0, 1fr))` }}>
+          {parts.map(({ option, part }) => {
+            const { minX, minY, padding } = partBounds(part)
+            const on = picked === option.key
+            return <span key={option.key} className={cn('relative block overflow-hidden rounded-md bg-white', on ? 'ring-2 ring-emerald-300/70' : 'ring-1 ring-white/10')} style={{ aspectRatio: `${commonWidth} / ${commonHeight}` }}>
+              <MiniDrawing part={part} minX={minX} minY={minY} padding={padding} width={commonWidth} height={commonHeight} />
+              <span className="absolute bottom-0.5 left-1 text-[9px] font-semibold text-slate-500">{letterOf(option.key)}</span>
+            </span>
+          })}
+        </span>
+      </button>
+    })}
+  </div>
+}
+
+// A part drawn to fill its small box (measured, then scaled about its top left).
+function MiniDrawing({ part, minX, minY, padding, width, height }) {
+  const ref = useRef(null)
+  const [scale, setScale] = useState(0)
+  useEffect(() => {
+    const box = ref.current?.parentElement
+    if (!box) return undefined
+    const measure = () => setScale(Math.min(box.clientWidth / width, box.clientHeight / height))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [width, height])
+  return <span ref={ref} aria-hidden className="pointer-events-none absolute top-0 left-0 block origin-top-left" style={{ width, height, transform: `scale(${scale})`, visibility: scale ? undefined : 'hidden' }}>
+    {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, x: layer.x - minX + padding, y: layer.y - minY + padding }} override={layer.look} editHint={false} onSelect={() => {}} />)}
+  </span>
+}
+
 export default function VisualRegionPicker({ item, live }) {
   const { onPreviewRegion, onHoverRegion, regionId } = live
   const listRef = useRef(null)
@@ -68,7 +117,8 @@ export default function VisualRegionPicker({ item, live }) {
   // (Top to bottom, one column: the parts as a row of capsules — the one being compared raised, a check on
   // those already picked — then that part's options, each card the column's width. No side list beside them.)
   return <section data-visual-region-picker className="flex h-full min-h-0 flex-col gap-3">
-    <div data-component-region-list role="group" aria-label="요소 항목" className="flex shrink-0 flex-wrap items-center gap-1.5" onMouseLeave={() => live.onHoverRegion?.(null)}>
+    {/* (The capsules once a part is open — to move between parts; before that the overview's cards are the parts.) */}
+    {region && <div data-component-region-list role="group" aria-label="요소 항목" className="flex shrink-0 flex-wrap items-center gap-1.5" onMouseLeave={() => live.onHoverRegion?.(null)}>
       {screen.regions.map((entry) => {
         const active = region?.id === entry.id
         return <button key={entry.id} type="button" data-component-region={entry.id} aria-label={`${entry.label} 시안 비교`} aria-pressed={active} onClick={() => live.onFocusRegion(entry.id)}
@@ -78,8 +128,8 @@ export default function VisualRegionPicker({ item, live }) {
           {picks[entry.id] && <span data-region-picked className="text-[11px] font-medium text-emerald-300">{letterOf(picks[entry.id])}</span>}
         </button>
       })}
-    </div>
-    {!region ? <p className="text-xs text-slate-500">비교할 요소를 고르세요</p> : <div key={region.id} className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+    </div>}
+    {!region ? <RegionOverview screen={screen} options={live.options} picks={picks} letterOf={letterOf} onFocus={live.onFocusRegion} onHover={live.onHoverRegion} /> : <div key={region.id} className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
       <div data-region-candidates className="flex min-h-0 shrink flex-col gap-2 overflow-y-auto [scrollbar-width:thin]" ref={listRef} onMouseLeave={() => previewCandidate(null)}>
         {live.options.map((option) => {
           const part = screen.drafts[option.key]?.[region.id]

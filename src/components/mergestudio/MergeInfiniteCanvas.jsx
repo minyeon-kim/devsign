@@ -2217,9 +2217,11 @@ function MergeInfiniteCanvas({
             full preview. */}
         {designCompare && (() => {
           const ko = getLanguage() === 'ko'
-          const BUTTON = 'flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded-md px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/15 hover:text-white'
+          const BUTTON = 'flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded-full px-1.5 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-30'
+          // (The canvas's tools — frame, zoom, the large preview, undo / redo — in one floating capsule at the canvas's
+          // bottom centre, as the Screens board's are: the tab row over it keeps the views alone.)
           const tools = (
-            <div data-result-header className="pointer-events-auto flex h-7 shrink-0 items-center gap-0.5">
+            <div data-result-header data-merge-canvas-bar className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm">
               {/* The frame: one icon (with the frame it's in); pressing it
                   slides the choices out beside it, and picking one — or the
                   icon again — folds them away. */}
@@ -2271,17 +2273,18 @@ function MergeInfiniteCanvas({
                 data-result-preview
                 title={ko ? '결과를 크게 미리보기 · 기기별 (Esc로 닫기)' : 'Preview the result large · per device (Esc closes)'}
                 onClick={() => setMergePreviewOpen(true)}
-                className="pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium text-slate-200  transition-colors hover:bg-white/[0.1] hover:text-white"
+                className="pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white"
               >
                 <Play className="size-3" />
-                {ko ? '미리보기' : 'Preview'}
+                {ko ? '크게 보기' : 'View large'}
               </button>
-              {/* Undo / redo and help: in this row too, so nothing else
-                  floats over the Result. */}
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button type="button" aria-label="Undo" title="Undo" disabled={!editHistory?.canUndo} onClick={editHistory?.undo} className={BUTTON}><Undo2 className="size-3.5" /></button>
+              <button type="button" aria-label="Redo" title="Redo" disabled={!editHistory?.canRedo} onClick={editHistory?.redo} className={BUTTON}><Redo2 className="size-3.5" /></button>
               <MergeCanvasControls inline history={editHistory} showZoom={false} showHistory={false} />
             </div>
           )
-          return headerSlot ? createPortal(tools, headerSlot) : <div className="absolute top-2 right-4 z-30">{tools}</div>
+          return <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">{tools}</div>
         })()}
         {!frame && !designCompare && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
@@ -2521,8 +2524,9 @@ function MergeInfiniteCanvas({
               )}
             </button>
           )}
-          {/* Undo / redo, and Preview: the tools. (The people, Share and Notifications are the app header's.) */}
-          <div data-merge-tools className="flex items-center gap-0.5">
+          {/* Undo / redo, and Preview: the tools. (The people, Share and Notifications are the app header's.)
+              (Comparing drafts, they're the canvas's bottom capsule's — data-merge-canvas-bar.) */}
+          {!designCompare && <div data-merge-tools className="flex items-center gap-0.5">
             <button type="button" aria-label="Undo" title="Undo" disabled={!editHistory?.canUndo} onClick={editHistory?.undo} className="flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"><Undo2 className="size-4" /></button>
             <button type="button" aria-label="Redo" title="Redo" disabled={!editHistory?.canRedo} onClick={editHistory?.redo} className="flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-30"><Redo2 className="size-4" /></button>
             {/* (Comparing drafts, the preview is the Result header's.) */}
@@ -2537,7 +2541,7 @@ function MergeInfiniteCanvas({
               {/* Outline play triangle, nudged 1px right to sit optically centered. */}
               <Play className="size-4 translate-x-px" />
             </button>}
-          </div>
+          </div>}
           </div>
           )
           return headerSlot ? createPortal(cluster, headerSlot) : (
