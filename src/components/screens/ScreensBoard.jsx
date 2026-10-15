@@ -9,6 +9,7 @@ import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { HEAD_COLOR, PinShape } from '@/components/conflicts/ConflictPins'
 import { assemblyToOverride, mergeOverride } from '@/components/mergestudio/mergeEffects'
+import { overrideFromEdit } from '@/lib/prototypeSync'
 import BoardConflicts, { BOARD_PANEL_WIDTH, BOARD_DETAIL_WIDTH } from '@/components/screens/BoardConflicts'
 import { layerIdsOf } from '@/lib/conflictInsight'
 import { reviewForDesign } from '@/lib/designReview'
@@ -171,13 +172,31 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded, selectedLayerId } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded, selectedLayerId, selectCanvasLayer, prototypeEdits, editPrototypeLayer, setFilesWindow, setSidePanel } = useWorkspace()
+  // The screen being edited in its card's place (the card's ✎): its layers picked and its text typed right on the
+  // board — the rest of the board stays round it. Esc, or ✎ again, and it's a card again.
+  const [editing, setEditing] = useState(null)
+  const editingRef = useRef(null)
+  editingRef.current = editing
+  // A layer picked on the screen being edited: selected, its properties in the tool panel's Inspect.
+  const pickLayer = (id) => {
+    selectCanvasLayer(id)
+    setFilesWindow({ tab: 'inspect' })
+    setSidePanel({ open: true })
+  }
+  // Text typed in place: into the edits the code file follows (a cancel — null — leaves it as it was).
+  const editText = (layerId, slot, value, how) => { if (value !== null && !how?.live) editPrototypeLayer(layerId, { copy: { [slot]: value } }) }
   // What the Assets panel did to a screen (outside Merge Studio): components added to it, and layers given a
   // component's look — drawn with the screen's own.
   const withAssets = (frame, pageId) => (assetAdded?.[pageId]?.length ? { ...frame, layers: [...frame.layers, ...assetAdded[pageId]] } : frame)
   const overridesFor = (frame, pageId, base) => {
     const layers = withAssets(frame, pageId).layers
     let out = base
+    // (What was typed or styled on it — the same edits the code file follows.)
+    for (const layer of layers) {
+      const o = prototypeEdits?.[layer.id] && overrideFromEdit(prototypeEdits[layer.id])
+      if (o) out = { ...out, [layer.id]: mergeOverride(out?.[layer.id], o) }
+    }
     for (const layer of layers) {
       const assembly = assetAssemblies?.[layer.id]
       const o = assembly && assemblyToOverride(assembly, layer)
@@ -527,6 +546,7 @@ function ScreensBoard() {
       if (typing) return
       const step = { j: 1, J: 1, ']': 1, k: -1, K: -1, '[': -1 }[event.key]
       if (step) { event.preventDefault(); keys.current.stepChange(step) }
+      else if (event.key === 'Escape' && editingRef.current) { event.preventDefault(); setEditing(null) }
       else if (event.key === 'Escape' && keys.current.focusOut()) event.preventDefault()
     }
     window.addEventListener('keydown', onKey)
@@ -622,7 +642,7 @@ function ScreensBoard() {
                 {selected && !proto && (
                   <span data-board-chrome className="ml-auto flex shrink-0 items-center gap-0.5">
                     <button type="button" data-screen-play title="View from this screen in Preview" aria-label="View from this screen in Preview" onClick={() => play(card.id)} className={TOOL}><Play className="size-3.5" /></button>
-                    <button type="button" data-screen-edit title="Edit on the canvas" aria-label="Edit on the canvas" onClick={() => dockApi?.getPanel('canvas')?.api.setActive()} className={TOOL}><PencilRuler className="size-3.5" /></button>
+                    <button type="button" data-screen-edit aria-pressed={editing === card.id} title={editing === card.id ? 'Done editing · Esc' : 'Edit this screen'} aria-label={editing === card.id ? 'Done editing' : 'Edit this screen'} onClick={() => { if (editing === card.id) { setEditing(null); return } setEditing(card.id); if (shown.zoom < DETAIL_ZOOM) zoomToCard(card) }} className={cn(TOOL, editing === card.id && 'bg-emerald-400/15 text-emerald-200')}><PencilRuler className="size-3.5" /></button>
                   </span>
                 )}
               </div>
@@ -662,6 +682,32 @@ function ScreensBoard() {
                       </button>
                     ))}
                   />
+                </div>
+              ) : editing === card.id && !proto ? (
+                // Editing in the card's place: the screen's own layers, each picked with a click (its properties open
+                // in Inspect), its text typed with a double-click. Nothing pressed here reaches the board.
+                <div
+                  data-edit-frame={card.id}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  onClick={(event) => { event.stopPropagation(); pickLayer(card.id) }}
+                  className="relative overflow-hidden rounded-xl bg-white shadow-xl shadow-black/50 ring-[3px] ring-emerald-300"
+                  style={{ width: card.width, height: card.height }}
+                >
+                  {(() => {
+                    const frame = withAssets(screen.frame, card.id)
+                    const overrides = overridesFor(screen.frame, card.id, null)
+                    return frame.layers.map((layer) => (
+                      <StaticLayer
+                        key={layer.id}
+                        layer={layer}
+                        override={overrides?.[layer.id]}
+                        selected={selectedLayerId === layer.id}
+                        onSelect={() => pickLayer(layer.id)}
+                        onEditText={editText}
+                      />
+                    ))
+                  })()}
                 </div>
               ) : (
               <button

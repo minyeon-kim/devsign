@@ -634,8 +634,10 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     if (openPanel === 'conflicts') setBoardConflicts({ open: false, conflictId: null })
     else { if (!compositionEditing) closeCompareView(); setDesignComparePanelOpen(false) }
   }
-  const SEGMENT = 'flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300'
-  const RAISED = 'bg-white/[0.16] shadow-[0_1px_2px_rgb(0_0_0/0.35)]'
+  // (Each its own pill: the same height and ground; the open one a step lighter.)
+  const PILL = 'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300'
+  const PILL_REST = 'bg-white/[0.06] hover:bg-white/[0.1]'
+  const PILL_OPEN = 'bg-white/[0.16] font-semibold'
   const conflictPill = (
     // (Its width: the panel's, less the row's 8px at the right — so its left edge is the panel's.)
     <div data-panel-tabs={openPanel ?? undefined} onPointerDown={(event) => event.stopPropagation()}
@@ -653,22 +655,22 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
           <ChevronLeft aria-hidden className="size-4" />Back to the list
         </button>
       )}
-      {/* (One capsule — Conflict · Merge, and × as its last segment while either is open — at the right.) */}
-      <div className={cn('flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5', openPanel && 'ml-auto')}>
+      {/* (Two pills apart — Conflict, Merge — and × after them while either is open, at the right.) */}
+      <div className={cn('flex shrink-0 items-center gap-1.5', openPanel && 'ml-auto')}>
         <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
           onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
           onPointerDown={(event) => event.stopPropagation()}
-          className={cn(SEGMENT, openPanel === 'conflicts' && RAISED, conflictCount > 0 ? 'text-[#FF4D4F] hover:text-[#FF6B6D]' : openPanel === 'conflicts' ? 'text-white' : 'text-slate-400 hover:text-slate-200', openPanel === 'conflicts' && 'font-semibold')}>
+          className={cn(PILL, openPanel === 'conflicts' ? PILL_OPEN : PILL_REST, conflictCount > 0 ? 'text-[#FF4D4F] hover:text-[#FF6B6D]' : openPanel === 'conflicts' ? 'text-white' : 'text-slate-400 hover:text-slate-200')}>
           <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
           Conflict
           {conflictCount > 0 && <span className="text-xs tabular-nums">{conflictCount}</span>}
         </button>
         <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-expanded={designComparePanelOpen} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
-          className={cn(SEGMENT, openPanel === 'merge' ? cn(RAISED, 'font-semibold text-white') : 'text-slate-400 hover:text-slate-200')}>병합 <span data-merge-count className="text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
+          className={cn(PILL, openPanel === 'merge' ? cn(PILL_OPEN, 'text-white') : cn(PILL_REST, 'text-slate-400 hover:text-slate-200'))}>병합 <span data-merge-count className="text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
         {openPanel && (
           <button type="button" data-panel-close data-board-conflicts-close={openPanel === 'conflicts' ? '' : undefined} data-design-compare-close={openPanel === 'merge' ? '' : undefined}
             aria-label={openPanel === 'conflicts' ? '변경확인 닫기' : '디자인 비교 닫기'} onClick={closePanel}
-            className="ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 animate-in fade-in zoom-in-90 duration-150 motion-reduce:animate-none">
+            className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 animate-in fade-in zoom-in-90 duration-150 motion-reduce:animate-none">
             <X className="size-3.5" />
           </button>
         )}

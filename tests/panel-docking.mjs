@@ -70,7 +70,7 @@ try {
   assert.ok(panel.includes('role="complementary"') && panel.includes('aria-label="디자인 비교 상세"') && panel.includes("event.key === 'Escape'") && panel.includes("event.key === '['") && panel.includes("'ArrowDown'") && panel.includes('closeCompareView') && panel.includes('inert={expanded}'), 'a named region; the list kept (inert), the keys')
   assert.ok(panel.includes('translate-x-4') && panel.includes('duration-200') && panel.includes('motion-reduce:transition-none'), '16px slide + fade, 200ms, none when reduced')
   // The list is made of the change list's own parts (one row component), grouped by screen, searchable.
-  assert.ok(drawer.includes("from '@/components/dashboard/DrawerList'") && drawer.includes('<DrawerRow') && drawer.includes('<DrawerSearch') && drawer.includes('aria-expanded={open_}'))
+  assert.ok(drawer.includes("from '@/components/dashboard/DrawerList'") && drawer.includes('grid h-9 w-full grid-cols-[16px_minmax(0,1fr)_auto]') && drawer.includes('<DrawerSearch') && drawer.includes('aria-expanded={open_}'))
   // The comparison: "← canvas" (focusing the change), the sets not repeated as a column; the pick kept in step with the change lists, both ways.
   assert.ok(compare.includes('data-compare-skeleton') && compare.includes('data-compare-error') && compare.includes('boardConflicts') && compare.includes('conflictPin'), 'loading, error, and both lists’ picks')
   const dd = read('components/mergestudio/DesignDetail.jsx')

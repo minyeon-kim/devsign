@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Check, ChevronDown, Layers3 } from 'lucide-react'
 import { cn } from 'cn'
-import { DrawerCount, DrawerEmpty, DrawerRow, DrawerSearch, DrawerShell, GROUP_HEIGHT } from '@/components/dashboard/DrawerList'
+import { DrawerCount, DrawerEmpty, DrawerSearch, DrawerShell, GROUP_HEIGHT } from '@/components/dashboard/DrawerList'
 import { designCompareOptions } from '@/components/mergestudio/DesignComparison'
 import { designSetState, reviewForDesign } from '@/lib/designReview'
 import { LocalizedText } from '@/i18n/runtime'
@@ -36,27 +36,32 @@ export function CompareCount() {
   return <DrawerCount data-compare-count count={designSetsOf(mergeItems).length} />
 }
 
+// One line a set, as the change list's rows: its state (a check when merged, else a dot), its name and how many
+// regions (quieter), and at the right how many drafts. The state's word is the row's tooltip.
 function DesignSetRow({ item, state, count, selected, onOpen }) {
   const merged = state.id === 'merged'
+  const language = useLanguage()
   return (
-    <DrawerRow
+    <button
+      type="button"
       role="option"
       aria-selected={selected}
       data-compare-row={item.id}
       data-compare-state={state.id}
-      selected={selected}
-      onOpen={onOpen}
-      className={cn(merged && 'opacity-60')}
-      title={<LocalizedText text={item.title} />}
-      time={<span data-compare-drafts>시안 {count}개</span>}
-      meta={(
-        <>
-          {merged ? <Check aria-hidden className="size-3 shrink-0" /> : <span aria-hidden data-status-dot className={cn('size-1.5 shrink-0 rounded-full', state.id === 'draft' ? 'bg-slate-500' : 'bg-white')} />}
-          <span className="min-w-0 truncate"><LocalizedText text={state.label} /></span>
-          <span className="shrink-0 text-slate-500">· 영역 {designRegionsOf(item).length}개</span>
-        </>
-      )}
-    />
+      data-selected={selected ? '' : undefined}
+      onClick={onOpen}
+      title={translateText(state.label, language)}
+      className={cn('ds-intrinsic grid h-9 w-full grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-[12px] px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', selected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]', merged && 'opacity-60')}
+    >
+      <span aria-hidden className="flex size-4 items-center justify-center">
+        {merged ? <Check className="size-3.5 text-slate-300" /> : <span data-status-dot className={cn('size-1.5 rounded-full', state.id === 'draft' ? 'bg-slate-500' : 'bg-white')} />}
+      </span>
+      <span data-row-title className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
+        <span className="min-w-0 shrink truncate font-medium text-slate-100"><LocalizedText text={item.title} /></span>
+        <span className="shrink-0 text-slate-500">영역 {designRegionsOf(item).length}</span>
+      </span>
+      <span data-compare-drafts className="shrink-0 text-right text-[11.5px] text-slate-500 tabular-nums">시안 {count}</span>
+    </button>
   )
 }
 
