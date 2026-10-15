@@ -864,6 +864,17 @@ function MergeStudioWorkspace({ item }) {
     },
   }
   const canTakeAll = Boolean(item && !readOnly && item.tag !== 'Merged' && !mixRequested)
+  // Composing opens straight on a part — the first not yet picked (else the first) — not on a list of them; once a
+  // set, so a part let go of isn't taken back up.
+  const autoFocused = useRef(null)
+  useEffect(() => {
+    const screen = item && draftScreens[item.id]
+    if (!screen || !designComparison || !designCompare || focusedMixRegion || autoFocused.current === item.id) return
+    autoFocused.current = item.id
+    const picked = regionPicks(item.id, resolutions)
+    const next = screen.regions.find((entry) => !picked[entry.id]) ?? screen.regions[0]
+    if (next) setFocusedMixRegion(next.id)
+  }, [item?.id, designComparison, designCompare, focusedMixRegion]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!item || !designComparison || !designCompare) return undefined
     setMixBridge({
