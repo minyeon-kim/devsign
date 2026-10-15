@@ -31,6 +31,7 @@
 //   code: { conflict, merged } — the lines with their markers, and the suggested merge
 //   approvedBy — the reviewers who've already signed off
 //   changedBy — who made it, and so who asks (steps.requested.by); never one of its reviewers
+//   reviewers — developers only: a merge of code is no designer's to approve
 
 export const SEED = {
   project: { id: 'dashboard-redesign', name: 'Dashboard Redesign', screen: 'Dashboard', pageId: 'page-dashboard', devStage: 'mid' },
@@ -614,7 +615,7 @@ export const CHECKOUT_SEED = {
         ],
       },
       changedBy: 'james',
-      reviewers: ['min', 'jane'],
+      reviewers: ['min'],
       assignee: 'james',
       stage: 'in_review',
       steps: { detected: { day: 0, at: '09:45' }, requested: { by: 'james', day: 0, at: '09:52' } },
@@ -650,7 +651,7 @@ export const CHECKOUT_SEED = {
         ],
       },
       changedBy: 'james',
-      reviewers: ['min', 'jane'],
+      reviewers: ['min'],
       assignee: 'james',
       stage: 'in_review',
       steps: { detected: { day: 0, at: '09:50' }, requested: { by: 'james', day: 0, at: '09:58' } },
@@ -694,8 +695,7 @@ export const CHECKOUT_SEED = {
         ],
       },
       changedBy: 'min',
-      reviewers: ['james', 'jane'],
-      approvedBy: ['james'],
+      reviewers: ['james'],
       assignee: 'min',
       stage: 'in_review',
       steps: { detected: { day: 0, at: '08:05' }, requested: { by: 'min', day: 0, at: '08:15' } },

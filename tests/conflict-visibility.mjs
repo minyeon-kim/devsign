@@ -29,10 +29,10 @@ try {
   const { default: Panel } = await server.ssrLoadModule('/src/components/dockview/panels/ConflictReviewPanel.jsx')
   const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(ConflictStoreProvider, null,
     createElement(WorkspaceProvider, { projectId: code.projectId }, createElement(Panel, { conflict: code, onOpenChange() {} })))))
-  assert.ok(html.includes('data-code-conflict'))
-  assert.ok(html.includes('&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD'))
-  assert.ok(html.includes('setSelected(frame.id)'))
-  assert.ok(html.includes('key={frame.id}'))
+  // (A merge of code is reviewed by developers: to the designer viewing it — not hers — it's read-only: the two
+  // sides said, the file, and nothing to pick, approve or remind.)
+  assert.ok(html.includes('src/components/DesignCanvas.jsx') && html.includes('프레임 선택 처리') && html.includes('프레임 식별 키 추가'))
+  assert.ok(!html.includes('data-code-conflict') && !html.includes('data-approval-approve') && !html.includes('data-approval-remind'))
   const { useConflictList } = await server.ssrLoadModule('/src/components/conflicts/useConflictList.js')
   function ListProbe() {
     const list = useConflictList()

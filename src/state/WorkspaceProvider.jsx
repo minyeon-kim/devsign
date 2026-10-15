@@ -28,6 +28,7 @@ import { DEMO_PREFIX } from '@/lib/demoStorage'
 import { useDemoState } from '@/state/useDemoState'
 import useNotificationThumbs from '@/state/useNotificationThumbs'
 import { readDemo, writeDemo, signature } from '@/lib/demoStorage'
+import { isMine } from '@/lib/screenConflicts'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { closeHowOf, readChangeParams, withChange, workspacePathOf } from '@/lib/changeLink'
@@ -425,6 +426,11 @@ export function WorkspaceProvider({ children, projectId }) {
   // canvas or the comparison: `boardDockHost` is its place there, `boardDockShown` whether the board has it up.
   const [boardDockHost, setBoardDockHost] = useState(null)
   const [boardDockShown, setBoardDockShown] = useState(false)
+  // Which changes the list, its count and the board's marks show: the viewer's own ('mine' — they review it,
+  // it's theirs, they made it), or every one ('all').
+  const [conflictScope, setConflictScope] = useState('mine')
+  const myConflicts = useMemo(() => conflicts.filter((conflict) => isMine(conflict, currentUser.id)), [conflicts, currentUser.id])
+  const scopedConflicts = conflictScope === 'all' ? conflicts : myConflicts
   // While Merge Studio compares a set's drafts, the picking is done in the Design Compare sidebar's detail: the
   // studio publishes what that needs here (`mixBridge`: the drafts, the picks so far, the ways to pick).
   const [mixBridge, setMixBridge] = useState(null)
@@ -3061,6 +3067,10 @@ export function WorkspaceProvider({ children, projectId }) {
     boardDockHost,
     setBoardDockHost,
     boardDockShown,
+    conflictScope,
+    setConflictScope,
+    scopedConflicts,
+    myConflicts,
     setBoardDockShown,
     openCompareView,
     closeCompareView,

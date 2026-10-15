@@ -73,3 +73,13 @@ function unionBox(boxes) {
   const y = Math.min(...boxes.map((b) => b.y))
   return { x, y, width: Math.max(...boxes.map((b) => b.x + b.width)) - x, height: Math.max(...boxes.map((b) => b.y + b.height)) - y }
 }
+
+// Whether a change is the viewer's to deal with: they review it, it's assigned to them, or they made or asked
+// for it. (The list and the board show these by default — "내 할 일"; everything else is under "전체".)
+export function isMine(conflict, viewerId) {
+  if (!conflict || !viewerId) return false
+  return (conflict.reviewers ?? []).some((reviewer) => (reviewer.id ?? reviewer) === viewerId)
+    || conflict.assigneeId === viewerId
+    || conflict.changedBy?.id === viewerId
+    || conflict.requestedBy === viewerId
+}

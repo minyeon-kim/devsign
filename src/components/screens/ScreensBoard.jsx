@@ -172,7 +172,7 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded, selectedLayerId, selectCanvasLayer, prototypeEdits, editPrototypeLayer, setFilesWindow, setSidePanel } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded, selectedLayerId, selectCanvasLayer, prototypeEdits, editPrototypeLayer, setFilesWindow, setSidePanel, scopedConflicts } = useWorkspace()
   // The screen being edited in its card's place (the card's ✎): its layers picked and its text typed right on the
   // board — the rest of the board stays round it. Esc, or ✎ again, and it's a card again.
   const [editing, setEditing] = useState(null)
@@ -208,7 +208,8 @@ function ScreensBoard() {
   const layout = useMemo(() => boardLayout(prototype), [prototype])
   const order = layout.cards.map((card) => card.id)
   // The open changes, by screen (the workspace's own list: it changes as they're decided, and so does this).
-  const changes = useMemo(() => conflictsByScreen(prototype, conflicts), [prototype, conflicts])
+  // (The viewer's own by default — the list's 내 할 일 / 전체 says which: the marks follow it.)
+  const changes = useMemo(() => conflictsByScreen(prototype, scopedConflicts), [prototype, scopedConflicts])
   // …and one by one, in the order ‹ › walk them (lib/screenConflicts' conflictSequence).
   const sequence = useMemo(() => conflictSequence(prototype, conflicts, order), [prototype, conflicts, order.join()]) // eslint-disable-line react-hooks/exhaustive-deps
   const marking = boardConflicts.open

@@ -1,4 +1,5 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
+import { isMine } from '@/lib/screenConflicts'
 import { historyHref } from '@/lib/historyLink'
 import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
@@ -1015,8 +1016,9 @@ function codeConflictOptions(conflict) {
 // as a design decision's is (DesignDecisionFlow's 해결 방법): what's built
 // beside what the way picked gives, the ways as a list under them, and the
 // one action (`action`) at the card's foot.
-function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onCodeChoice, page = false, action = null }) {
-  const readOnly = conflict.reviewStage === 'resolved'
+function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkBlocks, codeChange, reviewerNeeded = false, reviewerCandidates = [], onAssignReviewer, onCodeChoice, page = false, action = null, viewOnly = false }) {
+  // (Merged — or not this viewer's: someone else's change, looked at under 전체 — nothing here is pressed.)
+  const readOnly = conflict.reviewStage === 'resolved' || viewOnly
   // Finished: the merged code around the change (the file's own lines when
   // there are any, else the change's result), and the toggle to the
   // conflict as it was.
@@ -3139,6 +3141,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const reviewerCandidates = projectMemberIds.map((id) => allPeople.find((person) => person.id === id)).filter((person) =>
     person && person.id !== authorId && !(conflict?.reviewers ?? []).some((reviewer) => reviewer.id === person.id))
   const ownChange = Boolean(authorId && authorId === viewerId)
+  // (Theirs to act on — they review it, it's theirs, they made it. Anyone else only looks: no choice, no reminder.)
+  const involved = conflict ? isMine(conflict, viewerId) : false
   // Never your own change (the GitHub rule) — someone else signs off.
   const canReview = Boolean(myReviewer && myReviewer.status !== 'approved' && !ownChange)
 
@@ -3539,7 +3543,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       state={approvalState}
       canReview={canReview}
       blockingCount={checks?.blocking.length ?? 0}
-      onUpdate={onUpdate ? update : undefined}
+      onUpdate={onUpdate && involved ? update : undefined}
       onDismiss={workspace?.dismissChangeRequest}
       // (Asking is the author's: a reviewer — the designer, looking at it first — waits for the request.)
       request={!onUpdate || approvalNudge || (myReviewer && !ownChange) ? null : cardFlow
@@ -3688,6 +3692,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             />
                           ) : (
                           <DiffTab
+                            viewOnly={!involved}
                             codeChange={codeChange}
                             conflict={conflict}
                             code={codeView}

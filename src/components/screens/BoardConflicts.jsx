@@ -6,7 +6,8 @@ import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
-import { listStatusOf, shortDue } from '@/lib/conflicts'
+import { conflictCounts, listStatusOf, shortDue } from '@/lib/conflicts'
+import { useWorkspace } from '@/state/WorkspaceProvider'
 import { conflictTypeOf } from '@/lib/conflictInsight'
 
 // The Screens board's change list (Conflict Points, pressed while Screens
@@ -69,6 +70,7 @@ export const RISK_CHIP = { high: ['Risk high', 'bg-rose-400/[0.14] text-rose-300
 // Compare's) — its row is marked as the picked one is. `compareItem`/`onOpenCompare`: the picked change's design
 // set, and the way into its comparison (the icon in the detail's header).
 export default function BoardConflicts({ groups, picked, onPick, onBack, focusScreenId = null, currentScreenId = null, host = null, docked = false, marked = null, compareItem = null, onOpenCompare = null }) {
+  const { conflictScope } = useWorkspace()
   const language = useLanguage()
   const listRef = useRef(null)
   // (The row whose detail was last open stays marked once back on the list — and takes the focus.)
@@ -121,8 +123,10 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
         // The list, as an issue list: a group per screen (its name, then its number and how many — folding,
         // its header held at the top while its rows scroll by), and rows on fixed columns — status · title ·
         // due — over a second line of what kind of clash it is, with the risk as a chip when it's medium or high.
+        <>
+        <ScopeToggle />
         <div ref={listRef} data-board-conflicts-list onKeyDown={onListKey} className="min-h-0 flex-1 overflow-y-auto px-1.5 pt-1 pb-2">
-          {groups.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500"><LocalizedText text="No open changes on these screens." /></p>}
+          {groups.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">{conflictScope === 'mine' ? '나에게 온 변경이 없어요' : <LocalizedText text="No open changes on these screens." />}</p>}
           {groups.map((group) => {
             const key = group.id ?? 'none'
             const open = !folded.has(key)
@@ -172,8 +176,26 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
             )
           })}
         </div>
+        </>
       )}
     </section>
   )
   return host ? createPortal(panel, host) : panel
+}
+
+// 내 할 일 · 전체: the viewer's own changes (they review it, it's theirs, they made it) — the default — or every
+// one on these screens. The board's marks and the tab's count follow it.
+function ScopeToggle() {
+  const { conflictScope, setConflictScope, conflicts, myConflicts } = useWorkspace()
+  const counts = { mine: conflictCounts(myConflicts).open, all: conflictCounts(conflicts).open }
+  return (
+    <div role="radiogroup" aria-label="보기" data-conflict-scope={conflictScope} className="mx-3 mt-2 mb-1 flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.05] p-0.5">
+      {[['mine', '내 할 일'], ['all', '전체']].map(([id, label]) => (
+        <button key={id} type="button" role="radio" aria-checked={conflictScope === id} data-scope={id} onClick={() => setConflictScope(id)}
+          className={cn('ds-intrinsic flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', conflictScope === id ? 'bg-white/[0.14] text-white' : 'text-slate-400 hover:text-slate-200')}>
+          {label}<span className="text-slate-500 tabular-nums">{counts[id]}</span>
+        </button>
+      ))}
+    </div>
+  )
 }

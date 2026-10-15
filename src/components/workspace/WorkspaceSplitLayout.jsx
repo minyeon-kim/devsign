@@ -159,7 +159,7 @@ function zoneRect(rect, zone) {
 // `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
 // stays mounted under it).
 function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing, rightPanelWidth } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing, rightPanelWidth, scopedConflicts } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -623,7 +623,8 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     return <SplitNode node={node} dockApi={dockApi} store={store} renderNode={renderNode} floating={mergeStudio} fixed={fixed} />
   }
 
-  const conflictCount = conflictCounts(conflicts).open
+  // (As many as the list shows: the viewer's own, or all of them — its 내 할 일 / 전체.)
+  const conflictCount = conflictCounts(scopedConflicts).open
   const mergeCount = designSetsOf(mergeItems).length
   // The tab row's right end: Conflict · Merge as one segmented capsule (iOS). While either's panel is open at
   // the canvas's right it's that panel's header: it takes the panel's width (so the board's tools end at the
