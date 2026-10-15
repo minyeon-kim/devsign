@@ -1,11 +1,9 @@
 import { useNavigate } from 'react-router-dom'
-import { changesHref } from '@/lib/changeLink'
 import { Check, FolderKanban } from 'lucide-react'
 import { cn } from 'cn'
-import { PAGE_CARD } from '@/components/mergestudio/floatingStyles'
+import { PAGE_PANEL } from '@/components/layout/PagePieces'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
-import { LocalizedText } from '@/i18n/runtime'
 import { prefetchProject } from '@/lib/projectPages'
 import { projectTone } from '@/lib/projectTone'
 
@@ -24,39 +22,13 @@ function SelectIndicator({ selected }) {
   )
 }
 
-// A count on a card that is also a way in: "Review requests 2" filters My
-// tasks to this project (or, without that, opens its Conflict list on that filter). Not shown at zero. It sits above
-// the card's own click target (see ProjectCard), so it takes the click.
-// `tone`: 'review' (mint — it's waiting on you) or 'conflict' (amber — the workspace's colour for changes to check).
-function CountBadge({ label, count, tone = 'conflict', pressed, onClick }) {
-  if (!count) return null
-  return (
-    <button
-      type="button"
-      data-card-badge
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        'ds-intrinsic relative z-10 inline-flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
-        tone === 'review'
-          ? cn('border-emerald-400/25 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20', pressed && 'border-emerald-300/60 bg-emerald-400/25 text-white')
-          : 'border-amber-300/25 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20'
-      )}
-    >
-      <LocalizedText text={label} />
-      <span className="tabular-nums">{count}</span>
-    </button>
-  )
-}
-
-// A project, as a card: the preview thumbnail, its name and members, and —
-// when there's something waiting — the counts that matter ("Needs your
-// review", "Conflicts"). The whole card opens the project; a count opens
-// its Conflict list on that filter. Hovering (or focusing) the card loads
+// A project, as a card: its mark, who's on it, its name and when it was last
+// edited. The whole card opens the project. (`counts` is no longer drawn —
+// what's waiting on you is Home's list.) Hovering (or focusing) the card loads
 // the project's pages ahead of the click, so it opens at once.
 // `selectable` (toggled from "Projects" in ProjectsSection) switches a
 // click from opening the project to toggling its selection instead.
-function ProjectCard({ project, view = 'grid', counts, selectable = false, selected = false, onToggleSelect }) {
+function ProjectCard({ project, view = 'grid', counts: _counts, selectable = false, selected = false, onToggleSelect }) {
   const navigate = useNavigate()
   const tone = projectTone(project.id)
   const members = project.memberIds
@@ -69,14 +41,6 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
     if (selectable) onToggleSelect(project.id)
     else navigate(`/projects/${project.id}`)
   }
-  const openList = (conflictFilter) => navigate(changesHref(project.id, conflictFilter))
-  const badges = !selectable && (
-    <>
-      <CountBadge tone="review" label="Review requests" count={counts?.needsMyReview} onClick={() => openList('mine')} />
-      <CountBadge label="Conflicts" count={counts?.open} onClick={() => openList('open')} />
-    </>
-  )
-  const hasBadges = !selectable && Boolean(counts?.needsMyReview || counts?.open)
   // The card's click target covers the whole card (`after:inset-0` on the
   // card's box); the badges sit above it.
   const cover = 'cursor-pointer text-left after:absolute after:inset-0 after:content-[\'\'] focus-visible:outline-none'
@@ -99,56 +63,47 @@ function ProjectCard({ project, view = 'grid', counts, selectable = false, selec
         <button type="button" onClick={handleActivate} className={cn(cover, 'min-w-0 flex-1 truncate text-sm font-medium text-foreground')}>
           {project.name}
         </button>
-        {badges}
         <span className="shrink-0 text-[11px] text-muted-foreground">{`Edited ${project.updatedAtLabel}`}</span>
       </div>
     )
   }
 
+  // The card: the project's mark (as the rail shows it) and who's on it, then its name and when it was last
+  // edited — nothing else (what's waiting on you is Home's list, above).
   return (
     <div
       data-project-card={project.id}
       {...prefetch}
       className={cn(
-        PAGE_CARD,
-        'group relative flex min-w-0 flex-col overflow-hidden transition-colors hover:border-white/25 hover:bg-white/[0.03] focus-within:border-emerald-300/50',
+        PAGE_PANEL,
+        'group relative flex min-w-0 flex-col gap-4 p-4 transition-colors hover:border-white/20 hover:bg-[#232323] focus-within:border-emerald-300/50',
         selected && 'border-primary ring-2 ring-primary/40'
       )}
     >
-      {/* (No preview: a placeholder picture read as still loading. The name, who's on it and what's waiting say enough.) */}
-      {selectable && (
-        <div className="absolute top-3 right-3 z-10">
-          <SelectIndicator selected={selected} />
-        </div>
-      )}
-
-      <div className={cn('flex items-center gap-3 px-4 pt-4', hasBadges ? 'pb-3' : 'pb-4')}>
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', tone)}>
-          <FolderKanban className="size-4 text-white" />
+      <div className="flex items-center justify-between gap-3">
+        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-[10px] text-[15px] font-semibold text-white', tone)}>
+          {project.name.charAt(0)}
         </span>
-        <div className="min-w-0 flex-1">
-          <button type="button" onClick={handleActivate} className={cn(cover, 'block max-w-full truncate text-[13px] font-semibold text-foreground')}>
-            {project.name}
-          </button>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            {project.type ? `${project.type} · Edited ${project.updatedAtLabel}` : `Edited ${project.updatedAtLabel}`}
-          </p>
-        </div>
-
-        {/* Overlapped just enough that every initial still reads. */}
-        {!selectable && <AvatarGroup className="shrink-0 -space-x-0.5">
-          {visibleMembers.map((member) => (
-            <Avatar key={member.id} size="sm">
-              <AvatarFallback className={cn('text-[10px] font-medium text-white', member.colorClass)}>
-                {member.initials}
-              </AvatarFallback>
-            </Avatar>
-          ))}
-          {overflowCount > 0 && <AvatarGroupCount>+{overflowCount}</AvatarGroupCount>}
-        </AvatarGroup>}
+        {selectable ? <SelectIndicator selected={selected} /> : (
+          // Overlapped just enough that every initial still reads.
+          <AvatarGroup className="shrink-0 -space-x-0.5">
+            {visibleMembers.map((member) => (
+              <Avatar key={member.id} size="xs">
+                <AvatarFallback className={cn('text-[8px] font-medium text-white', member.colorClass)}>
+                  {member.initials}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {overflowCount > 0 && <AvatarGroupCount>+{overflowCount}</AvatarGroupCount>}
+          </AvatarGroup>
+        )}
       </div>
-
-      {hasBadges && <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">{badges}</div>}
+      <div className="min-w-0">
+        <button type="button" onClick={handleActivate} className={cn(cover, 'block max-w-full truncate text-[14px] font-semibold text-foreground')}>
+          {project.name}
+        </button>
+        <p className="mt-0.5 truncate text-[12px] text-slate-500">{`Edited ${project.updatedAtLabel}`}</p>
+      </div>
     </div>
   )
 }

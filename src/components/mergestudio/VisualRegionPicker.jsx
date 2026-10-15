@@ -64,7 +64,7 @@ export default function VisualRegionPicker({ item, live }) {
   const scale = Math.max(0, Math.min(1, (cardWidth - 2) / commonWidth, (cardHeight - 24) / commonHeight))
   const letterOf = (key) => String.fromCharCode(65 + item.variants.findIndex((variant) => variant.key === key))
   return <section data-visual-region-picker className="flex h-full min-h-0 gap-2">
-    <div data-component-region-list role="group" aria-label="요소 항목" className={cn('order-last flex min-h-0 shrink-0 flex-col gap-1 overflow-y-auto border-l border-white/[0.06] pl-2', region ? 'w-[110px]' : 'w-full')} onMouseLeave={() => live.onHoverRegion?.(null)}>
+    <div data-component-region-list role="group" aria-label="요소 항목" className={cn('order-last flex min-h-0 shrink-0 flex-col gap-1 overflow-y-auto', region ? 'w-[110px] border-l border-white/[0.06] pl-2' : 'w-full')} onMouseLeave={() => live.onHoverRegion?.(null)}>
       {screen.regions.map((entry) => {
         const active = region?.id === entry.id
         const Icon = ({ header: LayoutPanelTop, summary: PanelsTopLeft, cards: PanelsTopLeft, payment: CreditCard, footer: RectangleHorizontal, cta: RectangleHorizontal })[entry.id] ?? Square

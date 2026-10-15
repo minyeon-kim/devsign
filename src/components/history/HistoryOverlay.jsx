@@ -103,7 +103,9 @@ function HistoryLayer() {
   }, [])
 
   return (
-    <div data-history-overlay role="dialog" aria-label="History" className="absolute inset-0 z-[650] flex min-h-0 flex-col overflow-hidden bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
+    // (In the canvas window's place — under the app's top bar, 8px in from the right and the bottom, the windows'
+    // 24px corners — not over the whole screen: the path, the search and the bell stay, as for any other view.)
+    <div data-history-overlay role="dialog" aria-label="History" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
       {/* The same top bar as the other layers: against the top, a 48px row in a
           64px place, Close at its right. The path says where this is —
           워크스페이스 › 히스토리 — its first item going where Close goes; "히스토리"

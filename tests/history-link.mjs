@@ -71,7 +71,8 @@ console.log('history-link: ok')
 // ── The layer's structure: the Workspace's, with the History drawer beside it — handled like the other two. ──
 {
   const overlay = read('src/components/history/HistoryOverlay.jsx')
-  assert.ok(overlay.includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col overflow-hidden bg-card') && overlay.includes('animate-in fade-in duration-150'))
+  // (In the canvas window's place, under the app's top bar — not over the whole screen.)
+  assert.ok(overlay.includes('className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card') && overlay.includes('animate-in fade-in duration-150'))
   assert.ok(overlay.includes('return historyOpen ? <HistoryLayer /> : null'), 'nothing of it runs — keys, playback — unless the layer is open')
   const provider = read('src/state/WorkspaceProvider.jsx')
   const rule = provider.slice(provider.indexOf('const openedHistory = useRef(false)'), provider.indexOf('  const value = {'))

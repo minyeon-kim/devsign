@@ -85,7 +85,7 @@ function ChatMarkdown({ text, summary, className }) {
   return (
     <div translate="no" className={cn('space-y-2.5', className)}>
       {translatedSummary && (
-        <div className="flex items-start gap-1.5 rounded-xl border border-emerald-400/50 bg-emerald-500/[0.18] px-3 py-2">
+        <div className="flex items-start gap-1.5 rounded-[16px] border border-emerald-400/50 bg-emerald-500/[0.18] px-3 py-2">
           <Sparkles className="mt-0.5 size-3.5 shrink-0 text-emerald-300" />
           <p className="text-[12px] leading-relaxed font-semibold text-emerald-200">{parseInline(translatedSummary, 'summary')}</p>
         </div>

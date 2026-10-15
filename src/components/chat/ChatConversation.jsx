@@ -163,7 +163,7 @@ function plural(n, word) {
 // element ("View changes") and the Conflict Point now awaiting review
 // ("Review changes"). A request that changed nothing says so, and has no
 // checkpoint.
-const RESULT_ACTION = 'ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-md border border-white/15 bg-white/[0.05] px-3 text-[11px] font-medium leading-none text-slate-100 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/10 focus-visible:outline-2 focus-visible:outline-emerald-300'
+const RESULT_ACTION = 'ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] px-3 text-[11px] font-medium leading-none text-slate-100 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/10 focus-visible:outline-2 focus-visible:outline-emerald-300'
 
 function ResultCard({ result, messageId }) {
   const { focusChange, setBottomPanel, openConflictReview, activeView } = useWorkspace()
@@ -174,7 +174,7 @@ function ResultCard({ result, messageId }) {
   const first = result.changes?.[0]
 
   return (
-    <div className="mt-1.5 w-[92%] rounded-xl border border-white/10 bg-white/[0.025] p-4 text-xs">
+    <div className="mt-1.5 w-[92%] rounded-[20px] border border-white/10 bg-white/[0.025] p-4 text-xs">
       <div className="flex min-w-0 items-start gap-2.5">
         <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06]', status.className)}>
           <StatusIcon className="size-3.5" />
@@ -336,7 +336,7 @@ function ApprovalCard({ message }) {
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
           title={open ? 'Hide details' : 'Show details'}
-          className="ds-intrinsic inline-flex max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300"
+          className="ds-intrinsic inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300"
         >
           <mark.icon className={cn('size-3.5 shrink-0', mark.className)} />
           <span className="shrink-0 font-medium text-slate-200">{line.label}</span>
@@ -347,7 +347,7 @@ function ApprovalCard({ message }) {
         {open && (state === 'approved'
           ? <ResultCard result={message.result} messageId={message.id} />
           : (
-            <div className="mt-1.5 rounded-xl border border-white/10 bg-white/[0.025] px-4 pb-4">
+            <div className="mt-1.5 rounded-[20px] border border-white/10 bg-white/[0.025] px-4 pb-4">
               {state === 'expired' && <p className="pt-3 text-[11px] text-slate-400">This request is no longer available.</p>}
               <ApprovalDetails result={message.result} />
             </div>
@@ -357,7 +357,7 @@ function ApprovalCard({ message }) {
   }
 
   return (
-    <div ref={cardRef} data-approval-card="pending" role="group" aria-label="Approval request" className="mb-1.5 w-[92%] rounded-xl border border-white/15 bg-white/[0.04] p-3.5 text-xs">
+    <div ref={cardRef} data-approval-card="pending" role="group" aria-label="Approval request" className="mb-1.5 w-[92%] rounded-[20px] border border-white/15 bg-white/[0.04] p-3.5 text-xs">
       <p data-approval-title title={summary.fullTitle} className="truncate text-[13px] leading-5 font-semibold text-slate-100">{summary.title}</p>
       {targets}
       {summary.risk && (
@@ -369,19 +369,19 @@ function ApprovalCard({ message }) {
       {failed && (
         <p role="alert" data-approval-error className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-rose-300">
           Couldn’t apply. Try again.
-          <button type="button" onClick={() => act(failed)} className="ds-intrinsic rounded-md px-1.5 py-0.5 font-medium text-slate-100 underline-offset-2 hover:underline">Retry</button>
+          <button type="button" onClick={() => act(failed)} className="ds-intrinsic rounded-full px-2 py-0.5 font-medium text-slate-100 underline-offset-2 hover:underline">Retry</button>
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" data-approval-approve disabled={Boolean(busy)} aria-busy={busy === 'approve'} onClick={() => act('approve')}
-          className="ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-md bg-emerald-400 px-3 text-[11px] font-semibold leading-none text-slate-950 transition-colors hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-60">
+          className="ds-intrinsic inline-flex h-7 min-h-7 items-center justify-center rounded-full bg-emerald-400 px-3 text-[11px] font-semibold leading-none text-slate-950 transition-colors hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-60">
           {busy === 'approve' ? 'Applying…' : 'Approve'}
         </button>
         <button type="button" data-approval-decline disabled={Boolean(busy)} aria-busy={busy === 'decline'} onClick={() => act('decline')} className={cn(RESULT_ACTION, 'disabled:pointer-events-none disabled:opacity-60')}>
           Decline
         </button>
         <button type="button" data-approval-more aria-expanded={open} onClick={() => setOpen((value) => !value)}
-          className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300">
+          className="ds-intrinsic ml-auto inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-emerald-300">
           {open ? 'Hide details' : 'Show details'}
           <ChevronDown className={cn('size-3 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-180')} />
         </button>
@@ -406,7 +406,7 @@ function TypingBubble() {
 function ActionButton({ label, pressed, disabled, onClick, children }) {
   return (
     <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}
-      className={cn('ds-intrinsic inline-flex size-5 items-center justify-center rounded-md [&>svg]:size-3 text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
+      className={cn('ds-intrinsic inline-flex size-5 items-center justify-center rounded-full [&>svg]:size-3 text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:pointer-events-none disabled:opacity-30', pressed && 'bg-emerald-400/10 text-emerald-300')}>
       {children}
     </button>
   )

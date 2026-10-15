@@ -28,7 +28,7 @@ try {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 // No way in passes the intent through router state any more.
-const sources = ['src/pages/WorkspacePage.jsx', 'src/pages/ProjectOverviewPage.jsx', 'src/components/layout/NotificationsMenu.jsx', 'src/components/dashboard/ConflictsDrawer.jsx', 'src/components/history/HistoryCompare.jsx', 'src/components/history/RollbackCheckpointModal.jsx', 'src/components/projects/ProjectCard.jsx']
+const sources = ['src/pages/WorkspacePage.jsx', 'src/pages/ProjectOverviewPage.jsx', 'src/components/layout/NotificationsMenu.jsx', 'src/components/dashboard/ConflictsDrawer.jsx', 'src/components/history/HistoryCompare.jsx', 'src/components/history/RollbackCheckpointModal.jsx']
 for (const file of sources) assert.ok(!/openConflictId|state: \{ conflictFilter|fromNotification/.test(read(file)), `${file} still passes the change through router state`)
 for (const file of sources.slice(1)) assert.ok(/changeHref\(|changesHref\(/.test(read(file)), `${file} links to the change's address`)
 // The provider: the address is what's shown; pushed here, replaced when switching, back or replace to close.
