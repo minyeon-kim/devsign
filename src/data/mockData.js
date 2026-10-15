@@ -139,31 +139,31 @@ export const projectViewerIds = {
   'checkout-redesign': 'jane',
 }
 
-// Projects where more than one person has a UT track: Dashboard Redesign
-// is tested as Taylor (designer — scenarios A and B) and as Alex (developer
-// — scenario C), on the same project and the same Conflict Points. Which of
-// them "you" are is kept in the browser (see setProjectViewer).
-export const projectViewerOptions = {
-  'dashboard-redesign': ['jane', 'min'],
-}
-const viewerKey = (projectId) => `devsign:viewer:${projectId}`
-function storedViewer(projectId) {
+// Who "you" are — one choice for every project: Taylor (designer) or Alex (developer), switched from the profile
+// menu and kept in the browser. (Each project's list and actions follow it: a designer's changes to decide, a
+// developer's to ask about and merge.)
+export const viewerOptions = ['jane', 'min']
+export const projectViewerOptions = Object.fromEntries(Object.keys(projectViewerIds).map((projectId) => [projectId, viewerOptions]))
+const VIEWER_KEY = 'devsign:viewer'
+function storedViewer() {
   try {
-    return typeof window === 'undefined' ? null : window.localStorage.getItem(viewerKey(projectId))
+    return typeof window === 'undefined' ? null : window.localStorage.getItem(VIEWER_KEY)
   } catch {
     return null
   }
 }
-export function setProjectViewer(projectId, personId) {
+export function setViewer(personId) {
   try {
-    window.localStorage.setItem(viewerKey(projectId), personId)
+    window.localStorage.setItem(VIEWER_KEY, personId)
   } catch {
-    // Storage blocked — the project's default viewer stays.
+    // Storage blocked — the default viewer stays.
   }
 }
+// (Kept for callers that name a project: the choice is the same for all of them.)
+export const setProjectViewer = (_projectId, personId) => setViewer(personId)
 export function viewerIdFor(projectId) {
-  const stored = storedViewer(projectId)
-  return projectViewerOptions[projectId]?.includes(stored) ? stored : projectViewerIds[projectId]
+  const stored = storedViewer()
+  return viewerOptions.includes(stored) ? stored : projectViewerIds[projectId] ?? currentUser.id
 }
 
 // The active project's viewer, resolved from the full roster — same shape
@@ -179,11 +179,7 @@ export function currentUserFor(projectId) {
 // The people with a complete UT track (each project's own scripted
 // scenario) — backs the profile menu's "Switch user" control, where
 // picking one both identifies you and takes you to their project.
-export const viewerPersonas = Object.entries(projectViewerIds).flatMap(([projectId, id]) =>
-  (projectViewerOptions[projectId] ?? [id]).map((personId) => ({
-    projectId,
-    person: teamMembers.find((p) => p.id === personId),
-  })))
+export const viewerPersonas = viewerOptions.map((personId) => ({ person: teamMembers.find((p) => p.id === personId) }))
 
 // Convenience lookup used anywhere an id needs to resolve to a person,
 // regardless of whether they're "you" or a teammate.

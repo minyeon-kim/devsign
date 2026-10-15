@@ -1708,7 +1708,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       </div>
       {/* The one action, at the card's lower right: 24px over it, no rule. */}
       {/* (Nothing in it for this viewer — a reviewer before the request — no bar: an empty one is a dark strip.) */}
-      {page && action && <div data-resolution-action className="sticky bottom-0 z-10 mt-5 [&:not(:has(button))]:hidden flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] bg-[var(--review-ground,var(--background))] pt-4 pb-3">{action}</div>}
+      {page && action && <div data-resolution-action className="mt-5 [&:not(:has(button))]:hidden flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] pt-4">{action}</div>}
     </div>
   )
 }
@@ -3286,7 +3286,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const broken = choice ? violations[choice] : []
   const reasonOf = (kind) => (conflict?.deviation?.kind === kind ? conflict.deviation.text ?? '' : '')
   // (The reason is the author's to give: a reviewer — the designer — doesn't fill it in; what was given shows in the record.)
-  const flowReason = myReviewer && !ownChange ? null : choice === 'C' ? {
+  const flowReason = !involved || (myReviewer && !ownChange) ? null : choice === 'C' ? {
     title: broken.length ? 'Reason for adjustment and exception' : 'Why was it adjusted?',
     hint: 'Required · choose all that apply',
     reasons: ADJUSTMENT_REASONS,
@@ -3546,7 +3546,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       onUpdate={onUpdate && involved ? update : undefined}
       onDismiss={workspace?.dismissChangeRequest}
       // (Asking is the author's: a reviewer — the designer, looking at it first — waits for the request.)
-      request={!onUpdate || approvalNudge || (myReviewer && !ownChange) ? null : cardFlow
+      request={!onUpdate || approvalNudge || !involved || (myReviewer && !ownChange) ? null : cardFlow
         ? {
           run: flow.decide.run,
           onAssign: assignReviewer,

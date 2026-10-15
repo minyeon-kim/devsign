@@ -1152,8 +1152,9 @@ function DecisionForm({ conflict, onDecide }) {
           />
         </div>
       )}
-      {/* The decision: 승인 is the one mint button; the other two sit beside it, quieter. At the foot of what scrolls. */}
-      <div data-decision-action className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4 sticky bottom-0 z-10 bg-[var(--review-ground,var(--background))] pb-3">
+      {/* The decision: 승인 is the one mint button; the other two sit beside it, quieter. (On the step card's own
+          ground — no panel-coloured box of its own inside the card.) */}
+      <div data-decision-action className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4">
         <div data-decision-segments role="group" aria-label="디자인 결정" className="flex flex-wrap items-center gap-1">
           {DECISION_ORDER.filter((id) => id !== 'approve').map((id) => (
             <button key={id} type="button" data-decision-choice={id} aria-pressed={choice === id} onClick={() => setChoice(choice === id ? null : id)}
@@ -1244,8 +1245,10 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   const askingNow = stage === 'detected' || stage === 'rework'
   // (Asking is the developer's — whoever made the change. A reviewer looking at it before then sees the
   // ways forward and waits for the request: a designer never asks herself.)
-  const asking = askingNow && !decides
   const authorId = conflict.changedBy?.id ?? request?.by ?? null
+  // (Only the one who made it asks — not a reviewer, not another developer looking at it under 전체. With no
+  // author on record, whoever isn't deciding it.)
+  const asking = askingNow && (authorId ? authorId === viewer?.id : !decides)
   const EMPTY_CUSTOM = { values: {}, note: '' }
   // (Nothing picked before: the recommended way — matching the design — is, so
   // the comparison shows at once and the button is ready. It's applied only when pressed.)

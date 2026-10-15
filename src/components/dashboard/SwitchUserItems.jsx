@@ -1,30 +1,27 @@
-import { useNavigate } from 'react-router-dom'
 import { cn } from 'cn'
+import { Check } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
-import { projects, projectViewerOptions, setProjectViewer, viewerPersonas } from '@/data/mockData'
+import { setViewer, viewerIdFor, viewerPersonas } from '@/data/mockData'
 
-// UT-only: each persona has a fully scripted project — picking one takes you
-// straight there instead of leaving you to find the right project for the
-// role you're testing. Shared by the profile menu and the activity bar's
-// user badge.
-// (A project tested by more than one persona — Dashboard Redesign —
-// remembers which one you are; a full reload so every screen of it starts
-// over as that person.)
+// UT-only: who you are — Taylor (designer) or Alex (developer) — on whatever project you're on. Picking one
+// reloads the page as that person, so every screen of it starts over as them. Shared by the profile menu and the
+// activity bar's user badge.
 export default function SwitchUserItems() {
-  const navigate = useNavigate()
+  const projectId = window.location.pathname.match(/projects\/([^/]+)/)?.[1] ?? null
+  const current = viewerIdFor(projectId)
   return (
     <>
       <p className="px-2 pt-1 pb-0.5 text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">Switch user</p>
-      {viewerPersonas.map(({ projectId, person }) => (
+      {viewerPersonas.map(({ person }) => (
         <DropdownMenuItem
-          key={`${projectId}:${person.id}`}
+          key={person.id}
+          data-switch-user={person.id}
           onClick={() => {
-            if (projectViewerOptions[projectId]) {
-              setProjectViewer(projectId, person.id)
-              window.location.assign(`${import.meta.env.BASE_URL}projects/${projectId}/workspace`)
-            } else navigate(`/projects/${projectId}`)
+            if (person.id === current) return
+            setViewer(person.id)
+            window.location.reload()
           }}
         >
           <Avatar size="sm">
@@ -32,10 +29,10 @@ export default function SwitchUserItems() {
               {person.initials}
             </AvatarFallback>
           </Avatar>
-          <span className="flex min-w-0 flex-col leading-tight">
+          <span className="flex min-w-0 flex-1 flex-col leading-tight">
             <span>{person.name} · <LocalizedText text={person.role} /></span>
-            <span className="truncate text-[11px] text-muted-foreground">{projects.find((project) => project.id === projectId)?.name}</span>
           </span>
+          {person.id === current && <Check aria-hidden className="size-3.5 text-muted-foreground" />}
         </DropdownMenuItem>
       ))}
     </>
