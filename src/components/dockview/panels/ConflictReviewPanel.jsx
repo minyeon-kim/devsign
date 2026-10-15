@@ -1705,7 +1705,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       )}
       </div>
       {/* The one action, at the card's lower right: 24px over it, no rule. */}
-      {page && action && <div data-resolution-action className="sticky bottom-0 z-10 mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] bg-[var(--review-ground,var(--background))] pt-4 pb-3">{action}</div>}
+      {/* (Nothing in it for this viewer — a reviewer before the request — no bar: an empty one is a dark strip.) */}
+      {page && action && <div data-resolution-action className="sticky bottom-0 z-10 mt-5 [&:not(:has(button))]:hidden flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] bg-[var(--review-ground,var(--background))] pt-4 pb-3">{action}</div>}
     </div>
   )
 }
