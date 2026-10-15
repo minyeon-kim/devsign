@@ -139,10 +139,10 @@ export const projectViewerIds = {
   'checkout-redesign': 'jane',
 }
 
-// Who "you" are — one choice for every project: Taylor (designer) or Alex (developer), switched from the profile
+// Who "you" are — one choice for every project: Taylor (designer), Alex or Jordan (developers), switched from the profile
 // menu and kept in the browser. (Each project's list and actions follow it: a designer's changes to decide, a
 // developer's to ask about and merge.)
-export const viewerOptions = ['jane', 'min']
+export const viewerOptions = ['jane', 'min', 'james']
 export const projectViewerOptions = Object.fromEntries(Object.keys(projectViewerIds).map((projectId) => [projectId, viewerOptions]))
 const VIEWER_KEY = 'devsign:viewer'
 function storedViewer() {

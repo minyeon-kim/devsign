@@ -11,6 +11,7 @@ import { toast } from '@/i18n/toast'
 import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 import { ElementCrop, PreviewFrame, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
+import WayPicker from '@/components/conflicts/WayPicker'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueCards from '@/components/conflicts/ValueCards'
@@ -765,73 +766,38 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {/* The ways forward, as text. (From here down the card's height eases when its state changes — rows and the button leaving — and what replaces them fades in.) */}
       <SmoothHeight trigger={mode}>
       <div>
-      {readOnly ? (mode === 'pending' ? null : (
-        // Not pickable: the ways as a list, the one taken marked — or (done) that one alone.
-        // (Asked and waiting: none — the request says which, in its own summary.)
-        <ul data-proposal-ways={mode} aria-label="수정안" className="m-0 mt-6 flex list-none flex-col p-0">
-          {ways.filter((option) => (mode === 'done' ? option.id === proposal : true)).map((option) => {
-            const on = proposal === option.id
-            const shape = proposalOf(option.id, on ? custom : null, conflict)
-            return (
-              <li key={option.id} data-way={option.id} aria-current={on ? 'true' : undefined} className={cn('flex min-h-11 items-center gap-3 rounded-lg px-3 py-2', on && 'bg-emerald-400/[0.08]')}>
-                <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full', on ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)]' : 'border-2 border-white/15')}>{on && <Check className="size-3" strokeWidth={3} />}</span>
-                <span className="min-w-0 flex-1 truncate text-[13px] leading-5 tabular-nums">
-                  <span className={cn('font-medium', on ? 'text-slate-100' : 'text-slate-400')}>{option.name}</span>
-                  <span className="text-slate-500"> · {option.id === 'other' ? (shape?.described ? shape.spec : '직접 입력') : option.spec}</span>
-                  {on && resultWord && <span data-way-state className="ml-2 inline-flex h-[18px] items-center rounded bg-white/[0.07] px-1.5 align-middle text-[10.5px] font-medium text-slate-300">{resultWord}</span>}
-                </span>
-              </li>
-            )
+      {/* The ways forward: one dropdown, as every change's — the way picked (its value after its name), what it
+          does under it. Not pickable (looked at, or done): the way taken, in the same line. (Asked and waiting:
+          none — the request says which.) */}
+      {mode === 'pending' ? null : (
+        <WayPicker
+          className="mt-6"
+          label="수정안"
+          value={proposal}
+          onChange={pick}
+          readOnly={readOnly}
+          tag={readOnly && proposal ? resultWord : null}
+          options={ways.filter((option) => (mode === 'done' ? option.id === proposal : true)).map((option) => {
+            const shape = proposalOf(option.id, proposal === option.id ? custom : null, conflict)
+            return {
+              id: option.id,
+              title: option.name,
+              value: option.id === 'other' ? (shape?.described ? shape.spec : '직접 입력') : option.spec,
+              detail: option.id === 'original' ? '디자인 원안의 값으로 코드를 고쳐요' : option.id === 'current' ? '지금 코드의 값을 그대로 두고, 원안을 바꿔 달라고 요청해요' : '원안도 지금 값도 아닌 값을 정해 요청해요',
+              badge: option.id === 'original' && !readOnly ? { text: '추천' } : null,
+              data: { 'data-choice': `proposal:${option.id}`, 'data-way': option.id, 'data-choice-tone': option.id === 'original' ? 'A' : option.id === 'other' ? 'C' : 'B' },
+            }
           })}
-        </ul>
-      )) : (
-      <div role="radiogroup" aria-label="수정안" className="mt-6 flex flex-col">
-        {ways.map((option, index) => {
-          const on = proposal === option.id
-          // (다른 값, picked, with a scale: its value is set in its own row — a stepper at the row's right.)
-          const stepper = on && option.id === 'other' && Boolean(scale)
-          return (
-            <Fragment key={option.id}>
-              <div className="relative">
-              <button
-                ref={(node) => { refs.current[index] = node }}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                data-choice={`proposal:${option.id}`}
-                data-choice-tone={option.id === 'original' ? 'A' : option.id === 'other' ? 'C' : 'B'}
-                tabIndex={on || (!proposal && index === 0) ? 0 : -1}
-                onClick={() => pick(option.id)}
-                onKeyDown={(event) => move(event, index)}
-                // (The way under the pointer or the focus shows on the right, until it leaves.)
-                onMouseEnter={() => setHovered(option.id)}
-                onMouseLeave={() => setHovered((current) => (current === option.id ? null : current))}
-                onFocus={() => setHovered(option.id)}
-                onBlur={() => setHovered((current) => (current === option.id ? null : current))}
-                className={cn(
-                  'ds-tone ds-intrinsic flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
-                  on ? 'bg-emerald-400/[0.08]' : 'hover:bg-white/[0.04]',
-                  stepper && 'pr-[132px]',
-                )}
-              >
-                <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>
-                  {on && <span className="size-2 rounded-full bg-emerald-400" />}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] leading-5 tabular-nums">
-                  {/* (The name alone: its values are the table's.) */}
-                  <span className="font-medium text-slate-100">{option.name}</span>
-                  {/* Suggested, not chosen for you: nothing is picked by default. */}
-                  {option.id === 'original' && <span data-recommended className="ml-2 inline-flex h-[18px] items-center rounded bg-[var(--ds-accent-bg)] px-1.5 align-middle text-[10.5px] font-medium text-[var(--ds-accent-text)]">추천</span>}
-                </span>
-              </button>
-              {stepper && <ValueStepper value={typed || (ownValue ? String(ownValue).replace(/px$/, '') : '')} from={builtNumberOf(scale)} step={scale.unit === 'px' ? 1 : 0.25} unit={scale.unit} onChange={typeValue} />}
-              </div>
-              {/* A way with values of its own that aren't one number (a layout's): its controls, under its row. */}
-              {on && option.id === 'other' && !scale && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
-            </Fragment>
-          )
-        })}
-      </div>
+        >
+          {/* 다른 값, picked: its value set right under the line — a stepper, or a layout's own controls. */}
+          {!readOnly && proposal === 'other' && scale && (
+            <div data-way-value className="flex items-center justify-between gap-3 px-0.5">
+              <span className="text-[12px] text-slate-400">값</span>
+              <ValueStepper value={typed || (ownValue ? String(ownValue).replace(/px$/, '') : '')} from={builtNumberOf(scale)} step={scale.unit === 'px' ? 1 : 0.25} unit={scale.unit} onChange={typeValue} />
+            </div>
+          )}
+          {!readOnly && proposal === 'other' && !scale && <ProposalControls conflict={conflict} values={custom.values ?? {}} onEdit={edit} note={custom.note ?? ''} onNote={(note) => onCustom({ ...custom, note })} />}
+        </WayPicker>
       )}
       {/* What a way that differs from the design needs: why — 12px under the list, on its edges. */}
       {!readOnly && <FoldBody open={asking}>

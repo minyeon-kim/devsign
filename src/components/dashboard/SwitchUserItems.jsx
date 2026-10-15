@@ -5,7 +5,7 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { LocalizedText } from '@/i18n/runtime'
 import { setViewer, viewerIdFor, viewerPersonas } from '@/data/mockData'
 
-// UT-only: who you are — Taylor (designer) or Alex (developer) — on whatever project you're on. Picking one
+// UT-only: who you are — Taylor (designer), Alex or Jordan (developers) — on whatever project you're on. Picking one
 // reloads the page as that person, so every screen of it starts over as them. Shared by the profile menu and the
 // activity bar's user badge.
 export default function SwitchUserItems() {

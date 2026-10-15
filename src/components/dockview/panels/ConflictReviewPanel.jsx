@@ -1,5 +1,6 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { isMine } from '@/lib/screenConflicts'
+import WayPicker from '@/components/conflicts/WayPicker'
 import { historyHref } from '@/lib/historyLink'
 import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
@@ -1245,78 +1246,51 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       )}
       {/* What differs, in a line right under the pictures. */}
       {conflict.preview && conflict.comparisonFields?.length > 0 && <DifferenceSummary compact className="mt-3 bg-transparent !px-0 !py-0" conflict={conflict} />}
-      {/* The ways forward, a line each: text first, how it stands with the standard at its end. */}
-      <div role={readOnly ? undefined : 'radiogroup'} aria-label="해결 방법 선택" data-choice-list className={cn('flex flex-col', conflict.preview && 'mt-6')}>
-        {offered.filter((card) => !readOnly || showAlternatives || card.id === choice).map((card) => {
-          const on = choice === card.id
-          const isCustom = card.id === 'C'
-          const empty = isCustom && !custom
-          const picks = isCustom && Boolean(flow?.controls)
-          const choose = !editing ? undefined : !on ? () => flow.choose(card.id) : undefined
-          const inert = !choose
+      {/* The ways forward: one dropdown, as every change's — the way picked, what it gives, and how it stands
+          with the standard as its badge; a value of one's own is set right under it. */}
+      {(() => {
+        const shownCards = offered.filter((card) => !readOnly || showAlternatives || card.id === choice)
+        const options = shownCards.map((card) => {
           const required = breaks(card.id)
           const advisories = required.length ? [] : flow?.advisories?.[card.id] ?? []
           const badge = required.length || advisories.length ? null : badgeOf(card.id)
           const line = valueLine(card)
-          return (
-            <div key={card.id} data-applied={readOnly && on ? '' : undefined} className={cn(!readOnly && !editing && !on && 'opacity-50')} onMouseEnter={editing ? () => setHover(card.id) : undefined} onMouseLeave={editing ? () => setHover(null) : undefined}>
-              <div
-                role={readOnly ? undefined : 'radio'}
-                aria-checked={readOnly ? undefined : on}
-                aria-disabled={!editing}
-                tabIndex={inert ? -1 : 0}
-                onClick={inert ? undefined : (event) => { if (event.currentTarget.contains(event.target)) choose() }}
-                onKeyDown={(event) => {
-                  if (inert || event.target !== event.currentTarget || (event.key !== ' ' && event.key !== 'Enter')) return
-                  event.preventDefault()
-                  choose()
-                }}
-                onFocus={editing ? () => setHover(card.id) : undefined}
-                onBlur={editing ? () => setHover(null) : undefined}
-                data-side={card.side}
-                data-decision={card.id}
-                data-choice-tone={card.id}
-                className={cn(
-                  'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
-                  on ? (readOnly ? 'bg-white/[0.05]' : 'bg-emerald-400/[0.08]') : !inert && 'hover:bg-white/[0.04]',
-                  !inert && 'cursor-pointer'
-                )}
-              >
-                {!readOnly && (
-                  <span aria-hidden className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-emerald-400' : 'border-white/30')}>
-                    {on && <span className="size-2 rounded-full bg-emerald-400" />}
-                  </span>
-                )}
-                <span className="min-w-0 flex-1 text-[13px] leading-5">
-                  <span className="font-medium text-slate-100"><LocalizedText text={card.title} /></span>
-                  <span className="text-slate-400"> · {line ? <ValueText text={line} /> : <LocalizedText text={card.source ?? ''} />}</span>
-                  {badge && !readOnly && (
-                    <span data-card-recommendation={badge.text === 'Recommended' ? '' : undefined} data-card-badge className={cn('ml-2 inline-flex h-[18px] items-center gap-1 rounded px-1.5 align-middle text-[10.5px] leading-none font-medium whitespace-nowrap', badge.tone)}>
-                      {badge.icon && <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} />}
-                      <LocalizedText text={badge.text} />
-                    </span>
-                  )}
-                </span>
-                {readOnly && on && <span data-applied-tag className="shrink-0 rounded bg-white/[0.1] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-white"><LocalizedText text="Applied" /></span>}
-                {/* (Where its values come from, quiet, at the row's end.) */}
-                
+          return {
+            id: card.id,
+            title: tr(card.title),
+            value: line ? tr(line) : tr(card.source ?? ''),
+            badge: badge && !readOnly ? { text: tr(badge.text), tone: badge.tone, icon: badge.icon ? <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} /> : null } : null,
+            data: { 'data-decision': card.id, 'data-side': card.side, 'data-choice-tone': card.id, ...(badge?.text === 'Recommended' ? { 'data-card-recommendation': '' } : {}) },
+          }
+        })
+        const customCard = cards.find((card) => card.id === 'C')
+        const empty = !custom
+        const picks = Boolean(flow?.controls)
+        return (
+          <WayPicker
+            data-choice-list
+            className={cn(conflict.preview && 'mt-6')}
+            label="해결 방법 선택"
+            value={choice}
+            onChange={(id) => { if (editing && id !== choice) flow.choose(id) }}
+            readOnly={readOnly || !editing}
+            tag={readOnly && choice ? tr('Applied') : null}
+            options={options}
+          >
+            {choice === 'C' && customCard && (editing || custom) && (
+              <div data-choice-controls className="flex max-w-[360px] flex-col gap-2.5 px-0.5">
+                {valuesOf(customCard, { isCustom: true, empty, picks })}
+                {editing && !flow.controls && empty && (flow.openStudio ? (
+                  <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'w-fit justify-center bg-transparent')}>
+                    <Plus className={NAV_BUTTON_ICON} />
+                    <LocalizedText text="Set it in Merge Studio" />
+                  </button>
+                ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>)}
               </div>
-              {/* A value of one's own is set right under its row — only there. */}
-              {isCustom && on && (editing || custom) && (
-                <div data-choice-controls className="mt-1 mb-2 ml-10 flex max-w-[360px] flex-col gap-2.5">
-                  {valuesOf(card, { isCustom, empty, picks })}
-                  {editing && !flow.controls && empty && (flow.openStudio ? (
-                    <button type="button" data-adjust-start onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className={cn(NAV_BUTTON, 'w-fit justify-center bg-transparent')}>
-                      <Plus className={NAV_BUTTON_ICON} />
-                      <LocalizedText text="Set it in Merge Studio" />
-                    </button>
-                  ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>)}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+            )}
+          </WayPicker>
+        )
+      })()}
     </>
   )
 
@@ -1326,7 +1300,15 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
           is chosen. Which way shows on the cards (the check, the border);
           who's reviewing is the sidebar's; a rule a way breaks is on that
           way's card — none of it is repeated here. */}
-      {pairedPreview && flow && !readOnly && (
+      {/* (On the page, no title of its own: the step it's in names it, as every change's — only 결정 바꾸기, when there is one.) */}
+      {pairedPreview && flow && !readOnly && page && flow.canChange && (
+        <div className="mb-2 flex justify-end">
+          <button type="button" data-change-decision onClick={flow.changeDecision} className={TEXT_ACTION}>
+            <LocalizedText text="Change decision" />
+          </button>
+        </div>
+      )}
+      {pairedPreview && flow && !readOnly && !page && (
         <div className={SECTION_HEAD}>
           <h3 data-pick-guide={choice ?? 'none'} className={SECTION_TITLE}><LocalizedText text="How to resolve it" /></h3>
           {/* (Decided as soon as a way is chosen — sending it for review is
@@ -1644,32 +1626,25 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
             )}
             {codeConflict && conflict.diff && !readOnly && (
               <section data-code-conflict className="min-w-0 space-y-3">
-                {/* (One line on what overlaps; what each way does is said on the one picked.) */}
-                <p className="text-xs leading-5 text-slate-300"><LocalizedText text={conflict.codeComparison?.conflict ?? conflict.cause ?? conflict.message} /></p>
                 {(() => {
                   const before = conflict.diff.before ?? []
                   const options = codeConflictOptions(conflict)
                   const picked = options.find((option) => option.id === codeChoice) ?? options.at(-1)
                   return <>
-                    <div role="radiogroup" aria-label="How to resolve the conflict" className="grid min-w-0 gap-1.5">
-                      {options.map((option) => {
-                        const on = option.id === picked.id
-                        return (
-                          <button key={option.id} type="button" role="radio" aria-checked={on} data-code-choice={option.id} onClick={() => setCodeChoice(option.id)} className={cn('ds-intrinsic flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', on ? 'border-emerald-300/50 bg-emerald-400/[0.08]' : 'border-white/10 hover:border-white/25 hover:bg-white/[0.04]')}>
-                            <span aria-hidden className={cn('mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border', on ? 'border-[#5EEAB5] bg-[#5EEAB5] text-[#06281D]' : 'border-white/25')}>{on && <Check className="size-2.5" strokeWidth={3} />}</span>
-                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span className="min-w-0 truncate text-[13px] font-medium text-white"><LocalizedText text={option.title} /></span>
-                                {option.note && (option.plain
-                                  ? <span className="shrink-0 rounded bg-emerald-400/10 px-1.5 text-[10.5px] leading-4 font-medium text-emerald-200"><LocalizedText text={option.note} /></span>
-                                  : <span translate="no" className="ml-auto min-w-0 truncate font-mono text-[10.5px] text-slate-500" title={option.note}>{option.note}</span>)}
-                              </span>
-                              {on && option.desc && <span className="text-xs leading-5 text-slate-400"><LocalizedText text={option.desc} /></span>}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {/* (One dropdown, as every change's: the way picked, what it does under it; the branches in the menu.) */}
+                    <WayPicker
+                      label="How to resolve the conflict"
+                      value={picked.id}
+                      onChange={setCodeChoice}
+                      options={options.map((option) => ({
+                        id: option.id,
+                        title: tr(option.title),
+                        detail: option.desc ? tr(option.desc) : null,
+                        badge: option.note && option.plain ? { text: tr(option.note) } : null,
+                        mono: option.note && !option.plain ? option.note : null,
+                        data: { 'data-code-choice': option.id },
+                      }))}
+                    />
                     <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict location={`${conflict.file}:${conflict.line ?? 1}`} />
                   </>
                 })()}
