@@ -3729,6 +3729,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     ))}
     </div>
   )
+  // The page's title in two: the component, bold — and what about it, under it ("PlaceOrderButton / Height & color").
+  const titleParts = (() => {
+    const [main, ...rest] = String(conflict?.title ?? '').split(' / ')
+    return { main, sub: rest.join(' / ') || null }
+  })()
   return (
     <div style={{ '--review-ground': page ? 'var(--background)' : 'var(--card)' }} className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
         {conflict && (
@@ -3747,32 +3752,45 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   </button>}
                   {page && onBack && <button type="button" data-review-back onClick={onBack} title="Back to the list" aria-label="Back to the list" className="ds-intrinsic flex size-7 shrink-0 items-center justify-center self-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><ChevronLeft className="size-4" /></button>}
                   {/* (On the page the whole title shows — over two lines when it needs them, never cut short.) */}
-                  <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className={cn('min-w-0 font-semibold tracking-tight text-white', page ? 'text-[15px] leading-[22px] break-words [overflow-wrap:anywhere]' : 'truncate text-lg leading-7 sm:text-xl')}>
-                    <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
+                  <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className={cn('min-w-0 font-semibold tracking-tight text-white', page ? 'text-[16px] leading-6 break-words [overflow-wrap:anywhere]' : 'truncate text-lg leading-7 sm:text-xl')}>
+                    <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : page ? titleParts.main : conflict.title} />
                   </h2>
                   {!page && (!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                   {/* (On the page its code sits on the title's line, right after it — a quiet mono label, not a line of its own.) */}
-                  {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="shrink-0 font-mono text-[11px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
-                  {page && headerAside && <span className="ml-auto flex shrink-0 items-center gap-0.5 self-center">{headerAside}</span>}
+                  {/* (Where it stands: one pill at the title's right — the first thing after what it is.) */}
+                  {page && !conflict.rollback && stage !== 'resolved' && (
+                    <span data-review-state className="ml-auto inline-flex h-6 shrink-0 items-center self-center rounded-full bg-white/[0.07] px-2.5 text-[11.5px] font-medium text-slate-200">
+                      {mergeRequest
+                        ? <span data-request-state={requestState} className="inline-flex items-center gap-1.5"><span aria-hidden className={cn('size-1.5 rounded-full', requestState === 'approved' ? 'bg-emerald-300' : requestState === 'rejected' ? 'bg-amber-300' : requestState === 'waiting' ? 'bg-sky-300' : 'bg-slate-500')} />{MERGE_REQUEST_LABEL[requestState]}</span>
+                        : <ListStatusLabel conflict={conflict} className="text-[11.5px]" />}
+                    </span>
+                  )}
+                  {page && headerAside && <span className={cn('flex shrink-0 items-center gap-0.5 self-center', (conflict.rollback || stage === 'resolved') && 'ml-auto')}>{headerAside}</span>}
                 </div>
+                {/* (Under it, quieter: what about it — the property — and its number.) */}
+                {page && (!conflict.rollback || stage === 'resolved') && (
+                  <p data-review-sub className={cn('m-0 -mt-1 flex min-w-0 items-baseline gap-1.5 text-[12.5px] leading-5 text-slate-400', onBack && 'pl-[38px]')}>
+                    {titleParts.sub && <span className="min-w-0 truncate"><LocalizedText text={titleParts.sub} /></span>}
+                    {titleParts.sub && <span aria-hidden className="text-slate-600">·</span>}
+                    <span data-review-ref translate="no" className="shrink-0 font-mono text-[11px] text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>
+                  </p>
+                )}
                 {/* A decision's page: what differs, in one sentence, right under the title. */}
-                {decisionPage && differenceLineOf(conflict) && <p data-difference-line className={cn('m-0 text-[13px] leading-5 text-slate-300 [word-break:keep-all]', onBack && 'pl-[38px]')}><LocalizedText text={differenceLineOf(conflict)} /></p>}
+                {!page && decisionPage && differenceLineOf(conflict) && <p data-difference-line className={cn('m-0 text-[13px] leading-5 text-slate-300 [word-break:keep-all]', onBack && 'pl-[38px]')}><LocalizedText text={differenceLineOf(conflict)} /></p>}
                 {/* (On the page, a size down: 20px badges, 11px words — the title leads.) */}
                 {/* (On the page one quiet line: the kind its one chip; the risk, when, and where it stands as words.) */}
-                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-2 gap-y-1 text-[12px]', onBack && 'pl-[38px]', decisionPage && "[&>*+*]:before:mr-2 [&>*+*]:before:text-slate-600 [&>*+*]:before:content-['·']") : 'gap-1.5 pl-10')}>
-                  <ConflictTypeTag conflict={conflict} header={!page} quiet={page} plain={decisionPage} />
+                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-2 gap-y-1 text-[11.5px] text-slate-500 [&_*]:!text-[11.5px]', onBack && 'pl-[38px]', "[&>*+*]:before:mr-2 [&>*+*]:before:text-slate-600 [&>*+*]:before:content-['·']") : 'gap-1.5 pl-10')}>
+                  {/* (When first — it's what's asked of the reader — then how risky, then what kind.) */}
+                  {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="text-xs" />}
+                  {!page && <ConflictTypeTag conflict={conflict} header quiet={false} plain={decisionPage} />}
                   {severity && (
-                    <span data-risk-badge className={page ? cn('inline-flex items-center gap-1 text-xs', severity.label.toLowerCase() === 'high' ? 'text-rose-300' : 'text-slate-400') : cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
-                        {decisionPage && <span aria-hidden className={cn('size-1.5 rounded-full', severity.label.toLowerCase() === 'high' ? 'bg-rose-400' : severity.label.toLowerCase() === 'medium' ? 'bg-amber-400' : 'bg-slate-500')} />}
+                    <span data-risk-badge className={page ? cn('inline-flex items-center gap-1 text-xs', severity.label.toLowerCase() === 'high' ? 'text-rose-300' : 'text-slate-500') : cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                        {page && severity.label.toLowerCase() === 'high' && <span aria-hidden className={cn('size-1.5 rounded-full', severity.label.toLowerCase() === 'high' ? 'bg-rose-400' : severity.label.toLowerCase() === 'medium' ? 'bg-amber-400' : 'bg-slate-500')} />}
                         <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
                         <LocalizedText text={severity.label} />
                       </span>
                   )}
-                  {/* (The page's meta line: when it's due and where it stands.) */}
-                  {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="text-xs" />}
-                  {page && !conflict.rollback && stage !== 'resolved' && (mergeRequest
-                    ? <span data-request-state={requestState} className="inline-flex items-center gap-1.5 text-xs text-slate-300"><span aria-hidden className={cn('size-1.5 rounded-full', requestState === 'approved' ? 'bg-emerald-300' : requestState === 'rejected' ? 'bg-amber-300' : requestState === 'waiting' ? 'bg-sky-300' : 'bg-slate-500')} />{MERGE_REQUEST_LABEL[requestState]}</span>
-                    : <ListStatusLabel conflict={conflict} className="text-xs" />)}
+                  {page && <ConflictTypeTag conflict={conflict} header={false} quiet plain />}
                   {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
                 </div>
               </div>
@@ -3817,7 +3835,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 it: the pane stays narrow, so the canvas next to it keeps its room). */}
             <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
               {/* (No hairline under them: the selected tab's underline is the only line there.) */}
-              {page && reviewTabBar(cn('flex shrink-0 items-stretch gap-4 border-b transition-colors', scrolled ? 'border-white/[0.08]' : 'border-transparent'))}
+              {page && reviewTabBar('flex shrink-0 items-stretch gap-4 border-b border-white/[0.08]')}
               <div data-review-scroll="main" data-scrolled={scrolled ? '' : undefined} onScroll={page ? (event) => setScrolled(event.currentTarget.scrollTop > 0) : undefined} className={cn(
                 'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto',
                 page ? 'pt-4' : 'pt-1',
