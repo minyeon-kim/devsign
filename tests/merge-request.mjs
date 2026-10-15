@@ -65,7 +65,7 @@ try {
   const panel = readFileSync(new URL('../src/components/dockview/panels/ConflictReviewPanel.jsx', import.meta.url), 'utf8')
   assert.match(panel, /const approvalNudge = !page && /, 'the "ready" bar isn’t the page’s')
   // (No "what to do next" line on the page at all: the record's current step says it, with the ways forward in it.)
-  assert.ok(!panel.includes('data-status-block="next"') && panel.includes('current={diffArea}'), 'no "해결 방법을 선택해 주세요" on the page')
+  assert.ok(!panel.includes('data-status-block="next"') && panel.includes('current={waitingOnAuthor ? <WaitingOnAuthor id={authorId}>{diffArea}</WaitingOnAuthor> : diffArea}'), 'no "해결 방법을 선택해 주세요" on the page')
   assert.match(panel, /\{!conflict\.decisionFlow && !mergeRequest && mergedBanner\}/)
   assert.ok(panel.includes('data-request-status') && panel.includes('data-request-state={requestState}'))
   assert.match(panel, /canEdit: \['mixing', 'ready', 'rejected'\]\.includes\(requestState\)/, 'changed only before it’s asked for, or once it’s sent back')

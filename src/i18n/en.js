@@ -385,6 +385,8 @@ export const en = {
  "변경 검토하기": "Review change",
  "변경 내역으로 돌아가기": "Back to changes",
  "변경 내역으로 돌아왔어요": "Back to changes",
+ "변경 내용 보기": "Show details",
+ "변경 내용 접기": "Hide details",
  "변경 사유": "Reason for change",
  "변경 사유를 입력해 주세요": "Enter a reason for the change",
  "변경 사유를 적어 주세요.": "Write a reason for the change.",

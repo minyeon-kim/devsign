@@ -118,6 +118,23 @@ function EmptyNote({ children }) {
 }
 
 // 20px — the same size as the header's presence avatars.
+// Waiting for the author to ask: whose turn it is, in a line, and what they're looking at folded under it.
+function WaitingOnAuthor({ id, children }) {
+  const [open, setOpen] = useState(false)
+  const person = allPeople.find((entry) => entry.id === id)
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <p data-waiting-on={id} className="flex items-center gap-2 rounded-xl bg-white/[0.03] px-3 py-2.5 text-[13px] leading-5 text-slate-300 ring-1 ring-white/[0.06] ring-inset">
+        {person && <PersonAvatar person={person} />}<LocalizedText text={`${personNameOf(id) ?? id}님의 승인 요청을 기다리는 중`} />
+      </p>
+      <button type="button" data-waiting-details aria-expanded={open} onClick={() => setOpen((value) => !value)} className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1 rounded-full px-2.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+        <ChevronRight aria-hidden className={cn('size-3.5 transition-transform', open && 'rotate-90')} /><LocalizedText text={open ? '변경 내용 접기' : '변경 내용 보기'} />
+      </button>
+      {open && children}
+    </div>
+  )
+}
+
 function PersonAvatar({ person }) {
   return (
     <Avatar size="xs">
@@ -1226,7 +1243,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const afterCard = cards.find((card) => card.id === afterId) ?? null
   // (As a value change's cards: the product's light grey, the name a tag in the corner, the drawing enlarged —
   // a 20px button drawn at its own size is a speck.)
-  const PICTURE = 'relative m-0 flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-white'
+  // (In the side panel one over the other, as every change's are; side by side on the full page.)
+  const fullPage = useContext(FullPageReviewContext)
+  const PICTURE = cn('relative m-0 flex min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-white', fullPage ? 'aspect-[4/3]' : 'aspect-[2/1]')
   const TAG = 'pointer-events-none absolute top-2 right-2 flex h-5 max-w-[calc(100%-1rem)] items-center truncate rounded-full bg-black/55 px-2 text-[11px] font-medium whitespace-nowrap text-white backdrop-blur-sm'
   const small = Math.max(conflict.preview?.before?.width ?? 0, conflict.preview?.before?.height ?? 0)
   const enlarge = small > 0 && small <= 48 ? Math.min(4, 96 / small) : 1
@@ -1239,12 +1258,12 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
     <>
       {/* Before → After: what's built, beside what the way gives. */}
       {conflict.preview && (
-        <div data-before-after className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+        <div data-before-after className={cn('grid items-center', fullPage ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3' : 'grid-cols-1 gap-1')}>
           <figure data-picture="before" className={cn(PICTURE, 'border-[var(--ds-border-subtle)]')}>
             {drawing('before')}
             <figcaption className={TAG}><LocalizedText text={readOnly ? 'Before the change' : 'What’s built now'} /></figcaption>
           </figure>
-          <ArrowRight aria-hidden data-before-after-arrow className="size-4 shrink-0 text-slate-500" />
+          {fullPage ? <ArrowRight aria-hidden data-before-after-arrow className="size-4 shrink-0 text-slate-500" /> : <span aria-hidden data-before-after-arrow className="justify-self-center text-[12px] leading-none text-slate-500">↓</span>}
           <figure data-picture="after" data-after={afterId ?? 'none'} className={cn(PICTURE, choice && afterId === choice && !readOnly ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
             {/* (The same picture throughout — given the way's values, re-drawn in place; never keyed by the way.) */}
             {drawing(afterCard?.side ?? 'after', afterCard?.id === 'C' && custom ? custom.preview : undefined)}
@@ -1266,7 +1285,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
           return {
             id: card.id,
             title: tr(card.title),
-            value: line ? tr(line) : tr(card.source ?? ''),
+            // (The way's name alone — the values are said under the pictures; a value set by hand, its own.)
+            value: card.id === 'C' && line ? tr(line) : null,
             badge: badge && !readOnly ? { text: tr(badge.text), tone: badge.tone, icon: badge.icon ? <badge.icon className={cn('size-3 shrink-0', badge.iconTone)} /> : null } : null,
             data: { 'data-decision': card.id, 'data-side': card.side, 'data-choice-tone': card.id, ...(badge?.text === 'Recommended' ? { 'data-card-recommendation': '' } : {}) },
           }
@@ -3130,6 +3150,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   const ownChange = Boolean(authorId && authorId === viewerId)
   // (Theirs to act on — they review it, it's theirs, they made it. Anyone else only looks: no choice, no reminder.)
   const involved = conflict ? isMine(conflict, viewerId) : false
+  // (Not asked yet, and the asking isn't this viewer's: they wait for the author — a line, the rest folded.)
+  const waitingOnAuthor = Boolean(conflict && conflict.reviewStage === 'detected' && authorId && authorId !== viewerId && conflict.kind !== 'code-conflict')
   // Never your own change (the GitHub rule) — someone else signs off.
   const canReview = Boolean(myReviewer && myReviewer.status !== 'approved' && !ownChange)
 
@@ -3905,7 +3927,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     {/* (On the page the ways forward are in the record's current step — ReviewRecord's `current`.) */}
                     {(!page || conflict.rollback) && diffArea}
                     {/* Then how far it has come: the record, light — a line a step. */}
-                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} current={diffArea} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? (choice === 'C' ? conflict.adjustmentReason?.text : conflict.deviation?.text) ?? ''} 
+                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} current={waitingOnAuthor ? <WaitingOnAuthor id={authorId}>{diffArea}</WaitingOnAuthor> : diffArea} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? (choice === 'C' ? conflict.adjustmentReason?.text : conflict.deviation?.text) ?? ''} 
                       given={mergeRequest ? mergeRequestRecordOf(conflict, requestRows.map((row) => ({ ...row, label: tr(row.label), options: row.options.map((option) => ({ ...option, value: option.literal ? option.value : tr(String(option.value)) })) })), {
                         nameOf: personNameOf,
                         drafts: (requestRows[0]?.options ?? []).map((option) => ({ letter: option.letter, name: tr(option.name) })),

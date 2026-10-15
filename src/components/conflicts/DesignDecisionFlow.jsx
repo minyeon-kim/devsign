@@ -787,7 +787,8 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
             return {
               id: option.id,
               title: option.name,
-              value: option.id === 'other' ? (shape?.described ? shape.spec : '직접 입력') : option.spec,
+              // (The way's name alone: its values are the table's, above. 다른 값 says the value typed in.)
+              value: option.id === 'other' && shape?.described ? shape.spec : null,
               detail: option.id === 'original' ? '디자인 원안의 값으로 코드를 고쳐요' : option.id === 'current' ? '지금 코드의 값을 그대로 두고, 원안을 바꿔 달라고 요청해요' : '원안도 지금 값도 아닌 값을 정해 요청해요',
               badge: option.id === 'original' && !readOnly ? { text: '추천' } : null,
               data: { 'data-choice': `proposal:${option.id}`, 'data-way': option.id, 'data-choice-tone': option.id === 'original' ? 'A' : option.id === 'other' ? 'C' : 'B' },
@@ -1223,6 +1224,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // (Only the one who made it asks — not a reviewer, not another developer looking at it under 전체. With no
   // author on record, whoever isn't deciding it.)
   const asking = askingNow && (authorId ? authorId === viewer?.id : !decides)
+  const [waitingDetails, setWaitingDetails] = useState(false)
   const EMPTY_CUSTOM = { values: {}, note: '' }
   // (Nothing picked before: the recommended way — matching the design — is, so
   // the comparison shows at once and the button is ready. It's applied only when pressed.)
@@ -1420,7 +1422,14 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               {/* (A value change's cause is its values — the table's to say; a layout's is said here.) */}
               {step.key === 'detect' && <DetectionFacts conflict={conflict} cause={Boolean(conflict.layouts)} />}
               {step.key === 'request' && request && !askingNow && post && <RequestCard bare conflict={conflict} />}
-              {stage !== 'requested' && step.key === (current ?? 'fix') && card}
+              {/* (Waiting for someone else to ask: whose turn it is, in a line — what they're looking at, a press away.) */}
+              {step.key === 'request' && askingNow && !asking && authorId && <WaitingLine id={authorId} what="승인 요청" />}
+              {step.key === 'request' && askingNow && !asking && authorId && (
+                <button type="button" data-waiting-details aria-expanded={waitingDetails} onClick={() => setWaitingDetails((open) => !open)} className="ds-intrinsic inline-flex h-7 w-fit items-center gap-1 rounded-full px-2.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+                  <ChevronRight aria-hidden className={cn('size-3.5 transition-transform', waitingDetails && 'rotate-90')} />{waitingDetails ? '변경 내용 접기' : '변경 내용 보기'}
+                </button>
+              )}
+              {stage !== 'requested' && step.key === (current ?? 'fix') && (!(askingNow && !asking && authorId) || waitingDetails) && card}
               {/* Asked: the question, inside the 결정 step — who asked what and why, the picture, the decision. */}
               {step.key === 'decision' && stage === 'requested' && (
                 <div data-decision-block className="flex flex-col gap-4">
@@ -1429,7 +1438,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
                   {decides ? <DecisionForm conflict={conflict} onDecide={decideNow} /> : reviewerIds[0] && <WaitingLine id={reviewerIds[0]} what="결정" />}
                 </div>
               )}
-              {step.key === 'request' && askingNow && !asking && authorId && <WaitingLine id={authorId} what="승인 요청" />}
               {step.key === 'decision' && decision && stage !== 'requested' && <DecisionCard bare conflict={conflict} viewerId={viewer?.id} />}
               {step.key === 'fix' && post && <FixPanel conflict={conflict} folds={folds} onPropose={(note) => {
                 workspace.proposeDesignSystemUpdate(conflict.id, note)

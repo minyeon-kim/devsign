@@ -72,7 +72,10 @@ try {
     for (const [role, viewer] of Object.entries(people)) {
       const html = render(conflict, viewer)
       const where = `${conflict.id} (${decisionStageOf(conflict)}, ${role})`
-      assert.equal(count(html, 'data-proposal-section'), 1, `${where}: one 해결 방법 card`)
+      // (One 해결 방법 card — folded under "변경 내용 보기" for someone waiting on the author to ask.)
+      const waiting = html.includes('data-waiting-details')
+      assert.equal(count(html, 'data-proposal-section'), waiting ? 0 : 1, `${where}: one 해결 방법 card`)
+      if (waiting) { seen.add(`${decisionStageOf(conflict)}:${role}:waiting`); continue }
       const stepOpen = (key) => new RegExp(`data-fold="${key}"[\\s\\S]*?data-step-row="[^"]+" data-open="([^"]+)"`).exec(html)?.[1]
       assert.equal(stepOpen('detect'), 'false', `${where}: completed detection starts folded`)
       if (decisionStageOf(conflict) === 'detected') assert.equal(stepOpen('request'), 'true', `${where}: request is the current step`)
@@ -94,7 +97,7 @@ try {
     }
   }
   // (The seeds cover a way being picked, one waiting, and one that went in — seen by both.)
-  for (const state of ['detected:developer:pick', 'detected:designer:view', 'requested:developer:pending', 'requested:designer:pending', 'resolved:developer:done', 'resolved:designer:done']) assert.ok(seen.has(state), `no seeded change is ${state}`)
+  for (const state of ['detected:developer:pick', 'detected:designer:waiting', 'requested:developer:pending', 'requested:designer:pending', 'resolved:developer:done', 'resolved:designer:done']) assert.ok(seen.has(state), `no seeded change is ${state}`)
   assert.ok(['layout', 'spacing', 'color', 'weight', 'breakpoint', 'size'].every((type) => kinds.has(type)), 'every kind is seeded')
 } finally {
   await server.close()

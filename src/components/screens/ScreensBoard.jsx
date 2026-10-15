@@ -762,19 +762,31 @@ function ScreensBoard() {
                     {/* The change the board is on: its element(s) — the whole screen, when it names only the screen —
                         outlined in red, pulsing once as the camera arrives. */}
                     {focused?.screenId === card.id && (
-                      <span key={arrival} aria-hidden data-focus-outline={focused.conflict.id} className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: focused.box.x - 3, top: 32 + focused.box.y - 3, width: focused.box.width + 6, height: focused.box.height + 6, boxShadow: `0 0 0 ${2 / shown.zoom}px #F04E5A`, background: 'color-mix(in srgb, #F04E5A 10%, transparent)' }}>
+                      <span key={arrival} aria-hidden data-focus-outline={focused.conflict.id} className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: focused.box.x - 4 / shown.zoom, top: 32 + focused.box.y - 4 / shown.zoom, width: focused.box.width + 8 / shown.zoom, height: focused.box.height + 8 / shown.zoom, boxShadow: `0 0 0 ${2 / shown.zoom}px #F04E5A` }}>
                         <span className="ds-focus-pulse absolute inset-0 rounded-[4px]" style={{ boxShadow: `0 0 0 ${3 / shown.zoom}px #F04E5A` }} />
                       </span>
                     )}
                     {/* (The pins a size down on a screen drawn small — its width under 420px on screen — so a dense
                     screen at a low zoom isn't covered by them: full size from 420px, 65% at the least.) */}
                 {markers.map((marker) => {
+                      // (Above the element, over its middle — unless something sits right above it there: then at
+                      // its right, level with it, so the pin never covers another element.)
+                      const pinScale = Math.max(0.65, Math.min(1, (card.width * shown.zoom) / 420)) / shown.zoom
+                      const reach = (BOARD_PIN.height + 4) * pinScale
+                      const tipX = marker.layer.x + Math.min(marker.layer.width - BOARD_PIN.inset, Math.max(BOARD_PIN.inset, marker.layer.width / 2))
+                      const frameArea = (screen.frame.width ?? 0) * (screen.frame.height ?? 0)
+                      const crowded = screen.frame.layers.some((other) => other !== marker.layer && other.width * other.height < frameArea / 2
+                        && other.x < tipX + BOARD_PIN.head * pinScale && other.x + other.width > tipX - BOARD_PIN.head * pinScale
+                        && other.y + other.height > marker.layer.y - reach && other.y + other.height <= marker.layer.y + 1)
+                      const anchor = crowded
+                        ? { left: marker.layer.x + marker.layer.width + (BOARD_PIN.head / 2 + 4) * pinScale, top: 32 + marker.layer.y + marker.layer.height / 2 + (BOARD_PIN.height / 2) * pinScale }
+                        : { left: tipX, top: 32 + marker.layer.y - 2 }
                       const current = Boolean(focused) && focused.screenId === card.id && marker.conflicts.some((conflict) => conflict.id === focused.conflict.id)
                       const lit = current || hotMarker === `${card.id}:${marker.layer.id}`
                       return (
                         <Fragment key={marker.layer.id}>
-                          {lit && !current && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #F04E5A`, background: 'color-mix(in srgb, #F04E5A 12%, transparent)' }} />}
-                          <div data-board-chrome className={cn('absolute', current ? 'z-20' : 'z-10')} style={{ left: marker.layer.x + Math.min(marker.layer.width - BOARD_PIN.inset, Math.max(BOARD_PIN.inset, marker.layer.width / 2)), top: 32 + marker.layer.y - 2, transform: `scale(${Math.max(0.65, Math.min(1, (card.width * shown.zoom) / 420)) / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
+                          {lit && !current && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 4 / shown.zoom, top: 32 + marker.layer.y - 4 / shown.zoom, width: marker.layer.width + 8 / shown.zoom, height: marker.layer.height + 8 / shown.zoom, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #F04E5A` }} />}
+                          <div data-board-chrome className={cn('absolute', current ? 'z-20' : 'z-10')} style={{ ...anchor, transform: `scale(${pinScale})`, transformOrigin: '0 0' }} {...stop}>
                             <MarkerButton
                               marker={marker}
                               lit={current}

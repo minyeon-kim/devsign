@@ -47,7 +47,8 @@ try {
   // Not asked yet (CON-013): to the designer, the ways by name, read-only, and whose turn it is — asking is
   // the developer's (she never asks herself); no decision UI, no sub-title, the values in the table.
   const open = render(byId('CON-013'), taylor)
-  assert.ok(open.includes('data-way-current') && open.includes('data-way="original"') && !open.includes('data-way-trigger') && open.includes('data-waiting-on="james"') && !open.includes('data-decision-form') && !open.includes('어떤 값으로 맞출지'))
+  // (Waiting on Jordan: whose turn it is, in a line; the ways folded under "변경 내용 보기".)
+  assert.ok(open.includes('data-waiting-on="james"') && open.includes('data-waiting-details') && !open.includes('data-way-trigger') && !open.includes('data-decision-form') && !open.includes('어떤 값으로 맞출지'))
   assert.ok(render(byId('CON-013'), jordan).includes('data-way-trigger'), 'the developer picks the way — from the dropdown')
   assert.ok(!open.includes('data-proposal-about'), 'no summary line over the table')
 

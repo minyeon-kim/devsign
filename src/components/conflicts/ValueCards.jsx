@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useContext, useLayoutEffect, useRef, useState } from 'react'
+import { FullPageReviewContext } from '@/components/conflicts/ReviewHeaderSlot'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { ComponentSample } from '@/components/conflicts/ElementPreview'
@@ -77,11 +78,21 @@ export function valueChipOf(conflict, values) {
   return null
 }
 
-function CropDrawing({ frame, box, overrides }) {
+// What changes, marked where it is: a hairline round each element the change is about — red on what's built,
+// green on the result — so a small difference (a letter-spacing, a stroke) is found at a glance. Its width is
+// the same on screen whatever the drawing's scale.
+const MARK = { before: 'rgb(251 113 133 / 0.85)', after: 'rgb(52 211 153 / 0.9)' }
+function CropDrawing({ frame, box, overrides, marks = [], mark = null, scale = 1 }) {
+  const line = 1.5 / (scale || 1)
+  const gap = 3 / (scale || 1)
   return (
     <div data-card-crop className="relative overflow-hidden bg-white" style={{ width: box.width, height: box.height }}>
       <div className="absolute top-0 left-0" style={{ width: frame.width, height: frame.height, transform: `translate(${-box.x}px, ${-box.y}px)` }}>
         {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} editHint={false} />)}
+        {mark && marks.map((layer) => (
+          <span key={layer.id} aria-hidden data-change-mark={mark} className="pointer-events-none absolute rounded-[3px]"
+            style={{ left: layer.x - gap, top: layer.y - gap, width: layer.width + gap * 2, height: layer.height + gap * 2, boxShadow: `0 0 0 ${line}px ${MARK[mark]}` }} />
+        ))}
       </div>
     </div>
   )
@@ -129,8 +140,12 @@ export default function ValueCards({ conflict, pages, sides }) {
   const fits = sides.map((side) => (measured[side.id] ? fitOf(measured[side.id].natural, measured[side.id].inner) : null))
   const scale = fits.every((fit) => fit != null) ? Math.min(...fits) : null
   const natural = onScreen ? crop.box : measured[sides[0].id]?.natural
-  const ratio = cardRatioOf(natural)
-  const stacked = isLongCrop(natural)
+  // (In the side panel, always one over the other — the same for every change, each card the column's width; the
+  // full page has room for them side by side.)
+  const full = useContext(FullPageReviewContext)
+  const stacked = !full || isLongCrop(natural)
+  const ratio = stacked && !isLongCrop(natural) ? 2 : cardRatioOf(natural)
+  const marks = onScreen ? targets.map((target) => crop.frame.layers.find((layer) => layer.id === target.layerId)).filter(Boolean) : []
   return (
     <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-stacked={stacked ? '' : undefined} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className={cn('grid items-start', stacked || sides.length === 1 ? 'grid-cols-1 gap-1' : 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3')}>
       {sides.map((side, index) => (
@@ -143,8 +158,11 @@ export default function ValueCards({ conflict, pages, sides }) {
             </figcaption>
           }>
             {onScreen
-              ? <CropDrawing frame={crop.frame} box={crop.box} overrides={overridesFor(conflict, targets, side.values, pages)} />
-              : <ComponentSample conflict={conflict} values={side.values} />}
+              ? <CropDrawing frame={crop.frame} box={crop.box} overrides={overridesFor(conflict, targets, side.values, pages)} marks={marks} mark={sides.length > 1 ? side.id : null} scale={scale} />
+              : <span className="relative block">
+                <ComponentSample conflict={conflict} values={side.values} />
+                {sides.length > 1 && <span aria-hidden data-change-mark={side.id} className="pointer-events-none absolute -inset-1 rounded-[4px]" style={{ boxShadow: `0 0 0 ${1.5 / (scale || 1)}px ${MARK[side.id]}` }} />}
+              </span>}
           </FitArea>
         </FigureCard>
       ))}
