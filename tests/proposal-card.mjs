@@ -57,7 +57,7 @@ assert.ok(!flow.includes('data-fold-section="proposal"'), '해결 방법 has no 
 assert.ok(!flow.includes('님에게 전달됐어요 · 승인 기록이 남았어요') && !flow.includes('data-status-block="next"'), 'no "next step" box over the record: the record says where it stands')
 assert.ok(flow.includes("way.id === 'original') ? 'original' : null"), 'the recommended way is picked to start')
 assert.ok(!flow.includes('data-status-compare'), 'no separate 원안 / 현재 구현 card')
-assert.ok(flow.includes("step.key === 'detect' && <DetectionFacts") && flow.includes('자동 감지 · {conflict.detectedBy}'), 'what detected it is in the record\'s 변경 감지 step')
+assert.ok(flow.includes("step.key === 'detect' && <DetectionFacts") && flow.includes('자동 감지 · ${conflict.detectedBy}'), 'what detected it is in the record\'s 변경 감지 step')
 const preview = readFileSync(new URL('../src/components/conflicts/ElementPreview.jsx', import.meta.url), 'utf8')
 assert.ok(!preview.includes('data-compare-value'), 'no value badge over the element')
 console.log('proposal-card: ok')

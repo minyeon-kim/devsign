@@ -1,4 +1,8 @@
 import { ko } from './ko'
+import { en, enTemplates } from './en'
+
+// Tool words designers and developers say in English, Korean UI or not: left as they are in Korean.
+const KEEP_EN = new Set(['File', 'Files', 'Layer', 'Layers', 'Asset', 'Assets', 'Component', 'Components', 'Inspect', 'Frame', 'Frames', 'Token', 'Tokens', 'Variant', 'Variants', 'Fill', 'Stroke', 'Effects', 'Auto layout', 'Padding', 'Gap', 'Radius', 'Opacity', 'Typography', 'Terminal', 'Console', 'Branch'])
 
 const counts = { file: '파일', files: '파일', element: '요소', elements: '요소', change: '변경', changes: '변경', conflict: '변경점', conflicts: '변경점', member: '구성원', members: '구성원', project: '프로젝트', projects: '프로젝트', reviewer: '검토자', reviewers: '검토자', drift: '드리프트', drifts: '드리프트', line: '줄', lines: '줄', property: '속성', properties: '속성', checkpoint: '체크포인트', checkpoints: '체크포인트', 'review item': '검토 항목', 'review items': '검토 항목', 'code review': '코드 검토', 'design review': '디자인 검토' }
 const rules = [
@@ -341,6 +345,7 @@ function approvalSubject(names) {
 }
 
 function core(text) {
+  if (KEEP_EN.has(text)) return text
   if (Object.hasOwn(ko, text)) return ko[text]
   for (const [pattern, format] of rules) if (pattern.test(text)) return text.replace(pattern, format)
   // Composite badges keep names, paths and numbers in their original positions.
@@ -348,8 +353,68 @@ function core(text) {
   return text
 }
 
+// ── English: what's written in Korean in the source (a seed's sentence, a step's name), said in English. ──
+const HANGUL = /[\uac00-\ud7a3]/
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const ampm = (half) => (half === '오전' ? 'AM' : 'PM')
+const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const enRules = [
+  [/^(오전|오후) (\d{1,2}):(\d{2})$/, (_, half, h, m) => `${h}:${m} ${ampm(half)}`],
+  [/^(\d{1,2})월 (\d{1,2})일 (오전|오후) (\d{1,2}):(\d{2})$/, (_, mon, day, half, h, m) => `${MONTHS[mon - 1]} ${day}, ${h}:${m} ${ampm(half)}`],
+  [/^(\d{1,2})월 (\d{1,2})일$/, (_, mon, day) => `${MONTHS[mon - 1]} ${day}`],
+  [/^(\d+)분 전$/, (_, n) => `${n}m ago`],
+  [/^(\d+)시간 전$/, (_, n) => `${n}h ago`],
+  [/^(\d+)일 전$/, (_, n) => `${n}d ago`],
+  [/^(\d+)일 후$/, (_, n) => `In ${n} days`],
+  [/^(\d+)단계 중 (\d+)단계( 완료)?$/, (_, total, n, done) => `Step ${n} of ${total}${done ? ', done' : ''}`],
+  [/^(.+)님의 (.+)을 기다리는 중$/, (_, name, what) => `Waiting for ${name}'s ${coreEn(what).toLowerCase()}`],
+  [/^(.+)님의 (.+)를 기다리는 중$/, (_, name, what) => `Waiting for ${name}'s ${coreEn(what).toLowerCase()}`],
+  [/^외 (\d+)건$/, (_, n) => `+${n} more`],
+  [/^(.+)님에게 승인 요청$/, (_, name) => `Request approval from ${name}`],
+  [/^검토자 (\d+)명에게 승인 요청$/, (_, n) => `Request approval from ${n} reviewers`],
+  // The source's own templates, values in their places (en.js).
+  ...enTemplates.map(([from, to]) => {
+    const order = []
+    const pattern = new RegExp(`^${escape(from).replace(/\\\{(\d+)\\\}/g, (_, n) => { order.push(Number(n)); return '(.+?)' })}$`)
+    return [pattern, (...groups) => to.replace(/\{(\d+)\}/g, (_, n) => coreEn(groups[order.indexOf(Number(n)) + 1] ?? ''))]
+  }),
+]
+function coreEn(text) {
+  if (!HANGUL.test(text)) return text
+  if (Object.hasOwn(en, text)) return en[text]
+  for (const [pattern, format] of enRules) if (pattern.test(text)) return text.replace(pattern, format)
+  if (text.includes(' — ')) return text.split(' — ').map(coreEn).join(' — ')
+  const tagged = /^(.+) \((Current|Latest|Draft)\)$/.exec(text)
+  if (tagged) return `${coreEn(tagged[1])} (${tagged[2]})`
+  const labelled = /^([A-Z][A-Za-z ]+): (.+)$/.exec(text)
+  if (labelled) return `${labelled[1]}: ${coreEn(labelled[2])}`
+  if (text.includes(' · ')) {
+    // (A sentence the dictionary knows may itself hold " · ": the longest run of parts it knows, first.)
+    const parts = text.split(' · ')
+    const out = []
+    for (let i = 0; i < parts.length;) {
+      let j = parts.length
+      while (j > i + 1 && !Object.hasOwn(en, parts.slice(i, j).join(' · '))) j -= 1
+      const run = parts.slice(i, j).join(' · ')
+      out.push(Object.hasOwn(en, run) ? en[run] : coreEn(run))
+      i = j
+    }
+    return out.join(' · ')
+  }
+  if (text.includes(' → ')) return text.split(' → ').map(coreEn).join(' → ')
+  if (text.includes(', ')) return text.split(', ').map(coreEn).join(', ')
+  return text
+}
+
 export function translateText(text, language = 'en') {
-  if (language !== 'ko' || typeof text !== 'string' || !text.trim()) return text
+  if (typeof text !== 'string' || !text.trim()) return text
+  if (language !== 'ko') {
+    if (!HANGUL.test(text)) return text
+    const normalized = text.trim().replace(/\s+/g, ' ')
+    const translated = coreEn(normalized)
+    if (translated === normalized) return text
+    return `${text.match(/^\s*/)[0]}${translated}${text.match(/\s*$/)[0]}`
+  }
   const normalized = text.trim().replace(/\s+/g, ' ')
   const translated = core(normalized)
   if (translated === normalized) return text
@@ -357,5 +422,5 @@ export function translateText(text, language = 'en') {
 }
 
 export function hasTranslation(text) {
-  return typeof text === 'string' && translateText(text, 'ko') !== text
+  return typeof text === 'string' && (translateText(text, 'ko') !== text || (HANGUL.test(text) && translateText(text, 'en') !== text))
 }

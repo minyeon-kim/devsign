@@ -13,6 +13,8 @@ import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSp
 import { ElementCrop, PreviewFrame, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
 import WayPicker from '@/components/conflicts/WayPicker'
 import { LocalizedText } from '@/i18n/runtime'
+import { useLanguage } from '@/i18n/language'
+import { translateText } from '@/i18n/translate'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueCards from '@/components/conflicts/ValueCards'
@@ -684,15 +686,16 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   // code is kept, "높이 40px → 44px" when it changes. (No table: the values are said once.)
   const keepsCode = asked && proposal === 'current'
   const differing = (conflict.comparisonFields ?? []).filter((field) => field.current !== field.expected)
+  const lang = useLanguage()
   const diffLine = asked && valueChange && differing.length > 0 && (
     <div data-value-line className="mt-3 flex flex-col gap-1 text-[13px] leading-5">
       {differing.map((field) => (
         <span key={field.label} className="tabular-nums">
           <span className="text-slate-400">{field.label}</span>{' '}
           {keepsCode ? (<>
-            <span className="text-slate-200">{field.current}</span> 그대로 유지
+            <span className="text-slate-200">{field.current}</span> {lang === 'ko' ? '그대로 유지' : 'kept'}
             <span aria-hidden className="mx-1.5 text-slate-600">·</span>
-            <span className="text-slate-400">디자인은 {field.expected}</span>
+            <span className="text-slate-400">{lang === 'ko' ? `디자인은 ${field.expected}` : `design is ${field.expected}`}</span>
           </>) : (<>
             <span className="text-slate-200">{field.current}</span>
             <span aria-hidden className="mx-1.5 text-slate-500">→</span>
@@ -1044,11 +1047,12 @@ function RequestSummary({ conflict }) {
   if (!request) return null
   const asked = proposalOf(request.proposal, request.custom, conflict)?.name ?? request.proposal
   const at = eventsOf(conflict).findLast((event) => event.type === 'requested')?.createdAt
+  const language = useLanguage()
   return (
     <div data-request-summary className="rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/[0.08] ring-inset">
       <p className="flex items-center gap-2 text-[13px] leading-5 text-slate-200">
         <Avatar id={request.by} />
-        <span className="min-w-0 truncate"><span className="font-medium text-slate-100">{nameOf(request.by)}</span> · '{asked}' 요청</span>
+        <span className="min-w-0 truncate"><span className="font-medium text-slate-100">{nameOf(request.by)}</span> · {language === 'ko' ? `'${asked}' 요청` : `asked for “${translateText(asked, 'en')}”`}</span>
       </p>
       {request.reason && <p data-request-reason className="mt-1.5 pl-8 text-[13px] leading-5 text-slate-300">“{request.reason}”</p>}
       <p className="mt-1 pl-8 text-[12px] leading-4 text-slate-500">{[request.devStage && `개발 단계: ${DEV_STAGE_LABEL[request.devStage]}`, at && agoOf(at)].filter(Boolean).join(' · ')}</p>
@@ -1068,7 +1072,8 @@ function agoOf(iso, now = Date.now()) {
 function WaitingLine({ id, what }) {
   return (
     <p data-waiting-on={id} className="flex items-center gap-2 rounded-xl bg-white/[0.03] px-3 py-2.5 text-[13px] leading-5 text-slate-300 ring-1 ring-white/[0.06] ring-inset">
-      <Avatar id={id} />{nameOf(id)}님의 {what}을 기다리는 중
+      {/* (One sentence, so it's said whole in either language.) */}
+      <Avatar id={id} /><LocalizedText text={`${nameOf(id)}님의 ${what}을 기다리는 중`} />
     </p>
   )
 }
@@ -1173,7 +1178,7 @@ function DetectionFacts({ conflict, cause = false }) {
   return (
     <dl data-detection-facts className={cn(RECORD_ROWS, 'mt-2')}>
       {conflict.detectedBy && <><dt className="text-slate-400">감지</dt>
-      <dd className="text-slate-200">자동 감지 · {conflict.detectedBy} · {formatTimeLabel(conflict.detectedAt ?? conflict.timestamp)}</dd></>}
+      <dd className="text-slate-200"><LocalizedText text={`자동 감지 · ${conflict.detectedBy} · ${formatTimeLabel(conflict.detectedAt ?? conflict.timestamp)}`} /></dd></>}
       <dt className="text-slate-400">관련 파일</dt>
       {/* (One line: the path cut short with its line number after it — the whole path on hover.) */}
       <dd translate="no" title={`${conflict.file}${conflict.line ? `:${conflict.line}` : ''}`} className="truncate font-mono text-slate-200">{conflict.file}{conflict.line ? `:${conflict.line}` : ''}</dd>

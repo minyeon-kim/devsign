@@ -278,7 +278,7 @@ function NoticeBody({ card, thumb, destination }) {
       {summary.changes.shown.length > 0 && (
         <p data-notice-changes className="flex flex-wrap items-center gap-1.5 text-xs leading-5 text-slate-300">
           {summary.changes.shown.map((change) => <code key={change.label} data-notice-diff translate="no" className="rounded-[4px] bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11.5px] leading-4 whitespace-pre text-slate-200 tabular-nums">{diffChipOf(change)}</code>)}
-          {summary.changes.more > 0 && <span className="text-slate-500">외 {summary.changes.more}건</span>}
+          {summary.changes.more > 0 && <span className="text-slate-500"><LocalizedText text={`외 ${summary.changes.more}건`} /></span>}
         </p>
       )}
       <p data-notice-meta className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-slate-500">
@@ -399,7 +399,7 @@ function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJu
                   {card.closed.lead && <LocalizedText text={card.closed.lead} />}
                   {card.closed.lead && card.closed.change && <span aria-hidden> · </span>}
                   {card.closed.change && <ChangeText change={card.closed.change} />}
-                  {card.closed.more > 0 && <span> 외 {card.closed.more}건</span>}
+                  {card.closed.more > 0 && <span> <LocalizedText text={`외 ${card.closed.more}건`} /></span>}
                   {!card.closed.lead && !card.closed.change && card.summary.kind && <LocalizedText text={card.summary.kind} />}
                 </span>
               </span>
