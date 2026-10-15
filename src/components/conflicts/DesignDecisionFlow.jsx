@@ -697,7 +697,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     </div>
   )
   return (
-    <section ref={sectionRef} data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(picking ? 'pt-1' : CARD, 'scroll-mt-4')}>
+    <section ref={sectionRef} data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className="scroll-mt-4 pt-1">
       {/* (No title of its own: the step it's in — 디자이너 결정, 승인 요청 — names it, and the table under it says what it is.) */}
       {open && (<>
       {/* A value change's values — said once, here, and nowhere else in the detail (ValueTable); under it,
