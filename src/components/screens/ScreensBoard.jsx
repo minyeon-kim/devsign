@@ -543,7 +543,6 @@ function ScreensBoard() {
   const previewWay = preview?.ways.find((way) => way.id === preview.picked) ?? null
   // Near enough to read a screen (55% and up): its changes are markers on their elements.
   const detailed = shown.zoom >= DETAIL_ZOOM
-  const single = prototype.kind === 'single-page'
 
   if (!prototype.screens.length) {
     return (
@@ -743,16 +742,6 @@ function ScreensBoard() {
           and the flow's controls are the capsule at the foot.) */}
       {proto && <span role="status" aria-live="polite" className="sr-only"><LocalizedText text={screenOf(prototype, current).name} /></span>}
 
-      {single && !proto && (
-        <div className={cn('pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center')}>
-        <div data-board-chrome data-single-page className="pointer-events-auto flex items-center gap-3 rounded-lg border border-white/10 bg-card/95 py-1.5 pr-1.5 pl-3 text-xs text-slate-200 shadow-lg">
-          <LocalizedText text="This project is a single page." />
-          <button type="button" onClick={() => setWorkspaceView('preview')} className="rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-300">
-            <LocalizedText text="View in Preview" />
-          </button>
-        </div>
-        </div>
-      )}
 
       {/* Prototyping, one capsule at the board's bottom centre — the frame moves, it stays: the flow and where in it,
           back and start over, the screens before and after, and leaving. */}

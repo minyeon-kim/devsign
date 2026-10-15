@@ -63,7 +63,8 @@ function App() {
         {/* While a page loads: its skeleton, never an empty screen. */}
         <Suspense fallback={<PageSkeleton />}>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* (The app opens on its main project, Checkout Redesign, in the Workspace.) */}
+          <Route path="/" element={<Navigate to="/projects/checkout-redesign/workspace" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           {/* All projects lives on Home now; Conflict Points only in a
               project Workspace's bottom panel. Old links land on Home. */}

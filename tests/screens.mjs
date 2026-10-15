@@ -167,6 +167,7 @@ try {
   assert.ok(board.includes("aria-label={`Screen ${card.n}, ${screen.name}, goes to ${out} ${out === 1 ? 'screen' : 'screens'}${open.length ? `, ${openLabel(open.length)}` : ''}`}"), 'a card is named with where it goes and its open changes')
   // (No overlay player: a double press plays in the card's place — tests/board-prototype; ▶ shows the screen in Preview.)
   assert.ok(!/PrototypePlayer|data-prototype-player|data-board-play\b/.test(board) && board.includes("showScreenIn('preview', id)"))
-  assert.ok(board.includes('data-single-page') && board.includes('This project is a single page.') && board.includes('data-empty'))
+  // (A single-page project's board says nothing over it: its one page is there to see.)
+  assert.ok(!board.includes('data-single-page') && !board.includes('This project is a single page.') && board.includes('data-empty'))
   console.log('Passed: Preview · Screens · Code in the address; the board placed by its flows, linked and culled; every project’s prototype data sound.')
 } finally { await server.close() }

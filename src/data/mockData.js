@@ -216,20 +216,8 @@ export const teams = [
 // multi-tenant data model; only the displayed name/metadata differ per
 // project. `memberIds` resolve against `allPeople`.
 export const projects = [
-  {
-    id: 'dashboard-redesign',
-    name: 'Dashboard Redesign',
-    // Where the work stands and what ships next — the decision request reads both.
-    devStage: 'mid',
-    release: { name: 'v2.4', date: '10/24' },
-    description: 'Dashboard redesign — AI drafts mixed into one design, and the responsive grid kept in sync with the design at 768px.',
-    ownerId: currentUser.id,
-    memberIds: [currentUser.id, 'min', 'james'],
-    updatedAtLabel: 'Just now',
-    filesCount: 4,
-    thumbnailType: 'checkout',
-    activityCount: 6,
-  },
+  // (In this order wherever projects are listed: Checkout Redesign — the one the app opens on — then the landing
+  // page, then the dashboard.)
   {
     id: 'checkout-redesign',
     name: 'Checkout Redesign',
@@ -254,6 +242,19 @@ export const projects = [
     filesCount: 1,
     thumbnailType: 'marketing',
     activityCount: 0,
+  },  {
+    id: 'dashboard-redesign',
+    name: 'Dashboard Redesign',
+    // Where the work stands and what ships next — the decision request reads both.
+    devStage: 'mid',
+    release: { name: 'v2.4', date: '10/24' },
+    description: 'Dashboard redesign — AI drafts mixed into one design, and the responsive grid kept in sync with the design at 768px.',
+    ownerId: currentUser.id,
+    memberIds: [currentUser.id, 'min', 'james'],
+    updatedAtLabel: 'Just now',
+    filesCount: 4,
+    thumbnailType: 'checkout',
+    activityCount: 6,
   },
 ]
 
