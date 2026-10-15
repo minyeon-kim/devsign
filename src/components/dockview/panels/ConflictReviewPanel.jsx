@@ -1305,12 +1305,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                       <LocalizedText text="Set it in Merge Studio" />
                     </button>
                   ) : <p data-adjust-start className="text-xs leading-[18px] text-slate-400"><LocalizedText text="Set it on the canvas above: select the element and change its values." /></p>)}
-                  {editing && flow.openStudio && (picks || custom) && (
-                    <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} className="ds-intrinsic inline-flex h-6 w-fit cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] font-medium text-slate-300 ring-1 ring-white/[0.14] transition-colors ring-inset hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-                      <Pencil className="size-3 shrink-0" />
-                      <LocalizedText text="Edit in Merge Studio" />
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -1493,16 +1487,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         token it comes from, short). On the third card the
                         value is the dropdown that sets it. */}
                     {valuesOf(card, { isCustom, empty, picks })}
-                    {/* More than the compared values — another property, another
-                        element, the code itself — is set in Merge Studio,
-                        whose property panel and code view edit the same
-                        adjustment. */}
-                    {picks && editing && flow.openStudio && (
-                      <button type="button" data-adjust-more onClick={(event) => { event.stopPropagation(); flow.openStudio() }} onKeyDown={(event) => event.stopPropagation()} className="ds-intrinsic inline-flex h-6 w-fit cursor-pointer items-center gap-1 rounded-md px-2 text-[11px] font-medium text-slate-300 ring-1 ring-white/[0.14] transition-colors ring-inset hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-                        <Pencil className="size-3 shrink-0" />
-                        <LocalizedText text="Edit in Merge Studio" />
-                      </button>
-                    )}
                   </div>
                   </div>
                   )
