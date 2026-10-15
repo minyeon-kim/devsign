@@ -78,7 +78,8 @@ function markersOf(screen, conflicts) {
 // pin, and each press goes to the next of them. The one the board is on is bigger; while it's on one,
 // every other is faded.
 // (The board's markers: a size up from the canvas's pins — PIN — so they read over a screen's drawing.)
-const BOARD_PIN = { head: 22, height: 29, headSelected: 26, heightSelected: 34, inset: 8 }
+// (A little smaller than before — 19px heads, 22 when picked — so they mark without crowding the screens.)
+const BOARD_PIN = { head: 19, height: 25, headSelected: 22, heightSelected: 29, inset: 8 }
 function MarkerButton({ marker, lit, faded, onHover, onPress }) {
   const many = marker.conflicts.length > 1
   const label = many ? `${marker.conflicts.length} changes · ${marker.layer.name ?? ''}` : marker.conflicts[0].title
@@ -120,7 +121,7 @@ function CountBubble({ count, label, onOpen, cardId }) {
       title={label}
       translate="no"
       onClick={onOpen}
-      className="ds-intrinsic group/bubble relative flex size-7 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300"
+      className="ds-intrinsic group/bubble relative flex size-6 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-300"
     >
       {/* Its halo, and ripples that keep spreading out to its edge and fading (ds-ripple: two, half a beat
           apart) — still under reduced motion. */}
@@ -128,7 +129,7 @@ function CountBubble({ count, label, onOpen, cardId }) {
       <span aria-hidden data-ripple className="ds-ripple pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A]/40" />
       <span aria-hidden data-ripple className="ds-ripple ds-ripple-late pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A]/40" />
       <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-[#F04E5A] shadow-md shadow-[#F04E5A]/40 transition-transform group-hover/bubble:scale-105" />
-      <span className="relative text-[12px] leading-none font-bold text-white tabular-nums">+{count}</span>
+      <span className="relative text-[11px] leading-none font-bold text-white tabular-nums">+{count}</span>
     </button>
   )
 }

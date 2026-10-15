@@ -158,6 +158,9 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         </span>
       </div>
 
+      {/* (Outside a project: the same rule under the mark, so both rails read mark │ pages.) */}
+      {!project && <RailRule />}
+
       {/* (The sidebar's switch: under the project's mark, in the same place open or folded — set apart from the
           places below by a rule: it folds the sidebar, it doesn't go anywhere.) */}
       {project && <SidebarToggle />}
