@@ -1,5 +1,5 @@
 import { Component, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, MousePointerClick, PencilRuler, Play, Plus, RotateCcw, X } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Flag, Maximize, Minus, PencilRuler, Play, Plus, RotateCcw, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PlayFrame from '@/components/screens/PlayFrame'
 import { cameraFor, interactionsOf, pathAhead, readProto, tierOf, withProto } from '@/lib/boardPrototype'
@@ -54,7 +54,6 @@ import { liveOverridesOf, useCanvasPreview } from '@/lib/canvasPreview'
 const TOOL = 'flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-full px-1.5 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:pointer-events-none disabled:opacity-40'
 // (iOS: the tools as one floating capsule.)
 const BAR = 'flex items-center gap-0.5 rounded-full border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm'
-const PANEL_KEY = 'devsign.protoPanel'
 // The zoom from which a screen's changes are shown on their elements rather than counted.
 const DETAIL_ZOOM = 0.55
 
@@ -218,9 +217,7 @@ function ScreensBoard() {
   const current = proto ? currentOf(proto.session) : null
   const interactions = proto ? interactionsOf(prototype, current) : []
   const [hot, setHot] = useState(null)
-  const [marks, setMarks] = useState(true)
-  const [panelOpen, setPanelOpen] = useState(() => { try { return localStorage.getItem(PANEL_KEY) !== '0' } catch { return true } })
-  const togglePanel = () => setPanelOpen((on) => { try { localStorage.setItem(PANEL_KEY, on ? '0' : '1') } catch { /* not kept */ } return !on })
+  const [marks] = useState(true)
 
   const rootRef = useRef(null)
   const [room, setRoom] = useState({ width: 0, height: 0 })
@@ -742,62 +739,9 @@ function ScreensBoard() {
         })}
       </div>
 
-      {proto && (() => {
-        const showing = screenOf(prototype, current)
-        const position = positionOf(prototype, current)
-        const ahead = pathAhead(prototype, current)
-        const end = isEnd(prototype, current)
-        return (
-          <div data-board-chrome onPointerDown={(event) => event.stopPropagation()} className="absolute top-3 left-3 z-20 flex max-h-[calc(100%-1.5rem)] w-72 max-w-[calc(100%-1.5rem)] flex-col gap-2">
-            <div data-proto-toolbar role="toolbar" aria-label="Prototype" className={cn(BAR, 'min-w-0')}>
-              <p data-proto-where className="mx-1.5 flex min-w-0 flex-1 items-center gap-1.5 text-xs text-slate-100">
-                <span className="min-w-0 truncate font-medium"><LocalizedText text={position.flow?.name ?? showing.name} /></span>
-                {position.step && <span className="shrink-0 tabular-nums text-slate-500">{position.step} / {position.total}</span>}
-              </p>
-              <button type="button" data-proto-back title="Back" aria-label="Back" disabled={!canStepBack(proto.session)} onClick={() => jump(stepBack(proto.session))} className={TOOL}><ArrowLeft className="size-3.5" /></button>
-              <button type="button" data-proto-restart title="Start over" aria-label="Start over" onClick={() => jump(restartSession(prototype, proto.session))} className={TOOL}><RotateCcw className="size-3.5" /></button>
-              <button type="button" data-proto-marks aria-pressed={marks} title="Show interactions" aria-label="Show interactions" onClick={() => setMarks((on) => !on)} className={cn(TOOL, marks && 'bg-white/[0.12] text-white')}><MousePointerClick className="size-3.5" /></button>
-              <button type="button" data-proto-preview title="Open this screen in Preview" aria-label="Open this screen in Preview" onClick={() => showScreenIn('preview', current)} className={TOOL}><Play className="size-3.5" /></button>
-              <button type="button" data-proto-exit title="Exit · Esc" aria-label="Exit" onClick={exit} className={TOOL}><X className="size-4" /></button>
-            </div>
-            {/* (Said as the screen changes.) */}
-            <span role="status" aria-live="polite" className="sr-only"><LocalizedText text={showing.name} /></span>
-            {/* What can be pressed on this screen, and where the flow goes from here. A row does what its
-                hotspot does — the whole flow can be walked from here without the pointer. */}
-            <section data-proto-panel aria-label="Next interactions" className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-card/95 text-xs shadow-lg backdrop-blur-sm">
-              <button type="button" aria-expanded={panelOpen} onClick={togglePanel} className="flex h-8 shrink-0 items-center gap-1.5 px-2.5 text-left font-medium text-slate-200 hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                <span className="min-w-0 flex-1 truncate"><LocalizedText text="Next interactions" /> · <LocalizedText text={showing.name} /></span>
-                <ChevronDown className={cn('size-3.5 shrink-0 transition-transform duration-150 motion-reduce:transition-none', !panelOpen && '-rotate-90')} />
-              </button>
-              {panelOpen && (
-                <div className="min-h-0 overflow-y-auto border-t border-white/[0.08] p-1">
-                  {interactions.map((entry) => (
-                    <button key={entry.transition.id} type="button" data-proto-row={entry.transition.id} disabled={!entry.target} onClick={() => press(entry.transition)} onMouseEnter={() => setHot(entry.transition.id)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(entry.transition.id)} onBlur={() => setHot(null)}
-                      className={cn('flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-60', hot === entry.transition.id ? 'bg-sky-400/15' : 'hover:bg-white/[0.05]')}>
-                      <span translate="no" className="mt-px flex size-4 shrink-0 items-center justify-center rounded-full bg-sky-500 text-[9px] leading-none font-bold text-white">{entry.n}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-slate-100"><LocalizedText text={entry.transition.label ?? entry.layer?.name ?? ''} /> → <LocalizedText text={entry.target ? screenOf(prototype, entry.target).name : showing.name} /></span>
-                        <span className="block text-[10.5px] text-slate-500"><LocalizedText text="Tap" /> · <span translate="no">{entry.transition.scrollTo ? 'scroll' : entry.transition.animation ?? 'none'}</span></span>
-                      </span>
-                    </button>
-                  ))}
-                  {end && (
-                    <p data-proto-end className="flex items-center justify-between gap-2 px-2 py-1.5 text-slate-300">
-                      <LocalizedText text="This is the end of the flow." />
-                      <button type="button" onClick={() => jump(restartSession(prototype, proto.session))} className="shrink-0 rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-white/20"><LocalizedText text="Start over" /></button>
-                    </p>
-                  )}
-                  {ahead.length > 0 && (
-                    <p data-proto-ahead className="mt-1 border-t border-white/[0.08] px-2 pt-1.5 pb-1 text-[10.5px] leading-4 text-slate-500">
-                      {ahead.map((id, index) => <span key={id}>{index > 0 && ' → '}<LocalizedText text={screenOf(prototype, id).name} /></span>)}
-                    </p>
-                  )}
-                </div>
-              )}
-            </section>
-          </div>
-        )
-      })()}
+      {/* (Prototyping: no panel of its own over the board — the screen's numbered marks are what can be pressed,
+          and the flow's controls are the capsule at the foot.) */}
+      {proto && <span role="status" aria-live="polite" className="sr-only"><LocalizedText text={screenOf(prototype, current).name} /></span>}
 
       {single && !proto && (
         <div className={cn('pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center')}>
@@ -810,16 +754,30 @@ function ScreensBoard() {
         </div>
       )}
 
-      {/* ‹ n / total ›: fixed at the board's bottom centre — the frame moves, they stay. */}
-      {proto && (
-        <div className={cn('pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center')}>
-        <div data-board-chrome data-proto-steps role="group" aria-label="Screens" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} className="pointer-events-auto flex items-center gap-2">
-          <button type="button" data-proto-prev title="Previous screen" aria-label="Previous screen" disabled={frameAt <= 0} onClick={() => moveFrame(-1)} className={STEP}><ChevronLeft className="size-5" /></button>
-          <span translate="no" className="min-w-12 text-center text-xs tabular-nums text-slate-400">{frameAt + 1} / {order.length}</span>
-          <button type="button" data-proto-next title="Next screen" aria-label="Next screen" disabled={frameAt === -1 || frameAt >= order.length - 1} onClick={() => moveFrame(1)} className={STEP}><ChevronRight className="size-5" /></button>
-        </div>
-        </div>
-      )}
+      {/* Prototyping, one capsule at the board's bottom centre — the frame moves, it stays: the flow and where in it,
+          back and start over, the screens before and after, and leaving. */}
+      {proto && (() => {
+        const showing = screenOf(prototype, current)
+        const position = positionOf(prototype, current)
+        return (
+          <div className={cn('pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center')}>
+            <div data-board-chrome data-proto-steps data-proto-toolbar role="toolbar" aria-label="Prototype" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} className={cn(BAR, 'pointer-events-auto')}>
+              <p data-proto-where className="mx-2 flex min-w-0 items-center gap-1.5 text-xs whitespace-nowrap text-slate-100">
+                <span className="max-w-40 min-w-0 truncate font-medium"><LocalizedText text={position.flow?.name ?? showing.name} /></span>
+                {position.step && <span className="shrink-0 tabular-nums text-slate-500">{position.step} / {position.total}</span>}
+              </p>
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button type="button" data-proto-back title="Back" aria-label="Back" disabled={!canStepBack(proto.session)} onClick={() => jump(stepBack(proto.session))} className={TOOL}><ArrowLeft className="size-3.5" /></button>
+              <button type="button" data-proto-restart title="Start over" aria-label="Start over" onClick={() => jump(restartSession(prototype, proto.session))} className={TOOL}><RotateCcw className="size-3.5" /></button>
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button type="button" data-proto-prev title="Previous screen" aria-label="Previous screen" disabled={frameAt <= 0} onClick={() => moveFrame(-1)} className={TOOL}><ChevronLeft className="size-4" /></button>
+              <button type="button" data-proto-next title="Next screen" aria-label="Next screen" disabled={frameAt === -1 || frameAt >= order.length - 1} onClick={() => moveFrame(1)} className={TOOL}><ChevronRight className="size-4" /></button>
+              <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+              <button type="button" data-proto-exit title="Exit · Esc" aria-label="Exit" onClick={exit} className={TOOL}><X className="size-4" /></button>
+            </div>
+          </div>
+        )
+      })()}
 
       {listOpen && (
         <BoardConflicts
