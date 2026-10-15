@@ -1081,11 +1081,12 @@ function DecisionForm({ conflict, onDecide }) {
     <section data-decision-form className="flex flex-col">
       <RequestSummary conflict={conflict} />
       <p className="mt-4 mb-1.5 text-[12px] leading-4 font-medium text-slate-300">결정 <span aria-hidden className="text-rose-300">*</span></p>
-      <div role="radiogroup" aria-label="디자인 결정" data-decision-segments className="grid grid-cols-3 gap-0.5 rounded-lg bg-black/25 p-0.5 ring-1 ring-white/[0.08] ring-inset">
+      {/* (The app's capsule segmented control — the track, and the picked one lifted on it.) */}
+      <div role="radiogroup" aria-label="디자인 결정" data-decision-segments className="grid grid-cols-3 gap-0.5 rounded-full bg-white/[0.06] p-0.5">
         {DECISION_ORDER.map((id) => (
           <button key={id} type="button" role="radio" aria-checked={choice === id} data-decision-choice={id} onClick={() => setChoice(id)}
-            className={cn('ds-intrinsic h-8 min-w-0 truncate rounded-md px-2 text-[12.5px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
-              choice === id ? 'bg-[var(--ds-accent-bg)] text-[var(--ds-accent-text)] ring-1 ring-[var(--ds-accent-border)] ring-inset' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white')}>
+            className={cn('ds-intrinsic h-8 min-w-0 truncate rounded-full px-2 text-[12.5px] whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300',
+              choice === id ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]' : 'font-medium text-slate-400 hover:text-slate-200')}>
             {DECISION_LABEL[id]}
           </button>
         ))}
@@ -1122,6 +1123,9 @@ function DecisionForm({ conflict, onDecide }) {
             {later ? '바로 반영으로' : '나중에 반영'}
           </button>
         ) : <span />}
+        <div className="flex min-w-0 items-center gap-3">
+        {/* (What's still missing, said beside the button it holds back — not only in its tooltip.) */}
+        {missing && <span data-decision-missing className="min-w-0 truncate text-[12px] text-slate-500">{missing}</span>}
         <button
           type="button"
           data-send-decision
@@ -1133,6 +1137,7 @@ function DecisionForm({ conflict, onDecide }) {
           {choice === 'rework' ? <Send className="size-3.5" /> : <Check className="size-3.5" />}
           {scheduled ? `결정 보내기 · ${scheduled} 반영` : '결정 보내기'}
         </button>
+        </div>
       </div>
     </section>
   )

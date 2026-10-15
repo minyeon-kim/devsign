@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Check, ChevronDown, Layers3 } from 'lucide-react'
+import { Check, ChevronDown, Layers3 } from 'lucide-react'
 import { cn } from 'cn'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { LocalizedText } from '@/i18n/runtime'
@@ -104,21 +104,17 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
         : 'absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none'}
       style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host || docked ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
-      {/* (The list has no header: the tab row's end over it — Conflict · Merge and × — is. A change's detail
-          keeps a row for the way back to the list.) */}
-      {picked && <header className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] pr-1.5 pl-2">
-        {/* (On a change: the way back to the list — its title is the detail's own, right under.) */}
-        <button type="button" data-board-conflicts-back onClick={onBack} className="ds-intrinsic flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-full px-2 text-left text-xs font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
-          <ArrowLeft className="size-4 shrink-0" /><LocalizedText text="Back to the list" />
-        </button>
-        {picked && compareItem && onOpenCompare && (
-          <button type="button" data-board-conflicts-compare onClick={() => onOpenCompare(compareItem)} aria-label={translateText('Open in Design Compare', language)} title={translateText('Open in Design Compare', language)} className={HEADER_BUTTON}><Layers3 className="size-4" /></button>
-        )}
-      </header>}
+      {/* (No header row: the list's is the tab row's end over it — Conflict · Merge and × — and a change's
+          detail has its way back and its comparison on its own title's line.) */}
       {picked ? (
         // (The change's own detail — the same as the pane's, in this panel's column.)
         <div data-board-conflict-detail className="min-h-0 flex-1 overflow-hidden">
-          <ReviewDetail page conflict={picked} />
+          <ReviewDetail
+            page
+            conflict={picked}
+            onBack={onBack}
+            headerAside={compareItem && onOpenCompare ? <button type="button" data-board-conflicts-compare onClick={() => onOpenCompare(compareItem)} aria-label={translateText('Open in Design Compare', language)} title={translateText('Open in Design Compare', language)} className={HEADER_BUTTON}><Layers3 className="size-4" /></button> : null}
+          />
         </div>
       ) : (
         // The list, as an issue list: a group per screen (its name, then its number and how many — folding,

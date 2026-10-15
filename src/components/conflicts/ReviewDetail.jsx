@@ -4,7 +4,8 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // `page`: it's the full-screen detail (ConflictReviewOverlay) — laid out in
 // the page's column, under its path — not the review inside the bottom panel.
-export default function ReviewDetail({ conflict, inMergeStudio = false, page = false }) {
+// `onBack` / `headerAside`: the docked detail's way back and controls, on the title's line (ConflictReviewPanel).
+export default function ReviewDetail({ conflict, inMergeStudio = false, page = false, onBack = null, headerAside = null }) {
   const navigate = useNavigate()
   const { projectId, mergeItems, reviewView, openConflictReview, updateConflict, approveConflict, requestChanges, resolveConflict, revertConflict } = useWorkspace()
   const itemId = conflict.mergeItemId ?? mergeItems.find(item => item.conflictId === conflict.id)?.id
@@ -13,6 +14,8 @@ export default function ReviewDetail({ conflict, inMergeStudio = false, page = f
     <ConflictReviewPanel
       conflict={conflict}
       page={page}
+      onBack={onBack}
+      headerAside={headerAside}
       inMergeStudio={inMergeStudio}
       onOpenChange={open => !open && openConflictReview(null)}
       onUpdate={updateConflict}

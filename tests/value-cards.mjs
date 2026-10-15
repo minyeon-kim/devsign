@@ -20,7 +20,11 @@ try {
   assert.equal(fitOf({ width: 10, height: 10 }, { width: 124, height: 124 }), 8)
   assert.equal(fitOf({ width: 272, height: 76 }, { width: 400, height: 300 }), 400 / 272)
   assert.equal(cardRatioOf({ width: 48, height: 48 }), 1)
-  assert.equal(cardRatioOf({ width: 272, height: 76 }), 4 / 3)
+  assert.equal(cardRatioOf({ width: 120, height: 76 }), 4 / 3)
+  // A long crop (over 2:1 — the full-width button) keeps its shape, up to 4:1, and its cards stack.
+  assert.equal(cardRatioOf({ width: 272, height: 76 }), 272 / 76)
+  assert.equal(cardRatioOf({ width: 400, height: 40 }), 4)
+  assert.ok(read('components/conflicts/ValueCards.jsx').includes("stacked ? 'grid-cols-1 gap-2'"))
   // Each side's value, short.
   assert.equal(valueChipOf(byId('CON-013'), { stroke: 2.5 }), 'stroke 2.5')
   assert.equal(valueChipOf(byId('CON-014'), { height: 44, background: '#6366f1' }), '44px · #6366f1')

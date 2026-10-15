@@ -2706,7 +2706,9 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
 // Everything then sits in the path's own column — the title, the body and the
 // side panel start and end on its lines — and there's no back arrow (the
 // path's row has Close).
-function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false, page = false }) {
+// `onBack` / `headerAside` (the page): a way back before the title, and controls at the title line's end — the
+// docked detail's, so it needs no row of its own above the title.
+function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestChanges, onResolve, onRevert, onOpenMergeStudio, inMergeStudio = false, page = false, onBack = null, headerAside = null }) {
   const workspace = useWorkspaceOptional()
   const navigate = useNavigate()
 
@@ -2726,6 +2728,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // last looked at (more than that since puts a dot on the tab).
   // (On the page the tabs are at its top, the change itself — 'details' — first and open.)
   const [sideTab, setSideTab] = useState(page ? 'details' : 'info')
+  // (Scrolled: a hairline under the tabs, so what passes under them reads as going under — not cut off.)
+  const [scrolled, setScrolled] = useState(false)
   // A design decision's History: its events, in order (lib/conflictEvents)
   // — and the step the progress card asked to see. `?historySeed` shows the
   // sample history for CON-002 in their place (`=rejected`: the decision
@@ -3745,6 +3749,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   >
                     <ChevronLeft className="size-5" />
                   </button>}
+                  {page && onBack && <button type="button" data-review-back onClick={onBack} title="Back to the list" aria-label="Back to the list" className="ds-intrinsic flex size-7 shrink-0 items-center justify-center self-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"><ChevronLeft className="size-4" /></button>}
                   {/* (On the page the whole title shows — over two lines when it needs them, never cut short.) */}
                   <h2 data-review-title title={conflict.rollback ? undefined : conflict.title} className={cn('min-w-0 font-semibold tracking-tight text-white', page ? 'text-[15px] leading-[22px] break-words [overflow-wrap:anywhere]' : 'truncate text-lg leading-7 sm:text-xl')}>
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
@@ -3752,21 +3757,23 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {!page && (!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                   {/* (On the page its code sits on the title's line, right after it — a quiet mono label, not a line of its own.) */}
                   {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="shrink-0 font-mono text-[11px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                  {page && headerAside && <span className="ml-auto flex shrink-0 items-center gap-0.5 self-center">{headerAside}</span>}
                 </div>
                 {/* (On the page, a size down: 20px badges, 11px words — the title leads.) */}
-                <div data-conflict-meta className={cn('flex flex-wrap items-center gap-1.5', page ? '[&>span]:h-5 [&>span]:px-1.5 [&>span]:text-[10.5px] text-[11px]' : 'pl-10')}>
-                  <ConflictTypeTag conflict={conflict} header />
+                {/* (On the page one quiet line: the kind its one chip; the risk, when, and where it stands as words.) */}
+                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-3 gap-y-1 text-[12px]', onBack && 'pl-[38px]') : 'gap-1.5 pl-10')}>
+                  <ConflictTypeTag conflict={conflict} header={!page} quiet={page} />
                   {severity && (
-                    <span data-risk-badge className={cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                    <span data-risk-badge className={page ? cn('inline-flex items-center gap-1 text-xs', severity.label.toLowerCase() === 'high' ? 'text-rose-300' : 'text-slate-400') : cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
                         <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
                         <LocalizedText text={severity.label} />
                       </span>
                   )}
                   {/* (The page's meta line: when it's due and where it stands.) */}
-                  {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="ml-1.5 text-xs" />}
+                  {page && stage !== 'resolved' && shortDue(conflict.dueLabel) && <DueDate label={conflict.dueLabel} className="text-xs" />}
                   {page && !conflict.rollback && stage !== 'resolved' && (mergeRequest
-                    ? <span data-request-state={requestState} className="ml-1.5 inline-flex items-center gap-1.5 text-xs text-slate-300"><span aria-hidden className={cn('size-1.5 rounded-full', requestState === 'approved' ? 'bg-emerald-300' : requestState === 'rejected' ? 'bg-amber-300' : requestState === 'waiting' ? 'bg-sky-300' : 'bg-slate-500')} />{MERGE_REQUEST_LABEL[requestState]}</span>
-                    : <ListStatusLabel conflict={conflict} className="ml-1.5 text-xs" />)}
+                    ? <span data-request-state={requestState} className="inline-flex items-center gap-1.5 text-xs text-slate-300"><span aria-hidden className={cn('size-1.5 rounded-full', requestState === 'approved' ? 'bg-emerald-300' : requestState === 'rejected' ? 'bg-amber-300' : requestState === 'waiting' ? 'bg-sky-300' : 'bg-slate-500')} />{MERGE_REQUEST_LABEL[requestState]}</span>
+                    : <ListStatusLabel conflict={conflict} className="text-xs" />)}
                   {conflict.revertOf && <MergeCancellationSummary conflict={conflict} conflicts={workspace?.conflicts ?? []} />}
                 </div>
               </div>
@@ -3811,9 +3818,10 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 it: the pane stays narrow, so the canvas next to it keeps its room). */}
             <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
               {/* (No hairline under them: the selected tab's underline is the only line there.) */}
-              {page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4')}
-              <div data-review-scroll="main" className={cn(
-                'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto pt-1',
+              {page && reviewTabBar(cn('flex shrink-0 items-stretch gap-4 border-b transition-colors', scrolled ? 'border-white/[0.08]' : 'border-transparent'))}
+              <div data-review-scroll="main" data-scrolled={scrolled ? '' : undefined} onScroll={page ? (event) => setScrolled(event.currentTarget.scrollTop > 0) : undefined} className={cn(
+                'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto',
+                page ? 'pt-4' : 'pt-1',
                 REVIEW_GUTTER
               )}>
                 {/* (Stacked, a replay keeps its height — the page scrolls —

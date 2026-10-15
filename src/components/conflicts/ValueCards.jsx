@@ -13,8 +13,10 @@ import { overridesFor, previewTargetsOf } from '@/lib/canvasPreview'
 //     edge, never past 8× — and the two cards always at the same scale (the smaller of the two), so what
 //     differs is the value, never the size it's drawn at. Scaled with a transform about the middle, so
 //     lines stay sharp.
-//   · The card's shape follows the crop's: 1:1 for a near-square one (an icon), 4:3 for a wide one (a
-//     button, a line). The drawing sits on the product's light grey; its label under it (the values are the table's).
+//   · The card's shape follows the crop's: 1:1 for a near-square one (an icon), 4:3 for a wide one; a long
+//     one (a full-width button, a line — over 2:1) keeps its own shape, up to 4:1, and the two cards stack,
+//     each the column's width — side by side it would be drawn at half size in a box of white.
+//     The drawing sits on the product's light grey; its label under it (the values are the table's).
 
 export const CROP_PAD = 16
 export const CARD_PAD = 12
@@ -32,8 +34,10 @@ export function cropOf(conflict, pages) {
 }
 // The fit: the crop filling the card's inside, never past 8×.
 export const fitOf = (natural, inner) => (natural?.width && natural?.height && inner?.width && inner?.height ? Math.min(MAX_SCALE, inner.width / natural.width, inner.height / natural.height) : null)
-// 1:1 for a near-square crop, 4:3 for a wide one.
-export const cardRatioOf = (natural) => (natural && natural.width / natural.height <= 1.4 && natural.height / natural.width <= 1.4 ? 1 : 4 / 3)
+// A long crop: wider than 2:1 — its cards stack.
+export const isLongCrop = (natural) => Boolean(natural?.width && natural?.height && natural.width / natural.height > 2)
+// 1:1 for a near-square crop, 4:3 for a wide one, its own shape (up to 4:1) for a long one.
+export const cardRatioOf = (natural) => (isLongCrop(natural) ? Math.min(4, natural.width / natural.height) : natural && natural.width / natural.height <= 1.4 && natural.height / natural.width <= 1.4 ? 1 : 4 / 3)
 
 // What a side's values come to, in a few characters: 'stroke 2.5', '40px · #7c3aed'.
 export function valueChipOf(conflict, values) {
@@ -96,11 +100,13 @@ export default function ValueCards({ conflict, pages, sides }) {
   })
   const fits = sides.map((side) => (measured[side.id] ? fitOf(measured[side.id].natural, measured[side.id].inner) : null))
   const scale = fits.every((fit) => fit != null) ? Math.min(...fits) : null
-  const ratio = cardRatioOf(onScreen ? crop.box : measured[sides[0].id]?.natural)
+  const natural = onScreen ? crop.box : measured[sides[0].id]?.natural
+  const ratio = cardRatioOf(natural)
+  const stacked = isLongCrop(natural)
   return (
-    <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3">
+    <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-stacked={stacked ? '' : undefined} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className={cn('grid items-start', stacked ? 'grid-cols-1 gap-2' : 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3')}>
       {sides.map((side, index) => (
-        <FigureCard key={side.id} side={side} arrow={index === 1}>
+        <FigureCard key={side.id} side={side} arrow={index === 1} stacked={stacked}>
           <FitArea ratio={ratio} scale={scale} onFit={report(side.id)}>
             {onScreen
               ? <CropDrawing frame={crop.frame} box={crop.box} overrides={overridesFor(conflict, targets, side.values, pages)} />
@@ -116,10 +122,10 @@ export default function ValueCards({ conflict, pages, sides }) {
   )
 }
 
-function FigureCard({ side, arrow, children }) {
+function FigureCard({ side, arrow, stacked, children }) {
   return (
     <>
-      {arrow && <span aria-hidden data-before-after-arrow className="self-center pb-6 text-slate-500">→</span>}
+      {arrow && <span aria-hidden data-before-after-arrow className={cn('self-center text-slate-500', stacked ? 'justify-self-center leading-none' : 'pb-6')}>{stacked ? '↓' : '→'}</span>}
       <figure data-layout={side.id === 'before' ? 'implementation' : 'proposal'} data-after={side.id === 'after' ? (side.picked ? 'picked' : 'design') : undefined} className={cn('m-0 min-w-0 rounded-xl border p-2', side.picked ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
         {children}
       </figure>
