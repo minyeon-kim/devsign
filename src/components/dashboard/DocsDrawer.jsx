@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Search, X } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import { DrawerSearch } from '@/components/dashboard/DrawerList'
 import { cn } from 'cn'
 import { buildDocTree, countDocs, docPath, searchDocs } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
@@ -167,19 +168,7 @@ function DocsDrawer({ project }) {
 
   return (
     <nav aria-label="Docs" className="flex flex-col gap-0.5 pb-2">
-      <div className="relative mb-2">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="search"
-          aria-label="Search project docs"
-          placeholder="Search docs..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => { if (event.key === 'Escape') setQuery('') }}
-          className="h-8 w-full min-w-0 appearance-none rounded-full border-0 bg-white/[0.06] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 [&::-webkit-search-cancel-button]:appearance-none"
-        />
-        {query && <button type="button" aria-label="Clear docs search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
-      </div>
+      <DrawerSearch value={query} onChange={setQuery} placeholder={translateText('Search docs...', language)} label={translateText('Search project docs', language)} />
       <Link
         to={docsHref(project.id, 'index')}
         aria-current={onIndex ? 'page' : undefined}

@@ -1,4 +1,5 @@
-import { Search, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import SearchField from '@/components/layout/SearchField'
 import { cn } from 'cn'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LocalizedText } from '@/i18n/runtime'
@@ -49,24 +50,24 @@ export function DrawerShell({ top, children, ...rest }) {
   )
 }
 
-// The same search in both: 32px, a quiet fill, no border.
+// The sidebar's search: the top bar's own search field (SearchField — the same capsule, fill, icon and text), with
+// a clear button at its right while there's something typed. One for every list (History, Docs, Changes, Compare).
 export function DrawerSearch({ value, onChange, placeholder, label }) {
   const language = useLanguage()
   return (
-    <div className="relative mb-2">
-      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-500" />
-      <input
-        type="search"
-        data-drawer-search
-        aria-label={label}
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => { if (event.key === 'Escape' && value) { event.stopPropagation(); onChange('') } }}
-        className="h-8 w-full min-w-0 appearance-none rounded-full bg-white/[0.06] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-slate-500 focus-visible:bg-white/[0.08] [&::-webkit-search-cancel-button]:appearance-none"
-      />
-      {value && <button type="button" aria-label={translateText('Clear search', language)} onClick={() => onChange('')} className="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:text-white"><X className="size-3" /></button>}
-    </div>
+    <SearchField
+      className="mb-2"
+      inputClassName="pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+      type="search"
+      data-drawer-search
+      aria-label={label}
+      placeholder={placeholder}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={(event) => { if (event.key === 'Escape' && value) { event.stopPropagation(); onChange('') } }}
+    >
+      {value && <button type="button" aria-label={translateText('Clear search', language)} onClick={() => onChange('')} className="absolute top-1/2 right-2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 hover:text-white"><X className="size-3" /></button>}
+    </SearchField>
   )
 }
 
