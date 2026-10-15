@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { FileText } from 'lucide-react'
 import { cn } from 'cn'
+import { PageTitle } from '@/components/layout/PagePieces'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocView'
 import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
@@ -22,19 +23,20 @@ function DocRow({ doc, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(doc.id)}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
     >
-      <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', type.tone)}>
-        <FileText className="size-3.5 text-white" />
+      {/* (As the Workspace's lists: a neutral icon, the title over one quiet line, when and who at the right.) */}
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/[0.06]">
+        <FileText className="size-3.5 text-slate-300" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-foreground">{doc.title}</p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{doc.summary ?? `Updated ${doc.updatedAtLabel}`}</p>
+        <p className="truncate text-[13px] font-medium text-slate-100">{doc.title}</p>
+        <p className="mt-0.5 truncate text-[12px] text-slate-500">{doc.summary ?? `Updated ${doc.updatedAtLabel}`}</p>
       </div>
-      <span className="shrink-0 text-[11px] text-muted-foreground">{doc.updatedAtLabel}</span>
+      <span className="shrink-0 text-[12px] text-slate-500">{doc.updatedAtLabel}</span>
       {author && (
-        <Avatar size="sm" className="shrink-0">
-          <AvatarFallback className={cn('text-[10px] font-medium text-white', author.colorClass)}>{author.initials}</AvatarFallback>
+        <Avatar size="xs" className="shrink-0" title={type.label}>
+          <AvatarFallback className={cn('text-[8px] font-medium text-white', author.colorClass)}>{author.initials}</AvatarFallback>
         </Avatar>
       )}
     </button>
@@ -44,16 +46,17 @@ function DocRow({ doc, onOpen }) {
 // One category of the index, with its sub-categories one level in.
 function DocsGroup({ node, depth, onOpen }) {
   return (
-    <section className={cn(depth === 0 ? 'mt-6 first:mt-0' : 'mt-3')}>
+    // (A category: its name as the other pages' section titles — no capitals — and its documents in the windows'
+    // card; a sub-category is a quiet label inside that card, with no rule down its side.)
+    <section className={cn(depth === 0 ? 'mt-7 first:mt-0' : 'mt-2 first:mt-0')}>
       <h2
         className={cn(
-          'mb-1 px-3',
-          depth === 0 ? 'text-[12px] font-semibold tracking-wide text-slate-400 uppercase' : 'text-[13px] font-medium text-slate-300'
+          depth === 0 ? 'mb-2.5 text-[13px] font-semibold text-slate-300' : 'px-3 pt-1.5 pb-1 text-[12px] font-medium text-slate-500'
         )}
       >
         {node.label}
       </h2>
-      <div className={cn(depth > 0 && 'ml-3 border-l border-white/[0.06] pl-2')}>
+      <div className={cn(depth === 0 && 'rounded-[24px] border border-white/10 bg-card p-1.5')}>
         {node.docs.map((doc) => (
           <DocRow key={doc.id} doc={doc} onOpen={onOpen} />
         ))}
@@ -66,11 +69,11 @@ function DocsGroup({ node, depth, onOpen }) {
 }
 
 // All docs, grouped by the same category tree as the Docs sidebar.
-function DocsIndex({ tree, onOpen }) {
+function DocsIndex({ tree, onOpen, count }) {
   return (
-    // (Its rows are inset 12px, so they're pulled out by as much — their text starts on the column's line.)
     <div data-docs-index className={READING}>
-      <div className="-mx-3">
+      <PageTitle title="All docs" count={count} className="mb-5" />
+      <div>
         {tree.map((node) => (
           <DocsGroup key={node.id} node={node} depth={0} onOpen={onOpen} />
         ))}
@@ -139,7 +142,7 @@ function DocsOverlay() {
       <div data-docs-scroll className="min-h-0 flex-1 overflow-y-auto pt-4">
         {view.kind === 'doc' && <ReferenceDocView key={view.doc.id} doc={view.doc} path={docPath(tree, view.doc.id) ?? []} page />}
         {view.kind === 'dsUpdates' && <div data-docs-updates className={READING}><DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} className="px-0 py-0" /></div>}
-        {view.kind === 'index' && <DocsIndex tree={tree} onOpen={openDoc} />}
+        {view.kind === 'index' && <DocsIndex tree={tree} onOpen={openDoc} count={referenceDocs.length} />}
       </div>
     </div>
   )

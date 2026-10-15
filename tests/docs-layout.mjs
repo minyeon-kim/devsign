@@ -33,8 +33,9 @@ try {
   assert.ok(page.includes('@min-[1100px]/doc:hidden'), 'under it the list folds into the article')
   assert.ok(page.includes('@container/doc'))
   // The header, in the article's column: bigger title, summary, meta.
-  assert.match(page, /<h1 class="[^"]*text-4xl[^"]*font-bold/)
-  assert.match(page, /text-base leading-\[1\.6\]/)
+  // (A quieter title, as the other pages': 22px semibold over a 14px summary.)
+  assert.match(page, /<h1 class="[^"]*text-\[22px\][^"]*font-semibold/)
+  assert.match(page, /text-\[14px\] leading-6/)
   // A panel's document keeps its own frame.
   assert.match(panel, /<div class="mx-auto flex max-w-5xl gap-8/)
   

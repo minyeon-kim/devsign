@@ -106,7 +106,7 @@ console.log('doc-link: ok')
 {
   const overlay = read('src/components/docs/DocsOverlay.jsx')
   assert.ok(overlay.includes("const READING = 'mx-auto w-full max-w-[760px] px-6 pt-6 pb-24'"), 'what is read sits in the middle of the layer, 24px under the bar')
-  assert.ok(overlay.includes('<div data-docs-index className={READING}>') && overlay.includes('<div className="-mx-3">'), 'the list: its rows\' own inset is taken back, so their text starts on the column\'s line')
+  assert.ok(overlay.includes('<div data-docs-index className={READING}>') && overlay.includes("'rounded-[24px] border border-white/10 bg-card p-1.5'"), 'the list: a title and count, each category\'s documents in the windows\' card')
   assert.ok(overlay.includes('page />}') && overlay.includes('<div data-docs-updates className={READING}><DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} className="px-0 py-0" /></div>'))
   assert.ok(!/max-w-3xl px-6 py-5/.test(overlay))
   // A document keeps its reading width and its contents list; as a Workspace panel it keeps its own centred frame.

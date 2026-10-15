@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { LocalizedText } from '@/i18n/runtime'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
-import { AlertTriangle, FileText, Info } from 'lucide-react'
+import { AlertTriangle, Info } from 'lucide-react'
 import { cn } from 'cn'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { allPeople } from '@/data/mockData'
@@ -163,19 +163,14 @@ function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME, page = f
     <div data-doc-frame={page ? 'page' : undefined} className={page ? DOC_PAGE_FRAME : frameClassName}>
       <article data-doc-article className={'min-w-0 max-w-[680px] flex-1'}>
         <header className="mb-8">
-          <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            <span className={cn('flex size-5 items-center justify-center rounded-md', type.tone)}>
-              <FileText className="size-3 text-white" />
-            </span>
-            {type.label}
-            {path.length > 0 && <span data-doc-path className="min-w-0 truncate text-muted-foreground/80"><span aria-hidden>· </span>{path.map((label, index) => <span key={`${index}:${label}`}>{index > 0 && <span aria-hidden> › </span>}<LocalizedText text={label} /></span>)}</span>}
-          </div>
-          <h1 className={cn('mt-3 tracking-tight text-foreground', page ? 'text-4xl leading-[1.15] font-bold' : 'text-[26px] leading-tight font-semibold')}>{doc.title}</h1>
-          {doc.summary && <p className={cn('mt-2 text-muted-foreground', page ? 'text-base leading-[1.6]' : 'text-[15px] leading-7')}>{doc.summary}</p>}
-          <div className="mt-5 flex items-center gap-2.5 text-[12.5px] text-muted-foreground">
+          {/* (No path over the title: the sidebar's tree marks where it is. Its categories are a quiet part of
+              the meta line, after who and when.) */}
+          <h1 className={cn('tracking-tight text-foreground', page ? 'text-[22px] leading-tight font-semibold' : 'text-[20px] leading-tight font-semibold')}>{doc.title}</h1>
+          {doc.summary && <p className="mt-1.5 text-[14px] leading-6 text-slate-400">{doc.summary}</p>}
+          <div className="mt-4 flex min-w-0 items-center gap-2 text-[12px] text-slate-500">
             {author && (
               <>
-                <Avatar size="sm" className="size-6">
+                <Avatar size="xs">
                   <AvatarFallback className={cn('text-[10px] font-medium text-white', author.colorClass)}>
                     {author.initials}
                   </AvatarFallback>
@@ -184,11 +179,14 @@ function ReferenceDocView({ doc, path = [], frameClassName = DOC_FRAME, page = f
                 <span className="text-muted-foreground/50">·</span>
               </>
             )}
-            <span>Updated {doc.updatedAtLabel}</span>
+            <span className="shrink-0">Updated {doc.updatedAtLabel}</span>
+            <span className="text-muted-foreground/50">·</span>
+            <span className="shrink-0">{type.label}</span>
+            {path.length > 0 && <span data-doc-path className="min-w-0 truncate"><span aria-hidden>· </span>{path.map((label, index) => <span key={`${index}:${label}`}>{index > 0 && <span aria-hidden> › </span>}<LocalizedText text={label} /></span>)}</span>}
           </div>
         </header>
 
-        {sections.length > 1 && <details className={cn('mb-6 rounded-xl border border-white/[0.08] px-4 py-3', page ? '@min-[1100px]/doc:hidden' : '@min-[960px]/doc:hidden')}>
+        {sections.length > 1 && <details className={cn('mb-6 rounded-[20px] border border-white/[0.08] px-4 py-3', page ? '@min-[1100px]/doc:hidden' : '@min-[960px]/doc:hidden')}>
           <summary className="cursor-pointer text-xs text-muted-foreground">On this page</summary>
           <nav aria-label="On this page" className="mt-2 flex flex-col items-start gap-1">
             {sections.map(section => <button key={section.id} type="button" onClick={() => jumpTo(section.id)} className="py-1 text-left text-xs text-muted-foreground hover:text-foreground">{section.text}</button>)}
