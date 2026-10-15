@@ -37,9 +37,11 @@ const QUIET_TYPE_TONE = {
 
 // `neutral`: no color of its own — beside a risk level, so the type never
 // reads as one.
-export function ConflictTypeTag({ conflict, className, header = false, quiet = false, neutral = false }) {
+export function ConflictTypeTag({ conflict, className, header = false, quiet = false, neutral = false, plain = false }) {
   const type = conflictTypeOf(conflict)
   if (!type) return null
+  // (`plain`: just the words — the meta line of a decision's page — no badge, no ground.)
+  if (plain) return <span data-conflict-type={type.id} title={type.hint} className={cn('whitespace-nowrap text-[12px] text-slate-400', className)}><LocalizedText text={type.label} /></span>
   return (
     <span data-conflict-type={type.id} title={type.hint} className={cn(header ? REVIEW_HEADER_BADGE : 'inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11px] font-medium whitespace-nowrap', neutral ? TYPE_TONE.slate : (header ? HEADER_TYPE_TONE : quiet ? QUIET_TYPE_TONE : TYPE_TONE)[type.tone], className)}>
       <LocalizedText text={type.label} />

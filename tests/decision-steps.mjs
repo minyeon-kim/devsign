@@ -36,10 +36,10 @@ try {
   const asked = byId('CON-014')
   assert.equal(decisionStageOf(asked), 'requested')
   const reviewer = render(asked, taylor)
-  assert.ok(reviewer.includes('data-value-table') && reviewer.includes('data-request-summary') && reviewer.includes('data-decision-segments'))
+  assert.ok(reviewer.includes('data-value-line') && !reviewer.includes('data-value-table') && reviewer.includes('data-request-summary') && reviewer.includes('data-decision-segments') && reviewer.includes('data-decision-choice="approve"'), 'asked: the difference is one line, the decision is 승인 and the two others')
   assert.ok(!reviewer.includes('data-choice="proposal:') && !reviewer.includes('어떻게 할까요?') && !reviewer.includes('data-proposal-action'))
   assert.ok(count(reviewer, /<textarea/g) <= 1, 'one reason box at most')
-  assert.equal(count(reviewer, />40px</g), 1, 'a value is written once — in the table')
+  assert.equal(count(reviewer.replace(/<!-- -->/g, ''), /40px \(기본 크기\)/g), 1, 'a value is written once — in the line')
   // Anyone else: whose turn it is, in a line — no decision to make.
   const requester = render(asked, jordan)
   assert.ok(requester.includes('data-waiting-on="jane"') && requester.replace(/<!-- -->/g, '').includes('Taylor님의 결정을 기다리는 중') && !requester.includes('data-decision-form'))

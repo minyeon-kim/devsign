@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, Layers3 } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { LocalizedText } from '@/i18n/runtime'
@@ -62,7 +62,6 @@ export function StatusIcon({ status, label }) {
   )
 }
 export const RISK_CHIP = { high: ['Risk high', 'bg-rose-400/[0.14] text-rose-300'], medium: ['Risk medium', 'bg-amber-300/[0.14] text-amber-200'] }
-const HEADER_BUTTON = 'ds-intrinsic flex size-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
 
 // `focusScreenId`: the screen it was opened for (its count, pressed) — brought into view.
 // `currentScreenId`: the screen the board is on — its group's name in the plain text colour.
@@ -116,7 +115,6 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
             conflict={picked}
             // (Floating, with no tab row over it: the way back on the title's line instead.)
             onBack={host || docked ? null : onBack}
-            headerAside={compareItem && onOpenCompare ? <button type="button" data-board-conflicts-compare onClick={() => onOpenCompare(compareItem)} aria-label={translateText('Open in Design Compare', language)} title={translateText('Open in Design Compare', language)} className={HEADER_BUTTON}><Layers3 className="size-4" /></button> : null}
           />
         </div>
       ) : (

@@ -78,7 +78,8 @@ try {
       if (decisionStageOf(conflict) === 'detected') assert.equal(stepOpen('request'), 'true', `${where}: request is the current step`)
       if (decisionStageOf(conflict) === 'requested') {
         assert.equal(stepOpen('request'), 'false', `${where}: previous request is folded`)
-        assert.equal(stepOpen('decision'), 'true', `${where}: decision is the current step`)
+        // (Asked, the request, the picture and the decision stand together above the record — a fold — so no step opens.)
+        assert.equal(stepOpen('decision'), 'false', `${where}: the decision stands above the record, whose step starts folded`)
       }
 
       assert.equal(count(html, 'data-before-after='), 1, `${where}: one comparison, in the card`)
