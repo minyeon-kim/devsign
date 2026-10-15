@@ -497,7 +497,9 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             : <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90 opacity-50 transition-opacity group-hover/canvas:opacity-100 focus-within:opacity-100"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>}
         </>
       )}
-      <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto', compareView && rendering ? '' : 'pb-4', compareView && rendering ? '' : viewControls ? 'px-3' : 'px-4')}>
+      {/* (What's drawn sits in the middle of the canvas, both ways — with 16px kept above and below it, so a tall
+          one scrolls rather than touching the toolbar.) */}
+      <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto', compareView && rendering ? '' : 'py-4', compareView && rendering ? '' : viewControls ? 'px-3' : 'px-4')}>
         {/* Keyed on the snapshot itself in historical mode (History's
             playback and version compare), not the live `previewVersion` —
             otherwise scrubbing/replaying through checkpoints swaps this
@@ -513,7 +515,7 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             [data-layer-id="${CSS.escape(highlightLayerId)}"] { animation: preview-changed-${String(highlightKey).replace(/[^a-zA-Z0-9_-]/g, '')} 1200ms ease-out backwards; border-radius: 6px; z-index: 5; }
           `}</style>
         )}
-        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', compareView && rendering ? 'my-auto w-full' : viewControls ? 'mx-auto' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
+        <div key={historical ? snapshotKey : previewVersion} style={{ gap: FRAME_GAP }} className={cn('flex items-center animate-in fade-in duration-500', compareView && rendering ? 'my-auto w-full' : 'm-auto', inRow ? 'flex-row' : 'w-full flex-col')}>
           {conflictPreview ? (
             <div className="w-full max-w-2xl rounded-xl bg-white/[0.03] p-4">
               <ChangePreview preview={conflictPreview} side={conflictPreviewSide} />

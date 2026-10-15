@@ -89,10 +89,27 @@ function fluidFrame(frame, device, k, width, height) {
 export function focusBox(frame, layerIds = [], pad = 16) {
   const hits = (frame?.layers ?? []).filter((layer) => layerIds.includes(layer.id))
   if (!hits.length) return null
-  const x0 = Math.max(0, Math.min(...hits.map((l) => l.x)) - pad)
-  const y0 = Math.max(0, Math.min(...hits.map((l) => l.y)) - pad)
-  const x1 = Math.min(frame.width, Math.max(...hits.map((l) => l.x + l.width)) + pad)
-  const y1 = Math.min(frame.height, Math.max(...hits.map((l) => l.y + l.height)) + pad)
+  let left = Math.min(...hits.map((l) => l.x))
+  let top = Math.min(...hits.map((l) => l.y))
+  let right = Math.max(...hits.map((l) => l.x + l.width))
+  let bottom = Math.max(...hits.map((l) => l.y + l.height))
+  // (A neighbour right above or below that the pad would cut through — a label over a button — is taken in
+  // whole: the cut never shows half a line of text. Not one beside it, and not the screen's own backdrops.)
+  const area = (frame.width ?? 0) * (frame.height ?? 0)
+  const hitLeft = left, hitRight = right
+  for (const layer of frame.layers ?? []) {
+    if (hits.includes(layer) || (area && layer.width * layer.height > area / 2)) continue
+    const sharesColumns = layer.x < hitRight && layer.x + layer.width > hitLeft
+    const cut = layer.y < bottom + pad && layer.y + layer.height > top - pad && !(layer.y >= top && layer.y + layer.height <= bottom)
+    if (sharesColumns && cut) {
+      top = Math.min(top, layer.y); bottom = Math.max(bottom, layer.y + layer.height)
+      left = Math.min(left, layer.x); right = Math.max(right, layer.x + layer.width)
+    }
+  }
+  const x0 = Math.max(0, left - pad)
+  const y0 = Math.max(0, top - pad)
+  const x1 = Math.min(frame.width, right + pad)
+  const y1 = Math.min(frame.height, bottom + pad)
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0, layers: hits }
 }
 
