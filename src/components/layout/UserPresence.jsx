@@ -5,7 +5,7 @@ import {
   AvatarFallback,
   AvatarGroup,
 } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
+import { WORKSPACE_POPOVER } from '@/components/mergestudio/floatingStyles'
 import {
   Popover,
   PopoverContent,
@@ -59,32 +59,29 @@ function UserPresence() {
                   {member.online && <AvatarBadge className="bg-emerald-500" />}
                 </Avatar>
               </PopoverTrigger>
-              {/* Same card shape as the "You" popover above (header row —
-                  avatar, name + role, an action — then a detail section
-                  below a divider) instead of its own smaller, differently
-                  laid out one. */}
-              <PopoverContent align="end" sideOffset={10} className="w-64 gap-0 p-0">
-                <div className="flex items-center gap-2 p-3">
+              {/* The workspace's popover (WORKSPACE_POPOVER): who, what they're doing, Follow — then where they are, in
+                  a quiet box under it. */}
+              <PopoverContent align="end" sideOffset={10} data-member-card className={cn('w-72 gap-1.5', WORKSPACE_POPOVER)}>
+                <div className="flex items-center gap-2.5 px-2 pt-1.5 pb-1">
                   <Avatar size="sm">
-                    <AvatarFallback className={cn('text-xs font-medium text-white', member.colorClass)}>
+                    <AvatarFallback className={cn('text-[10px] font-medium text-white', member.colorClass)}>
                       {member.initials}
                     </AvatarFallback>
                     {member.online && <AvatarBadge className="bg-emerald-500" />}
                   </Avatar>
-                  <div className="min-w-0 flex-1 text-sm">
-                    <div className="font-medium">
-                      {member.name} <span className="font-normal text-muted-foreground">· {currentView.status}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{member.role}</div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[13px] leading-5 font-medium text-white">{member.name}</span>
+                    <span className="truncate text-[11.5px] leading-4 text-slate-400">{member.role} · {currentView.status}</span>
                   </div>
-                  <Button size="sm" variant={active ? 'secondary' : 'outline'} onClick={() => followMember(member.id)}>
+                  <button type="button" onClick={() => followMember(member.id)} aria-pressed={active}
+                    className={cn('h-7 shrink-0 rounded-full px-3 text-[12px] font-medium transition-colors', active ? 'bg-white text-slate-950 hover:bg-white/90' : 'bg-white/[0.08] text-white hover:bg-white/[0.12]')}>
                     {active ? 'Stop following' : 'Follow'}
-                  </Button>
+                  </button>
                 </div>
                 {(currentView.label || currentView?.file) && (
-                  <div className="border-t px-3 py-2.5 text-xs text-muted-foreground">
-                    {currentView.label && <p>{currentView.label}</p>}
-                    {currentView?.file && <p className="mt-0.5 font-mono">{currentView.file}</p>}
+                  <div className="rounded-xl bg-white/[0.03] px-3 py-2.5">
+                    {currentView.label && <p className="text-[12.5px] leading-[18px] text-slate-300">{currentView.label}</p>}
+                    {currentView?.file && <p translate="no" className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{currentView.file}</p>}
                   </div>
                 )}
               </PopoverContent>
@@ -99,12 +96,12 @@ function UserPresence() {
             >
               +{teamMembers.length - 2}
             </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={10} className="w-64 rounded-2xl p-2">
+            <PopoverContent align="end" sideOffset={10} className={cn('w-72 gap-0', WORKSPACE_POPOVER)}>
               {teamMembers.slice(2).map((member) => (
-                <button key={member.id} type="button" onClick={() => followMember(member.id)} className="flex items-center gap-2 rounded-lg p-2 text-left hover:bg-muted">
+                <button key={member.id} type="button" onClick={() => followMember(member.id)} className="flex min-h-11 items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]">
                   <Avatar size="sm"><AvatarFallback className={cn('text-[10px] text-white', member.colorClass)}>{member.initials}</AvatarFallback></Avatar>
-                  <span className="flex-1"><span className="block text-xs font-medium">{member.name}</span><span className="block text-[11px] text-muted-foreground">{contextFor(member).label ?? member.role}</span></span>
-                  <span className="text-[11px]">{followedMemberId === member.id ? 'Stop following' : 'Follow'}</span>
+                  <span className="flex min-w-0 flex-1 flex-col"><span className="truncate text-[13px] leading-5 font-medium text-white">{member.name}</span><span className="truncate text-[11.5px] leading-4 text-slate-400">{contextFor(member).label ?? member.role}</span></span>
+                  <span className="shrink-0 text-[12px] text-slate-300">{followedMemberId === member.id ? 'Stop following' : 'Follow'}</span>
                 </button>
               ))}
             </PopoverContent>

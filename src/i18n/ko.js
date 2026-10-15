@@ -1582,6 +1582,10 @@ Share|공유
 General access|일반 접근 권한
 Link copied|링크 복사됨
 Copy link|링크 복사
+Can edit|편집 가능
+Can view|보기 가능
+Restricted|제한됨
+Anyone with the link|링크가 있는 모든 사용자
 Open Saved Merge Work|저장된 병합 작업 열기
 Continue with saved merge work|저장된 병합 작업 계속하기
 No saved merge work|저장된 병합 작업이 없습니다

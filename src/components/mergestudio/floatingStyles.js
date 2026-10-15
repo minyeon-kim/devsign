@@ -109,3 +109,7 @@ export const SEVERITY_BADGE = 'h-5 w-[46px] px-0 text-[10px]'
 
 // Workspace tabs and their adjacent add button share a softer corner.
 export const WORKSPACE_TAB_RADIUS = 'rounded-[var(--ds-radius-workspace-tab)]'
+
+// A popover in the workspace's own surface — the way picker's menu, the Inbox's cards: #262626, a 16px round,
+// a hairline ring, 6px inside; its rows round to 12px. (Share, a teammate's card.)
+export const WORKSPACE_POPOVER = 'rounded-2xl border-0 bg-[#262626] p-1.5 shadow-xl shadow-black/40 ring-1 ring-white/10'

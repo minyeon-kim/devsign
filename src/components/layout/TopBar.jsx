@@ -44,8 +44,8 @@ function TopBar({ project }) {
   const { historyOpen, closeHistory, requestHistoryDrawer, docParam, docsParam, openDocs, closeDocs, requestDocsDrawer, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost } = useWorkspace()
   const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, mergeDrawer, setMergeDrawer, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
-  // A layer open in the canvas window's place (History, Docs, a change's detail) is the path's last step:
-  // … › 워크스페이스 › 히스토리 — 워크스페이스 closes it, the last brings its list up in the sidebar.
+  // The path says where you are: 결제 화면 개편 › 워크스페이스, nothing to press. A layer open in the canvas window's
+  // place (History, Docs, a change's detail) is its last step: … › 워크스페이스 › 히스토리 — there 워크스페이스 closes it, the last brings its list up in the sidebar.
   const changeOpen = Boolean(reviewConflictId) && reviewView === 'overlay' && !(workPane === 'conflicts' && workPaneHost)
   const layer = historyOpen ? { label: 'History', close: closeHistory, list: requestHistoryDrawer }
     // (문서: back to the list — the drawer up, the index if a document or the updates are showing.)
