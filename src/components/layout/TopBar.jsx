@@ -29,7 +29,6 @@ import ChatSparkIcon from '@/components/icons/ChatSparkIcon'
 // here — so repeating both of those a few pixels away added nothing
 // (the old "Workspace" segment even linked to the page already open).
 // This keeps just what the rail can't show: which project you're in.
-// (The sidebar's switch is in the activity rail now: SidebarToggle.)
 function ActionTooltip({ label, children }) {
   return (
     <div className="group/action-tooltip relative flex shrink-0">

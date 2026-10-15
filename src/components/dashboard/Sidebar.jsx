@@ -1,5 +1,4 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
-import SidebarToggle from '@/components/layout/SidebarToggle'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import Logo from '@/components/layout/Logo'
 import { readHistoryParams } from '@/lib/historyLink'
@@ -137,34 +136,22 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         'bg-background'
       )}
     >
-      <div className="group/project relative flex h-9 shrink-0 items-center">
+      <div data-control-tooltip="off" className="flex h-9 shrink-0 items-center">
         <ProjectSwitcher currentProjectId={project?.id}>
           <DropdownMenuTrigger
             type="button"
             aria-label={project ? `Projects (current: ${project.name})` : 'Projects'}
-            aria-describedby="activity-project-switcher-tooltip"
-            title={project ? `${project.name} · Switch project` : 'Projects'}
             className={cn(iconButtonClass, 'data-[popup-open]:bg-muted')}
           >
             <ProjectsMark project={project} />
           </DropdownMenuTrigger>
         </ProjectSwitcher>
-        <span
-          id="activity-project-switcher-tooltip"
-          role="tooltip"
-          className="pointer-events-none absolute top-1/2 left-[calc(100%+8px)] z-[100] -translate-y-1/2 whitespace-nowrap rounded-md border border-white/10 bg-popover px-3 py-1.5 text-xs text-popover-foreground opacity-0 shadow-lg transition-opacity duration-75 group-hover/project:opacity-100 group-focus-within/project:opacity-100"
-        >
-          Projects · Switch project
-        </span>
       </div>
 
-      {/* (Outside a project: the same rule under the mark, so both rails read mark │ pages.) */}
-      {!project && <RailRule />}
-
-      {/* (The sidebar's switch: under the project's mark, in the same place open or folded — set apart from the
-          places below by a rule: it folds the sidebar, it doesn't go anywhere.) */}
-      {project && <SidebarToggle />}
-      {project && <RailRule />}
+      {/* (A rule under the mark, so the rail reads mark │ pages. No hover label on the mark — it spilled over the
+          path in the top bar — and no sidebar switch: the drawers close from their own icons, and Files / Layers
+          fold inside the canvas, ⌘B.) */}
+      <RailRule />
 
       <nav aria-label="Main" className="flex flex-col gap-1">
         {project ? (
@@ -386,7 +373,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     const before = wasOpen.current
     wasOpen.current = drawer
     if (isSplit(drawer) && before !== drawer) requestAnimationFrame(() => asideRef.current?.querySelector('input, button:not([data-pane-chrome]), [tabindex="0"]')?.focus({ preventScroll: true }))
-    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view-tab="merge"]' : '[data-sidebar-toggle]')?.focus()
+    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view-tab="merge"]' : '[data-activity-bar] a[aria-current="page"]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
   const targetWidth = drawer ? (overlay ? COMPARE_LIST_WIDTH : shownWidth) + 8 : 0

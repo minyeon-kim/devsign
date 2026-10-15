@@ -90,13 +90,9 @@ try {
   assert.ok(layout.includes('data-chat-awaiting') && layout.indexOf('data-chat-awaiting') < layout.indexOf('data-chat-unread'))
   assert.ok(chat.includes('if (chatOpen && awaiting) requestAnimationFrame(showPending)'))
 
-  // --- The sidebar's switch, in the activity rail under the project's mark: the side panel's own state, nothing kept beside it ---
-  const toggle = readFileSync(new URL('../src/components/layout/SidebarToggle.jsx', import.meta.url), 'utf8')
+  // --- No sidebar switch in the rail (the drawers close from their own icons; Files / Layers fold in the canvas) ---
   const sidebarSource = readFileSync(new URL('../src/components/dashboard/Sidebar.jsx', import.meta.url), 'utf8')
-  assert.ok(toggle.includes('const { leftOpen: open, toggleLeft } = workspace') && !/useState/.test(toggle))
-  assert.ok(toggle.includes('aria-expanded={open}') && toggle.includes('aria-controls="work-pane"') && toggle.includes("const label = open ? 'Close sidebar' : 'Open sidebar'"))
-  assert.ok(toggle.includes('{open && <path data-sidebar-filled') && !/Chevron/.test(toggle), 'filled when open — not an arrow')
-  assert.ok(sidebarSource.indexOf('<SidebarToggle />') < sidebarSource.indexOf('<nav aria-label="Main"') && !topBar.includes('<SidebarToggle'), 'in the rail, right under the project — not in the top bar')
-  assert.ok(layout.includes("document.querySelector('[data-sidebar-toggle]') ??"), 'folded with the focus inside: the focus goes to it')
-  console.log('Passed: approval cards from the request’s own data, above the message and folded once decided; the top bar’s sidebar switch.')
+  assert.ok(!sidebarSource.includes('<SidebarToggle') && !topBar.includes('<SidebarToggle'))
+  assert.ok(!sidebarSource.includes('activity-project-switcher-tooltip') && !sidebarSource.includes('Switch project`') && sidebarSource.includes('<div data-control-tooltip="off" className="flex h-9'), 'no hover label over the top bar')
+  console.log('Passed: approval cards from the request’s own data, above the message and folded once decided; no sidebar switch in the rail.')
 } finally { await server.close() }
