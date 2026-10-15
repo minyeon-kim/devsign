@@ -1360,7 +1360,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
         />
       )}
       <section data-step-record aria-label="진행 기록" className="mt-1">
-        <div data-step-list-head className="mb-3 flex items-center gap-2">
+        <div data-step-list-head className="mb-2 flex items-center gap-2">
           <h3 className="text-[12px] font-semibold tracking-wide text-slate-400">진행 기록</h3>
           <StepProgressCount states={stepStates} ticks={reveal.live} />
           <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="ml-auto cursor-pointer text-xs text-slate-400 hover:text-white">
@@ -1368,7 +1368,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           </button>
           {post && onReplay && <button type="button" data-replay-open onClick={() => onReplay('start')} className={SECONDARY}><Play className="size-3 fill-current" />리플레이</button>}
         </div>
-        <ol ref={listRef} data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
+        <ol ref={listRef} data-step-list className="m-0 flex list-none flex-col gap-1 p-0">
           {steps.map((step, index) => (
             <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time}
               open={isOpen(step.key)} onToggle={() => toggle(step.key)} last={index === steps.length - 1}

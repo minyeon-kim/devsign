@@ -153,6 +153,9 @@ const HOVER = { done: 'hover:bg-[#272727]', current: 'hover:bg-[#272727]', probl
 // step's icon, `chip` — what to judge by without opening it — in place of its badge, and lighter while open.
 export function StepRow({ state, title, who, summary: _summary, time, open, onToggle, onReplay, last: _last, moves = false, arrive: _arrive = false, delay = 0, anim, strong: _strong = false, onHover, icon = null, chip, section = false, children, ...rest }) {
   const pending = state === 'pending'
+  // (Folded, a finished step or one still to come is a line, not a card: no outline, no fill, 8px less tall —
+  // so the step under way, the one card, is what the eye lands on. Opened, it's a card again.)
+  const compact = !section && !open && (state === 'done' || pending)
   // (Nothing inside — or only conditions that didn't hold: no fold.)
   const foldable = Children.toArray(children).length > 0
   const bodyId = useId()
@@ -191,7 +194,7 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
       onMouseLeave={onHover && (() => onHover(false))}
       {...rest}
     >
-      <div data-step-row={section ? 'section' : state} data-open={open} className={cn('rounded-[10px] border transition-colors duration-150', section ? cn('border-[var(--ds-border-subtle)]', open ? 'bg-[var(--ds-surface-2)]' : 'bg-[var(--ds-surface-1)] hover:bg-white/[0.055]') : cn(CARD[state] ?? CARD.pending, foldable && HOVER[state]))}>
+      <div data-step-row={section ? 'section' : state} data-open={open} className={cn('rounded-[10px] border transition-colors duration-150', section ? cn('border-[var(--ds-border-subtle)]', open ? 'bg-[var(--ds-surface-2)]' : 'bg-[var(--ds-surface-1)] hover:bg-white/[0.055]') : compact ? cn('border-transparent bg-transparent', foldable && 'hover:bg-white/[0.04]') : cn(CARD[state] ?? CARD.pending, foldable && HOVER[state]))}>
         <div data-step-head className={cn('flex min-w-0 items-center gap-1', pending && 'opacity-50')}>
           {foldable ? (
             // The whole head is the switch: a press, Enter or Space folds and opens it.
@@ -200,11 +203,11 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
               aria-expanded={open}
               aria-controls={bodyId}
               onClick={onToggle}
-              className="ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] px-4 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300"
+              className={cn('ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] px-4 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300', compact ? 'py-2' : 'py-3')}
             >
               {head}
             </button>
-          ) : <div className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3">{head}</div>}
+          ) : <div className={cn('flex min-w-0 flex-1 items-center gap-2 px-4', compact ? 'py-2' : 'py-3')}>{head}</div>}
           {onReplay && (
             <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic mr-2 h-5 shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
               이 단계부터 보기

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, CreditCard, LayoutPanelTop, PanelsTopLeft, RectangleHorizontal, Square } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from 'cn'
 import { draftScreens, regionPicks } from '@/data/draftScreens'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
@@ -65,30 +65,29 @@ export default function VisualRegionPicker({ item, live }) {
   const scale = Math.max(0, Math.min(1, (cardWidth - 2) / commonWidth))
   const cardHeight = Math.ceil(commonHeight * scale) + 24
   const letterOf = (key) => String.fromCharCode(65 + item.variants.findIndex((variant) => variant.key === key))
-  return <section data-visual-region-picker className="flex h-full min-h-0 gap-2">
-    <div data-component-region-list role="group" aria-label="요소 항목" className={cn('order-last flex min-h-0 shrink-0 flex-col gap-1 overflow-y-auto', region ? 'w-[110px] border-l border-white/[0.06] pl-2' : 'w-full')} onMouseLeave={() => live.onHoverRegion?.(null)}>
+  // (Top to bottom, one column: the parts as a row of capsules — the one being compared raised, a check on
+  // those already picked — then that part's options, each card the column's width. No side list beside them.)
+  return <section data-visual-region-picker className="flex h-full min-h-0 flex-col gap-3">
+    <div data-component-region-list role="group" aria-label="요소 항목" className="flex shrink-0 flex-wrap items-center gap-1.5" onMouseLeave={() => live.onHoverRegion?.(null)}>
       {screen.regions.map((entry) => {
         const active = region?.id === entry.id
-        const Icon = ({ header: LayoutPanelTop, summary: PanelsTopLeft, cards: PanelsTopLeft, payment: CreditCard, footer: RectangleHorizontal, cta: RectangleHorizontal })[entry.id] ?? Square
         return <button key={entry.id} type="button" data-component-region={entry.id} aria-label={`${entry.label} 시안 비교`} aria-pressed={active} onClick={() => live.onFocusRegion(entry.id)}
           onMouseEnter={() => live.onHoverRegion?.(entry.id)} onFocus={() => live.onHoverRegion?.(entry.id)} onBlur={() => live.onHoverRegion?.(null)}
-          className={cn('ds-intrinsic flex h-8 w-full shrink-0 items-center gap-1.5 rounded-md px-2 text-left text-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-sky-300', active ? 'bg-white/[0.08] text-slate-100' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200')}>
-          <Icon aria-hidden className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 truncate"><LocalizedText text={entry.label} /></span>
-          {picks[entry.id] && <Check className="size-2.5 shrink-0 text-emerald-300" />}
+          className={cn('ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full px-3 text-xs whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-sky-300', active ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]' : 'bg-white/[0.06] text-slate-400 hover:bg-white/[0.1] hover:text-slate-200')}>
+          <LocalizedText text={entry.label} />
+          {picks[entry.id] && <span data-region-picked className="text-[11px] font-medium text-emerald-300">{letterOf(picks[entry.id])}</span>}
         </button>
       })}
     </div>
-    {!region ? null : <div key={region.id} className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
-      <div className="flex shrink-0 items-center justify-between text-xs"><span className="font-medium text-slate-200"><LocalizedText text={region.label} /></span><span aria-live="polite" className="text-slate-500">{picks[region.id] ? `현재 시안 ${letterOf(picks[region.id])}` : '선택 안 됨'}</span></div>
-      <div data-region-candidates className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto [scrollbar-width:thin]" ref={listRef} onMouseLeave={() => previewCandidate(null)}>
+    {!region ? <p className="text-xs text-slate-500">비교할 요소를 고르세요</p> : <div key={region.id} className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+      <div data-region-candidates className="flex min-h-0 shrink flex-col gap-2 overflow-y-auto [scrollbar-width:thin]" ref={listRef} onMouseLeave={() => previewCandidate(null)}>
         {live.options.map((option) => {
           const part = screen.drafts[option.key]?.[region.id]
           if (!part) return null
           return <RegionCandidate key={option.key} part={part} option={option} letter={letterOf(option.key)} region={region} selected={picks[region.id] === option.key} live={live} scale={scale} commonWidth={commonWidth} cardWidth={cardWidth} cardHeight={cardHeight} />
         })}
       </div>
-      <p className="text-[10px] text-slate-500">올려서 결과 미리보기 · 눌러서 적용</p>
+      <p className="shrink-0 text-[11px] text-slate-500">올려서 결과 미리보기 · 눌러서 적용</p>
     </div>}
   </section>
 }

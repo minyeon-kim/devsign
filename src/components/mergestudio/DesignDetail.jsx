@@ -117,7 +117,8 @@ export default function DesignDetail({ item, drawn, identical, conflict, status,
 
   return (
     <div data-design-detail className="flex h-full min-h-0 flex-col bg-background text-[13px] text-foreground">
-      <header className="flex h-12 shrink-0 items-center gap-1.5 pr-10 pl-2">
+      {/* (Its back arrow on the content's left line, 12px in — as the cards under it.) */}
+      <header className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-3">
         <Tooltip>
           <TooltipTrigger ref={titleRef} data-compare-back aria-label="목록으로 (Esc)" onClick={onBack} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">
             <ArrowLeft className="size-4" />
@@ -141,8 +142,9 @@ export default function DesignDetail({ item, drawn, identical, conflict, status,
             )}
             {live ? (
               <div data-detail-live className="flex min-h-0 flex-1 flex-col">
-                <div className="mb-1 flex shrink-0 justify-end gap-1" role="tablist" aria-label="비교 방식">
-                  {[['regions', '요소 선택'], ['whole', '전체 시안 비교']].map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={comparisonMode === id} data-comparison-mode={id} onClick={() => setComparisonMode(id)} className={cn('ds-intrinsic h-6 rounded px-1.5 text-[10px] transition-colors', comparisonMode === id ? 'bg-white/[0.08] text-white' : 'text-slate-500 hover:text-slate-200')}>{label}</button>)}
+                {/* (How to compare: the app's segmented capsule, the column's width, at its left line — the parts' row under it.) */}
+                <div className="mb-3 grid shrink-0 grid-cols-2 gap-0.5 rounded-full bg-white/[0.06] p-0.5" role="tablist" aria-label="비교 방식">
+                  {[['regions', '요소 선택'], ['whole', '전체 시안 비교']].map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={comparisonMode === id} data-comparison-mode={id} onClick={() => setComparisonMode(id)} className={cn('ds-intrinsic h-7 rounded-full px-3 text-xs whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', comparisonMode === id ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]' : 'text-slate-400 hover:text-slate-200')}>{label}</button>)}
                 </div>
                 <div className="min-h-0 flex-1">
                   {comparisonMode === 'regions' ? <VisualRegionPicker item={item} live={live} /> : <DraftCompareBoard embedded item={item} options={live.options} frame={live.frame} decisions={live.decisions} onPick={live.onPick} onTakeAll={live.onTakeAll} />}
