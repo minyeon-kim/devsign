@@ -8,6 +8,7 @@ import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
 import { useSelectedCheckpoint } from '@/components/history/useSelectedCheckpoint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { useLayerFrame } from '@/lib/useMainWindowFrame'
 import { filterHistoryEntries } from '@/lib/historyMeta'
 import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 
@@ -24,7 +25,7 @@ import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/histo
 // as a new checkpoint.
 // (Mounted only while the layer is open: nothing here runs — no keys, no playback — when it isn't.)
 function HistoryLayer() {
-  const { closeHistory, historyEntries, conflicts, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
+  const { aiChat, closeHistory, historyEntries, conflicts, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   // What the checkpoint in view is compared with — the one before it, or the
@@ -80,6 +81,8 @@ function HistoryLayer() {
   // dialog (the rollback confirmation), a menu or a listbox opened inside is up: that
   // goes first. Focus comes in on Close, and goes back to where it was on closing.
   const closeRef = useRef(null)
+  // (In the main window's place: AI Chat beside it stays — useLayerFrame.)
+  const [layerRef, layerStyle] = useLayerFrame([aiChat.open])
   const close = useRef(closeHistory)
   useEffect(() => { close.current = closeHistory })
   useEffect(() => {
@@ -101,7 +104,7 @@ function HistoryLayer() {
   return (
     // (In the canvas window's place — under the app's top bar, 8px in from the right and the bottom, the windows'
     // 24px corners — not over the whole screen: the path, the search and the bell stay, as for any other view.)
-    <div ref={closeRef} tabIndex={-1} data-history-overlay role="dialog" aria-label="History" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card outline-none text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
+    <div ref={(element) => { closeRef.current = element; layerRef.current = element }} style={layerStyle} tabIndex={-1} data-history-overlay role="dialog" aria-label="History" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card outline-none text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
       {/* (No bar of its own: the app's top bar says where this is — … › 워크스페이스 › 히스토리, 워크스페이스
           closing it — and Esc closes it too.) */}
 

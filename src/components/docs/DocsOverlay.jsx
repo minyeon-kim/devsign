@@ -6,6 +6,7 @@ import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocVi
 import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
 import { buildDocTree, docPath } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
+import { useLayerFrame } from '@/lib/useMainWindowFrame'
 import { allPeople } from '@/data/mockData'
 
 // The layer's reading column: in the middle of the layer (a document's own is the same
@@ -101,10 +102,12 @@ function resolveView(docId, docsView, referenceDocs) {
 // goes where Close goes; the project and a document's categories aren't in it
 // (the category path is the document's own meta line).
 function DocsOverlay() {
-  const { referenceDocs, docParam, docsParam, openDoc, closeDocs, openHistory: openHistoryLayer } = useWorkspace()
+  const { aiChat, referenceDocs, docParam, docsParam, openDoc, closeDocs, openHistory: openHistoryLayer } = useWorkspace()
   const view = resolveView(docParam, docsParam, referenceDocs)
   const open = Boolean(view)
   const closeRef = useRef(null)
+  // (In the main window's place: AI Chat beside it stays — useLayerFrame.)
+  const [layerRef, layerStyle] = useLayerFrame([aiChat.open, open])
 
   // (Read when Esc is pressed — not a reason to run the effect again.)
   const close = useRef(closeDocs)
@@ -133,7 +136,7 @@ function DocsOverlay() {
   const openHistory = (checkpointId) => openHistoryLayer(checkpointId ?? null, { flash: true })
 
   return (
-    <div ref={closeRef} tabIndex={-1} data-docs-overlay={view.kind} role="dialog" aria-label="Docs" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card outline-none text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
+    <div ref={(element) => { closeRef.current = element; layerRef.current = element }} style={layerStyle} tabIndex={-1} data-docs-overlay={view.kind} role="dialog" aria-label="Docs" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card outline-none text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
       {/* (No bar of its own: the app's top bar says where this is — … › 워크스페이스 › 문서. Esc closes it.) */}
       <div data-docs-scroll className="min-h-0 flex-1 overflow-y-auto pt-4">
         {view.kind === 'doc' && <ReferenceDocView key={view.doc.id} doc={view.doc} path={docPath(tree, view.doc.id) ?? []} page />}

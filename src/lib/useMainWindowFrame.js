@@ -31,3 +31,11 @@ export function useMainWindowFrame(deps = []) {
   }, deps)
   return [ref, frame]
 }
+
+// A layer over the Workspace (History, Docs, a change's detail) takes the main window's place, not the whole
+// work area: AI Chat beside it stays in view and usable. Its right edge is the main window's (it moves with
+// AI Chat opening or folding). → [ref for the layer's element, style to put on it].
+export function useLayerFrame(deps = []) {
+  const [ref, frame] = useMainWindowFrame(deps)
+  return [ref, frame ? { right: frame.right - 1 } : undefined]
+}
