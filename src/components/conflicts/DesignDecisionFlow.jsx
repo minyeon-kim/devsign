@@ -47,6 +47,8 @@ const LABEL = 'text-[11px] leading-4 font-medium text-slate-400'
 const CARD_ROWS = 'grid grid-cols-[68px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs leading-[18px]'
 // (Exported: a value change's page puts its merge in the same button — ConflictReviewPanel.)
 export const PRIMARY = 'ds-intrinsic inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-4 text-[13px] font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500'
+// The decision row's main button: the mint one, the same 32px and 12px text as the choices beside it.
+const DECISION_PRIMARY = 'ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500'
 const SECONDARY = 'ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
 
 const nameOf = (id) => allPeople.find((person) => person.id === id)?.name ?? id
@@ -687,23 +689,26 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const keepsCode = asked && proposal === 'current'
   const differing = (conflict.comparisonFields ?? []).filter((field) => field.current !== field.expected)
   const lang = useLanguage()
+  // (Each value its own little block, set apart: its name, then what it becomes — kept, or changed — and, kept,
+  // what the design says under it, quieter.)
   const diffLine = asked && valueChange && differing.length > 0 && (
-    <div data-value-line className="mt-3 flex flex-col gap-1 text-[13px] leading-5">
+    <dl data-value-line className="mt-4 flex flex-col gap-3 text-[13px] leading-5">
       {differing.map((field) => (
-        <span key={field.label} className="tabular-nums">
-          <span className="text-slate-400">{field.label}</span>{' '}
+        <div key={field.label} className="flex min-w-0 flex-col gap-0.5 tabular-nums">
+          <dt className="text-[12px] leading-4 text-slate-400">{field.label}</dt>
           {keepsCode ? (<>
-            <span className="text-slate-200">{field.current}</span> {lang === 'ko' ? '그대로 유지' : 'kept'}
-            <span aria-hidden className="mx-1.5 text-slate-600">·</span>
-            <span className="text-slate-400">{lang === 'ko' ? `디자인은 ${field.expected}` : `design is ${field.expected}`}</span>
-          </>) : (<>
-            <span className="text-slate-200">{field.current}</span>
-            <span aria-hidden className="mx-1.5 text-slate-500">→</span>
-            <span className="font-medium text-[var(--ds-accent-text)]">{proposal !== 'original' ? specOf(proposal) ?? field.expected : field.expected}</span>
-          </>)}
-        </span>
+            <dd className="text-slate-100"><span className="font-medium">{field.current}</span> <span className="text-slate-400">{lang === 'ko' ? '그대로 유지' : 'kept'}</span></dd>
+            <dd className="text-[12px] leading-4 text-slate-500">{lang === 'ko' ? `디자인: ${field.expected}` : `Design: ${field.expected}`}</dd>
+          </>) : (
+            <dd className="text-slate-200">
+              {field.current}
+              <span aria-hidden className="mx-1.5 text-slate-500">→</span>
+              <span className="font-medium text-[var(--ds-accent-text)]">{proposal !== 'original' ? specOf(proposal) ?? field.expected : field.expected}</span>
+            </dd>
+          )}
+        </div>
       ))}
-    </div>
+    </dl>
   )
   return (
     <section ref={sectionRef} data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className="scroll-mt-4 pt-1">
@@ -1129,7 +1134,7 @@ function DecisionForm({ conflict, onDecide }) {
       )}
       {/* The decision: 승인 is the one mint button; the other two sit beside it, quieter. (On the step card's own
           ground — no panel-coloured box of its own inside the card.) */}
-      <div data-decision-action className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-2">
+      <div data-decision-action className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-2 pt-2">
         <div data-decision-segments role="group" aria-label="디자인 결정" className="flex flex-wrap items-center gap-1">
           {DECISION_ORDER.filter((id) => id !== 'approve').map((id) => (
             <button key={id} type="button" data-decision-choice={id} aria-pressed={choice === id} onClick={() => setChoice(choice === id ? null : id)}
@@ -1137,22 +1142,23 @@ function DecisionForm({ conflict, onDecide }) {
               {DECISION_LABEL[id]}
             </button>
           ))}
+        </div>
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-1">
+          {/* (나중에 반영 says when 승인 lands, so it stands beside it.) */}
           {settles && (
-            <button type="button" data-decide-later aria-pressed={later} onClick={() => { setLater(!later); if (later) setTiming('now') }} className="ds-intrinsic h-8 rounded-full px-3 text-xs whitespace-nowrap text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+            <button type="button" data-decide-later aria-pressed={later} onClick={() => { setLater(!later); if (later) setTiming('now') }} className="ds-intrinsic inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-medium whitespace-nowrap text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
               {later ? '바로 반영으로' : '나중에 반영'}
             </button>
           )}
-        </div>
-        <div className="flex min-w-0 items-center gap-3">
           {/* (What's still missing, said beside the button it holds back — not only in its tooltip.) */}
-          {missing && <span data-decision-missing className="min-w-0 truncate text-[12px] text-slate-400">{missing}</span>}
+          {missing && <span data-decision-missing className="mr-2 min-w-0 truncate text-[12px] text-slate-400">{missing}</span>}
           {needsReason ? (
-            <button type="button" data-send-decision disabled={Boolean(missing)} title={missing ?? `${requester}님에게 전달 · 승인 이력에 저장`} onClick={() => send(choice, reason.trim())} className={cn(PRIMARY, 'whitespace-nowrap')}>
+            <button type="button" data-send-decision disabled={Boolean(missing)} title={missing ?? `${requester}님에게 전달 · 승인 이력에 저장`} onClick={() => send(choice, reason.trim())} className={cn(DECISION_PRIMARY, 'whitespace-nowrap')}>
               {choice === 'rework' ? <Send className="size-3.5" /> : <Check className="size-3.5" />}
               {DECISION_LABEL[choice]} 보내기{scheduled ? ` · ${scheduled} 반영` : ''}
             </button>
           ) : (
-            <button type="button" data-send-decision data-decision-choice="approve" title={`${requester}님의 요청대로 승인 · 승인 이력에 저장`} onClick={() => send('approve')} className={cn(PRIMARY, 'whitespace-nowrap')}>
+            <button type="button" data-send-decision data-decision-choice="approve" title={`${requester}님의 요청대로 승인 · 승인 이력에 저장`} onClick={() => send('approve')} className={cn(DECISION_PRIMARY, 'whitespace-nowrap')}>
               <Check className="size-3.5" />
               {scheduled ? `승인 · ${scheduled} 반영` : DECISION_LABEL.approve}
             </button>
