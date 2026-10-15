@@ -81,7 +81,7 @@ function TopBar({ project }) {
           onClick={() => setAiChat({ open: !aiChat.open })}
           className={cn('ds-header-pill flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300', aiChat.open && 'bg-white/[0.08]')}>
           <MessageSquarePlus aria-hidden className="size-4 shrink-0" />
-          Assistant
+          AI Chat
           {chatAwaitingApproval ? <span data-chat-awaiting className="text-[10px] text-amber-300">Awaiting approval</span>
             : chatUnread && <span data-chat-unread aria-label="New reply" className="size-2 shrink-0 rounded-full bg-emerald-400" />}
         </button>
