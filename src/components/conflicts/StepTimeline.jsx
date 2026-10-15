@@ -138,14 +138,6 @@ export function StepIcon({ state, moves: animate = false }) {
 // finished and fills in (see StepTimeline); `strong`: the line below it is
 // deeper while a later step is hovered. A step with nothing inside (no
 // `children`) has no fold: its head is all there is.
-// A step's badge: what it stands at, in greys — a finished step's quiet, the
-// step under way (or needing a person) brighter, with the accent's dot.
-const BADGE = {
-  done: 'bg-white/[0.05] text-slate-500',
-  current: 'bg-white/[0.07] text-slate-200',
-  problem: 'bg-white/[0.07] text-slate-200',
-  pending: 'bg-white/[0.06] text-slate-400',
-}
 // The card each step is, by where it stands: one solid, quiet surface (#232323 — a step above the panel's
 // #1C1C1C, not the lighter see-through white it was), told apart by its outline. Done: a faint hairline.
 // Under way (or needing a person): a brighter one. Waiting: a dashed outline on no fill, its text at half strength.
@@ -174,17 +166,14 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
     const timer = window.setTimeout(() => rowRef.current?.scrollIntoView({ block: 'nearest', behavior: motionOk() ? 'smooth' : 'auto' }), 230)
     return () => window.clearTimeout(timer)
   }, [open])
-  // The card's head, one line: [the step] [its badge] ··· [when, or who] [›].
+  // The card's head, one line: [the step] ··· [when, or who] [›]. (No 완료 / 진행 중 badge: the step's own
+  // icon — a check, the ring — says it; the word is there for a screen reader only.)
   const aside = time ?? who ?? null
   const head = (
     <>
       {icon ? <span aria-hidden data-step-section-icon className="flex size-4 shrink-0 items-center justify-center text-slate-400 [&>svg]:size-4">{icon}</span> : <StepIcon state={state} moves={moves} />}
       <span data-step-title className={cn('min-w-0 truncate text-[13.5px] leading-5 font-semibold', state === 'done' ? 'text-slate-200' : pending ? 'text-slate-300' : 'text-white')}>{title}</span>
-      {section ? chip != null && chip !== '' && <span data-step-chip className="inline-flex h-[18px] min-w-0 items-center truncate rounded-full bg-white/[0.06] px-1.5 text-[11px] leading-none font-medium text-slate-300 tabular-nums">{chip}</span> : <span data-step-state className={cn('inline-flex h-[18px] shrink-0 items-center gap-1 rounded-full px-1.5 text-[11px] leading-none font-medium', BADGE[state] ?? BADGE.pending)}>
-        {/* (Under way: the accent's 6px dot, breathing softly — still under reduced motion.) */}
-        {(state === 'current' || state === 'problem') && <span aria-hidden data-step-live className="size-1.5 shrink-0 rounded-full bg-[var(--ds-accent)] ds-step-breathe motion-reduce:animate-none" />}
-        {WORD(state)}
-      </span>}
+      {section ? chip != null && chip !== '' && <span data-step-chip className="inline-flex h-[18px] min-w-0 items-center truncate rounded-full bg-white/[0.06] px-1.5 text-[11px] leading-none font-medium text-slate-300 tabular-nums">{chip}</span> : <span data-step-state={state} className="sr-only">{WORD(state)}</span>}
       <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5 pl-2">
         {aside && (time ? <time data-step-time className="shrink-0 text-[12px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time> : <span data-step-who className="shrink-0 truncate text-[12px] text-slate-500">{who}</span>)}
         {foldable && <ChevronRight aria-hidden data-step-chevron className={cn('size-3.5 shrink-0 text-slate-400 transition-transform duration-[180ms] ease-out motion-reduce:transition-none', open && 'rotate-90')} />}
