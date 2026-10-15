@@ -54,7 +54,7 @@ function PageSkeleton({ bare = false }) {
   return (
     <div role="status" aria-busy="true" aria-label="Loading" data-page-skeleton className={cn('flex overflow-hidden bg-background', bare ? 'h-full' : 'h-screen')}>
       {!bare && (
-        <div className="flex w-[var(--ds-chrome-size)] shrink-0 flex-col items-center gap-3 pt-3">
+        <div className="flex w-[var(--ds-rail-size)] shrink-0 flex-col items-center gap-3 pt-3">
           {Array.from({ length: 4 }, (_, i) => <Bone key={i} className="size-7 rounded-full" />)}
         </div>
       )}

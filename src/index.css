@@ -97,6 +97,8 @@
     --ds-surface-1: rgb(255 255 255 / 3.5%);
     --ds-surface-2: rgb(255 255 255 / 6.5%);
     --ds-chrome-size: 48px;
+    /* The activity rail's width: an icon with its name under it (Slack's way). */
+    --ds-rail-size: 68px;
     --ds-control-height: 32px;
     --ds-chat-submit-radius: 50%;
     --ds-primary: #5EEAB5;
