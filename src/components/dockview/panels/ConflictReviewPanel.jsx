@@ -59,8 +59,7 @@ import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, accordionToggl
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
 import { useFoldState } from '@/components/conflicts/Fold'
-import { SmoothHeight } from '@/components/ui/SmoothHeight'
-import { EVIDENCE_TAB_EVENT, getEvidenceTab, setEvidenceTab } from '@/lib/evidenceTab'
+import { EVIDENCE_TAB_EVENT, getEvidenceState, setEvidenceState } from '@/lib/evidenceTab'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
@@ -576,61 +575,46 @@ function FoldSection({ title, gist, count, defaultOpen = false, className, child
 
 // `page`: the full-page detail's order — where it is on the screen first (a block of
 // its own, across the panel), then what it is, then `reviewers`, then the details.
-// 영향 / 근거, one thing at a time: a tab for each section (the record's, one step each) and 이전 / 다음 to walk them in
-// order — what's where, what conflicts, the standard, who reviews, the developer's details. A section with nothing to say
-// has no tab. The one up is kept for the change (lib/evidenceTab), and can be asked for by name.
+// 영향 / 근거, one step at a time — the record's own kind of stepper: a row a section (what's where, what conflicts, the
+// standard, who reviews, the developer's details). The one under way is open; 다음 folds it — it's done, a check and the
+// line it came to — and opens the next. A finished step is a line again until it's asked for; one step is open at a time.
+// A section with nothing to say has no step. Where it stands is kept for the change (lib/evidenceTab).
 const EVIDENCE_LABEL = { where: 'Screen location', problem: 'What conflicts', standard: 'The standard', reviewers: 'Who reviews', details: 'Developer info' }
-function EvidenceTabs({ conflictId, cards }) {
-  const [chosen, setChosen] = useState(() => getEvidenceTab(conflictId))
+function EvidenceSteps({ conflictId, cards }) {
+  const [state, setState] = useState(() => getEvidenceState(conflictId))
   useEffect(() => {
-    const onTab = (event) => { if (event.detail?.id === conflictId) setChosen(event.detail.key) }
-    window.addEventListener(EVIDENCE_TAB_EVENT, onTab)
-    return () => window.removeEventListener(EVIDENCE_TAB_EVENT, onTab)
+    const sync = (event) => { if (event.detail?.id === conflictId) setState(getEvidenceState(conflictId)) }
+    window.addEventListener(EVIDENCE_TAB_EVENT, sync)
+    return () => window.removeEventListener(EVIDENCE_TAB_EVENT, sync)
   }, [conflictId])
-  const tabRefs = useRef({})
-  const index = Math.max(0, cards.findIndex((card) => card.key === chosen))
-  const card = cards[index]
-  if (!card) return null
-  const go = (next, focus = false) => {
-    const target = cards[Math.min(Math.max(next, 0), cards.length - 1)]
-    setEvidenceTab(conflictId, target.key)
-    if (focus) tabRefs.current[target.key]?.focus()
+  if (!cards.length) return null
+  const reached = Math.min(state.reached, cards.length)
+  // (Nothing asked for yet: the step under way is the open one.)
+  const open = cards.some((card) => card.key === state.open) ? state.open : state.open === 'none' ? null : cards[Math.min(reached, cards.length - 1)].key
+  const next = (index) => {
+    const following = cards[index + 1]
+    setEvidenceState(conflictId, { reached: Math.max(reached, index + 1), open: following ? following.key : 'none' })
   }
-  const onKeyDown = (event) => {
-    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : event.key === 'Home' ? -index : event.key === 'End' ? cards.length : 0
-    if (!step) return
-    event.preventDefault()
-    go(index + step, true)
-  }
-  const STEP = 'ds-intrinsic inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
   return (
-    <section data-evidence-tabs data-evidence-record aria-label={tr('Impact & evidence')} className="shrink-0 pb-2">
-      {/* (A row that scrolls sideways when the panel is narrow — the names never wrap.) */}
-      <div role="tablist" aria-label={tr('Impact & evidence')} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
-        {cards.map((entry) => {
-          const on = entry.key === card.key
+    <section data-evidence-steps data-evidence-record aria-label={tr('Impact & evidence')} className="shrink-0 pb-2">
+      <ol data-step-list className="m-0 flex list-none flex-col gap-1 p-0">
+        {cards.map((card, index) => {
+          const isOpen = card.key === open
+          const rowState = index < reached ? 'done' : index === reached || isOpen ? 'current' : 'pending'
           return (
-            <button key={entry.key} ref={(node) => { tabRefs.current[entry.key] = node }} type="button" role="tab" id={`evidence-tab-${entry.key}`} aria-controls="evidence-panel" aria-selected={on} tabIndex={on ? 0 : -1}
-              data-evidence-tab={entry.key} onClick={() => go(cards.indexOf(entry))} onKeyDown={onKeyDown}
-              className={cn('ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', on ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200')}>
-              <LocalizedText text={EVIDENCE_LABEL[entry.key] ?? entry.title} />
-              {entry.key === 'reviewers' && entry.chip && <span className="text-[11px] font-normal text-slate-400 tabular-nums">{entry.chip}</span>}
-            </button>
+            <StepRow key={card.key} data-fold={card.key} data-evidence={card.key} state={rowState} title={tr(EVIDENCE_LABEL[card.key] ?? card.title)} who={isOpen ? null : card.chip} open={isOpen}
+              onToggle={() => setEvidenceState(conflictId, { open: isOpen ? 'none' : card.key })}>
+              <div className="min-w-0">{card.body}</div>
+              <div className="flex justify-end">
+                <button type="button" data-evidence-next onClick={() => next(index)} className="ds-intrinsic inline-flex h-8 items-center gap-1 rounded-full bg-white/[0.08] px-3.5 text-xs font-medium text-white transition-colors hover:bg-white/[0.14] focus-visible:outline-2 focus-visible:outline-emerald-300">
+                  {index === cards.length - 1 ? '완료' : '다음'}
+                  {index < cards.length - 1 && <ChevronRight aria-hidden className="size-3.5" />}
+                </button>
+              </div>
+            </StepRow>
           )
         })}
-      </div>
-      <SmoothHeight trigger={card.key}>
-        <div role="tabpanel" id="evidence-panel" aria-labelledby={`evidence-tab-${card.key}`} data-evidence-panel={card.key} className="min-w-0 pt-1">
-          {card.body}
-        </div>
-      </SmoothHeight>
-      {cards.length > 1 && (
-        <div data-evidence-steps className="mt-3 flex items-center justify-between">
-          <button type="button" data-evidence-prev onClick={() => go(index - 1)} className={cn(STEP, index === 0 && 'invisible')}><ChevronLeft aria-hidden className="size-3.5" />이전</button>
-          <span aria-live="polite" className="text-xs text-slate-400 tabular-nums">{index + 1} / {cards.length}</span>
-          <button type="button" data-evidence-next onClick={() => go(index + 1)} className={cn(STEP, index === cards.length - 1 && 'invisible')}>다음<ChevronRight aria-hidden className="size-3.5" /></button>
-        </div>
-      )}
+      </ol>
     </section>
   )
 }
@@ -772,7 +756,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           {conflict.rollback && open && shortDue(conflict.dueLabel) && <p className={cn(INFO_VALUE, 'mt-1 text-slate-400')}><DueDate label={conflict.dueLabel} /></p>}
           {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
         </InfoSection>}
-        <EvidenceTabs conflictId={conflict.id} cards={cards} />
+        <EvidenceSteps conflictId={conflict.id} cards={cards} />
       </div>
     )
   }
