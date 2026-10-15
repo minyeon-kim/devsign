@@ -47,7 +47,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const app = read('src/App.jsx')
 assert.ok(app.includes('<Route path="history" element={<HistoryRedirect />} />') && app.includes('legacyHistoryHref(projectId, search, state)') && app.includes('state?.flashCheckpoint ? { flashCheckpoint: state.flashCheckpoint } : null'))
 assert.ok(!existsSync(new URL('../src/pages/HistoryPage.jsx', import.meta.url)), 'HistoryPage is a layer now')
-const ENTRIES = ['src/components/dashboard/HistoryDrawer.jsx', 'src/components/conflicts/DesignDecisionFlow.jsx', 'src/components/dockview/panels/ConflictReviewPanel.jsx', 'src/components/mergestudio/MergeStudioWorkspace.jsx', 'src/components/dockview/panels/ChatPanel.jsx', 'src/components/docs/DocsOverlay.jsx', 'src/pages/ProjectOverviewPage.jsx']
+const ENTRIES = ['src/components/dashboard/HistoryDrawer.jsx', 'src/components/conflicts/DesignDecisionFlow.jsx', 'src/components/dockview/panels/ConflictReviewPanel.jsx', 'src/components/mergestudio/MergeStudioWorkspace.jsx', 'src/components/docs/DocsOverlay.jsx', 'src/pages/ProjectOverviewPage.jsx']
 for (const file of ENTRIES) {
   const text = read(file)
   assert.ok(!/\/history[`'"?]|highlightId|\?v=\$/.test(text), `${file} still goes to the old History route`)
@@ -112,7 +112,9 @@ console.log('history-link: ok')
 // ── The viewer and the timeline start on the path's line, in the page's column. ──
 {
   const overlay = read('src/components/history/HistoryOverlay.jsx')
-  assert.ok(overlay.includes("<div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-6 pb-4')}>"), 'the page\'s column, 24px under the window\'s top')
+  assert.ok(overlay.includes("<div data-history-body className={cn(BREADCRUMB_COLUMN, 'relative flex min-h-0 flex-1 flex-col gap-3 pt-6 pb-4')}>"), 'the page\'s column, 24px under the window\'s top')
+  // (Its foot: one capsule at the centre — play, ‹ n / total ›, the zoom; no slider of dots.)
+  assert.ok(overlay.includes('<HistoryTimeline\n            capsule') && overlay.includes('ref={setZoomSlot}'))
   assert.ok(!overlay.includes('flex-col gap-3 p-4'))
   // The viewer fills what's left; the timeline is under it.
   const body = overlay.slice(overlay.indexOf('data-history-body'))

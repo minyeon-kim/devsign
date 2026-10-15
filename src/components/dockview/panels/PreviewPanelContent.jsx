@@ -153,7 +153,7 @@ const VIEWS = [['changed', 'Changed element', Crosshair], ['full', 'Whole screen
 const CHANGED_RING = { outline: '3px solid rgb(52 211 153)', outlineOffset: 4, boxShadow: '0 0 0 9px rgb(52 211 153 / 22%)' }
 const stored = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback } catch { return fallback } }
 const store = (key, value) => { try { localStorage.setItem(key, value) } catch { /* this visit only */ } }
-function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, devicePicker = false, frameOverlay = null, frameMotion = null, canvasExtra = null, emphasizeMark = null, flush = false, narrowPane = false } = {}) {
+function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snapshotEdits, activePageId: snapshotPageId, frames: snapshotFrames, conflictPreview, conflictPreviewSide, caption, historical = false, embedded = false, snapshotKey, highlightLayerId, highlightKey = '', viewControls = false, focusLayerIds = [], codeRender = null, variant = null, toolbarExtra = null, devicePicker = false, frameOverlay = null, frameMotion = null, canvasExtra = null, emphasizeMark = null, flush = false, narrowPane = false, controlsSlot = null, zoomSlot = null } = {}) {
   const { activePageId, projectPages, prototypeEdits: liveEdits, previewProps: liveProps, previewVersion } = useWorkspace()
   const previewProps = snapshotProps ?? (historical ? {} : liveProps)
   const pageId = snapshotPageId ?? (historical ? projectPages[0]?.id : activePageId)
@@ -358,12 +358,15 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
   )
   const panel = (
     <div data-preview-panel className={cn('flex h-full flex-col overflow-hidden', !embedded && !fullscreen && 'bg-card', fullscreen && 'pt-3')}>
-      {viewControls ? (
+      {viewControls ? (() => {
         // One line at any width, straight on the layer (no band): on the left
         // what's compared with and what's shown of it; on the right how the
         // two are compared, which screen, the rest in one menu, full screen.
         // (Six controls; the zoom floats over the canvas.)
-        <div data-preview-controls className={cn('flex shrink-0 flex-nowrap items-center gap-2 pb-2', flush && !fullscreen ? 'pt-2' : cn('px-3', embedded && !fullscreen ? 'pt-0' : 'pt-2.5'))}>
+        // `controlsSlot`: the caller's own row to put them in (History's, beside its view tabs) — one row, not two.
+        const inSlot = Boolean(controlsSlot) && !fullscreen
+        const row = (
+        <div data-preview-controls className={inSlot ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-2' : cn('flex shrink-0 flex-nowrap items-center gap-2 pb-2', flush && !fullscreen ? 'pt-2' : cn('px-3', embedded && !fullscreen ? 'pt-0' : 'pt-2.5'))}>
           <div className="flex min-w-0 items-center gap-2">
             {toolbarExtra}
             {/* The two views. (In a narrow window: their icons, the names as tooltips.) */}
@@ -423,7 +426,9 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
               : <span data-toolbar-control className="flex">{tool({ id: 'fullscreen', label: 'View full screen', Icon: Maximize2, onClick: () => setFullscreen(true) })}</span>}
           </div>
         </div>
-      ) : (
+        )
+        return inSlot ? createPortal(row, controlsSlot) : row
+      })() : (
         <div className={cn('flex shrink-0 items-center justify-between gap-2 px-4 pb-2 text-[11px] text-muted-foreground', embedded ? 'pt-0' : 'pt-3')}>
           {/* (A prototype's own controls lead the row; then full screen is offered too.) */}
           {toolbarExtra ?? <span data-preview-source="prototype" className="min-w-0 truncate">Synced from {file?.path}</span>}
@@ -485,9 +490,11 @@ function PreviewPanelContent({ previewProps: snapshotProps, prototypeEdits: snap
             </span>
           )}
           {/* (A design-frame preview says which version it shows here; a code render says so under its frame.) */}
-          {caption && !rendering && <span data-preview-caption className="pointer-events-none absolute top-1 right-3 z-20 rounded-md bg-black/60 px-2 py-1 text-[10.5px]">{caption}</span>}
+          {caption && !rendering && !controlsSlot && <span data-preview-caption className="pointer-events-none absolute top-1 right-3 z-20 rounded-md bg-black/60 px-2 py-1 text-[10.5px]">{caption}</span>}
           {/* The zoom floats at the canvas's corner (as in the Workspace): faint until the pointer is over the canvas. */}
-          <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90 opacity-50 transition-opacity group-hover/canvas:opacity-100 focus-within:opacity-100"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>
+          {/* (`zoomSlot`: the caller's own place for it — History's capsule at its foot.) */}
+          {zoomSlot && !fullscreen ? createPortal(<CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} />, zoomSlot)
+            : <div data-preview-zoom className="absolute right-3 bottom-3 z-20 origin-bottom-right scale-90 opacity-50 transition-opacity group-hover/canvas:opacity-100 focus-within:opacity-100"><CanvasZoomControl zoom={zoom} onZoomBy={zoomBy} /></div>}
         </>
       )}
       <div ref={boxRef} className={cn('flex min-h-0 flex-1 flex-col overflow-auto', compareView && rendering ? '' : 'pb-4', compareView && rendering ? '' : viewControls ? 'px-3' : 'px-4')}>

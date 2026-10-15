@@ -122,7 +122,8 @@ function FloatingWindow({ group, panelsById, dockApi, components, docked = false
       style={{ ...geom, zIndex: isMaximized ? 500 : group.z }}
       onPointerDownCapture={() => dockApi.focusGroup(group.id)}
     >
-      {group.hideHeader ? (
+      {/* (`bareHeader` docked — AI Chat: no row at all; its conversation starts at the window's top.) */}
+      {bareHeader && docked ? null : group.hideHeader ? (
         <div
           onPointerDown={beginDrag}
           className="flex h-10 shrink-0 cursor-grab items-center gap-1.5 px-4 text-xs font-medium text-slate-300 select-none active:cursor-grabbing"

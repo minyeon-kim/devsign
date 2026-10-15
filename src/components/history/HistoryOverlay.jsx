@@ -81,6 +81,8 @@ function HistoryLayer() {
   // dialog (the rollback confirmation), a menu or a listbox opened inside is up: that
   // goes first. Focus comes in on Close, and goes back to where it was on closing.
   const closeRef = useRef(null)
+  // (Where the canvas's zoom goes: the foot's capsule.)
+  const [zoomSlot, setZoomSlot] = useState(null)
   // (In the main window's place: AI Chat beside it stays — useLayerFrame.)
   const [layerRef, layerStyle] = useLayerFrame([aiChat.open])
   const close = useRef(closeHistory)
@@ -111,7 +113,7 @@ function HistoryLayer() {
       {/* The viewer and the timeline, in the page's column: the same left line as the path, starting 8px
           under the bar — where a change's detail has its title row. The viewer takes the height that's
           left; the timeline stays at the foot. */}
-      <div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-6 pb-4')}>
+      <div data-history-body className={cn(BREADCRUMB_COLUMN, 'relative flex min-h-0 flex-1 flex-col gap-3 pt-6 pb-4')}>
         <div className="min-h-0 flex-1">
           <HistoryCompare
             entryId={selectedId}
@@ -138,15 +140,23 @@ function HistoryLayer() {
             baseEntryId={timeline[timelineIndex - 1]?.id}
             onStepDone={advance}
             position={timelineIndex >= 0 ? { index: timelineIndex, total: timeline.length } : null}
+            zoomSlot={zoomSlot}
           />
         </div>
-        <HistoryTimeline
-          entries={timeline}
-          selectedId={selectedId}
-          onSelect={selectVersion}
-          playing={playing}
-          onTogglePlay={toggle}
-        />
+        {/* The foot: one capsule at the centre — play, ‹ n / total ›, and the canvas's zoom. (The list at the left is
+            the timeline: no slider of dots to say it again.) */}
+        <div className="flex shrink-0 justify-center">
+          <HistoryTimeline
+            capsule
+            entries={timeline}
+            selectedId={selectedId}
+            onSelect={selectVersion}
+            playing={playing}
+            onTogglePlay={toggle}
+          >
+            <span ref={setZoomSlot} data-history-zoom className="flex items-center empty:hidden" />
+          </HistoryTimeline>
+        </div>
       </div>
 
       <RollbackCheckpointModal

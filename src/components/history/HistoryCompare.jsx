@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { stampOf } from '@/components/dashboard/HistoryDrawer'
 import { changeHref, sourceKeyOf } from '@/lib/changeLink'
 import { Archive, ArchiveRestore, Check, ChevronDown, ChevronRight, Code2, Link2, MessageSquareText, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
@@ -10,7 +11,7 @@ import { diffLines } from '@/lib/lineDiff'
 import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
 import { changedLineCount, codeViewOf, foldRows, numberRows } from '@/lib/diffHunks'
 import { projectHistorySeeds } from '@/data/mockData'
-import { KIND_LABEL, historyMeta } from '@/lib/historyMeta'
+import { historyMeta } from '@/lib/historyMeta'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
@@ -26,6 +27,14 @@ import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
 import { checkpointRationale } from '@/lib/rationale'
 
 const CHIP = 'inline-flex h-5 shrink-0 items-center rounded-full bg-white/[0.07] px-2 text-[10.5px] font-medium text-slate-300'
+// A checkpoint's label as the header says it: the change's code up front and a closing "(검증 통과)" are the
+// meta's and a chip's — the title is what was done. ("CON-012 수정 · 필드 간격 6px → 8px (검증 통과)")
+export function headerTitleOf(label = '') {
+  const status = label.match(/\s*\(([^()]+)\)\s*$/)
+  const rest = status ? label.slice(0, status.index) : label
+  const code = rest.match(/^(CON-\d+)\s+\S+\s*·\s*/)
+  return { title: code ? rest.slice(code[0].length) : rest, status: status?.[1] ?? null, code: code?.[1] ?? null }
+}
 
 // This view's diff layout: top to bottom until side by side is picked (kept
 // between visits, apart from the app's other diffs).
@@ -68,7 +77,10 @@ function snapshotLines(snapshot) {
 // its own card and header — `header` is the caller's line in their place
 // (back, which step, the way out to History). Everything under it is this
 // component's, as on the History page.
-function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position, embedded = false, header = null, codeOpenByDefault = false }) {
+// `zoomSlot`: where the page puts the canvas's zoom (History's capsule at its foot).
+function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline = 'previous', onBaselineChange, footer, hideRestore = false, playing = false, baseEntryId, onStepDone, branch, position, embedded = false, header = null, codeOpenByDefault = false, zoomSlot = null }) {
+  // (The page's one control row: the view tabs, what it's compared with, then the preview's own controls.)
+  const [controlsEl, setControlsEl] = useState(null)
   const { historyEntries, activeHistoryId, getFileName, currentUser, projectId, conflicts, comments, projectPages, closeHistory } = useWorkspace()
   const navigate = useNavigate()
   const location = useLocation()
@@ -96,7 +108,6 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   // Which checkpoint's typing has finished (the preview switches then).
   const [typedId, setTypedId] = useState(null)
   const typed = typedId === entryId
-  const diffBase = current
   // The checkpoint before this one on the timeline — what it's compared with
   // on asking, and what its own change is measured against.
   const previousEntry = historyEntries.find((h) => h.id === baseEntryId) ?? null
@@ -286,13 +297,31 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
     const url = new URL(historyHref(projectId, entry.id), window.location.origin).href
     Promise.resolve(navigator.clipboard?.writeText(url)).then(() => toast('Link copied')).catch(() => toast('Couldn’t copy the link'))
   }
-  const propChanges = diffBase
-    ? Object.keys({ ...diffBase.snapshot.previewProps, ...entry.snapshot.previewProps }).filter(
-        (key) => diffBase.snapshot.previewProps?.[key] !== entry.snapshot.previewProps?.[key]
-      )
-    : []
 
-
+  // What it's compared with — the one control for it: "비교: 이전 버전 ▾".
+  const compareMenu = (
+            // What it's compared with — the one control for it: "비교: 이전 버전 ▾".
+            <DropdownMenu>
+              <DropdownMenuTrigger data-baseline={base} data-toolbar-control aria-label={translateText('Compared with', language)} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium whitespace-nowrap text-slate-100 transition-colors hover:bg-white/[0.08] hover:text-white">
+                <span className="font-normal text-slate-400"><LocalizedText text="Compare" />:</span>
+                <LocalizedText text={base === 'previous' ? 'Previous version' : 'Current version'} />
+                <ChevronDown className="size-3 shrink-0 text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                {[['previous', 'Previous version'], ['current', 'Current version']].map(([id, label]) => {
+                  const unavailable = id === 'previous' && !previousEntry
+                  return (
+                    <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="block">
+                      <DropdownMenuItem data-baseline-option={id} aria-checked={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)} className="gap-2 text-xs">
+                        <Check className={cn('size-3.5 shrink-0', base === id ? 'opacity-100' : 'opacity-0')} />
+                        <LocalizedText text={label} />
+                      </DropdownMenuItem>
+                    </span>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+  )
   return (
     // A Merge Studio floating panel: the same surface as the Version
     // History drawer, borderless inside, the mint accent for Restore.
@@ -303,7 +332,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
         // then why, as a plain line.
         <header data-checkpoint-header className="flex shrink-0 flex-col gap-1 pb-3">
           <div className="flex min-w-0 items-center gap-3">
-            <h2 data-checkpoint-title title={entry.label} className="min-w-0 truncate text-lg leading-7 font-semibold text-white">{entry.label}</h2>
+            <h2 data-checkpoint-title title={entry.label} className="min-w-0 truncate text-lg leading-7 font-semibold text-white">{headerTitleOf(entry.label).title}</h2>
+            {headerTitleOf(entry.label).status && <span data-checkpoint-status className={cn(CHIP, /통과|완료|passed/i.test(headerTitleOf(entry.label).status) && 'bg-emerald-400/[0.14] text-emerald-200')}><LocalizedText text={headerTitleOf(entry.label).status} /></span>}
             {isCurrent && !playing && <span data-checkpoint-current className={CHIP}><LocalizedText text="Current" /></span>}
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
               {!hideRestore && (
@@ -338,32 +368,31 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           </div>
           <div className="flex min-w-0 items-center gap-x-1.5 text-xs text-slate-400">
             <span data-checkpoint-meta className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
+              {/* (Who · when, as the list says it · where. The change's code, when it's one's.) */}
+              {headerTitleOf(entry.label).code && <><span translate="no" className="shrink-0 font-mono text-[11px] text-slate-500">{headerTitleOf(entry.label).code}</span><span aria-hidden className="text-slate-600">·</span></>}
               {who && <><span className="truncate"><LocalizedText text={who} /></span><span aria-hidden className="text-slate-600">·</span></>}
-              <span className="shrink-0 tabular-nums"><LocalizedText text={entry.timestamp} /></span>
+              <span title={entry.timestamp} className="shrink-0 tabular-nums">{stampOf(entry.timestamp, language).time}</span>
               {branch && <><span aria-hidden className="text-slate-600">·</span><span translate="no" className="truncate font-mono text-[11px]">{branch.name}</span></>}
-              {KIND_LABEL[entry.kind] && <><span aria-hidden className="text-slate-600">·</span><span data-checkpoint-kind className="shrink-0"><LocalizedText text={KIND_LABEL[entry.kind]} /></span></>}
             </span>
             {/* The one thing to check — the whole sentence on hover, and the
                 canvas marks where. Narrow: "⚠ 변경확인". */}
             {problemConflict && (
               <button type="button" data-checkpoint-alert title={problemSentence ?? problemConflict.label} onClick={() => openEvidence(problemConflict)} className="ds-intrinsic ml-1 inline-flex shrink-0 items-center gap-1 rounded text-amber-300 transition-colors hover:text-amber-200">
                 <TriangleAlert aria-hidden className="size-3" />
-                <span className="min-[1440px]:hidden"><LocalizedText text="Check change" /></span>
-                <span className="hidden min-[1440px]:inline"><LocalizedText text="Change needs checking" /> · <LocalizedText text="Open change" /> →</span>
+                <LocalizedText text="Check change" />
+              </button>
+            )}
+            {(why.text || hasReason) && (
+              <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((open) => !open)} className="ds-intrinsic ml-1 shrink-0 rounded text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
+                <LocalizedText text={reasonOpen ? 'Hide' : 'Details'} />
               </button>
             )}
           </div>
-          {(why.text || hasReason) && (
-            <div data-checkpoint-why className="min-w-0 text-[13px] leading-5 text-slate-300">
-              <p className="flex min-w-0 items-baseline gap-1.5">
-                {why.text && <span data-checkpoint-reason title={why.text} className="min-w-0 truncate"><LocalizedText text={why.text} /></span>}
-                {hasReason && (
-                  <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((open) => !open)} className="ds-intrinsic shrink-0 rounded text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
-                    <LocalizedText text="Details" />
-                  </button>
-                )}
-              </p>
-              {reasonOpen && hasReason && <EvidenceLinks items={reasonEvidence} onOpen={openEvidence} className="mt-1.5" />}
+          {/* Why, folded: "자세히" at the meta line's end opens it (the reason and where it came from). */}
+          {reasonOpen && (why.text || hasReason) && (
+            <div data-checkpoint-why className="mt-1 min-w-0 text-[13px] leading-5 text-slate-300">
+              {why.text && <p data-checkpoint-reason><LocalizedText text={why.text} /></p>}
+              {hasReason && <EvidenceLinks items={reasonEvidence} onOpen={openEvidence} className="mt-1.5" />}
             </div>
           )}
         </header>
@@ -408,14 +437,20 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           all the height that's left. The replay (embedded) keeps its stack —
           the renders, the code folded or open under them. */}
       {!embedded && (
-        <div role="tablist" aria-label={translateText('View', language)} data-history-tabs className="flex h-10 shrink-0 items-end gap-5 border-b border-white/[0.08]">
-          {[['screen', 'Screen', null], ['code', 'Code', comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} in code` : null], ['split', 'Screen and code', null]].map(([id, label, count]) => (
-            <button key={id} type="button" role="tab" data-history-tab={id} aria-selected={view === id} onClick={() => setView(id)}
-              className={cn('ds-intrinsic -mb-px inline-flex h-9 items-center gap-1.5 border-b-2 text-[13px] font-medium whitespace-nowrap transition-colors', view === id ? 'border-white text-white' : 'border-transparent text-slate-400 hover:text-slate-200')}>
-              <LocalizedText text={label} />
-              {count && <span className="font-normal text-slate-500 tabular-nums"><LocalizedText text={count} /></span>}
-            </button>
-          ))}
+        // One row of controls: the view as the app's capsule, what it's compared with, then (the screen showing)
+        // the preview's own — what's shown of it, how two are compared, the device, the rest, full screen.
+        <div data-history-controls-row className="flex h-9 shrink-0 items-center gap-2 pb-1">
+          <div role="tablist" aria-label={translateText('View', language)} data-history-tabs className="flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
+            {[['screen', 'Screen', null], ['code', 'Code', comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} in code` : null], ['split', 'Screen and code', null]].map(([id, label, count]) => (
+              <button key={id} type="button" role="tab" data-history-tab={id} aria-selected={view === id} onClick={() => setView(id)}
+                className={cn('ds-intrinsic inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-xs whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', view === id ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]' : 'text-slate-400 hover:text-slate-200')}>
+                <LocalizedText text={label} />
+                {count && <span className={cn('font-normal tabular-nums', view === id ? 'text-slate-300' : 'text-slate-500')}><LocalizedText text={count} /></span>}
+              </button>
+            ))}
+          </div>
+          {compareMenu}
+          <div ref={setControlsEl} data-history-preview-controls className="flex min-w-0 flex-1 justify-end" />
         </div>
       )}
 
@@ -446,36 +481,17 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             variant="compare"
             emphasizeMark={problemHover && problem ? problem.id : null}
             flush={!embedded}
-          narrowPane={split}
-          toolbarExtra={(
-            // What it's compared with — the one control for it: "비교: 이전 버전 ▾".
-            <DropdownMenu>
-              <DropdownMenuTrigger data-baseline={base} data-toolbar-control aria-label={translateText('Compared with', language)} className="ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium whitespace-nowrap text-slate-100 transition-colors hover:bg-white/[0.08] hover:text-white">
-                <span className="font-normal text-slate-400"><LocalizedText text="Compare" />:</span>
-                <LocalizedText text={base === 'previous' ? 'Previous version' : 'Current version'} />
-                <ChevronDown className="size-3 shrink-0 text-slate-400" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-44">
-                {[['previous', 'Previous version'], ['current', 'Current version']].map(([id, label]) => {
-                  const unavailable = id === 'previous' && !previousEntry
-                  return (
-                    <span key={id} title={unavailable ? translateText('This is the first checkpoint: there’s none before it', language) : undefined} className="block">
-                      <DropdownMenuItem data-baseline-option={id} aria-checked={base === id} disabled={unavailable || playing} onClick={() => onBaselineChange?.(id)} className="gap-2 text-xs">
-                        <Check className={cn('size-3.5 shrink-0', base === id ? 'opacity-100' : 'opacity-0')} />
-                        <LocalizedText text={label} />
-                      </DropdownMenuItem>
-                    </span>
-                  )
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          caption={
+          // (In the page's one row, beside the tabs and the comparison: the preview's views as icons, named on hover.)
+          narrowPane={split || !embedded}
+          controlsSlot={embedded ? null : controlsEl}
+          zoomSlot={embedded ? null : zoomSlot}
+          toolbarExtra={embedded ? compareMenu : null}
+          caption={embedded && (
               <span className="shrink-0 text-slate-300">
                 {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
                 {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
               </span>
-            }
+            )}
           />
       </div>
       )}
@@ -582,17 +598,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
 
       {footer}
 
-      {propChanges.length > 0 && showDiff && !codeRender && (
-        <div className="shrink-0 px-5 pb-4">
-          <p className="mb-1 text-xs font-medium text-slate-300">Preview props</p>
-          {propChanges.map((key) => (
-            <p key={key} className="font-mono text-[11px] text-slate-500">
-              {key}: <span className="text-red-300 line-through">{String(diffBase.snapshot.previewProps?.[key] ?? '—')}</span>{' '}
-              → <span className="text-emerald-300">{String(entry.snapshot.previewProps?.[key] ?? '—')}</span>
-            </p>
-          ))}
-        </div>
-      )}
+      {/* (No "Preview props" list: what changed is the title's, the canvas's ring and the code's.) */}
       <RulesDialog focusId={ruleFocus} onOpenChange={(open) => { if (!open) setRuleFocus(null) }} onOpenSource={openEvidence} />
     </div>
   )

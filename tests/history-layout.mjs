@@ -49,7 +49,11 @@ try {
   assert.match(page, /data-checkpoint-header/)
   assert.match(page, /<h2[^>]*data-checkpoint-title/, 'the title, one line')
   for (const gone of ['data-checkpoint-conflict', 'data-change-summary', 'data-problem-line', 'data-summary-code', 'data-preview-changed-names']) assert.doesNotMatch(page, new RegExp(gone), `${gone} is no longer rendered`)
-  assert.match(page, /data-checkpoint-why/, 'why, as a plain line')
+  // Why: folded under "자세히" at the meta line's end — the header is two lines.
+  assert.match(page, /data-checkpoint-reason-toggle/, 'why, on asking')
+  assert.doesNotMatch(page, /data-checkpoint-why/, 'folded to start')
+  assert.doesNotMatch(page, /Preview props|미리보기 속성/, 'no props list under the screen')
+  assert.match(page, /data-history-controls-row/, 'one row of controls: the views, the comparison, the preview\'s own')
   assert.doesNotMatch(page, /data-checkpoint-header[^>]*class="[^"]*(bg-|border|ring-)/, 'the header has no box')
   const root = page.match(/<div data-history-compare="page" class="([^"]*)"/)?.[1] ?? ''
   assert.ok(root && !/\b(bg-|border|ring-|shadow|rounded)/.test(root), `the page's viewer has no card: ${root}`)
@@ -86,7 +90,8 @@ try {
   assert.doesNotMatch(bar, /data-preview-zoom/, 'the zoom is not in it')
   assert.match(page, /group\/canvas[\s\S]*data-preview-zoom/, 'the zoom floats on the canvas')
   assert.doesNotMatch(bar, /data-preview-(design|overview|inspect|changed)\b/, 'those are ⋯’s switches now')
-  assert.match(bar, /data-baseline="previous"/, 'what it is compared with: a dropdown')
+  // (What it's compared with: a dropdown in the page's own row, beside the view tabs — not the preview's.)
+  assert.match(page.slice(page.indexOf('data-history-controls-row')), /^[^]*?data-baseline="previous"[^]*?data-history-preview-controls/, 'what it is compared with: a dropdown')
   assert.match(bar, /data-preview-more/)
   assert.doesNotMatch(bar, /data-device-orientation/, 'the rotation is inside the device menu')
 

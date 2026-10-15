@@ -20,7 +20,9 @@ const hasProblem = (entry) => entry.kind === 'conflict' || Boolean(entry.conflic
 // background, a hairline above — ▶ · ‹ 2 / 3 › · the slider, whose dots say
 // which checkpoint they are on hover (an amber dot: something to check
 // there). `compact` is the change replay's smaller bar (every step a dot).
-function HistoryTimeline({ entries, selectedId, onSelect, playing, onTogglePlay, compact = false }) {
+// `capsule`: the History page's foot — play and ‹ n / total › in one floating capsule at the centre (as the canvases'
+// tools are), the list beside it being the timeline; `children` go after them (the canvas's zoom).
+function HistoryTimeline({ entries, selectedId, onSelect, playing, onTogglePlay, compact = false, capsule = false, children = null }) {
   const count = entries.length
   const found = entries.findIndex((e) => e.id === selectedId)
   const index = found === -1 ? count - 1 : found
@@ -41,7 +43,8 @@ function HistoryTimeline({ entries, selectedId, onSelect, playing, onTogglePlay,
     <div
       role="toolbar"
       aria-label="History playback"
-      className={cn('flex shrink-0 items-center bg-transparent', compact ? 'w-full flex-nowrap gap-2 px-3 py-4' : 'h-12 gap-3 border-t border-white/[0.08]')}
+      data-history-capsule={capsule ? '' : undefined}
+      className={cn('flex shrink-0 items-center', capsule ? 'gap-1 rounded-full border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm' : cn('bg-transparent', compact ? 'w-full flex-nowrap gap-2 px-3 py-4' : 'h-12 gap-3 border-t border-white/[0.08]'))}
     >
       <button
         type="button"
@@ -49,7 +52,7 @@ function HistoryTimeline({ entries, selectedId, onSelect, playing, onTogglePlay,
         disabled={count < 2}
         aria-label={playing ? 'Pause playback' : 'Play history'}
         title={playing ? 'Pause' : 'Play history'}
-        className={cn('ds-intrinsic flex shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/15 disabled:opacity-35', compact ? 'size-6' : 'size-8')}
+        className={cn('ds-intrinsic flex shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/15 disabled:opacity-35', compact || capsule ? (capsule ? 'size-7' : 'size-6') : 'size-8')}
       >
         {playing
           ? <Pause className={cn('fill-current', compact ? 'size-3' : 'size-3.5')} />
@@ -69,8 +72,10 @@ function HistoryTimeline({ entries, selectedId, onSelect, playing, onTogglePlay,
         </button>
       </div>
 
+      {capsule && children && <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />}
+      {capsule && children}
       {/* The slider */}
-      <div
+      {!capsule && <div
         className={cn('group/slider relative min-w-0 flex-1', compact ? 'h-6' : 'h-8')}
         title={compact && selected ? `${selected.timestamp} · ${selected.label}` : undefined}
         onPointerMove={compact ? undefined : (event) => {
@@ -149,7 +154,7 @@ function HistoryTimeline({ entries, selectedId, onSelect, playing, onTogglePlay,
           aria-valuetext={selected ? `${index + 1} of ${count}: ${selected.timestamp} · ${selected.label}` : undefined}
           className="absolute inset-0 size-full cursor-pointer opacity-0"
         />
-      </div>
+      </div>}
     </div>
   )
 }

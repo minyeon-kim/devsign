@@ -1,29 +1,14 @@
-import { History } from 'lucide-react'
 import ChatConversation from '@/components/chat/ChatConversation'
-import { WindowHeaderPortal } from '@/components/workspace/WindowHeaderSlot'
-import { useWorkspace } from '@/state/WorkspaceProvider'
 
 // The AI Chat pane — the "Ask Devsign" conversation docked into the
 // workspace as a window (a tab or split pane like the editor or canvas),
-// the same conversation as the floating chat widget. The agent's
-// checkpoints (History) sit on the window's header line.
+// the same conversation as the floating chat widget. (No checkpoints button
+// over it: History is the activity bar's, and the conversation starts at the
+// window's top, level with the canvas window's tab row.)
 function ChatPanel() {
-  const { openHistory } = useWorkspace()
-
   return (
     // (On its window's own surface — the Workspace's AI Chat is on the app's ground, #141414.)
-    <div className="flex h-full flex-col pt-2">
-      <WindowHeaderPortal fallbackClassName="flex shrink-0 justify-end px-2 pt-1">
-        <button
-          type="button"
-          title="Agent checkpoints (History)"
-          aria-label="Agent checkpoints (History)"
-          onClick={() => openHistory()}
-          className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
-        >
-          <History className="size-3.5" />
-        </button>
-      </WindowHeaderPortal>
+    <div className="flex h-full flex-col">
       <ChatConversation />
     </div>
   )
