@@ -42,7 +42,7 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project }) {
-  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, bottomPanel, mergeDrawer, setMergeDrawer, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
+  const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, mergeDrawer, setMergeDrawer, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
 
   return (
@@ -79,9 +79,8 @@ function TopBar({ project }) {
       {inboxOpen && (
         <MergeInboxDrawer
           // Same edges as the docked windows (WorkspaceSplitLayout): below
-          // the chrome row, the 8px right gutter, and 8px above the bottom
-          // panel when it's open — flush otherwise.
-          inset={cn('top-[var(--ds-chrome-size)] right-2', bottomPanel.open ? 'bottom-2' : 'bottom-0')}
+          // the chrome row, and 8px in from the right and the bottom, as they are.
+          inset="top-[var(--ds-chrome-size)] right-2 bottom-2"
           // Inbox items point at a Conflict Point (open its review window,
           // with the Conflict Points tab up behind it) or at a Merge Studio
           // target (jump there, focused).

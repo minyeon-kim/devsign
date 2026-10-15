@@ -370,6 +370,8 @@ function ProjectOverviewPage() {
       </div>
       {inboxOpen && (
         <MergeInboxDrawer
+          // (The same edges as in the Workspace: under the top bar, 8px in from the right and the bottom.)
+          inset="top-[var(--ds-chrome-size)] right-2 bottom-2"
           onJump={(n) => {
             const destination = notificationDestination(n.target, conflicts, mergeItems)
             if (!destination) return
