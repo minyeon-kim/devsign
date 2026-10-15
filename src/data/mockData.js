@@ -1011,7 +1011,7 @@ export const codeMergeVariants = {
   },
   'merge-settings': {
     app: [{ id: 'clear-selection-button', line: 16, incoming: '      <Button onClick={() => setSelected(null)} className="rounded-2xl">Deselect</Button>' }],
-    tokens: [{ id: 'primary-color-token', line: 3, incoming: '    "primary": "#8b5cf6",' }],
+    tokens: [{ id: 'primary-color-token', line: 3, incoming: '    "primary": "#6366f1",' }],
   },
 }
 
@@ -1791,10 +1791,10 @@ export const canvasPages = [
           { id: 'co-title', name: 'Title', kind: 'text', type: 'text', x: 20, y: 40, width: 140, height: 18 },
           { id: 'co-step', name: 'Step', kind: 'text', type: 'text', x: 20, y: 66, width: 180, height: 10 },
           { id: 'order-summary', name: 'Order summary', kind: 'component', type: 'card', x: 20, y: 90, width: 240, height: 112 },
-          { id: 'payment-label', name: 'Card number label', kind: 'text', type: 'text', x: 20, y: 224, width: 120, height: 10 },
+          { id: 'payment-label', name: 'Card number label', kind: 'text', type: 'text', x: 20, y: 222, width: 120, height: 10 },
           { id: 'card-input', name: 'Card number', kind: 'component', type: 'input', x: 20, y: 240, width: 240, height: 40, label: '1234 5678 9012 3456' },
           // (The shipping option: its Truck icon — ShippingOptions' own, the icon set's stroke token — and its label.)
-          { id: 'shipping-icon', name: 'Shipping icon', kind: 'vector', type: 'glyph', x: 20, y: 297, width: 16, height: 16, mock: { icon: 'truck', stroke: 2.5, token: 'icon/stroke-default', component: 'ShippingOptions' } },
+          { id: 'shipping-icon', name: 'Shipping icon', kind: 'vector', type: 'glyph', x: 20, y: 297, width: 16, height: 16, mock: { icon: 'truck', stroke: 2, token: 'icon/stroke-default', component: 'ShippingOptions' } },
           { id: 'shipping-label', name: 'Shipping option', kind: 'text', type: 'text', x: 42, y: 300, width: 200, height: 10 },
           { id: 'total-text', name: 'Total', kind: 'text', type: 'text', x: 20, y: 468, width: 160, height: 14 },
           {
@@ -1836,7 +1836,7 @@ export const canvasPages = [
         { id: 'tab-title', name: 'Checkout tabs', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Payment', mock: { text: 'Payment method', tone: 'strong', weight: 700 } },
         { id: 'ctb-sub', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 64, width: 240, height: 12, mock: { text: 'Choose how you’d like to pay.', tone: 'muted' } },
         { id: 'ctb-tab-card', name: 'Card tab', kind: 'component', type: 'chip', x: 20, y: 118, width: 72, height: 24, label: 'Card' },
-        { id: 'tab-icon', name: 'Tab icon', kind: 'component', type: 'iconbtn', x: 130, y: 120, width: 20, height: 20, label: '⌂' },
+        { id: 'tab-icon', name: 'Tab icon', kind: 'component', type: 'iconbtn', x: 128, y: 118, width: 24, height: 24, label: '⌂' },
         { id: 'ctb-tab-bank', name: 'Bank tab', kind: 'component', type: 'chip', x: 188, y: 118, width: 72, height: 24, label: 'Bank' },
         { id: 'ctb-saved', name: 'Saved card', kind: 'component', type: 'card', x: 20, y: 164, width: 240, height: 96, mock: { icon: 'shield', title: 'Visa ·· 3456', body: 'Expires 08/28 · default' } },
         { id: 'ctb-card-input', name: 'Card number', kind: 'component', type: 'input', x: 20, y: 280, width: 240, height: 40, label: 'Add another card' },
@@ -1976,7 +1976,7 @@ export const inspectorSpecsByType = {
   },
   button: {
     layout: { mode: 'Horizontal', padding: '12px 24px', gap: '8px', align: 'Center' },
-    fill: { color: '#8b5cf6', token: 'color.primary' },
+    fill: { color: '#6366f1', token: 'color.primary' },
     stroke: { color: 'none', width: 0 },
     typography: { font: 'Geist', size: 12, weight: 500 },
     css: '.button-primary {\n  background: var(--primary);\n  color: var(--primary-foreground);\n  padding: 12px 24px;\n  border-radius: 8px;\n}',

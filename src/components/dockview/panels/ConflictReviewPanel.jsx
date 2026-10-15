@@ -6,7 +6,7 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Ban, Bell, BookCheck, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitCompareArrows, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, Users, X } from 'lucide-react'
+import { ArrowRight, Ban, Bell, BookCheck, Check, ChevronDown, ChevronRight, CircleCheck, FileCode2, ChevronLeft, Clock3, GitCompareArrows, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, Users, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
@@ -1031,7 +1031,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       const kept = localStorage.getItem('devsign.review.showCode')
       if (kept === '0' || kept === '1') return kept === '1'
     } catch { /* not kept */ }
-    return isDeveloperViewer(conflict.projectId)
+    return page ? false : isDeveloperViewer(conflict.projectId)
   })
   const toggleCode = () => setShowCode((value) => { try { localStorage.setItem('devsign.review.showCode', value ? '0' : '1') } catch { /* not kept */ } return !value })
   const [showAlternatives, setShowAlternatives] = useState(false)
@@ -1214,7 +1214,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // one picked, else the reference (never an empty box).
   const afterId = (hover && hover !== choice ? hover : choice) ?? (offered.some((card) => card.id === 'A') ? 'A' : offered[0]?.id ?? null)
   const afterCard = cards.find((card) => card.id === afterId) ?? null
-  const PICTURE = 'grid h-[240px] min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border-2 bg-black/20 p-4'
+  const PICTURE = 'grid h-[200px] min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border-2 bg-black/20 p-4'
   const pageChoices = () => (
     <>
       {/* Before → After: what's built, beside what the way gives. */}
@@ -1239,6 +1239,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
           </figure>
         </div>
       )}
+      {/* What differs, in a line right under the pictures. */}
+      {conflict.preview && conflict.comparisonFields?.length > 0 && <DifferenceSummary compact className="mt-3 bg-transparent !px-0 !py-0" conflict={conflict} />}
       {/* The ways forward, a line each: text first, how it stands with the standard at its end. */}
       <div role={readOnly ? undefined : 'radiogroup'} aria-label="해결 방법 선택" data-choice-list className={cn('flex flex-col', conflict.preview && 'mt-6')}>
         {offered.filter((card) => !readOnly || showAlternatives || card.id === choice).map((card) => {
@@ -1293,7 +1295,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 </span>
                 {readOnly && on && <span data-applied-tag className="shrink-0 rounded bg-white/[0.1] px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-white"><LocalizedText text="Applied" /></span>}
                 {/* (Where its values come from, quiet, at the row's end.) */}
-                {!isCustom && card.source && <span className="hidden max-w-[38%] shrink-0 truncate text-[11px] text-slate-500 lg:block" title={card.source}><LocalizedText text={card.source} /></span>}
+                
               </div>
               {/* A value of one's own is set right under its row — only there. */}
               {isCustom && on && (editing || custom) && (
@@ -1510,13 +1512,13 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
               {conflict.diff && !readOnly && (
                 <section data-code-section className="mt-4 min-w-0">
                   <div className={SECTION_HEAD}>
-                    <h3 className={SECTION_TITLE}><LocalizedText text="Change summary" /></h3>
+                    <h3 className={SECTION_TITLE}>{page ? '코드 자세히 보기' : <LocalizedText text="Change summary" />}</h3>
                     <button type="button" data-code-toggle aria-expanded={showCode} aria-label={showCode ? 'Hide code' : 'Show code'} onClick={toggleCode} className={cn(TEXT_ACTION, 'ml-auto')}>
                       <LocalizedText text={showCode ? 'Hide' : 'Show'} />
                       <ChevronDown className={cn('size-3.5 transition-transform', !showCode && '-rotate-90')} />
                     </button>
                   </div>
-                  {conflict.comparisonFields?.length > 0 && <DifferenceSummary compact className="mb-3 bg-transparent !px-0 !py-0" conflict={conflict} />}
+                  {!(page && conflict.preview) && conflict.comparisonFields?.length > 0 && <DifferenceSummary compact className="mb-3 bg-transparent !px-0 !py-0" conflict={conflict} />}
                   {showCode && <ChoiceCode conflict={conflict} lines={shown ? linesOf(shown) : null} title={shownCard?.title} preview={Boolean(shown) && shown !== choice} onOpenFile={code?.onOpenFile} />}
                 </section>
               )}
@@ -1701,7 +1703,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
       )}
       </div>
       {/* The one action, at the card's lower right: 24px over it, no rule. */}
-      {page && action && <div data-resolution-action className="mt-5 flex flex-wrap items-center justify-end gap-3">{action}</div>}
+      {page && action && <div data-resolution-action className="sticky bottom-0 z-10 mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-white/[0.06] bg-[var(--review-ground,var(--background))] pt-4 pb-3">{action}</div>}
     </div>
   )
 }
@@ -2536,7 +2538,7 @@ function ApprovalBar({ conflict, state, canReview, blockingCount = 0, onUpdate, 
                 data-choice-label={request.label ?? 'Send review request'}
                 disabled={request.disabled}
                 onClick={request.run}
-                className={request.assignReviewer ? cn(PRIMARY_BUTTON, 'gap-1.5') : REQUEST_REVIEW_BUTTON}
+                className={request.assignReviewer ? cn(PRIMARY_BUTTON, 'gap-1.5') : REQUEST_REVIEW_BUTTON.replace('h-8', 'h-9')}
               >
                 <LocalizedText text={request.label ?? 'Send review request'} />
               </button>
@@ -2613,26 +2615,39 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
   const { reveal, ref } = useStepReveal(conflict.id, states)
   const [hovered, setHovered] = useState(null)
   const folds = useFoldState(`record:${conflict.id}:${states.join(',')}`)
+  // (`current` stands above the record, on its own: the record is a fold under it, closed until asked for.)
+  const lifted = Boolean(current)
+  const [recordOpen, setRecordOpen] = useState(false)
   if (!steps.length) return null
   const host = (steps.find((step) => step.state === 'current') ?? steps.at(-1))?.key
-  const foldable = steps.filter((step) => hasBody(step) || (current && step.key === host)).map((step) => step.key)
+  const foldable = steps.filter((step) => hasBody(step)).map((step) => step.key)
   // (The step under way is open to start with — the others folded — and one step is open at a time.)
-  const isOpen = (key) => folds.get(key, key === host && (Boolean(current) || steps.find((step) => step.key === host)?.state !== 'done'))
+  const isOpen = (key) => folds.get(key, key === host && !lifted && steps.find((step) => step.key === host)?.state !== 'done')
   const toggle = accordionToggle(folds, foldable, isOpen, host)
   const allOpen = foldable.length > 0 && foldable.every(isOpen)
   return (
     // (40px under what's above it; 24px to the first step; 48px from step to step.)
-    <section data-step-record aria-label="진행 기록" className="mt-1 shrink-0 pb-2">
-      <div data-step-list-head className="mb-3 flex items-center gap-2">
-        <h3 className="text-[12px] font-semibold tracking-wide text-slate-400"><LocalizedText text="Progress record" /></h3>
-        <StepProgressCount states={states} ticks={reveal.live} />
-        {foldable.length > 0 && (
+    <>
+    {lifted && <div data-record-current className="min-w-0 shrink-0">{current}</div>}
+    <section data-step-record aria-label="진행 기록" className={cn('mt-1 shrink-0 pb-2', lifted && 'border-t border-white/[0.07] pt-1')}>
+      <div data-step-list-head className={cn('flex items-center gap-2', lifted ? 'min-h-9' : 'mb-3')}>
+        {lifted ? (
+          <button type="button" data-record-toggle aria-expanded={recordOpen} onClick={() => setRecordOpen((open) => !open)} className="ds-intrinsic flex h-9 items-center gap-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
+            <ChevronRight aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform', recordOpen && 'rotate-90')} />
+            <h3 className="text-[12px] font-semibold tracking-wide text-slate-300"><LocalizedText text="Progress record" /></h3>
+            <StepProgressCount states={states} ticks={reveal.live} />
+          </button>
+        ) : (<>
+          <h3 className="text-[12px] font-semibold tracking-wide text-slate-400"><LocalizedText text="Progress record" /></h3>
+          <StepProgressCount states={states} ticks={reveal.live} />
+        </>)}
+        {foldable.length > 0 && (!lifted || recordOpen) && (
           <button type="button" data-fold-all onClick={() => folds.setMany(foldable, !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
             {allOpen ? '모두 접기' : '모두 펼치기'}
           </button>
         )}
       </div>
-      <ol ref={ref} data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
+      <ol ref={ref} data-step-list hidden={lifted && !recordOpen} className="m-0 flex list-none flex-col gap-2 p-0">
         {steps.map((step, index) => (
           <StepRow
             key={step.key}
@@ -2652,9 +2667,8 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
             strong={hovered != null && index < hovered}
             onHover={(on) => setHovered(on ? index : null)}
           >
-            {(hasBody(step) || (current && step.key === host)) && (
+            {hasBody(step) && (
               <>
-                {current && step.key === host && <div data-record-current className="min-w-0">{current}</div>}
                 {/* What was found, drawn: what's built beside the reference (24px apart, 12px to their labels). */}
                 {step.preview && (
                   <div data-record-preview className="grid max-w-[560px] grid-cols-2 gap-6">
@@ -2697,6 +2711,7 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
         ))}
       </ol>
     </section>
+    </>
   )
 }
 
@@ -2727,7 +2742,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // (On the page the tabs are at its top, the change itself — 'details' — first and open.)
   const [sideTab, setSideTab] = useState(page ? 'details' : 'info')
   // A design decision's page: its header says what differs in a line and keeps the meta to plain words.
-  const decisionPage = Boolean(page && conflict?.decisionFlow)
+  // (A value change's page too: what differs in a line, the meta as plain words.)
+  const decisionPage = Boolean(page && conflict && !conflict.rollback && conflict.kind !== 'code-conflict' && (conflict.decisionFlow || conflict.comparisonFields?.length > 0))
   // (Scrolled: a hairline under the tabs, so what passes under them reads as going under — not cut off.)
   const [scrolled, setScrolled] = useState(false)
   // A design decision's History: its events, in order (lib/conflictEvents)
@@ -3539,7 +3555,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
           assignReviewer: needsReviewer && Boolean(choice),
           disabled: !choice || Boolean(decisionState.reasonNeeded) || (hasReviewers && Boolean(flow.decide.blocked)) || (needsReviewer && reviewerCandidates.length === 0),
           buttonRef: requestActionRef,
-          helper: !choice ? 'Choose a resolution first' : needsReviewer && reviewerCandidates.length === 0 ? 'No other project members available' : null,
+          helper: !choice ? 'Choose a resolution first' : choice === 'C' && !flow.custom ? 'Set a value first' : needsReviewer && reviewerCandidates.length === 0 ? 'No other project members available' : null,
           label: needsReviewer ? 'Assign reviewer' : choice === 'A' ? 'Request review with design values' : choice === 'B' ? 'Request review keeping code values' : choice === 'C' ? 'Request review with adjusted values' : 'Request review',
         }
         : { run: handleRequestReview, disabled: !requiredReviewers(conflict).length || decisionState.reasonNeeded || Boolean(reasonRequest) }}
