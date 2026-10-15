@@ -646,7 +646,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
       className={cn('flex shrink-0 items-center gap-1.5 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'relative isolate pl-2')}>
       {/* (Open, the row behind it is the panel's: its surface and left hairline run up to the window's top, so
           the capsule is the panel's header — not a pill on the tab row over a panel that starts under it.) */}
-      {openPanel === 'conflicts' && <span aria-hidden data-panel-tabs-backdrop className="absolute -inset-y-1 left-0 -right-2 -z-10 border-l border-white/[0.06] bg-[#1C1C1C]" />}
+      {openPanel && <span aria-hidden data-panel-tabs-backdrop className="absolute -inset-y-1 left-0 -right-2 -z-10 border-l border-white/[0.06] bg-[#1C1C1C]" />}
       {/* (On a change's detail: the way back to the list, at the header's left.) */}
       {openPanel === 'conflicts' && boardConflicts.conflictId && (
         <button type="button" data-board-conflicts-back onClick={() => setBoardConflicts({ conflictId: null })}

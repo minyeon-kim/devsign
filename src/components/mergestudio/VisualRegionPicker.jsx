@@ -19,14 +19,14 @@ function partBounds(part) {
 function RegionCandidate({ part, option, letter, region, selected, live, scale, commonWidth, cardWidth, cardHeight }) {
   const { minX, minY, padding, height } = partBounds(part)
   const width = commonWidth
-  return <div data-region-candidate-slot className="flex min-h-0 min-w-0 items-center justify-center">
+  return <div data-region-candidate-slot className="flex min-w-0 shrink-0 justify-center">
     <button type="button" data-region-candidate={option.key} aria-pressed={selected} aria-label={`${region.label} · 시안 ${letter} 사용`} disabled={!live.onPick}
       onMouseEnter={() => live.onPick && live.onPreviewRegion({ regionId: region.id, draftKey: option.key })}
       onFocus={() => live.onPick && live.onPreviewRegion({ regionId: region.id, draftKey: option.key })}
       onBlur={() => live.onPreviewRegion(null)}
       onClick={() => { live.onPreviewRegion(null); live.onPick?.(region.id, option.key) }}
       style={{ width: cardWidth, height: cardHeight }}
-      className={cn('ds-intrinsic flex shrink-0 flex-col overflow-hidden rounded-lg border text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:cursor-default', selected ? 'border-emerald-300/70' : 'border-white/10 hover:border-sky-300/70')}>
+      className={cn('ds-intrinsic flex shrink-0 flex-col overflow-hidden rounded-[12px] border text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:cursor-default', selected ? 'border-emerald-300/70' : 'border-white/10 hover:border-sky-300/70')}>
       <span data-region-thumbnail className="relative block w-full shrink-0 overflow-hidden bg-white" style={{ height: Math.max(0, cardHeight - 24) }}>
         <span data-region-render className="pointer-events-none absolute top-1/2 left-1/2 block bg-white" style={{ width, height, transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center' }}>
           {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, x: layer.x - minX + padding, y: layer.y - minY + padding }} override={layer.look} onSelect={() => {}} />)}
@@ -59,9 +59,11 @@ export default function VisualRegionPicker({ item, live }) {
   const parts = region ? live.options.map((option) => screen.drafts[option.key]?.[region.id]).filter(Boolean) : []
   const commonWidth = Math.max(1, ...parts.map((part) => partBounds(part).width))
   const commonHeight = Math.max(1, ...parts.map((part) => partBounds(part).height))
+  // (Each card as tall as its drawing — the tallest option's, at the column's width, never past 1× — plus its
+  // label: no share of the panel's height to fill with white. More than fit, the list scrolls.)
   const cardWidth = Math.max(0, size.width)
-  const cardHeight = Math.max(0, (size.height - Math.max(0, parts.length - 1) * 4) / Math.max(1, parts.length))
-  const scale = Math.max(0, Math.min(1, (cardWidth - 2) / commonWidth, (cardHeight - 24) / commonHeight))
+  const scale = Math.max(0, Math.min(1, (cardWidth - 2) / commonWidth))
+  const cardHeight = Math.ceil(commonHeight * scale) + 24
   const letterOf = (key) => String.fromCharCode(65 + item.variants.findIndex((variant) => variant.key === key))
   return <section data-visual-region-picker className="flex h-full min-h-0 gap-2">
     <div data-component-region-list role="group" aria-label="요소 항목" className={cn('order-last flex min-h-0 shrink-0 flex-col gap-1 overflow-y-auto', region ? 'w-[110px] border-l border-white/[0.06] pl-2' : 'w-full')} onMouseLeave={() => live.onHoverRegion?.(null)}>
@@ -79,7 +81,7 @@ export default function VisualRegionPicker({ item, live }) {
     </div>
     {!region ? null : <div key={region.id} className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
       <div className="flex shrink-0 items-center justify-between text-xs"><span className="font-medium text-slate-200"><LocalizedText text={region.label} /></span><span aria-live="polite" className="text-slate-500">{picks[region.id] ? `현재 시안 ${letterOf(picks[region.id])}` : '선택 안 됨'}</span></div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 content-start gap-1 overflow-hidden" ref={listRef} style={{ gridTemplateRows: `repeat(${Math.max(1, parts.length)}, minmax(0, 1fr))` }} onMouseLeave={() => previewCandidate(null)}>
+      <div data-region-candidates className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto [scrollbar-width:thin]" ref={listRef} onMouseLeave={() => previewCandidate(null)}>
         {live.options.map((option) => {
           const part = screen.drafts[option.key]?.[region.id]
           if (!part) return null

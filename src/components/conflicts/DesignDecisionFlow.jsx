@@ -501,8 +501,8 @@ function useCanvasPreviewCompare(conflictId) {
   return preview?.conflictId === conflictId && Boolean(preview.compare)
 }
 
-function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, mode = 'pick', chip = null, resultLabel = null, overlap }) {
-  const [open, setOpen] = useState(true)
+function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onSend, onDirect, mode = 'pick', resultLabel = null, overlap }) {
+  const open = true
   // (Picking is the request's step alone: once asked, the ways are the request's — said, not picked again here.)
   const readOnly = mode !== 'pick'
   const resultWord = resultLabel ?? CARD_MODES[mode].result
@@ -659,10 +659,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const comparing = useCanvasPreviewCompare(conflict.id)
   return (
     <section ref={sectionRef} data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
-      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <FoldTitle open={open} onToggle={() => setOpen((value) => !value)} data-fold-section="proposal">해결 방법{!readOnly && <> <span aria-hidden className="text-rose-300">*</span></>}</FoldTitle>
-        {/* (No state chip beside it: where the change stands is the step's and the header's to say.) */}
-      </div>
+      {/* (No title of its own: the step it's in — 디자이너 결정, 승인 요청 — names it, and the table under it says what it is.) */}
       {open && (<>
       {/* A value change's values — said once, here, and nowhere else in the detail (ValueTable); under it,
           how far the fix reaches and the magnifier, when the canvas previews it. */}
@@ -1321,12 +1318,6 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       // nothing is mounted again, nothing replays.)
       key={`${conflict.id}:${formRound}`}
       mode={cardMode}
-      chip={cardMode !== 'done' ? null
-        : stage === 'resolved' || donePhase === 'resolved' ? ['반영 완료', 'bg-emerald-400/15 text-emerald-200']
-          : failedCheck ? ['검증 실패', 'bg-destructive/15 text-destructive']
-            : donePhase === 'verified' ? ['검증 통과', 'bg-emerald-400/15 text-emerald-200']
-              : donePhase === 'unfixable' || donePhase === 'manual' ? ['직접 수정 필요', 'bg-amber-400/15 text-amber-200']
-              : isDeferred(decision) ? ['반영 예정', 'bg-sky-400/15 text-sky-200'] : ['반영 중', 'bg-sky-400/15 text-sky-200']}
       resultLabel={cardMode !== 'done' ? null : failedCheck ? '수정 후 · 검증 실패' : wentIn ? '반영된 결과' : '반영할 결과'}
       overlap={conflict.layouts && failedCheck ? true : undefined}
       conflict={conflict}
