@@ -59,6 +59,8 @@ import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, accordionToggl
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
 import { useFoldState } from '@/components/conflicts/Fold'
+import { SmoothHeight } from '@/components/ui/SmoothHeight'
+import { EVIDENCE_TAB_EVENT, getEvidenceTab, setEvidenceTab } from '@/lib/evidenceTab'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
 import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
@@ -574,6 +576,65 @@ function FoldSection({ title, gist, count, defaultOpen = false, className, child
 
 // `page`: the full-page detail's order — where it is on the screen first (a block of
 // its own, across the panel), then what it is, then `reviewers`, then the details.
+// 영향 / 근거, one thing at a time: a tab for each section (the record's, one step each) and 이전 / 다음 to walk them in
+// order — what's where, what conflicts, the standard, who reviews, the developer's details. A section with nothing to say
+// has no tab. The one up is kept for the change (lib/evidenceTab), and can be asked for by name.
+const EVIDENCE_LABEL = { where: 'Screen location', problem: 'What conflicts', standard: 'The standard', reviewers: 'Who reviews', details: 'Developer info' }
+function EvidenceTabs({ conflictId, cards }) {
+  const [chosen, setChosen] = useState(() => getEvidenceTab(conflictId))
+  useEffect(() => {
+    const onTab = (event) => { if (event.detail?.id === conflictId) setChosen(event.detail.key) }
+    window.addEventListener(EVIDENCE_TAB_EVENT, onTab)
+    return () => window.removeEventListener(EVIDENCE_TAB_EVENT, onTab)
+  }, [conflictId])
+  const tabRefs = useRef({})
+  const index = Math.max(0, cards.findIndex((card) => card.key === chosen))
+  const card = cards[index]
+  if (!card) return null
+  const go = (next, focus = false) => {
+    const target = cards[Math.min(Math.max(next, 0), cards.length - 1)]
+    setEvidenceTab(conflictId, target.key)
+    if (focus) tabRefs.current[target.key]?.focus()
+  }
+  const onKeyDown = (event) => {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : event.key === 'Home' ? -index : event.key === 'End' ? cards.length : 0
+    if (!step) return
+    event.preventDefault()
+    go(index + step, true)
+  }
+  const STEP = 'ds-intrinsic inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300'
+  return (
+    <section data-evidence-tabs data-evidence-record aria-label={tr('Impact & evidence')} className="shrink-0 pb-2">
+      {/* (A row that scrolls sideways when the panel is narrow — the names never wrap.) */}
+      <div role="tablist" aria-label={tr('Impact & evidence')} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
+        {cards.map((entry) => {
+          const on = entry.key === card.key
+          return (
+            <button key={entry.key} ref={(node) => { tabRefs.current[entry.key] = node }} type="button" role="tab" id={`evidence-tab-${entry.key}`} aria-controls="evidence-panel" aria-selected={on} tabIndex={on ? 0 : -1}
+              data-evidence-tab={entry.key} onClick={() => go(cards.indexOf(entry))} onKeyDown={onKeyDown}
+              className={cn('ds-intrinsic inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', on ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200')}>
+              <LocalizedText text={EVIDENCE_LABEL[entry.key] ?? entry.title} />
+              {entry.key === 'reviewers' && entry.chip && <span className="text-[11px] font-normal text-slate-400 tabular-nums">{entry.chip}</span>}
+            </button>
+          )
+        })}
+      </div>
+      <SmoothHeight trigger={card.key}>
+        <div role="tabpanel" id="evidence-panel" aria-labelledby={`evidence-tab-${card.key}`} data-evidence-panel={card.key} className="min-w-0 pt-1">
+          {card.body}
+        </div>
+      </SmoothHeight>
+      {cards.length > 1 && (
+        <div data-evidence-steps className="mt-3 flex items-center justify-between">
+          <button type="button" data-evidence-prev onClick={() => go(index - 1)} className={cn(STEP, index === 0 && 'invisible')}><ChevronLeft aria-hidden className="size-3.5" />이전</button>
+          <span aria-live="polite" className="text-xs text-slate-400 tabular-nums">{index + 1} / {cards.length}</span>
+          <button type="button" data-evidence-next onClick={() => go(index + 1)} className={cn(STEP, index === cards.length - 1 && 'invisible')}>다음<ChevronRight aria-hidden className="size-3.5" /></button>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, checks, rationale, onOpenEvidence, cause, onOpenCause, reasonNeeded = false, mix = null, hideTodo, page = false, reviewers = null }) {
   // Where it is and who made it: folded until asked for. Opening it brings
   // it into view — it sits at the foot of a panel that scrolls, so without
@@ -685,7 +746,6 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
   // enough to judge by without opening it (a chip). The one that decides it is open to start with (what
   // conflicts, and what it does); any can be opened alongside the others, and the cards stay as they're
   // left when the tab is left.
-  const folds = useFoldState(`evidence:${conflict.id}`)
   if (page) {
     const differs = (conflict.comparisonFields ?? []).find((field) => field.current !== field.expected)
     const short = (value) => String(value ?? '').replace(/\s*\(.*\)\s*$/, '')
@@ -696,8 +756,6 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
       reviewers && { key: 'reviewers', title: 'Reviewers', icon: <Users />, chip: reviewers.count ? `${reviewers.approved}/${reviewers.count} ${tr('approved')}` : tr('None yet'), body: reviewers.body, open: reviewers.open },
       { key: 'details', title: 'Developer details', icon: <FileCode2 />, chip: conflict.rollback ? conflict.rollback.target?.split('/').pop() : conflict.file ? `${conflict.file.split('/').pop()}${conflict.line ? `:${conflict.line}` : ''}` : null, body: <dl data-review-summary className={RECORD_ROWS}>{detailsRows}</dl> },
     ].filter(Boolean)
-    const isOpen = (key) => folds.get(key, Boolean(cards.find((card) => card.key === key)?.open))
-    const allOpen = cards.every((card) => isOpen(card.key))
     return (
       <div data-review-info className="flex min-h-full flex-col">
         {(conflict.rollback || isAiDraft || todo) && <InfoSection>
@@ -714,22 +772,7 @@ function OverviewTab({ conflict, stage, showProject, blockedCount, adjustment, c
           {conflict.rollback && open && shortDue(conflict.dueLabel) && <p className={cn(INFO_VALUE, 'mt-1 text-slate-400')}><DueDate label={conflict.dueLabel} /></p>}
           {conflict.rollback && summary && <p className={cn(INFO_VALUE, 'mt-2')}><LocalizedText text={summary} /></p>}
         </InfoSection>}
-        <section data-step-record data-evidence-record aria-label={tr('Impact & evidence')} className="shrink-0 pb-2">
-          <div data-step-list-head className="mb-3 flex items-center gap-2">
-            <h3 className="text-[12px] font-semibold tracking-wide text-slate-400"><LocalizedText text="Impact & evidence" /></h3>
-            <span data-evidence-count className="text-xs text-slate-400 tabular-nums">· {cards.length}</span>
-            <button type="button" data-fold-all onClick={() => folds.setMany(cards.map((card) => card.key), !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
-              {allOpen ? '모두 접기' : '모두 펼치기'}
-            </button>
-          </div>
-          <ol data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
-            {cards.map((card) => (
-              <StepRow key={card.key} data-fold={card.key} data-evidence={card.key} section state="done" title={tr(card.title)} icon={card.icon} chip={card.chip} open={isOpen(card.key)} onToggle={() => folds.set(card.key, !isOpen(card.key))} last={false}>
-                {card.body}
-              </StepRow>
-            ))}
-          </ol>
-        </section>
+        <EvidenceTabs conflictId={conflict.id} cards={cards} />
       </div>
     )
   }
