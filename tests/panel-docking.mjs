@@ -77,7 +77,7 @@ try {
   // The detail: ← and the name only; two buttons in a bar; no boxes, no badge, no ⋯ ↑ ↓ ×, no segments / zoom / sync, no empty-comment line.
   assert.ok(dd.includes('data-compare-back') && dd.includes('h-10') && dd.includes('data-detail-actions') && dd.includes('h-8') && dd.includes('grid-cols-2') && dd.includes('data-detail-overlay-toggle') && !dd.includes('data-detail-diffs') && dd.includes('aria-busy'), 'header, bottom bar, one overlay icon, rows, working')
   assert.ok(!/Ellipsis|ArrowUp|ArrowDown|role="radio"|줌|동기화|차이 강조|아직 코멘트가 없어요/.test(dd), 'what was taken out stays out')
-  assert.ok(read('components/conflicts/ConflictReviewOverlay.jsx').includes('data-review-open-compare') && !read('components/screens/BoardConflicts.jsx').includes('data-board-conflicts-compare'), 'the full-page detail opens the comparison; the side panel’s header has no button for it')
+  assert.ok(!read('components/conflicts/ConflictReviewOverlay.jsx').includes('data-review-open-compare') && !read('components/screens/BoardConflicts.jsx').includes('data-board-conflicts-compare'), 'no shortcut to the comparison from a change’s detail — full page or side panel')
   // The right panel (the board’s change list) docks in the row too.
   assert.ok(read('components/screens/BoardConflicts.jsx').includes('createPortal(panel, host)') && views.includes('export function BoardDockSlot'))
   // Address, widths.

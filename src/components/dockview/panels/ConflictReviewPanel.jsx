@@ -1631,7 +1631,9 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   const options = codeConflictOptions(conflict)
                   const picked = options.find((option) => option.id === codeChoice) ?? options.at(-1)
                   return <>
-                    {/* (One dropdown, as every change's: the way picked, what it does under it; the branches in the menu.) */}
+                    {/* The code the picked way gives first, then the dropdown under it — as a design's picture sits over
+                        its ways: the menu opens over what's below, never over the code it's choosing. */}
+                    <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict location={`${conflict.file}:${conflict.line ?? 1}`} />
                     <WayPicker
                       label="How to resolve the conflict"
                       value={picked.id}
@@ -1645,7 +1647,6 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                         data: { 'data-code-choice': option.id },
                       }))}
                     />
-                    <CodeDiffColumns rows={diffLines(before, picked.lines)} codeConflict location={`${conflict.file}:${conflict.line ?? 1}`} />
                   </>
                 })()}
               </section>
