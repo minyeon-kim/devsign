@@ -36,10 +36,10 @@ try {
   const asked = byId('CON-014')
   assert.equal(decisionStageOf(asked), 'requested')
   const reviewer = render(asked, taylor)
-  assert.ok(reviewer.includes('data-value-table') && reviewer.includes('data-request-summary') && reviewer.includes('data-decision-segments'))
+  assert.ok(reviewer.includes('data-value-line') && !reviewer.includes('data-value-table') && reviewer.includes('data-request-summary') && reviewer.includes('data-decision-segments') && reviewer.includes('data-decision-choice="approve"'), 'asked: the difference is one line, the decision is 승인 and the two others')
   assert.ok(!reviewer.includes('data-choice="proposal:') && !reviewer.includes('어떻게 할까요?') && !reviewer.includes('data-proposal-action'))
   assert.ok(count(reviewer, /<textarea/g) <= 1, 'one reason box at most')
-  assert.equal(count(reviewer, />40px</g), 1, 'a value is written once — in the table')
+  assert.equal(count(reviewer.replace(/<!-- -->/g, ''), /40px \(기본 크기\)/g), 1, 'a value is written once — in the line')
   // Anyone else: whose turn it is, in a line — no decision to make.
   const requester = render(asked, jordan)
   assert.ok(requester.includes('data-waiting-on="jane"') && requester.replace(/<!-- -->/g, '').includes('Taylor님의 결정을 기다리는 중') && !requester.includes('data-decision-form'))
@@ -51,7 +51,7 @@ try {
 
   const flow = read('components/conflicts/DesignDecisionFlow.jsx')
   assert.ok(flow.includes("const DECISION_ORDER = ['rework', 'keep', 'approve']") && flow.includes("title={missing ?? `${requester}님에게 전달 · 승인 이력에 저장`}"))
-  assert.ok(flow.includes("const needsReason = choice && choice !== 'approve'"), 'a reason for anything but 승인')
+  assert.ok(flow.includes("const asking = choice && choice !== 'approve'"), 'a reason for anything but 승인')
   assert.ok(flow.includes("[proposalOf(request.proposal, request.custom, conflict)?.name, nameOf(request.by), agoOf("), 'the request folded to a line')
   console.log('Passed: one step at a time — the values once, the request for who proposes, the decision for the reviewer.')
 } finally { await server.close() }
