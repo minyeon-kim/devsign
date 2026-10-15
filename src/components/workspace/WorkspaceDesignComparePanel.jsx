@@ -12,18 +12,18 @@ export function designComparePanelWidth() {
 }
 
 export default function WorkspaceDesignComparePanel({ project }) {
-  const { compareItemId, designComparePanelOpen, requestCompareDrawer, mixBridge, compositionEditing, aiChat, workspaceView, activeView, boardDockHost, boardConflicts } = useWorkspace()
+  const { compareItemId, designComparePanelOpen, requestCompareDrawer, mixBridge, compositionEditing, aiChat, workspaceView, activeView, boardDockHost, boardConflicts, rightPanelWidth } = useWorkspace()
   // (Docked at the canvas's right, in the change list's frame: it moves with AI Chat.)
   const [ref, frame] = useMainWindowFrame([designComparePanelOpen, aiChat.open, workspaceView, activeView])
   useEffect(() => { if (compareItemId) requestCompareDrawer() }, [compareItemId, requestCompareDrawer])
   if (!designComparePanelOpen) return null
   const editing = compositionEditing && mixBridge?.itemId === compareItemId
-  const width = designComparePanelWidth()
+  const width = rightPanelWidth ?? designComparePanelWidth()
   // Docked as the change list is: in the main window's row, at the canvas's right (BoardDockSlot) — the canvas
   // narrows beside it rather than lying under it. (Without that place — Merge Studio's own floating layout —
   // it lies over the canvas's right, as before.)
   if (boardDockHost && !boardConflicts.open) {
-    return createPortal(<aside data-canvas-design-compare data-docked data-compare-stage={editing ? 'editing' : compareItemId ? 'preview' : 'list'} aria-label="디자인 비교" className="relative h-full overflow-hidden rounded-br-[23px] border-l border-white/[0.06] bg-background" style={{ width, '--background': '#1C1C1C' }}>
+    return createPortal(<aside data-canvas-design-compare data-docked data-compare-stage={editing ? 'editing' : compareItemId ? 'preview' : 'list'} aria-label="디자인 비교" className="relative h-full w-full overflow-hidden rounded-br-[23px] border-l border-white/[0.06] bg-background" style={{ '--background': '#1C1C1C' }}>
       <ComparePanel docked project={project} expanded={Boolean(compareItemId)} overlay={false} />
     </aside>, boardDockHost)
   }

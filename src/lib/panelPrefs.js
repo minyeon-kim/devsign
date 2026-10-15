@@ -19,6 +19,12 @@ export const AI_CHAT = { key: 'devsign:aiChat.v2', width: 380, min: 300, max: 64
 // The tool panel (Files · Layers · Assets · Inspect), docked beside the canvas: 260px to start with, dragged
 // between 200 and 400.
 export const TOOL_PANEL = { key: 'devsign:toolPanel.v1', width: 260, min: 200, max: 400 }
+// The right panel (변경확인 · 병합), docked beside the canvas: 480px to start with, dragged by its left edge between
+// 380 and 760 — one width for both, kept for the browser.
+export const RIGHT_PANEL = { key: 'devsign:rightPanel.v1', width: 480, min: 380, max: 760 }
+export const clampRightPanelWidth = (width) => Math.round(Math.max(RIGHT_PANEL.min, Math.min(RIGHT_PANEL.max, Number.isFinite(width) ? width : RIGHT_PANEL.width)))
+export const readRightPanelWidth = (storage) => clampRightPanelWidth(read(RIGHT_PANEL, storage).width)
+export const writeRightPanelWidth = (width, storage) => write(RIGHT_PANEL, { width: clampRightPanelWidth(width) }, storage)
 export const clampToolPanelWidth = (width) => Math.round(Math.max(TOOL_PANEL.min, Math.min(TOOL_PANEL.max, Number.isFinite(width) ? width : TOOL_PANEL.width)))
 // What's left for the canvas (or the comparison) at the least.
 export const MIN_CANVAS = 480

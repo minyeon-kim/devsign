@@ -20,7 +20,7 @@ import { conflictTypeOf } from '@/lib/conflictInsight'
 //   (id: null) those about no screen. picked: the change whose detail shows.
 // (One width for the panel at the canvas's right, whatever it shows — the change list, a change, Merge's list
 // or a set being composed: it never grows or shrinks under you, so the canvas beside it stays put.)
-export const BOARD_PANEL_WIDTH = 420
+export const BOARD_PANEL_WIDTH = 480
 export const BOARD_DETAIL_WIDTH = BOARD_PANEL_WIDTH
 
 // ── A row, as an issue list says it ──
@@ -104,7 +104,7 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
       className={host || docked
         ? cn('relative flex h-full flex-col overflow-hidden border-l border-white/[0.06] bg-background', docked && 'rounded-br-[23px]')
         : 'absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none'}
-      style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host || docked ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
+      style={{ width: host || docked ? '100%' : picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host || docked ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
       {/* (No header row: the tab row's end over it is — Conflict · Merge and ×, and on a change's detail the
           way back at its left. The detail's comparison is at its own title line's end.) */}

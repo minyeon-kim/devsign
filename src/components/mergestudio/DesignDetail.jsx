@@ -120,7 +120,7 @@ export default function DesignDetail({ item, drawn, identical, conflict, status,
   return (
     <div data-design-detail className="flex h-full min-h-0 flex-col bg-background text-[13px] text-foreground">
       {/* (Its back arrow on the content's left line, 12px in — as the cards under it.) */}
-      <header className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-3">
+      <header className="flex h-10 shrink-0 items-center gap-2 px-3 pt-1">
         {backInTabs ? <span ref={titleRef} tabIndex={-1} className="flex min-w-0 flex-1 outline-none"><MergeContextTitle item={item} /></span> : <>
         <Tooltip>
           <TooltipTrigger ref={titleRef} data-compare-back aria-label="목록으로 (Esc)" onClick={onBack} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">

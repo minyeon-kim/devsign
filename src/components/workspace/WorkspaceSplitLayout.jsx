@@ -4,8 +4,6 @@ import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronLeft, TriangleAlert, X } from 'lucide-react'
-import { BOARD_DETAIL_WIDTH, BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
-import { designComparePanelWidth } from '@/components/workspace/WorkspaceDesignComparePanel'
 import { designSetsOf } from '@/lib/designSets'
 import { conflictCounts } from '@/lib/conflicts'
 import { PANE_MOTION, useAfterPaint } from '@/lib/useAfterPaint'
@@ -161,7 +159,7 @@ function zoneRect(rect, zone) {
 // `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
 // stays mounted under it).
 function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing, rightPanelWidth } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -631,8 +629,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
   // the canvas's right it's that panel's header: it takes the panel's width (so the board's tools end at the
   // panel's left edge, over the canvas), the open one on the raised thumb, and × at the end puts it away.
   const openPanel = boardConflicts.open ? 'conflicts' : designComparePanelOpen ? 'merge' : null
-  const panelWidth = openPanel === 'conflicts' ? (boardConflicts.conflictId ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
-    : openPanel === 'merge' ? designComparePanelWidth() : null
+  const panelWidth = openPanel ? rightPanelWidth : null
   const closePanel = () => {
     if (openPanel === 'conflicts') setBoardConflicts({ open: false, conflictId: null })
     else { if (!compositionEditing) closeCompareView(); setDesignComparePanelOpen(false) }

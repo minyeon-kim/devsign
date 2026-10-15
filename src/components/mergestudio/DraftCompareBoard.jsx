@@ -197,8 +197,9 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
   const [dragging, setDragging] = useState(false)
   const [selected, setSelected] = useState(null) // { key, id }
   const count = options.length
-  // Up to three side by side; more in a grid.
-  const cols = count <= 3 ? count : Math.ceil(Math.sqrt(count))
+  // Up to three side by side; more in a grid. (In the right panel — `embedded` — two across at most: three are a
+  // 2×2 grid as four are, never three tall screens squeezed into one row.)
+  const cols = embedded ? Math.min(2, count) : count <= 3 ? count : Math.ceil(Math.sqrt(count))
   const rows = Math.max(1, Math.ceil(count / cols))
   useEffect(() => {
     const element = firstCellRef.current
@@ -299,10 +300,6 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
       className={cn('flex h-full min-h-0 min-w-0 flex-col', embedded ? 'w-full' : 'shrink-0 px-3')}
       style={embedded ? undefined : { width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      {draftSelection && <div className="mb-1 flex h-5 shrink-0 items-center gap-2 text-[10px] text-slate-500">
-        <span data-detail-selection aria-live="polite">{draftSelection.count}/{draftSelection.total} 선택</span>
-        <button type="button" data-detail-select-all onClick={draftSelection.all} className="ds-intrinsic rounded px-1 text-[10px] transition-colors hover:text-slate-200">{draftSelection.allSelected ? '선택 해제' : '모두 선택'}</button>
-      </div>}
       <div className="mb-3 flex shrink-0 items-center gap-1.5">
         {/* The view: all of them, or the drafts picked here, side by side. */}
         <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex h-7 shrink-0 items-center gap-0.5">
@@ -333,6 +330,11 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
             </button>
           ))}
         </div>
+        {/* (How many are picked, and all / none — on this row, not one of their own over it.) */}
+        {draftSelection && <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-slate-500">
+          <span data-detail-selection aria-live="polite" className="tabular-nums">{draftSelection.count}/{draftSelection.total} 선택</span>
+          <button type="button" data-detail-select-all onClick={draftSelection.all} className="ds-intrinsic rounded px-1 text-[11px] transition-colors hover:text-slate-200">{draftSelection.allSelected ? '선택 해제' : '모두 선택'}</button>
+        </span>}
         <span className="min-w-0 flex-1" />
         {/* One group: fit · zoom. */}
         <div data-board-zoom className="flex h-7 shrink-0 items-center gap-0.5">

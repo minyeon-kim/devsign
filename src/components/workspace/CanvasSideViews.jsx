@@ -6,8 +6,7 @@ import NavigatorPanel from '@/components/dockview/panels/NavigatorPanel'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
-import { BOARD_DETAIL_WIDTH, BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
-import { TOOL_PANEL, foldForRoom, inCanvasViewOf } from '@/lib/panelPrefs'
+import { RIGHT_PANEL, TOOL_PANEL, foldForRoom, inCanvasViewOf } from '@/lib/panelPrefs'
 import { useAfterPaint } from '@/lib/useAfterPaint'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -69,12 +68,11 @@ export const DOCK_MOTION = 'duration-200 ease-out motion-reduce:transition-none'
 // content stays at the full width, so nothing re-wraps while it moves.
 // The canvas (or the comparison) keeps at least MIN_CANVAS: with less than that, this panel folds first,
 // then AI Chat at the right (the app sidebar stays).
-const boardDockWidth = (shown) => (shown === 'detail' ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
 // What has the right panel's place: the board's change list (not while Merge is up), else Merge's panel.
 const dockShownOf = ({ boardShown, activeView, designComparePanelOpen }) => (activeView !== 'mergeStudio' && boardShown) || (designComparePanelOpen ? 'merge' : false)
 
 export function CanvasViewPanel() {
-  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown: boardShown, setBoardConflicts, activeView, designComparePanelOpen, setDesignComparePanelOpen } = useWorkspace()
+  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown: boardShown, setBoardConflicts, activeView, designComparePanelOpen, setDesignComparePanelOpen, rightPanelWidth } = useWorkspace()
   // (The board's list is the Screens view's: while Merge is up it's out of the row. Merge's panel takes the place too.)
   const boardDockShown = dockShownOf({ boardShown, activeView, designComparePanelOpen })
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
@@ -92,7 +90,7 @@ export function CanvasViewPanel() {
   const ref = useRef(null)
   const toolOpen = Boolean(open)
   const chatOpen = aiChat.open
-  const rightWidth = boardDockShown ? boardDockWidth(boardDockShown) : 0
+  const rightWidth = boardDockShown ? rightPanelWidth : 0
   useEffect(() => {
     const row = ref.current?.parentElement
     if (!row) return undefined
@@ -150,15 +148,31 @@ export function CanvasViewPanel() {
 // canvas (or the comparison) in the same row, its width easing like the tool panel's. BoardConflicts renders
 // into it (a portal, from the board — which keeps its data and its camera); this is only its place.
 export function BoardDockSlot() {
-  const { boardDockShown: boardShown, setBoardDockHost, activeView, designComparePanelOpen } = useWorkspace()
+  const { boardDockShown: boardShown, setBoardDockHost, activeView, designComparePanelOpen, rightPanelWidth, setRightPanelWidth } = useWorkspace()
   // (The board's list is the Screens view's: while Merge is up it's out of the row — kept, and back with the view.
   // Merge's panel docks here too, at the same width — WorkspaceDesignComparePanel.)
   const boardDockShown = dockShownOf({ boardShown, activeView, designComparePanelOpen })
-  const target = boardDockShown ? boardDockWidth(boardDockShown) : 0
-  const width = useAfterPaint(target)
+  const [resizing, setResizing] = useState(false)
+  const dragStart = useRef(rightPanelWidth)
+  const target = boardDockShown ? rightPanelWidth : 0
+  const eased = useAfterPaint(target)
+  const width = resizing ? target : eased
   return (
-    <div data-board-dock inert={!boardDockShown || undefined} style={{ width }} className={cn('h-full shrink-0 overflow-hidden transition-[width]', DOCK_MOTION)}>
+    <div data-board-dock inert={!boardDockShown || undefined} style={{ width }} className={cn('relative h-full shrink-0 overflow-hidden transition-[width]', DOCK_MOTION, resizing && 'transition-none')}>
       <div ref={setBoardDockHost} className="h-full" style={{ width: Math.max(target, width) }} />
+      {/* Its left edge drags it wider or narrower (one width for 변경확인 and 병합); double-click: back to 480. */}
+      {boardDockShown && (
+        <SplitHandle
+          label="Resize the right panel"
+          value={Math.round(((rightPanelWidth - RIGHT_PANEL.min) / (RIGHT_PANEL.max - RIGHT_PANEL.min)) * 100)}
+          className="absolute inset-y-0 left-0 z-20"
+          onResizeStart={() => { dragStart.current = rightPanelWidth; setResizing(true) }}
+          onResize={(dx) => setRightPanelWidth(dragStart.current - dx)}
+          onResizeEnd={() => setResizing(false)}
+          onStep={(d) => setRightPanelWidth(rightPanelWidth - d)}
+          onReset={() => setRightPanelWidth(RIGHT_PANEL.width)}
+        />
+      )}
     </div>
   )
 }

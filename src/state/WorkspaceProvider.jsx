@@ -71,7 +71,7 @@ import { suggestedDocumentCategory, validDocumentCategory } from '@/lib/docCateg
 import { importKind } from '@/lib/importFiles'
 import { reviewForDesign } from '@/lib/designReview'
 import { readCompare, withCompare } from '@/lib/compareLink'
-import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampToolPanelWidth, clampWidth, pressSideView, readAiChat, readSidePanel, readToolPanelWidth, writeAiChat, writeSidePanel, writeToolPanelWidth } from '@/lib/panelPrefs'
+import { AI_CHAT, SIDE_PANEL, SIDE_TABS, SIDE_VIEWS, clampToolPanelWidth, clampWidth, pressSideView, readAiChat, readSidePanel, readToolPanelWidth, readRightPanelWidth, writeRightPanelWidth, clampRightPanelWidth, writeAiChat, writeSidePanel, writeToolPanelWidth } from '@/lib/panelPrefs'
 import { prototypeOf } from '@/lib/screens'
 import { defaultViewOf, readLastView, readMergeParams, readViewParams, withMerge, withView, writeLastView } from '@/lib/viewLink'
 import { isSplit, readPanel, readSplit, withPanel, writeSplit } from '@/lib/workPane'
@@ -433,6 +433,14 @@ export function WorkspaceProvider({ children, projectId }) {
     return next
   }, [])
   useEffect(() => { writeToolPanelWidth(toolPanelWidth) }, [toolPanelWidth])
+  // The right panel's width (변경확인 · 병합 at the canvas's right): one for both, dragged by its left edge, kept.
+  const [rightPanelWidth, setRightPanelWidthState] = useState(() => readRightPanelWidth())
+  const setRightPanelWidth = useCallback((width) => {
+    const next = clampRightPanelWidth(width)
+    setRightPanelWidthState(next)
+    return next
+  }, [])
+  useEffect(() => { writeRightPanelWidth(rightPanelWidth) }, [rightPanelWidth])
   const toggleSideView = useCallback((view) => {
     const next = pressSideView(sideViewNow.current, view)
     setSidePanelState((prev) => ({ ...prev, open: next.open }))
@@ -3005,6 +3013,8 @@ export function WorkspaceProvider({ children, projectId }) {
     requestCompareDrawer,
     toolPanelWidth,
     setToolPanelWidth,
+    rightPanelWidth,
+    setRightPanelWidth,
     openSideView,
     aiChat,
     setAiChat,

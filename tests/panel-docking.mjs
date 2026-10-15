@@ -59,7 +59,7 @@ try {
   assert.ok(floating.includes('{viewDock}') && floating.includes('{viewDockEnd}') && floating.indexOf('{viewDock}') < floating.indexOf('role={viewPanel'), 'in the same row, before the content')
   assert.ok(views.includes("DOCK_MOTION = 'duration-200 ease-out motion-reduce:transition-none'") && views.includes('border-r border-white/[0.06]') && views.includes('transition-[width]'))
   const tooldock = views.slice(views.indexOf('export function CanvasViewPanel'), views.indexOf('export function CompareWorkView'))
-  assert.ok(!/absolute inset-y|rounded-xl|shadow-2xl|\bfixed\b/.test(tooldock.replace('absolute inset-y-0 right-0 z-10', '')), 'no floating card')
+  assert.ok(!/absolute inset-y|rounded-xl|shadow-2xl|\bfixed\b/.test(tooldock.replace('absolute inset-y-0 right-0 z-10', '').replace('absolute inset-y-0 left-0 z-20', '')), 'no floating card')
   assert.ok(tooldock.includes('foldForRoom(') && tooldock.includes('setToolPanelWidth(') && tooldock.includes("label=\"Resize tool panel\""))
   // No floating Design Compare, none replacing the canvas: one sidebar, one screen at a time — the list (360px), or the picked set's detail (520px).
   const panel = read('components/dashboard/ComparePanel.jsx')
@@ -75,7 +75,7 @@ try {
   assert.ok(compare.includes('data-compare-skeleton') && compare.includes('data-compare-error') && compare.includes('boardConflicts') && compare.includes('conflictPin'), 'loading, error, and both lists’ picks')
   const dd = read('components/mergestudio/DesignDetail.jsx')
   // The detail: ← and the name only; two buttons in a bar; no boxes, no badge, no ⋯ ↑ ↓ ×, no segments / zoom / sync, no empty-comment line.
-  assert.ok(dd.includes('data-compare-back') && dd.includes('h-12') && dd.includes('data-detail-actions') && dd.includes('h-8') && dd.includes('grid-cols-2') && dd.includes('data-detail-overlay-toggle') && !dd.includes('data-detail-diffs') && dd.includes('aria-busy'), 'header, bottom bar, one overlay icon, rows, working')
+  assert.ok(dd.includes('data-compare-back') && dd.includes('h-10') && dd.includes('data-detail-actions') && dd.includes('h-8') && dd.includes('grid-cols-2') && dd.includes('data-detail-overlay-toggle') && !dd.includes('data-detail-diffs') && dd.includes('aria-busy'), 'header, bottom bar, one overlay icon, rows, working')
   assert.ok(!/Ellipsis|ArrowUp|ArrowDown|role="radio"|줌|동기화|차이 강조|아직 코멘트가 없어요/.test(dd), 'what was taken out stays out')
   assert.ok(read('components/conflicts/ConflictReviewOverlay.jsx').includes('data-review-open-compare') && read('components/screens/BoardConflicts.jsx').includes('data-board-conflicts-compare'), 'the change’s detail opens the comparison')
   // The right panel (the board’s change list) docks in the row too.
