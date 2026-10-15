@@ -614,7 +614,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     : { title: peeking ? '미리보기' : mode === 'done' ? '수정 후' : asked ? '요청한 결과' : '선택한 결과' }
   // (A layout's screens: on the product's light grey, stacked, each as wide as the column — as a value change's cards.)
   const PICTURE = conflict.layouts
-    ? 'relative m-0 min-w-0 overflow-hidden rounded-xl border bg-[#2E2E2E] px-3 py-8'
+    ? 'relative m-0 min-w-0 overflow-hidden rounded-xl border bg-white px-3 py-8'
     : 'grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border bg-black/20 p-4 h-[240px]'
   const LAYOUT_WIDTH = 360
   // The two pictures open large (PictureViewer): what's built now, and the result — drawn from the

@@ -1226,7 +1226,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const afterCard = cards.find((card) => card.id === afterId) ?? null
   // (As a value change's cards: the product's light grey, the name a tag in the corner, the drawing enlarged —
   // a 20px button drawn at its own size is a speck.)
-  const PICTURE = 'relative m-0 flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-[#2E2E2E]'
+  const PICTURE = 'relative m-0 flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-white'
   const TAG = 'pointer-events-none absolute top-2 right-2 flex h-5 max-w-[calc(100%-1rem)] items-center truncate rounded-full bg-black/55 px-2 text-[11px] font-medium whitespace-nowrap text-white backdrop-blur-sm'
   const small = Math.max(conflict.preview?.before?.width ?? 0, conflict.preview?.before?.height ?? 0)
   const enlarge = small > 0 && small <= 48 ? Math.min(4, 96 / small) : 1
