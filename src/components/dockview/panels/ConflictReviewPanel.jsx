@@ -1022,6 +1022,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // there are any, else the change's result), and the toggle to the
   // conflict as it was.
   const [showBefore, setShowBefore] = useState(false)
+  // (The merged code: folded behind its file's line until asked for.)
+  const [mergedCodeOpen, setMergedCodeOpen] = useState(false)
   // The code section: open by default; folding it is remembered.
   // (Designers start with it folded, developers with it open; whichever they choose is kept.)
   const [showCode, setShowCode] = useState(() => {
@@ -1624,13 +1626,18 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                 compare with, behind a toggle. */}
             {conflict.diff && readOnly && (
               <div data-merged-code className="min-w-0 space-y-1.5">
-                <h3 className={SECTION_TITLE}><LocalizedText text="Change summary" /></h3>
+                {/* (No title of its own — the step, 병합, names it: what was merged in a line and a short list, then
+                    the code folded behind its file's line.) */}
                 {codeConflict ? <CodeDifferenceSummary conflict={conflict} /> : conflict.comparisonFields?.length > 0 && <DifferenceSummary compact conflict={conflict} resolved mergedSide={choice ?? 'A'} />}
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                <button type="button" data-merged-code-toggle aria-expanded={mergedCodeOpen} onClick={() => setMergedCodeOpen((open) => !open)} className="ds-intrinsic mt-1 flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1 text-left text-[11.5px] text-slate-400 transition-colors hover:text-white">
+                  <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform', !mergedCodeOpen && '-rotate-90')} />
                   <FileCode2 className="size-3 shrink-0" />
-                  <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}</span>
-                  <span className="shrink-0 text-slate-400"><LocalizedText text={showBefore ? 'Before it was resolved' : 'Merged code'} /></span>
-                  <button type="button" data-before-toggle aria-pressed={showBefore} onClick={() => setShowBefore((value) => !value)} className="ds-intrinsic ml-auto inline-flex h-5 shrink-0 items-center gap-1 text-[10.5px] text-slate-400 transition-colors hover:text-white">
+                  <span translate="no" className="min-w-0 truncate font-mono">{conflict.file}</span>
+                </button>
+                {mergedCodeOpen && <>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <span className="shrink-0"><LocalizedText text={showBefore ? 'Before it was resolved' : 'Merged code'} /></span>
+                  <button type="button" data-before-toggle aria-pressed={showBefore} onClick={() => setShowBefore((value) => !value)} className="ds-intrinsic ml-auto inline-flex h-5 shrink-0 items-center gap-1 text-[11px] text-slate-400 transition-colors hover:text-white">
                     <LocalizedText text={showBefore ? 'Show the merged code' : 'Show the conflict before it was resolved'} />
                   </button>
                 </div>
@@ -1642,6 +1649,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     </div>
                   ))}
                 </div>
+                </>}
               </div>
             )}
             {codeConflict && conflict.diff && !readOnly && (
@@ -2288,7 +2296,13 @@ function CommentThread({ conflict, workspace, flashId }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="scroll-fade-bottom min-h-0 flex-1 space-y-3 overflow-auto">
-        {comments.length === 0 && <p className="text-[11px] leading-4 text-slate-500">No comments yet</p>}
+        {/* (Nothing yet: said in the middle of the room the thread will take, the composer under it.) */}
+        {comments.length === 0 && (
+          <div data-comments-empty className="flex h-full min-h-[160px] flex-col items-center justify-center gap-1 text-center">
+            <p className="text-[13px] font-medium text-slate-300"><LocalizedText text="No comments yet" /></p>
+            <p className="text-[11.5px] text-slate-500"><LocalizedText text="Leave a note on this change for the team." /></p>
+          </div>
+        )}
         {comments.map((comment) => {
           const author = allPeople.find((p) => p.id === comment.authorId)
           const replies = linked.filter((reply) => reply.target?.replyTo === comment.id)
@@ -3904,7 +3918,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     comparison beside it takes all the rest. */}
                 {/* (In the grid's own row beside the main view: its top is the first container's top,
                     whatever the header's height. Each scrolls on its own, so it stays put.) */}
-                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className={cn('flex min-w-0 shrink-0 flex-col', page ? (sideTab === 'details' ? 'hidden' : '') : 'border-t border-white/[0.07] pt-4')}>
+                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className={cn('flex min-w-0 shrink-0 flex-col', page ? (sideTab === 'details' ? 'hidden' : sideTab === 'comments' || sideTab === 'history' ? 'min-h-0 flex-1' : '') : 'border-t border-white/[0.07] pt-4')}>
                   {/* (On the page the tabs are at its top — reviewTabBar — not here.) */}
                   {!page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]')}
                   {sideTab === 'info' ? (
@@ -3935,7 +3949,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       />
                     </div>
                   ) : sideTab === 'history' && conflict.decisionFlow ? (
-                    <div role="tabpanel" className="flex h-[480px] min-h-0 flex-col">
+                    <div role="tabpanel" className={cn('flex min-h-0 flex-col', page ? 'min-h-[280px] flex-1' : 'h-[480px]')}>
                       <ConflictHistory
                         key={conflict.id}
                         events={historyEvents}
@@ -3955,7 +3969,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                       <ConflictActivityList conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onOpenProjectHistory={openProjectHistory} />
                     </div>
                   ) : (
-                    <div role="tabpanel" className="flex h-[480px] min-h-0 flex-col">
+                    <div role="tabpanel" className={cn('flex min-h-0 flex-col', page ? 'min-h-[280px] flex-1' : 'h-[480px]')}>
                       <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
                     </div>
                   )}

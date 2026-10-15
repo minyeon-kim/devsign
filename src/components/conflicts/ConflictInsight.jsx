@@ -257,18 +257,19 @@ export function CodeDifferenceSummary({ conflict }) {
   const snippets = start >= 0 && middle > start && end > middle
     ? { local: lines.slice(start + 1, middle).join('\n'), remote: lines.slice(middle + 1, end).join('\n') } : {}
   return (
-    // (No box around it, and none around each side: the two branches are told apart by a line at their left.)
-    <div data-code-difference-summary className="min-w-0 space-y-3">
-      <p className="text-xs leading-5 text-slate-300"><LocalizedText text={detail?.conflict ?? conflict.cause ?? conflict.message} /></p>
-      <div className="grid min-w-0 gap-3">
-        {['local', 'remote'].map((side) => <section key={side} data-branch-difference={side} className="min-w-0 border-l-2 border-white/15 pl-3">
-          <h4 className="text-xs font-medium text-slate-200"><LocalizedText text={detail?.[`${side}Title`] ?? (side === 'local' ? 'Local changes' : 'Remote changes')} /></h4>
-          <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{conflict.branches?.[side]}</p>
-          {detail?.[side] ? <p className="mt-2 text-xs leading-5 text-slate-200"><LocalizedText text={detail[side]} /></p>
-            : <pre className="mt-2 whitespace-pre-wrap break-all text-xs text-slate-200">{snippets[side]}</pre>}
-        </section>)}
-      </div>
-
+    // What was merged: one line, then each side in two short lines — its name with its branch, what it did.
+    <div data-code-difference-summary className="min-w-0 space-y-2.5">
+      <p className="text-[13px] leading-5 text-slate-300"><LocalizedText text={detail?.conflict ?? conflict.cause ?? conflict.message} /></p>
+      <ul className="m-0 grid min-w-0 list-none gap-2 p-0">
+        {['local', 'remote'].map((side) => <li key={side} data-branch-difference={side} className="min-w-0">
+          <p className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 text-[12.5px] font-medium text-slate-200"><LocalizedText text={detail?.[`${side}Title`] ?? (side === 'local' ? 'Local changes' : 'Remote changes')} /></span>
+            <span translate="no" className="min-w-0 truncate font-mono text-[11px] text-slate-500">{conflict.branches?.[side]}</span>
+          </p>
+          {detail?.[side] ? <p className="mt-0.5 text-[11.5px] leading-4 text-slate-500"><LocalizedText text={detail[side]} /></p>
+            : <pre className="mt-0.5 whitespace-pre-wrap break-all text-[11.5px] text-slate-500">{snippets[side]}</pre>}
+        </li>)}
+      </ul>
     </div>
   )
 }

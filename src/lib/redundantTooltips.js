@@ -7,7 +7,8 @@ import { getLanguage } from '@/i18n/language'
 //   · a Tooltip popup (ui/tooltip) — not shown when it's its trigger's own visible text.
 // Text cut short on screen ("…") keeps its tooltip: there the tooltip is the rest of it.
 
-const norm = (text) => (text ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
+// (Spacing aside: a label and its count side by side read "댓글0" as text, "댓글 0" as a title.)
+const norm = (text) => (text ?? '').replace(/\s+/g, '').toLocaleLowerCase()
 
 // Whether `element` (or something in it) is cut short — its text wider than its box.
 function clipped(element) {

@@ -35,7 +35,7 @@ assert.ok(block.includes('workspace.revealConflictOnCanvas(conflict)') && block.
 assert.ok(!panel.includes('xl:grid-cols-[minmax(0,1fr)_320px]') && !panel.includes('REVIEW_CONTEXT_CARD'), 'no column beside the main view')
 assert.ok(panel.includes("...(page ? [['details', 'Change details']] : []),") && panel.includes("[['info', 'Impact & evidence']"), 'Details, then 영향 / 근거')
 assert.ok(panel.includes("{page && reviewTabBar(") && panel.includes("{!page && reviewTabBar(") && panel.includes("const [sideTab, setSideTab] = useState(page ? 'details' : 'info')"))
-assert.ok(panel.includes("page && sideTab !== 'details' && 'hidden'") && panel.includes("page ? (sideTab === 'details' ? 'hidden' : '') : 'border-t border-white/[0.07] pt-4'"), 'one tab at a time on the page')
+assert.ok(panel.includes("page && sideTab !== 'details' && 'hidden'") && panel.includes("page ? (sideTab === 'details' ? 'hidden' : sideTab === 'comments' || sideTab === 'history' ? 'min-h-0 flex-1' : '') : 'border-t border-white/[0.07] pt-4'"), 'one tab at a time on the page')
 // Sections: the existing divider and its 12px either side (24px between) — no larger gap.
 assert.ok(panel.includes("page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3'") && !panel.includes('[data-info-section]+[data-info-section]]:mt-8'))
 console.log('screen-location: ok')
