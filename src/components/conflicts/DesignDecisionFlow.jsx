@@ -236,7 +236,7 @@ function ValueStepper({ value, from, step, unit, onChange }) {
   }
   const BUTTON = 'flex h-full w-7 items-center justify-center text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-40'
   return (
-    <div data-value-stepper onClick={(event) => event.stopPropagation()} className="flex h-8 shrink-0 items-center overflow-hidden rounded-lg border border-white/[0.12] bg-black/30">
+    <div data-value-stepper onClick={(event) => event.stopPropagation()} className="flex h-8 shrink-0 items-center overflow-hidden rounded-xl border border-white/[0.12] bg-black/30">
       <button type="button" aria-label="값 줄이기" disabled={!Number.isFinite(at)} onClick={() => stepTo(-1)} className={BUTTON}><Minus className="size-3" /></button>
       <input
         data-value-stepper-input
@@ -461,7 +461,7 @@ function ProposalControls({ conflict, values, onEdit, note, onNote }) {
           <ChevronRight className={cn('size-3.5 transition-transform', details && 'rotate-90')} />
         </button>
         {details && (
-          <div data-proposal-details className="mt-3 flex flex-col gap-3 rounded-lg bg-black/15 p-3">
+          <div data-proposal-details className="mt-3 flex flex-col gap-3 rounded-xl bg-black/15 p-3">
             {/* What the code has now is said here, beside each field — and only here. */}
             <p data-current-values className="text-[11px] text-slate-500">{controls.map((control) => control.currentText).filter(Boolean).join(' · ')}</p>
             {rest.map((control) => (
@@ -904,7 +904,7 @@ function FixPanel({ conflict, onPropose, folds }) {
           <span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{fileName}{conflict.line ? ` · ${conflict.line}행` : ''}</span>
         </p>
         {fixLines.length > 0 && (
-          <div data-fix-diff className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
+          <div data-fix-diff className="mt-2 overflow-x-auto rounded-xl bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
             {beforeLines.map((line, index) => <p key={`b${index}`} className="flex bg-red-500/[0.14] px-4 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{line.trim()}</p>)}
             {fixLines.map((line, index) => <p key={`a${index}`} className="flex bg-emerald-500/[0.14] px-4 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{line.trim()}</p>)}
           </div>
@@ -992,7 +992,7 @@ function StatusBlock({ conflict, onApprove, onRetry, onManual, onResolve }) {
     verified: { label: '병합하고 해결하기', Icon: GitMerge, onClick: onResolve },
   }[phase]
   return (
-    <section data-status-block={phase} data-fix-phase={phase} className={cn('scroll-mt-3 rounded-lg px-3 py-2.5 ring-1 ring-inset', passed ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : wrong ? 'bg-destructive/[0.07] ring-destructive/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
+    <section data-status-block={phase} data-fix-phase={phase} className={cn('scroll-mt-3 rounded-xl px-3 py-2.5 ring-1 ring-inset', passed ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : wrong ? 'bg-destructive/[0.07] ring-destructive/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
       <div className="flex flex-wrap items-center gap-3">
         <p data-status-text role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[13px] leading-5 font-medium text-white">
           {busy ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />
@@ -1045,7 +1045,7 @@ function RequestSummary({ conflict }) {
   const asked = proposalOf(request.proposal, request.custom, conflict)?.name ?? request.proposal
   const at = eventsOf(conflict).findLast((event) => event.type === 'requested')?.createdAt
   return (
-    <div data-request-summary className="rounded-lg bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/[0.08] ring-inset">
+    <div data-request-summary className="rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/[0.08] ring-inset">
       <p className="flex items-center gap-2 text-[13px] leading-5 text-slate-200">
         <Avatar id={request.by} />
         <span className="min-w-0 truncate"><span className="font-medium text-slate-100">{nameOf(request.by)}</span> · '{asked}' 요청</span>
@@ -1067,7 +1067,7 @@ function agoOf(iso, now = Date.now()) {
 // Someone else's turn: who it waits on, in one line.
 function WaitingLine({ id, what }) {
   return (
-    <p data-waiting-on={id} className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2.5 text-[13px] leading-5 text-slate-300 ring-1 ring-white/[0.06] ring-inset">
+    <p data-waiting-on={id} className="flex items-center gap-2 rounded-xl bg-white/[0.03] px-3 py-2.5 text-[13px] leading-5 text-slate-300 ring-1 ring-white/[0.06] ring-inset">
       <Avatar id={id} />{nameOf(id)}님의 {what}을 기다리는 중
     </p>
   )

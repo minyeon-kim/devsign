@@ -177,7 +177,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
           </p>
         </div>
       ) : layout === 'split' && !compact ? (
-        <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-md bg-black/20 py-1', expanded && 'max-h-[360px]')}>
+        <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-xl bg-black/20 py-1', expanded && 'max-h-[360px]')}>
           {hiddenAbove > 0 && <HiddenLines count={hiddenAbove} onExpand={() => setExpanded(true)} />}
           <DiffView layout="split" rows={shown.map((row) => ({ kind: row.kind === 'edited' ? 'add' : row.kind, text: row.text, from: row.oldNo, to: row.newNo }))} />
           {hiddenBelow > 0 && <HiddenLines count={hiddenBelow} onExpand={() => setExpanded(true)} />}
@@ -186,7 +186,7 @@ export default function ConflictCodeView({ fileName, base, generated, working, o
         // Long lines scroll sideways rather than wrap, so a "−" line and its
         // "+" line keep the same columns and a changed value sits right
         // under the one it replaces.
-        <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed', expanded && 'max-h-[360px]')}>
+        <div ref={scrollRef} className={cn('min-w-0 overflow-auto rounded-xl bg-black/20 py-1 font-mono text-[11px] leading-relaxed', expanded && 'max-h-[360px]')}>
           <div className="w-max min-w-full">
           {hiddenAbove > 0 && !compact && <HiddenLines count={hiddenAbove} onExpand={() => setExpanded(true)} />}
           {shown.map((row, i) => (

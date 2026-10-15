@@ -5,7 +5,7 @@ import { conflictListRecord } from '@/lib/conflicts'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { useLayerFrame } from '@/lib/useMainWindowFrame'
-import { ReviewHeaderSlotContext } from '@/components/conflicts/ReviewHeaderSlot'
+import { FullPageReviewContext, ReviewHeaderSlotContext } from '@/components/conflicts/ReviewHeaderSlot'
 
 // A conflict's detail, full-screen: it covers the whole work area (editor,
 // canvas and bottom panel) while the activity bar and its sidebar stay, so
@@ -59,9 +59,11 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
         <div ref={setActionsSlot} data-review-actions className="flex shrink-0 items-center gap-0.5 empty:hidden" />
       </div>
       <div className="min-h-0 flex-1 pt-4">
+        <FullPageReviewContext.Provider value>
         <ReviewHeaderSlotContext.Provider value={actionsSlot}>
           <ReviewDetail page conflict={conflict} inMergeStudio={inMergeStudio} />
         </ReviewHeaderSlotContext.Provider>
+        </FullPageReviewContext.Provider>
       </div>
     </div>
   )

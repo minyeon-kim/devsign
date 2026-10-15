@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom'
 // sections themselves carry only what's decided in them. The header provides
 // the slot; without one (the bottom panel's review) the controls stay in place.
 export const ReviewHeaderSlotContext = createContext(null)
+// Whether the detail is the full page (the overlay) — where there's room for code side by side.
+export const FullPageReviewContext = createContext(false)
 
 export function ReviewHeaderPortal({ children, fallbackClassName }) {
   const slot = useContext(ReviewHeaderSlotContext)

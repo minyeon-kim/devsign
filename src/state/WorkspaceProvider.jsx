@@ -1157,7 +1157,8 @@ export function WorkspaceProvider({ children, projectId }) {
   const requestDocsDrawer = useCallback(() => {
     setDocsDrawerRequest({ nonce: nextId('docs-drawer') })
   }, [])
-  const openConflictFromNotification = useCallback((id) => { if (id) openConflictReview(id) }, [openConflictReview])
+  // (From a comment or a notification: the change's detail in the right panel — beside the work, not a page over it.)
+  const openConflictFromNotification = useCallback((id) => { if (id) setBoardConflicts({ open: true, conflictId: id, screenId: null }) }, [setBoardConflicts])
 
   const markNotificationRead = useCallback((id, unread = false) => {
     // (Read is when it was read — nothing leaves the list. `unread`: back to unread.)

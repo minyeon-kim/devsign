@@ -6,7 +6,7 @@ import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
-import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
+import { Fragment, useContext, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Ban, Bell, BookCheck, Check, ChevronDown, ChevronRight, CircleCheck, FileCode2, ChevronLeft, Clock3, GitCompareArrows, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, Users, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
@@ -72,8 +72,8 @@ import { ADJUSTMENT_REASONS, DEVIATION_REASONS } from '@/lib/rationale'
 import { rationaleOf, standardOf } from '@/lib/rationale'
 import { openOrFocusPanel, panelById } from '@/components/dockview/dockPanels'
 import ConflictCodeView, { placeChange } from '@/components/conflicts/ConflictCodeView'
-import { DiffLayoutTabs, DiffView } from '@/components/diff/DiffView'
-import { ReviewHeaderPortal } from '@/components/conflicts/ReviewHeaderSlot'
+import { DiffLayoutTabs, DiffView, useDiffLayout } from '@/components/diff/DiffView'
+import { FullPageReviewContext, ReviewHeaderPortal } from '@/components/conflicts/ReviewHeaderSlot'
 import {
   ACCENT_CTA,
 } from '@/components/mergestudio/floatingStyles'
@@ -444,7 +444,7 @@ function DraftTable({ conflict, workspace, item, editable, onCompare, compareLab
                       title={option.name}
                       onClick={() => decide(row, option)}
                       className={cn(
-                        'ds-intrinsic inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-[11.5px] transition-colors',
+                        'ds-intrinsic inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-xl px-2 text-[11.5px] transition-colors',
                         option.picked ? 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-400/50 ring-inset' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.09] hover:text-white'
                       )}
                     >
@@ -515,7 +515,7 @@ const SUMMARY_ROW_LABEL = 'text-[11px] leading-[18px] whitespace-nowrap text-sla
 // as the toggle with its arrow at the right.
 const INFO_SECTION = 'border-t border-white/[0.07] py-3 first:border-t-0 first:pt-0'
 const INFO_TITLE = 'text-[11px] leading-4 text-slate-400'
-const INFO_BADGE = 'inline-flex h-7 items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 text-xs font-semibold whitespace-nowrap'
+const INFO_BADGE = 'inline-flex h-7 items-center gap-1 rounded-full bg-white/[0.06] px-2.5 text-xs font-semibold whitespace-nowrap'
 const INFO_VALUE = 'text-xs leading-[18px] break-words text-slate-200 [overflow-wrap:anywhere]'
 const STATUS_TEXT = { detected: 'text-slate-200', in_review: 'text-sky-300', pending_merge: 'text-emerald-300', pending_rollback: 'text-amber-300', done: 'text-violet-300' }
 const RISK_TONE = { high: 'bg-rose-400/20 text-rose-100', medium: 'bg-amber-400/20 text-amber-100', low: 'bg-sky-400/20 text-sky-100' }
@@ -898,16 +898,21 @@ function CheckBlocks({ checks, state, actions }) {
 
 // `location`: the file and line, said at the left of the row the layout tabs are on.
 function CodeDiffColumns({ rows, codeConflict = false, location = null }) {
+  // (On the full page there's room: side by side to start with — the side panel keeps the app's choice, stacked.)
+  const full = useContext(FullPageReviewContext)
+  const [shared] = useDiffLayout()
+  const [own, setOwn] = useState(null)
+  const layout = own ?? (full ? 'split' : shared)
   return (
     <div className="min-w-0 space-y-2">
       <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-400">
         {!codeConflict && <><Sparkles className="size-3 shrink-0 text-emerald-300" /><LocalizedText text="AI suggestion" /></>}
         {location && <span data-conflict-code-location translate="no" title={location} className="min-w-0 truncate font-mono text-[11px] font-normal text-slate-500">{location.split('/').at(-1)}</span>}
         {/* (How the diff is laid out is a view control: up in the detail's header, beside Close.) */}
-        <ReviewHeaderPortal fallbackClassName="ml-auto"><DiffLayoutTabs /></ReviewHeaderPortal>
+        <ReviewHeaderPortal fallbackClassName="ml-auto"><DiffLayoutTabs layout={layout} onLayout={full ? setOwn : undefined} /></ReviewHeaderPortal>
       </div>
-      <div className="scroll-fade-bottom min-w-0 overflow-auto rounded-md bg-black/20 py-1">
-        <DiffView rows={rows} lit={!codeConflict} labels={codeConflict ? ['Conflicting code', 'Proposed resolution'] : ['Before', 'After']} />
+      <div className="scroll-fade-bottom min-w-0 overflow-auto rounded-xl bg-black/20 py-1">
+        <DiffView rows={rows} layout={layout} lit={!codeConflict} labels={codeConflict ? ['Conflicting code', 'Proposed resolution'] : ['Before', 'After']} />
       </div>
     </div>
   )
@@ -975,7 +980,7 @@ function RuleNote({ check, required, action, checks = [check] }) {
     )
   }
   return (
-    <div data-rule-note="recommended" className="min-w-0 rounded-lg bg-white/[0.04] text-[11px] leading-4 text-slate-300">
+    <div data-rule-note="recommended" className="min-w-0 rounded-xl bg-white/[0.04] text-[11px] leading-4 text-slate-300">
       <button
         type="button"
         aria-expanded={open}
@@ -1616,7 +1621,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                     <LocalizedText text={showBefore ? 'Show the merged code' : 'Show the conflict before it was resolved'} />
                   </button>
                 </div>
-                <div className="min-w-0 overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed">
+                <div className="min-w-0 overflow-auto rounded-xl bg-black/20 py-1 font-mono text-[11px] leading-relaxed">
                   {(showBefore ? conflict.diff.before ?? [] : mergedExcerpt).map((row, index) => (
                     <div key={index} className="flex min-w-0 pr-3 text-slate-300">
                       <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{showBefore ? '' : row.number}</span>
@@ -1663,7 +1668,7 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
                   <span translate="no" className="min-w-0 truncate font-mono text-slate-300">{conflict.file}</span>
                 </p>
                 {/* Nothing changes: the code as it is, and a line saying so. */}
-                <div className="min-w-0 overflow-auto rounded-md bg-black/20 py-1 font-mono text-[11px] leading-relaxed">
+                <div className="min-w-0 overflow-auto rounded-xl bg-black/20 py-1 font-mono text-[11px] leading-relaxed">
                   {(conflict.diff.before ?? []).map((text, index) => (
                     <div key={index} className="flex min-w-0 pr-3 text-slate-400">
                       <span className="w-8 shrink-0 pr-2 text-right text-slate-600 tabular-nums select-none">{(conflict.line ?? 1) + index}</span>
@@ -1864,7 +1869,7 @@ function ChoiceCode({ conflict, lines, title, preview = false, onOpenFile }) {
         </span>
       </p>
       {/* (Re-keyed per way, so switching fades in.) */}
-      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-md bg-black/20 py-2 duration-150 fade-in">
+      <div key={`${title ?? ''}:${preview}`} className="min-w-0 animate-in overflow-auto rounded-xl bg-black/20 py-2 duration-150 fade-in">
         <DiffView rows={rows} startLine={conflict.line ?? 1} layout={changed ? undefined : 'unified'} labels={['Current code', title ?? 'Chosen']} />
       </div>
     </div>
@@ -2100,7 +2105,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                   the same height. The role sits under the name, so names of
                   any length line up; the status is flush with the panel's
                   right edge (the hover actions sit just before it). */}
-              <div className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-md px-1 text-[13px] hover:bg-white/[0.03]">
+              <div className="group/rev -mx-1 flex h-11 min-w-0 items-center gap-2.5 rounded-xl px-1 text-[13px] hover:bg-white/[0.03]">
                 <PersonAvatar person={person} />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-1.5 leading-[18px]">
@@ -2172,7 +2177,7 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                 // Dismissing a change request needs a reason: it's posted to
                 // Comments and logged in History, and the reviewer stays on
                 // the change (back to pending).
-                <div className="mb-1 space-y-1.5 rounded-lg bg-white/[0.03] p-2">
+                <div className="mb-1 space-y-1.5 rounded-xl bg-white/[0.03] p-2">
                   <textarea
                     autoFocus
                     rows={2}
@@ -2186,14 +2191,14 @@ function ReviewersSection({ conflict, onUpdate, onDismiss, sectioned = false, ex
                     className="block w-full resize-none bg-transparent text-xs leading-5 text-white outline-none placeholder:text-slate-500"
                   />
                   <div className="flex items-center justify-end gap-1">
-                    <button type="button" onClick={() => setDismissing(null)} className="h-7 rounded-md px-2.5 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
+                    <button type="button" onClick={() => setDismissing(null)} className="h-7 rounded-xl px-2.5 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white">
                       Cancel
                     </button>
                     <button
                       type="button"
                       disabled={!reason.trim()}
                       onClick={confirmDismiss}
-                      className="h-7 rounded-md bg-amber-400/15 px-2.5 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-400/25 disabled:opacity-40"
+                      className="h-7 rounded-xl bg-amber-400/15 px-2.5 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-400/25 disabled:opacity-40"
                     >
                       Dismiss request
                     </button>
@@ -2566,7 +2571,7 @@ const WAITING_NOTE = 'inline-flex h-9 items-center gap-2 rounded-full bg-sky-400
 function FixStatusBlock({ phase, text, blocked, onMerge }) {
   const passed = phase === 'verified'
   return (
-    <section data-status-block={phase} data-fix-phase={phase} className={cn('shrink-0 scroll-mt-3 rounded-lg px-3 py-2.5 ring-1 ring-inset', passed ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
+    <section data-status-block={phase} data-fix-phase={phase} className={cn('shrink-0 scroll-mt-3 rounded-xl px-3 py-2.5 ring-1 ring-inset', passed ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
       <div className="flex flex-wrap items-center gap-3">
         <p data-status-text role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2 text-[13px] leading-5 font-medium text-white">
           {passed ? <ShieldCheck className="size-3.5 shrink-0 text-emerald-300" /> : <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-300 motion-reduce:animate-none" />}
@@ -2672,7 +2677,7 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
                   <div data-record-code>
                     <p className="text-[12px] text-slate-300">바뀌는 코드<span translate="no" className="ml-2 font-mono text-[11px] text-slate-400">{step.code.file?.split('/').pop()}{step.code.line ? ` · ${step.code.line}행` : ''}</span></p>
                     {/* (16px inside, 8px under its label — as a design decision's fix shows its code.) */}
-                    <div translate="no" className="mt-2 overflow-x-auto rounded-lg bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
+                    <div translate="no" className="mt-2 overflow-x-auto rounded-xl bg-black/25 py-4 font-mono text-[11px] leading-[1.7]">
                       {step.code.before.map((line, at) => <p key={`b${at}`} className="flex bg-red-500/[0.14] px-4 whitespace-pre text-red-200"><span className="mr-2 w-3 shrink-0 select-none">−</span>{line.trim()}</p>)}
                       {step.code.after.map((line, at) => <p key={`a${at}`} className="flex bg-emerald-500/[0.14] px-4 whitespace-pre text-emerald-100"><span className="mr-2 w-3 shrink-0 select-none">+</span>{line.trim()}</p>)}
                     </div>
@@ -3576,7 +3581,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // The merge, said once: a banner at the top of the review.
   const mergedBanner = conflict && stage === 'resolved' && (
                     // (The same shape as the other status blocks: a line of what it is, a smaller one of how.)
-                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 items-start gap-2 rounded-lg bg-emerald-400/[0.08] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
+                    <div data-merged-banner role="status" className="mb-3 flex shrink-0 items-start gap-2 rounded-xl bg-emerald-400/[0.08] px-3 py-2.5 ring-1 ring-emerald-300/25 ring-inset">
                       <CircleCheck className="mt-[3px] size-3.5 shrink-0 text-emerald-300" />
                       <div className="min-w-0 flex-1">
                         <p className="flex items-baseline gap-2 text-[13px] leading-5 font-medium text-emerald-100">
@@ -3671,8 +3676,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                             />
                           ) : (
                           <DiffTab
-                            // (The way is the author's to pick: a reviewer approves it, from the approval bar; anyone else looks.)
-                            viewOnly={!involved || (Boolean(myReviewer) && !ownChange)}
+                            // (A value's way is the author's to pick — its reviewer approves it, from the approval bar. A merge of
+                            // code is picked by whoever reviews it too: which side wins is theirs to settle. Anyone else looks.)
+                            viewOnly={!involved || (Boolean(myReviewer) && !ownChange && conflict.kind !== 'code-conflict')}
                             codeChange={codeChange}
                             conflict={conflict}
                             code={codeView}
@@ -3876,7 +3882,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                         the one thing to do about it. The page's strong green is
                         here alone (approved, merged). */}
                     {mergeRequest && (
-                      <section data-status-block={requestState} data-request-status role="status" className={cn('flex shrink-0 flex-wrap items-center gap-x-2.5 gap-y-2 rounded-lg px-3 py-2.5 ring-1 ring-inset',
+                      <section data-status-block={requestState} data-request-status role="status" className={cn('flex shrink-0 flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl px-3 py-2.5 ring-1 ring-inset',
                         requestStatus.tone === 'success' ? 'bg-emerald-400/[0.07] ring-emerald-400/30' : requestStatus.tone === 'warning' ? 'bg-amber-400/[0.07] ring-amber-400/30' : 'bg-white/[0.04] ring-white/[0.08]')}>
                         <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', requestStatus.tone === 'success' ? 'bg-emerald-300' : requestStatus.tone === 'warning' ? 'bg-amber-300' : requestStatus.tone === 'waiting' ? 'bg-sky-300' : 'bg-slate-400')} />
                         <div className="min-w-0 flex-1">

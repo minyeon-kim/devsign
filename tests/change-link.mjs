@@ -48,7 +48,8 @@ console.log('change-link: ok')
 {
   const provider = read('src/state/WorkspaceProvider.jsx')
   assert.ok(provider.includes("const openConflictReview = useCallback((id, { view = 'overlay', evidence = null, source = null } = {}) => {"), 'a change opens full screen unless asked otherwise')
-  assert.ok(provider.includes("const openConflictFromNotification = useCallback((id) => { if (id) openConflictReview(id) }, [openConflictReview])"), 'a notification\'s way in is the one way in')
+  // (From a comment or a notification: the right panel — beside the work, not a page over it.)
+  assert.ok(provider.includes("const openConflictFromNotification = useCallback((id) => { if (id) setBoardConflicts({ open: true, conflictId: id, screenId: null }) }, [setBoardConflicts])"), 'a notification opens the change in the right panel')
   // Open full screen ⇒ the Workspace's own view, the left list, the change's pin — however it got there.
   const rule = provider.slice(provider.indexOf('const openedChange = useRef(null)'), provider.indexOf('  const value = {'))
   assert.ok(['exitMergeStudio()', 'requestConflictDrawer(record.id)', 'focusConflictPin(record)'].every((call) => rule.includes(call)))

@@ -39,7 +39,7 @@ export function EvidenceLinks({ items, onOpen, className, limit = Infinity }) {
             data-evidence={item.kind}
             aria-label={`${EVIDENCE_KIND[item.kind]}: ${item.label}`}
             onClick={rule ? undefined : () => onOpen?.(item)}
-            className="ds-intrinsic inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.04] px-1.5 text-[11px] text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
+            className="ds-intrinsic inline-flex h-6 max-w-full shrink-0 cursor-pointer items-center gap-1 rounded-xl border border-white/[0.1] bg-white/[0.04] px-1.5 text-[11px] text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
           >
             <Icon className="size-3 shrink-0 text-slate-400" />
             {item.kind === 'comment'
@@ -200,7 +200,7 @@ function DeviationReasonForm({ request, onSubmit, onCancel }) {
             role="radio"
             aria-checked={preset === option && !text.trim()}
             onClick={() => { setPreset(option); setText('') }}
-            className="ds-intrinsic flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-1.5 text-left text-xs text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.07] aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.08] aria-checked:text-white"
+            className="ds-intrinsic flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 py-1.5 text-left text-xs text-slate-200 transition-colors hover:border-white/25 hover:bg-white/[0.07] aria-checked:border-emerald-300/50 aria-checked:bg-emerald-400/[0.08] aria-checked:text-white"
           >
             <span className="min-w-0 flex-1"><LocalizedText text={option} /></span>
             {preset === option && !text.trim() && <Check className="size-3.5 shrink-0 text-emerald-300" />}

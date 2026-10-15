@@ -184,7 +184,7 @@ export function FlowSteps({ conflict, flow: given, className, meta, onStep }) {
   const isExpanded = folds.get('steps', flow.current !== 'done')
   const setDoneStepsExpanded = (value) => folds.set('steps', value)
   return (
-    <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-lg bg-white/[0.015]', className)}>
+    <section data-flow-steps={flow.current} aria-label="Progress" className={cn('overflow-hidden rounded-xl bg-white/[0.015]', className)}>
       <div className="px-3 pt-3 pb-1">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-xs font-semibold text-white"><LocalizedText text={flow.current === 'done' ? 'Merged' : 'Progress'} /></h3>

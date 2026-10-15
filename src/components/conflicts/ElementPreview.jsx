@@ -415,7 +415,7 @@ export function ElementPreviewDialog({ conflict, link, open, onOpenChange, onRev
         )}
 
         {codeSides && !differsHere && differsAt.length > 0 && !whole && (
-          <p data-element-no-effect role="status" className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-amber-400/10 px-3 py-2 text-[11.5px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">
+          <p data-element-no-effect role="status" className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl bg-amber-400/10 px-3 py-2 text-[11.5px] text-amber-100 ring-1 ring-amber-300/25 ring-inset">
             <span>이 변경은 <span translate="no">{viewport.custom ? '' : viewport.label}</span>({viewport.width}px · <LocalizedText text={BREAKPOINT_LABEL[viewport.breakpoint]} />)에는 영향이 없어요 · 양쪽 렌더링이 같아요</span>
             <button type="button" data-element-go-viewport={differsAt[0].id} onClick={() => setDevicePick({ ...devicePick, deviceId: differsAt[0].id, orientation: 'portrait' })} className="ds-intrinsic inline-flex h-5 items-center rounded bg-amber-300/20 px-1.5 font-medium text-amber-50 transition-colors hover:bg-amber-300/30">
               <span translate="no">{differsAt[0].label}</span>({differsAt[0].width}px)에서 보기

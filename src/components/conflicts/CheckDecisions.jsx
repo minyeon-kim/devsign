@@ -241,7 +241,7 @@ export function MergeCheckGuide({ item, checks, low = false }) {
             </div>
           )}
           {!resolved && check?.editFields && (
-            <p data-guide-target className="mx-3 mt-2.5 rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-xs leading-[18px] text-amber-100">
+            <p data-guide-target className="mx-3 mt-2.5 rounded-xl bg-amber-400/10 px-2.5 py-1.5 text-xs leading-[18px] text-amber-100">
               {ko ? `바꿀 값: W · H를 각각 ${check.editFields.minimum}px 이상으로` : `Value to set: W and H each at least ${check.editFields.minimum}px`}
             </p>
           )}

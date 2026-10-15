@@ -205,7 +205,7 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
           {!last && <span data-step-line={state === 'done' ? 'done' : 'todo'} className={cn('absolute top-[31px] -bottom-[24px] left-1/2 w-0 -translate-x-1/2 border-l-2', state === 'done' ? 'border-emerald-400/60' : 'border-dashed border-white/15')} />}
         </div>
       )}
-      <div data-step-row={section ? 'section' : state} data-open={open} className={cn('rounded-[10px] border transition-colors duration-150', section ? cn('border-[var(--ds-border-subtle)]', open ? 'bg-[var(--ds-surface-2)]' : 'bg-[var(--ds-surface-1)] hover:bg-white/[0.055]') : compact ? cn('border-transparent bg-transparent', foldable && 'hover:bg-white/[0.04]') : cn(CARD[state] ?? CARD.pending, foldable && HOVER[state]))}>
+      <div data-step-row={section ? 'section' : state} data-open={open} className={cn('rounded-xl border transition-colors duration-150', section ? cn('border-[var(--ds-border-subtle)]', open ? 'bg-[var(--ds-surface-2)]' : 'bg-[var(--ds-surface-1)] hover:bg-white/[0.055]') : compact ? cn('border-transparent bg-transparent', foldable && 'hover:bg-white/[0.04]') : cn(CARD[state] ?? CARD.pending, foldable && HOVER[state]))}>
         <div data-step-head className={cn('flex min-w-0 items-center gap-1', pending && 'opacity-50')}>
           {foldable ? (
             // The whole head is the switch: a press, Enter or Space folds and opens it.
@@ -214,7 +214,7 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
               aria-expanded={open}
               aria-controls={bodyId}
               onClick={onToggle}
-              className={cn('ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[10px] text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300', rail ? 'px-3.5 py-3' : cn('px-4', compact ? 'py-2' : 'py-3'))}
+              className={cn('ds-intrinsic flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-300', rail ? 'px-3.5 py-3' : cn('px-4', compact ? 'py-2' : 'py-3'))}
             >
               {head}
             </button>

@@ -53,7 +53,7 @@ export default function ValueScale({ scale, selectedKey, onTry, onPick, customTe
                   onFocus={() => onTry(step)}
                   onBlur={() => onTry(null)}
                   className={cn(
-                    'ds-intrinsic flex h-12 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 ring-1 transition-colors ring-inset focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
+                    'ds-intrinsic flex h-12 min-w-14 flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 ring-1 transition-colors ring-inset focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-300',
                     on ? 'bg-emerald-400/15 text-emerald-50 ring-emerald-400/70' : 'bg-white/[0.03] text-slate-200 ring-white/10 hover:bg-white/[0.07] hover:text-white',
                   )}
                 >
