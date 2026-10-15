@@ -19,6 +19,7 @@ import { resizeShift } from '@/lib/canvasCamera'
 import { boardFit, clampZoom, focusView, glideAt, visibleCards, zoomAt, ZOOM_MAX, ZOOM_MIN } from '@/lib/screensBoard'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import { liveOverridesOf, useCanvasPreview } from '@/lib/canvasPreview'
+import { designComparePanelWidth } from '@/components/workspace/WorkspaceDesignComparePanel'
 
 // Screens — the project's screens on one board, in the order its flows say
 // (lib/screens' boardLayout), each flow in one row, in a region of its own
@@ -171,7 +172,11 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, designComparePanelOpen, compositionEditing, mixBridge, comparePanelMode } = useWorkspace()
+  // (Merge's panel lies over the board's right — the change list's is docked and narrows it. The board's centred
+  // pills keep its width clear, so they're centred on what's seen either way and stay put switching between them.)
+  const overlayInset = designComparePanelOpen ? designComparePanelWidth({ compareItemId, compositionEditing, mixBridge, comparePanelMode }) : 0
+  const CENTRE_SHIFT = 'transition-[padding] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none'
   const language = useLanguage()
   const layout = useMemo(() => boardLayout(prototype), [prototype])
   const order = layout.cards.map((card) => card.id)
@@ -800,20 +805,24 @@ function ScreensBoard() {
       })()}
 
       {single && !proto && (
-        <div data-board-chrome data-single-page className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-white/10 bg-card/95 py-1.5 pr-1.5 pl-3 text-xs text-slate-200 shadow-lg">
+        <div className={cn('pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center', CENTRE_SHIFT)} style={{ paddingRight: overlayInset }}>
+        <div data-board-chrome data-single-page className="pointer-events-auto flex items-center gap-3 rounded-lg border border-white/10 bg-card/95 py-1.5 pr-1.5 pl-3 text-xs text-slate-200 shadow-lg">
           <LocalizedText text="This project is a single page." />
           <button type="button" onClick={() => setWorkspaceView('preview')} className="rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-300">
             <LocalizedText text="View in Preview" />
           </button>
         </div>
+        </div>
       )}
 
       {/* ‹ n / total ›: fixed at the board's bottom centre — the frame moves, they stay. */}
       {proto && (
-        <div data-board-chrome data-proto-steps role="group" aria-label="Screens" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+        <div className={cn('pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center', CENTRE_SHIFT)} style={{ paddingRight: overlayInset }}>
+        <div data-board-chrome data-proto-steps role="group" aria-label="Screens" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} className="pointer-events-auto flex items-center gap-2">
           <button type="button" data-proto-prev title="Previous screen" aria-label="Previous screen" disabled={frameAt <= 0} onClick={() => moveFrame(-1)} className={STEP}><ChevronLeft className="size-5" /></button>
           <span translate="no" className="min-w-12 text-center text-xs tabular-nums text-slate-400">{frameAt + 1} / {order.length}</span>
           <button type="button" data-proto-next title="Next screen" aria-label="Next screen" disabled={frameAt === -1 || frameAt >= order.length - 1} onClick={() => moveFrame(1)} className={STEP}><ChevronRight className="size-5" /></button>
+        </div>
         </div>
       )}
 
@@ -837,7 +846,7 @@ function ScreensBoard() {
       {/* The board's tools: a floating capsule at the bottom centre of the board — in one place, whatever opens
           at the right (they moved with the tab row's end before). */}
       {/* (While a prototype plays, its ‹ n / total › hold the bottom centre: the tools sit just above them.) */}
-      <div className={cn('pointer-events-none absolute inset-x-0 z-20 flex justify-center', proto ? 'bottom-[72px]' : 'bottom-4')}>
+      <div className={cn('pointer-events-none absolute inset-x-0 z-20 flex justify-center', CENTRE_SHIFT, proto ? 'bottom-[72px]' : 'bottom-4')} style={{ paddingRight: overlayInset }}>
       <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('pointer-events-auto flex items-center gap-0.5', BAR)}>
         {prototype.flows.length > 0 && (
           <DropdownMenu>

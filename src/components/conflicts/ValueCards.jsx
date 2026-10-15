@@ -78,7 +78,7 @@ function CropDrawing({ frame, box, overrides }) {
 
 // One card's drawing area: measures the drawing at its own size and the room inside the card, says the
 // fit it would take (`onFit`), and draws at `scale` — the one both cards share.
-function FitArea({ ratio, scale, onFit, children }) {
+function FitArea({ ratio, scale, onFit, label = null, children }) {
   const areaRef = useRef(null)
   const drawingRef = useRef(null)
   useLayoutEffect(() => {
@@ -94,10 +94,11 @@ function FitArea({ ratio, scale, onFit, children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
-    <div ref={areaRef} data-card-area className="relative w-full overflow-hidden rounded-lg bg-[#F5F5F5]" style={{ aspectRatio: String(ratio) }}>
+    <div ref={areaRef} data-card-area className="relative w-full overflow-hidden bg-[#F5F5F5]" style={{ aspectRatio: String(ratio) }}>
       <div ref={drawingRef} data-card-drawing data-scale={scale ?? undefined} className="absolute top-1/2 left-1/2 w-max" style={{ transform: `translate(-50%, -50%) scale(${scale ?? 1})`, transformOrigin: 'center', visibility: scale ? 'visible' : 'hidden' }}>
         {children}
       </div>
+      {label}
     </div>
   )
 }
@@ -120,18 +121,20 @@ export default function ValueCards({ conflict, pages, sides }) {
   const ratio = cardRatioOf(natural)
   const stacked = isLongCrop(natural)
   return (
-    <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-stacked={stacked ? '' : undefined} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className={cn('grid items-start', stacked ? 'grid-cols-1 gap-2' : 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3')}>
+    <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-stacked={stacked ? '' : undefined} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className={cn('grid items-start', stacked ? 'grid-cols-1 gap-1' : 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3')}>
       {sides.map((side, index) => (
         <FigureCard key={side.id} side={side} arrow={index === 1} stacked={stacked}>
-          <FitArea ratio={ratio} scale={scale} onFit={report(side.id)}>
+          {/* (Its name a small tag in the drawing's corner — no line of its own under it, no frame round it:
+              the card is the drawing. The values are the table's, above.) */}
+          <FitArea ratio={ratio} scale={scale} onFit={report(side.id)} label={
+            <figcaption className="pointer-events-none absolute top-2 right-2 flex h-5 items-center rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur-sm">
+              <span {...(side.id === 'before' ? { 'data-before-title': '' } : { 'data-after-title': '' })}>{side.title}</span>
+            </figcaption>
+          }>
             {onScreen
               ? <CropDrawing frame={crop.frame} box={crop.box} overrides={overridesFor(conflict, targets, side.values, pages)} />
               : <ComponentSample conflict={conflict} values={side.values} />}
           </FitArea>
-          <figcaption className="mt-2 flex min-w-0 items-baseline justify-center gap-1.5 text-center">
-            <span {...(side.id === 'before' ? { 'data-before-title': '' } : { 'data-after-title': '' })} className="shrink-0 text-[12.5px] font-medium text-slate-200">{side.title}</span>
-            {/* (No values here: they're the table's, above.) */}
-          </figcaption>
         </FigureCard>
       ))}
     </div>
@@ -141,8 +144,8 @@ export default function ValueCards({ conflict, pages, sides }) {
 function FigureCard({ side, arrow, stacked, children }) {
   return (
     <>
-      {arrow && <span aria-hidden data-before-after-arrow className={cn('self-center text-slate-500', stacked ? 'justify-self-center leading-none' : 'pb-6')}>{stacked ? '↓' : '→'}</span>}
-      <figure data-layout={side.id === 'before' ? 'implementation' : 'proposal'} data-after={side.id === 'after' ? (side.picked ? 'picked' : 'design') : undefined} className={cn('m-0 min-w-0 rounded-xl border p-2', side.picked ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
+      {arrow && <span aria-hidden data-before-after-arrow className={cn('self-center text-slate-500', stacked ? 'justify-self-center text-[12px] leading-none' : '')}>{stacked ? '↓' : '→'}</span>}
+      <figure data-layout={side.id === 'before' ? 'implementation' : 'proposal'} data-after={side.id === 'after' ? (side.picked ? 'picked' : 'design') : undefined} className={cn('m-0 min-w-0 overflow-hidden rounded-xl border', side.picked ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
         {children}
       </figure>
     </>

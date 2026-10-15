@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
 import { Link, useLocation } from 'react-router-dom'
-import { Activity, BookOpen, Maximize2, Minimize2, History, House, Import, LayoutPanelLeft, PanelLeftClose, Radio, User as UserIcon, Users } from 'lucide-react'
+import { Activity, BookOpen, Maximize2, Minimize2, History, House, SquareArrowDown, LayoutPanelLeft, PanelLeftClose, Radio, User as UserIcon, Users } from 'lucide-react'
 import { cn } from 'cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -220,7 +220,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         {project && (
           <RailButton
             label="Import"
-            icon={Import}
+            icon={SquareArrowDown}
             onClick={() => onToggleDrawer('import')}
             aria-expanded={drawer === 'import'}
             className={cn((drawer === 'import' || (path.startsWith(`${base}/import`) && !drawer)) && activeClass)}
