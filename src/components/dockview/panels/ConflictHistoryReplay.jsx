@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Code2, GitMerge, History, MessageSquare, Play, RotateCcw, Scale, Send, TriangleAlert, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Code2, GitMerge, History, MessageSquare, Play, RotateCcw, Scale, Send, TriangleAlert, XCircle } from 'lucide-react'
 import { cn } from 'cn'
 import { activities, allPeople, projectHistorySeeds } from '@/data/mockData'
 import { LocalizedText } from '@/i18n/runtime'
@@ -301,8 +301,7 @@ export function ConflictReplay({ conflict, activity, replayId, onReplay, onBack,
       <HistoryCompare
         embedded
         hideRestore
-        // (A replay is for seeing the code change: it opens unfolded.)
-        codeOpenByDefault
+        // (The screen first: the code folded under it, opened on asking.)
         entryId={selected.id}
         baseEntryId={entries[selectedIndex - 1]?.id}
         position={{ index: selectedIndex, total: entries.length }}
@@ -312,10 +311,9 @@ export function ConflictReplay({ conflict, activity, replayId, onReplay, onBack,
         onStepDone={advance}
         header={(
           <div data-replay-head className="flex shrink-0 items-center gap-3 px-3 pt-3 pb-2">
-            {/* Going back: the arrow leads, pointing left. */}
-            <button type="button" data-replay-back onClick={onBack} className={NAV_BUTTON}>
-              <ArrowLeft className={NAV_BUTTON_ICON} />
-              <LocalizedText text="Back to review" />
+            {/* Going back: an arrow, at the left — the head says the rest. */}
+            <button type="button" data-replay-back onClick={onBack} aria-label="Back to review" title="Back to review" className="ds-intrinsic flex size-8 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+              <ArrowLeft className="size-4" />
             </button>
             <p data-replay-status className="min-w-0 flex-1 truncate text-[13px] text-slate-300">
               <span className="font-semibold text-white"><LocalizedText text="Replay" /></span>
@@ -324,12 +322,6 @@ export function ConflictReplay({ conflict, activity, replayId, onReplay, onBack,
               {/* The step in view — not the change's title (that's the page's, once). */}
               <span data-replay-step className="text-slate-400"> · <LocalizedText text={stepName(selected, conflict)} /></span>
             </p>
-            {onOpenHistory && (
-              <button type="button" data-replay-history onClick={() => onOpenHistory(selected.id)} className="ds-intrinsic inline-flex shrink-0 items-center gap-1 rounded text-[12px] text-slate-400 underline-offset-4 transition-colors hover:text-white hover:underline">
-                <LocalizedText text="See it all in History" />
-                <ArrowUpRight className="size-3.5" />
-              </button>
-            )}
           </div>
         )}
         footer={(

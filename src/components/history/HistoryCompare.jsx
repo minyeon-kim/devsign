@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { stampOf } from '@/components/dashboard/HistoryDrawer'
 import { changeHref, sourceKeyOf } from '@/lib/changeLink'
-import { Archive, ArchiveRestore, Check, ChevronDown, ChevronRight, Code2, Link2, MessageSquareText, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
+import { Archive, ArchiveRestore, Check, ChevronDown, ChevronRight, Code2, Link2, MoreHorizontal, RotateCcw, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react'
 import { cn } from 'cn'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import PreviewPanelContent from '@/components/dockview/panels/PreviewPanelContent'
@@ -20,7 +20,7 @@ import { changedLayerIds } from '@/lib/devicePreview'
 import { categoryFor, layoutDelta, layoutDeltaCode, problemsAt, renderOf } from '@/lib/codeRender'
 import { referencePick, screenOf } from '@/lib/devicePresets'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { EvidenceLinks, ReasonStrip, RulesDialog } from '@/components/conflicts/Rationale'
+import { EvidenceLinks, RulesDialog } from '@/components/conflicts/Rationale'
 import { historyHref, readHistoryView, withHistoryView } from '@/lib/historyLink'
 import { toast } from '@/i18n/toast'
 import { foldConflictCheckpoints, withBranches } from '@/lib/historyBranches'
@@ -269,7 +269,6 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
   // (The same while it plays: the line is the step's, not the playback's.)
   const summary = comparison ? codeRender?.delta ?? (base === 'previous' ? ownSummary : null) ?? `${changedLines} line${changedLines === 1 ? '' : 's'} of code changed`
     : base === 'previous' ? 'No difference from the previous checkpoint' : 'No difference from the current version'
-  const summaryCode = comparison && codeRender?.delta ? codeRender.deltaCode : null
   const hasReason = Boolean(why.text) || why.evidence.some((item) => item.kind !== 'conflict')
   // The problem line: a rendering problem this version has — whether it
   // begins here, and whether the current version still has it.
@@ -401,22 +400,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
       {/* The change line: what this version differs by from what it's
           compared with — in a person's words, then, fainter and in code, the
           values. Why it was made opens under it. */}
-      {embedded && summary && (
-        <div data-change-summary className="mx-3 mb-2 shrink-0 rounded-lg bg-white/[0.04] px-3 py-1.5 text-[12.5px] leading-5 text-slate-100">
-          <p className="flex items-baseline gap-2">
-            <MessageSquareText aria-hidden className="size-3.5 shrink-0 translate-y-[2px] text-emerald-300" />
-            <span className="sr-only"><LocalizedText text="Change summary" />: </span>
-            <span data-summary-text className={cn('min-w-0 shrink truncate', !comparison && 'text-slate-300')} title={summary}><LocalizedText text={summary} /></span>
-            {summaryCode && <span data-summary-code translate="no" className="min-w-0 shrink-[2] truncate font-mono text-[11px] text-slate-500" title={summaryCode}>· {summaryCode}</span>}
-            {hasReason && (
-              <button type="button" data-checkpoint-reason-toggle aria-expanded={reasonOpen} onClick={() => setReasonOpen((open) => !open)} className="ds-intrinsic ml-auto shrink-0 rounded px-1 text-[11.5px] text-slate-400 transition-colors hover:text-white">
-                <LocalizedText text="Reason for the change" />
-              </button>
-            )}
-          </p>
-          {reasonOpen && hasReason && <ReasonStrip text={why.text} evidence={reasonEvidence} onOpen={openEvidence} className="mt-1 border-t border-white/[0.06] pt-1.5" />}
-        </div>
-      )}
+      {/* (No change line in a replay: its head names the step, and the picture shows what changed.) */}
       {/* The problem line: something wrong with how this version renders —
           apart from the change, in a warning tone, with the way to its change. */}
       {embedded && problem && (
@@ -475,7 +459,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
             frames={shownSnapshot.snapshot.mergeOutput?.design?.frame ? [shownSnapshot.snapshot.mergeOutput.design.frame] : undefined}
             historical
             embedded
-            viewControls
+            viewControls={!embedded}
             focusLayerIds={changedIds}
             codeRender={codeRender}
             variant="compare"
@@ -485,13 +469,7 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           narrowPane={split || !embedded}
           controlsSlot={embedded ? null : controlsEl}
           zoomSlot={embedded ? null : zoomSlot}
-          toolbarExtra={embedded ? compareMenu : null}
-          caption={embedded && (
-              <span className="shrink-0 text-slate-300">
-                {/* (A code render names what it shows over its frame; "Current" is the header's badge.) */}
-                {codeRender?.spec ? null : playing ? 'This step' : pair ? pair.rightTitle : base === 'current' ? 'This version = current version' : mineTitle}
-              </span>
-            )}
+          toolbarExtra={null}
           />
       </div>
       )}
@@ -541,7 +519,8 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
       {/* The code behind it, under it: just what changed (the rest folded)
           until the whole file is asked for — read the same way round, this
           version first. */}
-      {embedded && codeView === 'folded' ? (
+      {/* (Nothing changed in the code at this step: no line about it.) */}
+      {embedded && codeView === 'folded' && comparison ? (
         // One line: the file and how much of it differs (from what it's
         // compared with) — the code itself on asking. Folded stays folded
         // through playback (which goes on behind it).
@@ -565,13 +544,13 @@ function HistoryCompare({ entryId, onRollback, onArchive, onUnarchive, baseline 
           <span translate="no" className="min-w-0 truncate font-mono">{getFileName(entry.snapshot.fileId)}</span>
           <span data-code-changed className="shrink-0 text-slate-300"><LocalizedText text={comparison ? `${changedLines} line${changedLines === 1 ? '' : 's'} changed` : 'No difference'} /></span>
           <span className="ml-auto flex shrink-0 items-center gap-2">
-            {!playing && (
+            {!playing && !embedded && (
               <button type="button" data-code-whole-file aria-pressed={wholeFile} onClick={() => setWholeFile((current) => !current)} className={cn('ds-intrinsic inline-flex h-6 items-center rounded-md px-2 font-sans text-[10.5px] font-medium transition-colors', wholeFile ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-slate-300 hover:text-white')}>
                 <LocalizedText text="Show the whole file" />
               </button>
             )}
-            {/* (Always there: it sets the replay's layout too.) */}
-            <DiffLayoutTabs layout={diffLayout} onLayout={setDiffLayout} />
+            {/* (Not in a replay: one way of reading its code is enough there.) */}
+            {!embedded && <DiffLayoutTabs layout={diffLayout} onLayout={setDiffLayout} />}
           </span>
         </div>
         <div className="min-h-0 flex-1 overflow-auto pb-2 text-[12px] leading-5">

@@ -56,12 +56,11 @@ import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, ScreenLocation, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY, differenceLineOf } from '@/components/conflicts/DesignDecisionFlow'
-import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
+import { RECORD_ROWS, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
 import { useFoldState } from '@/components/conflicts/Fold'
 import { delayOf, moves as stepMoves } from '@/lib/stepProgress'
-import { RECORD_STEPS, replayStates } from '@/lib/stepProgress'
 import ConflictHistory from '@/components/conflicts/ConflictHistory'
 import { eventsOf, formatTime, humanEventCount, sampleHistoryForCon002 } from '@/lib/conflictEvents'
 import { ConflictActivityList, ConflictReplay, useConflictActivity } from '@/components/dockview/panels/ConflictHistoryReplay'
@@ -2854,14 +2853,6 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
   // The record's four steps as the replay has reached them: how many of them
   // sit at or before the saved step in view.
-  const replayRailSteps = (() => {
-    if (!replayId) return null
-    const at = activity.entries.findIndex((entry) => entry.id === replayId)
-    if (at < 0) return null
-    const reached = RECORD_STEPS.filter((step) => activity.entries.findIndex((entry) => entry.id === replayEntryFor(step.key)) <= at).length
-    const states = replayStates(RECORD_STEPS.length, reached, at === activity.entries.length - 1)
-    return RECORD_STEPS.map((step, index) => ({ ...step, state: states[index] }))
-  })()
   const EVENT_STEP_KEY = { detected: 'detect', requested: 'request', decided: 'decision', fixed: 'fix', verified: 'fix', resolved: 'resolve', reopened: 'detect' }
 
   // The Activity tab is this conflict's own activity, here in the panel
@@ -3937,10 +3928,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   ) : (
                     <div className="flex min-h-0 flex-1 flex-col gap-3">
                       {/* The record, kept in view: the step being replayed is under way, those before it done. */}
-                      {conflict.decisionFlow && replayRailSteps && <ReplayStepRail steps={replayRailSteps} />}
+                      {/* (No row of the record's steps over it: the replay's own head says which step it's on.) */}
                       <div className="flex min-h-0 flex-1">
-                      <ConflictReplay key={`${conflict.id}:${replayAutoplay ?? 'open'}`} conflict={conflict} activity={activity} replayId={replayId} onReplay={setReplayId} onBack={() => setReplayId(null)} autoplay={replayAutoplay != null}
-                        onOpenHistory={(entryId) => (workspace?.openHistory ? workspace.openHistory(entryId, { flash: true }) : navigate(historyHref(conflict.projectId, entryId), { state: { flashCheckpoint: entryId } }))} />
+                      <ConflictReplay key={`${conflict.id}:${replayAutoplay ?? 'open'}`} conflict={conflict} activity={activity} replayId={replayId} onReplay={setReplayId} onBack={() => setReplayId(null)} autoplay={replayAutoplay != null} />
                       </div>
                     </div>
                   )}

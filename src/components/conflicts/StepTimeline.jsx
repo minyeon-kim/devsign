@@ -179,10 +179,11 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
   const head = (
     <>
       {rail ? null : icon ? <span aria-hidden data-step-section-icon className="flex size-4 shrink-0 items-center justify-center text-slate-400 [&>svg]:size-4">{icon}</span> : <StepIcon state={state} moves={moves} />}
-      <span data-step-title className={cn('min-w-0 truncate text-[13.5px] leading-5 font-semibold', state === 'done' ? 'text-slate-200' : pending ? 'text-slate-300' : 'text-white')}>{title}</span>
+      <span data-step-title className={cn('shrink-0 whitespace-nowrap text-[13.5px] leading-5 font-semibold', state === 'done' ? 'text-slate-200' : pending ? 'text-slate-300' : 'text-white')}>{title}</span>
       {section ? chip != null && chip !== '' && <span data-step-chip className="inline-flex h-[18px] min-w-0 items-center truncate rounded-full bg-white/[0.06] px-1.5 text-[11px] leading-none font-medium text-slate-300 tabular-nums">{chip}</span> : <span data-step-state={state} className="sr-only">{WORD(state)}</span>}
-      <span className="ml-auto flex h-5 shrink-0 items-center gap-1.5 pl-2">
-        {aside && (time ? <time data-step-time className="shrink-0 text-[12px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time> : <span data-step-who className="shrink-0 truncate text-[12px] text-slate-500">{who}</span>)}
+      {/* (The step's name is said whole; what's beside it — when, who — gives way, cut short.) */}
+      <span className="ml-auto flex h-5 min-w-0 items-center gap-1.5 pl-2">
+        {aside && (time ? <time data-step-time className="min-w-0 truncate text-[12px] whitespace-nowrap text-slate-500 tabular-nums">{time}</time> : <span data-step-who className="min-w-0 truncate text-[12px] text-slate-500">{who}</span>)}
         {foldable && <ChevronRight aria-hidden data-step-chevron className={cn('size-3.5 shrink-0 text-slate-400 transition-transform duration-[180ms] ease-out motion-reduce:transition-none', open && 'rotate-90')} />}
       </span>
     </>
@@ -219,11 +220,7 @@ export function StepRow({ state, title, who, summary: _summary, time, open, onTo
               {head}
             </button>
           ) : <div className={cn('flex min-w-0 flex-1 items-center gap-2', rail ? 'px-3.5 py-3' : cn('px-4', compact ? 'py-2' : 'py-3'))}>{head}</div>}
-          {onReplay && (
-            <button type="button" data-step-replay onClick={onReplay} className="ds-intrinsic mr-2 h-5 shrink-0 rounded px-1 text-[11.5px] text-slate-300 underline-offset-4 opacity-0 transition-opacity hover:text-white hover:underline focus-visible:opacity-100 group-hover/step:opacity-100">
-              이 단계부터 보기
-            </button>
-          )}
+          {/* (No "이 단계부터 보기" on a step: the replay opens from the record's head, once.) */}
         </div>
         {/* Opened: its contents inside the card, under the head — 16px each side, as the head: its labels start where the icon does. */}
         {foldable && <div id={bodyId} role="region" aria-label={title}><FoldBody open={open}><div data-step-body className={cn('flex flex-col gap-4 pb-3.5', rail ? 'px-3.5' : 'px-4', '[&_dl]:max-w-[640px] [&_p]:max-w-[640px]', pending && 'opacity-50')}>{children}</div></FoldBody></div>}
