@@ -121,7 +121,7 @@ export default function ValueCards({ conflict, pages, sides }) {
   const ratio = cardRatioOf(natural)
   const stacked = isLongCrop(natural)
   return (
-    <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-stacked={stacked ? '' : undefined} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className={cn('grid items-start', stacked || sides.length === 1 ? 'grid-cols-1 gap-1' : 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3')}>
+    <div data-before-after data-value-cards={onScreen ? 'crop' : 'sample'} data-stacked={stacked ? '' : undefined} data-scale={scale ? Math.round(scale * 100) / 100 : undefined} className={cn('grid items-start', stacked ? 'grid-cols-1 gap-1' : 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3')}>
       {sides.map((side, index) => (
         <FigureCard key={side.id} side={side} arrow={index === 1} stacked={stacked}>
           {/* (Its name a small tag in the drawing's corner — no line of its own under it, no frame round it:

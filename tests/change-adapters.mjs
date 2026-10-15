@@ -75,12 +75,10 @@ try {
       assert.equal(count(html, 'data-proposal-section'), 1, `${where}: one 해결 방법 card`)
       const stepOpen = (key) => new RegExp(`data-fold="${key}"[\\s\\S]*?data-step-row="[^"]+" data-open="([^"]+)"`).exec(html)?.[1]
       assert.equal(stepOpen('detect'), 'false', `${where}: completed detection starts folded`)
-      // (Picking, the card stands above the record, which is a fold — so the current step has nothing of its own to open.)
-      if (decisionStageOf(conflict) === 'detected') assert.equal(stepOpen('request'), 'false', `${where}: the card is above the record, whose request step starts folded`)
+      if (decisionStageOf(conflict) === 'detected') assert.equal(stepOpen('request'), 'true', `${where}: request is the current step`)
       if (decisionStageOf(conflict) === 'requested') {
         assert.equal(stepOpen('request'), 'false', `${where}: previous request is folded`)
-        // (Asked, the request, the picture and the decision stand together above the record — a fold — so no step opens.)
-        assert.equal(stepOpen('decision'), 'false', `${where}: the decision stands above the record, whose step starts folded`)
+        assert.equal(stepOpen('decision'), 'true', `${where}: decision is the current step`)
       }
 
       assert.equal(count(html, 'data-before-after='), 1, `${where}: one comparison, in the card`)
