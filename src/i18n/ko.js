@@ -2686,3 +2686,4 @@ Object.assign(ko, { 'Waiting on your review': '내 검토 대기', 'More': '더 
 Object.assign(ko, { 'Your turn': '내 차례' })
 Object.assign(ko, { 'Stop others following me': '따라오기 끝내기' })
 Object.assign(ko, { 'Leave a note on this change for the team.': '이 변경에 대해 팀에게 남길 말을 적어 보세요.' })
+Object.assign(ko, { 'Component applied': '컴포넌트를 적용했어요', 'Component inserted': '컴포넌트를 넣었어요', 'Added to the screen': '화면에 추가했어요' })

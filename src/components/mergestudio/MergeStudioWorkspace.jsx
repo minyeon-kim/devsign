@@ -22,6 +22,7 @@ import { canvasPages, codeMergeVariants, designMergeVariants, mergeFilesFor } fr
 import { useWorkspace } from '@/state/WorkspaceProvider'
 import MergeInfiniteCanvas, { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import AssetsLibrary from '@/components/dockview/panels/AssetsLibrary'
 import BlockDeckPanel from '@/components/mergestudio/BlockDeckPanel'
 import { diffEffect, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import { buildSummary } from '@/components/mergestudio/mergeSummary'
@@ -1778,6 +1779,14 @@ function MergeStudioWorkspace({ item }) {
             library: addedLayers.length,
           }}
         />,
+        deckElement
+      )}
+      {/* Assets with nothing selected on the Result: the library still — a component added to the screen with a
+          click on the spot or dragged onto it (placement mode, as from an element's own Library tab). */}
+      {item && deckElement && filesWindow.tab === 'assets' && !(elementPanelOpen && deckLayerId) && createPortal(
+        <div data-merge-assets className="flex h-full min-h-0 flex-col bg-card text-xs text-muted-foreground">
+          <AssetsLibrary layer={null} onAdd={(def) => setPlacing({ def, mode: 'click' })} onDrag={(def) => setPlacing({ def, mode: 'drag' })} />
+        </div>,
         deckElement
       )}
 

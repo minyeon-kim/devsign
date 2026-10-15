@@ -484,6 +484,44 @@ export function WorkspaceProvider({ children, projectId }) {
       }),
     [setAssetAssemblies]
   )
+  // Library components put on a screen outside Merge Studio: { [pageId]: [layer] } — drawn on the board with the
+  // screen's own layers (ScreensBoard), their look the component's (assetAssemblies, as any layer's).
+  const [assetAdded, setAssetAdded] = useDemoState(`project:${projectId}:assetAdded`, {})
+  // The Assets panel's three ways in, as Merge Studio's (MergeStudioWorkspace): Replace — the layer takes on the
+  // component's role, look and size; Insert — a new one inside the layer; Add — a new one on the screen.
+  const applyAssetComponent = useCallback((layer, def, frameWidth = 300) => {
+    if (!layer || !def) return
+    assembleAsset(layer.id, null)
+    assembleAsset(layer.id, {
+      ...def.assembly,
+      width: Math.min(def.width, Math.max(40, frameWidth - layer.x - 8)),
+      height: def.height,
+      ...(def.type !== layer.type && { asType: def.type, asLabel: def.label, asName: def.name }),
+    })
+  }, [assembleAsset])
+  const addAssetComponent = useCallback((def, pageId, frame, parent = null) => {
+    if (!def || !pageId || !frame) return null
+    const width = Math.min(def.width, (parent ? parent.width : frame.width) - 24)
+    const layer = {
+      id: `${def.id}-${Date.now()}`,
+      name: def.name,
+      kind: 'component',
+      type: def.type,
+      label: def.label,
+      ...(parent
+        ? parent.type === 'bar' || parent.type === 'tabs'
+          ? { x: parent.x + parent.width - width - 12, y: parent.y + Math.round((parent.height - def.height) / 2) }
+          : { x: parent.x + 12, y: parent.y + 12 }
+        // (On the screen itself: centred, just over its foot — inside the artboard, which keeps its size.)
+        : { x: Math.max(8, Math.round((frame.width - width) / 2)), y: Math.max(48, frame.height - def.height - 24) }),
+      width,
+      height: def.height,
+    }
+    setAssetAdded((prev) => ({ ...prev, [pageId]: [...(prev[pageId] ?? []), layer] }))
+    assembleAsset(layer.id, { ...def.assembly })
+    setSelectedLayerId(layer.id)
+    return layer
+  }, [assembleAsset, setAssetAdded])
   // The Workspace's conversation. Merge Studio keeps one per merge item
   // (`mergeChats`, below) — see `chatThread`.
   const [workspaceChat, setWorkspaceChat] = useDemoState(`project:${projectId}:chatMessages`, initialChatMessages)
@@ -3025,6 +3063,9 @@ export function WorkspaceProvider({ children, projectId }) {
     setHistoryFilter,
     assetAssemblies,
     assembleAsset,
+    assetAdded,
+    applyAssetComponent,
+    addAssetComponent,
     openConflictReview,
     focusChange,
     chatDraft,

@@ -162,7 +162,7 @@ try {
   // The board: cards never interactive inside, each behind its own error boundary; play, select, keys.
   assert.ok(board.includes('class CardBoundary extends Component') && board.includes('static getDerivedStateFromError()') && board.includes('data-screen-error'))
   assert.ok(board.includes('<div aria-hidden className="pointer-events-none absolute inset-0">'))
-  assert.ok(board.includes('{drawn.has(card.id) && <ScreenDrawing frame={screen.frame} overrides='), 'only the cards in view are drawn')
+  assert.ok(board.includes('{drawn.has(card.id) && <ScreenDrawing frame={withAssets(screen.frame, card.id)} overrides='), 'only the cards in view are drawn')
   assert.ok(board.includes('onDoubleClick={() => enter(card.id)}') && board.includes("event.key === 'Enter' && activePageId") && board.includes("{ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }"))
   assert.ok(board.includes("aria-label={`Screen ${card.n}, ${screen.name}, goes to ${out} ${out === 1 ? 'screen' : 'screens'}${open.length ? `, ${openLabel(open.length)}` : ''}`}"), 'a card is named with where it goes and its open changes')
   // (No overlay player: a double press plays in the card's place — tests/board-prototype; ▶ shows the screen in Preview.)

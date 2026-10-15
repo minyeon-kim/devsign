@@ -8,6 +8,7 @@ import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { HEAD_COLOR, PinShape } from '@/components/conflicts/ConflictPins'
+import { assemblyToOverride, mergeOverride } from '@/components/mergestudio/mergeEffects'
 import BoardConflicts, { BOARD_PANEL_WIDTH, BOARD_DETAIL_WIDTH } from '@/components/screens/BoardConflicts'
 import { layerIdsOf } from '@/lib/conflictInsight'
 import { reviewForDesign } from '@/lib/designReview'
@@ -170,7 +171,20 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded } = useWorkspace()
+  // What the Assets panel did to a screen (outside Merge Studio): components added to it, and layers given a
+  // component's look — drawn with the screen's own.
+  const withAssets = (frame, pageId) => (assetAdded?.[pageId]?.length ? { ...frame, layers: [...frame.layers, ...assetAdded[pageId]] } : frame)
+  const overridesFor = (frame, pageId, base) => {
+    const layers = withAssets(frame, pageId).layers
+    let out = base
+    for (const layer of layers) {
+      const assembly = assetAssemblies?.[layer.id]
+      const o = assembly && assemblyToOverride(assembly, layer)
+      if (o) out = { ...out, [layer.id]: mergeOverride(out?.[layer.id], o) }
+    }
+    return out
+  }
   const language = useLanguage()
   const layout = useMemo(() => boardLayout(prototype), [prototype])
   const order = layout.cards.map((card) => card.id)
@@ -663,7 +677,7 @@ function ScreensBoard() {
                 className={cn('relative block overflow-hidden rounded-xl bg-white text-left shadow-xl shadow-black/40 outline-none transition-shadow', proto ? (leads.some((entry) => entry.transition.id === hot) ? 'ring-[3px] ring-sky-400' : 'ring-1 ring-white/15') : selected ? 'ring-[3px] ring-emerald-300' : 'ring-1 ring-white/15 hover:ring-2 hover:ring-white/40')}
                 style={{ width: card.width, height: card.height }}
               >
-                {drawn.has(card.id) && <ScreenDrawing frame={screen.frame} overrides={preview?.pages.includes(card.id) ? previewOverrides : null} />}
+                {drawn.has(card.id) && <ScreenDrawing frame={withAssets(screen.frame, card.id)} overrides={overridesFor(screen.frame, card.id, preview?.pages.includes(card.id) ? previewOverrides : null)} />}
               </button>
               )}
               {previewWay && !proto && preview.pages.includes(card.id) && (
@@ -698,13 +712,15 @@ function ScreensBoard() {
                         <span className="ds-focus-pulse absolute inset-0 rounded-[4px]" style={{ boxShadow: `0 0 0 ${3 / shown.zoom}px #F04E5A` }} />
                       </span>
                     )}
-                    {markers.map((marker) => {
+                    {/* (The pins a size down on a screen drawn small — its width under 420px on screen — so a dense
+                    screen at a low zoom isn't covered by them: full size from 420px, 65% at the least.) */}
+                {markers.map((marker) => {
                       const current = Boolean(focused) && focused.screenId === card.id && marker.conflicts.some((conflict) => conflict.id === focused.conflict.id)
                       const lit = current || hotMarker === `${card.id}:${marker.layer.id}`
                       return (
                         <Fragment key={marker.layer.id}>
                           {lit && !current && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #F04E5A`, background: 'color-mix(in srgb, #F04E5A 12%, transparent)' }} />}
-                          <div data-board-chrome className={cn('absolute', current ? 'z-20' : 'z-10')} style={{ left: marker.layer.x + marker.layer.width - BOARD_PIN.inset, top: 32 + marker.layer.y + BOARD_PIN.inset, transform: `scale(${1 / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
+                          <div data-board-chrome className={cn('absolute', current ? 'z-20' : 'z-10')} style={{ left: marker.layer.x + marker.layer.width - BOARD_PIN.inset, top: 32 + marker.layer.y + BOARD_PIN.inset, transform: `scale(${Math.max(0.65, Math.min(1, (card.width * shown.zoom) / 420)) / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
                             <MarkerButton
                               marker={marker}
                               lit={current}
