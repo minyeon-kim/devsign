@@ -26,15 +26,16 @@ function RegionCandidate({ part, option, letter, region, selected, live, scale, 
       onBlur={() => live.onPreviewRegion(null)}
       onClick={() => { live.onPreviewRegion(null); live.onPick?.(region.id, option.key) }}
       style={{ width: cardWidth, height: cardHeight }}
-      className={cn('ds-intrinsic flex shrink-0 flex-col overflow-hidden rounded-[12px] border text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:cursor-default', selected ? 'border-emerald-300/70' : 'border-white/10 hover:border-sky-300/70')}>
+      className={cn('ds-intrinsic flex shrink-0 flex-col overflow-hidden rounded-[12px] border text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:cursor-default', selected ? 'border-emerald-300 ring-2 ring-emerald-300/40' : 'border-white/10 opacity-80 hover:border-sky-300/70 hover:opacity-100')}>
       <span data-region-thumbnail className="relative block w-full shrink-0 overflow-hidden bg-white" style={{ height: Math.max(0, cardHeight - 24) }}>
         <span data-region-render className="pointer-events-none absolute top-1/2 left-1/2 block bg-white" style={{ width, height, transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center' }}>
           {part.layers.map((layer) => <StaticLayer key={layer.id} layer={{ ...layer, x: layer.x - minX + padding, y: layer.y - minY + padding }} override={layer.look} onSelect={() => {}} />)}
           {!part.layers.length && <span className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">이 영역 생략</span>}
         </span>
       </span>
-      <span className={cn('flex h-[22px] w-full shrink-0 items-center gap-1 px-1 text-[10px]', selected ? 'text-emerald-300' : 'text-slate-400')}>
-        <span className="shrink-0 font-semibold">{letter}</span><span className="min-w-0 flex-1 truncate"><LocalizedText text={part.summary} /></span>{selected && <Check aria-label="사용 중" className="size-3 shrink-0" />}
+      {/* (The one in use: its outline and its label strip in the accent, and says so in words.) */}
+      <span className={cn('flex h-[22px] w-full shrink-0 items-center gap-1 px-2 text-[10.5px]', selected ? 'bg-emerald-400/15 text-emerald-200' : 'text-slate-400')}>
+        <span className="shrink-0 font-semibold">{letter}</span><span className="min-w-0 flex-1 truncate"><LocalizedText text={part.summary} /></span>{selected && <span data-region-in-use className="flex shrink-0 items-center gap-0.5 font-semibold"><Check aria-hidden className="size-3" />사용 중</span>}
       </span>
     </button>
   </div>

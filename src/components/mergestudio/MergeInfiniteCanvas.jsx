@@ -1,9 +1,9 @@
 import CheckStatus from '@/components/mergestudio/CheckStatus'
 import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
-import { useCallback, useContext, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Move, Pencil, Play, Plus, Redo2, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Redo2, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -621,17 +621,7 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   // Dragging a part follows the pointer; dropped, it goes between two parts
   // (a line shows where) or inside one (that part lights up).
   const [drag, setDrag] = useState(null) // { dx, dy, slot, into }
-  // The actions go under the region — or over it when the bottom panel (or
-  // the window's edge) leaves no room below.
   const bandRef = useRef(null)
-  const [above, setAbove] = useState(false)
-  useLayoutEffect(() => {
-    const band = bandRef.current?.getBoundingClientRect()
-    if (!band) return
-    const floor = Math.min(document.querySelector('section[aria-label="Bottom panel"]')?.getBoundingClientRect().top ?? window.innerHeight, document.querySelector('[data-mix-panel]')?.getBoundingClientRect().top ?? window.innerHeight)
-    const next = band.bottom + 56 > floor
-    if (next !== above) setAbove(next)
-  })
   // When the last click landed: the one that picked this region, then each
   // click through it. Two inside a double-click's time make a double-click
   // (the browser's own dblclick is lost as this bar comes and goes).
@@ -700,7 +690,7 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
   const first = frame.layers.find((layer) => layer.regionId === region.id)
   const offset = { x: overrides?.[first?.id]?.dx ?? 0, y: overrides?.[first?.id]?.dy ?? 0 }
   const stop = (event) => event.stopPropagation()
-  const ACTION = 'ds-intrinsic flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-slate-800 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent'
+  const ACTION = 'ds-intrinsic flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent'
   const zoom = tools.zoom || 1
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
@@ -733,23 +723,25 @@ function RegionTools({ frame, scale, boxH, tools, overrides }) {
           )}
         </div>
       )}
-      {/* The part's name and what can be done with it, right under it —
-          words, not bare icons; one size at any zoom. */}
+      {/* The part's name: a small tag on its top-left corner, as a design tool labels a selection. What can be
+          done with it: a narrow column of icons just outside the screen, beside the part — never over what's drawn,
+          and it follows the part. (Moving it is dragging the part itself — its cursor and title say so.) */}
       {!drag && (
-        <div data-region-toolbar onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute flex h-9 items-center gap-0.5 rounded-full bg-white p-1 whitespace-nowrap text-slate-900 shadow-2xl ring-1 ring-black/10" style={{ top: above ? (region.y + offset.y) * scale - 8 / zoom : (region.y + offset.y + region.height) * scale + 8 / zoom, left: (frame.width / 2 + offset.x) * scale, transform: `scale(${1 / zoom}) translateX(-50%)${above ? ' translateY(-100%)' : ''}`, transformOrigin: 'top left' }}>
-          <span data-region-source className="flex h-7 items-center gap-1.5 rounded-full bg-sky-500 pr-3 pl-1 text-[12px] font-semibold text-white">
-            {letter && <span className="flex size-5 items-center justify-center rounded-full bg-white text-[10.5px] text-sky-700">{letter}</span>}
+        <>
+          <span data-region-source onPointerDown={stop} className="pointer-events-none absolute flex h-5 items-center gap-1 rounded-t-md rounded-br-md bg-sky-500 pr-2 pl-1 text-[11px] font-semibold whitespace-nowrap text-white" style={{ top: (region.y + offset.y) * scale, left: offset.x * scale, transform: `scale(${1 / zoom}) translateY(-100%)`, transformOrigin: 'top left' }}>
+            {letter && <span className="flex size-4 items-center justify-center rounded-full bg-white text-[9.5px] text-sky-700">{letter}</span>}
             <LocalizedText text={region.label} />{region.copyOf && (ko ? ' · 복제' : ' · copy')}
             {parent && <span className="font-medium text-white/80">{ko ? ' · ' : ' · in '}<LocalizedText text={parent.label} />{ko ? ' 안' : ''}</span>}
           </span>
-          <span className="flex items-center gap-1 px-2 text-[12px] font-medium text-slate-600"><Move className="size-3.5" />{ko ? '끌어서 옮기기' : 'Drag to move'}</span>
-          <span aria-hidden className="mx-0.5 h-4 w-px bg-black/10" />
-          <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={ACTION}><ArrowUp className="size-3.5" />{ko ? '위로' : 'Up'}</button>
-          <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === siblings.length - 1} onClick={() => tools.onMove(region.id, 1)} className={ACTION}><ArrowDown className="size-3.5" />{ko ? '아래로' : 'Down'}</button>
-          {parent && tools.onUnnest && <button type="button" data-region-unnest aria-label={ko ? '밖으로 빼기' : 'Take out'} title={ko ? `${translateText(parent.label, 'ko')} 밖으로 (바로 아래에)` : `Out of ${parent.label} (right below it)`} onClick={() => tools.onUnnest(region.id)} className={ACTION}><ArrowUpLeft className="size-3.5" />{ko ? '밖으로' : 'Out'}</button>}
-          {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '바로 아래에 하나 더' : 'One more, right below'} onClick={() => tools.onDuplicate(region.id)} className={ACTION}><Copy className="size-3.5" />{ko ? '복제' : 'Duplicate'}</button>}
-          <button type="button" data-region-remove aria-label={ko ? '빼기' : 'Remove'} title={ko ? '결과에서 빼기 (Delete)' : 'Take out of the Result (Delete)'} onClick={() => tools.onRemove(region.id)} className={cn(ACTION, 'hover:bg-rose-50 hover:text-rose-600')}><Trash2 className="size-3.5" />{ko ? '빼기' : 'Remove'}</button>
-        </div>
+          <div data-region-toolbar role="toolbar" aria-label={ko ? '요소 편집' : 'Part'} onPointerDown={stop} onClick={stop} className="pointer-events-auto absolute flex flex-col items-center gap-0.5 rounded-full border border-white/10 bg-[#2B2B2B] p-0.5 shadow-lg" style={{ top: (region.y + offset.y) * scale, left: frame.width * scale + 8 / zoom, transform: `scale(${1 / zoom})`, transformOrigin: 'top left' }}>
+            <button type="button" data-region-up aria-label={ko ? '위로' : 'Move up'} title={ko ? '위로 (Alt+↑)' : 'Move up (Alt+↑)'} disabled={index === 0} onClick={() => tools.onMove(region.id, -1)} className={ACTION}><ArrowUp className="size-3.5" /></button>
+            <button type="button" data-region-down aria-label={ko ? '아래로' : 'Move down'} title={ko ? '아래로 (Alt+↓)' : 'Move down (Alt+↓)'} disabled={index === siblings.length - 1} onClick={() => tools.onMove(region.id, 1)} className={ACTION}><ArrowDown className="size-3.5" /></button>
+            {parent && tools.onUnnest && <button type="button" data-region-unnest aria-label={ko ? '밖으로 빼기' : 'Take out'} title={ko ? `${translateText(parent.label, 'ko')} 밖으로 (바로 아래에)` : `Out of ${parent.label} (right below it)`} onClick={() => tools.onUnnest(region.id)} className={ACTION}><ArrowUpLeft className="size-3.5" /></button>}
+            {tools.onDuplicate && <button type="button" data-region-duplicate aria-label={ko ? '복제' : 'Duplicate'} title={ko ? '복제 · 바로 아래에 하나 더' : 'Duplicate · one more, right below'} onClick={() => tools.onDuplicate(region.id)} className={ACTION}><Copy className="size-3.5" /></button>}
+            <span aria-hidden className="my-0.5 h-px w-4 bg-white/10" />
+            <button type="button" data-region-remove aria-label={ko ? '빼기' : 'Remove'} title={ko ? '결과에서 빼기 (Delete)' : 'Take out of the Result (Delete)'} onClick={() => tools.onRemove(region.id)} className={cn(ACTION, 'hover:bg-rose-500/15 hover:text-rose-300')}><Trash2 className="size-3.5" /></button>
+          </div>
+        </>
       )}
     </div>
   )
