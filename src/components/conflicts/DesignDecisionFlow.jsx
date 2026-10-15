@@ -16,6 +16,7 @@ import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/chan
 import ValueCards from '@/components/conflicts/ValueCards'
 import ValueTable from '@/components/conflicts/ValueTable'
 import { SmoothHeight } from '@/components/ui/SmoothHeight'
+import { setEvidenceTab } from '@/lib/evidenceTab'
 import { useDesignLink } from '@/components/conflicts/DesignLinkThumb'
 import CodeRender from '@/components/history/CodeRender'
 import { layoutAt } from '@/lib/codeRender'
@@ -544,6 +545,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   }, [proposal])
   const addReviewer = () => {
     // (The page's 영향 / 근거 is a fold, the panel's a tab: open it if it isn't — never close it.)
+    setEvidenceTab(conflict.id, 'reviewers')
     const tab = document.querySelector('[data-side-tab="info"]')
     if (tab && tab.getAttribute('aria-selected') !== 'true' && tab.getAttribute('aria-expanded') !== 'true') tab.click()
     window.setTimeout(() => document.querySelector('[data-review-sidebar] [data-add-reviewer]')?.focus(), 60)
