@@ -1,6 +1,7 @@
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { cn } from 'cn'
+import { PAGE_PANEL, PageTitle } from '@/components/layout/PagePieces'
 import { FormatChips, ImportedItems, useImportSources } from '@/components/import/importSources'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -8,9 +9,9 @@ import { useWorkspace } from '@/state/WorkspaceProvider'
 // field, or a file picker.
 function ImportCard({ icon: Icon, tone, title, description, formats, children }) {
   return (
-    <article className="flex flex-col rounded-2xl bg-white/[0.03] p-5 transition-colors hover:bg-white/[0.045]">
-      <span className={cn('flex size-10 items-center justify-center rounded-xl', tone)}>
-        <Icon className="size-5 text-white" />
+    <article className={cn(PAGE_PANEL, 'flex flex-col p-5 transition-colors hover:border-white/20')}>
+      <span className={cn('flex size-10 items-center justify-center rounded-full', tone)}>
+        <Icon className="size-[18px] text-slate-200" />
       </span>
       <h2 className="mt-4 text-[15px] font-semibold text-white">{title}</h2>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-400">{description}</p>
@@ -34,10 +35,7 @@ function ImportPage() {
   return (
     <div className="h-full overflow-y-auto bg-background text-foreground">
       <div className="mx-auto flex max-w-[1180px] flex-col gap-8 px-6 py-8 sm:px-10">
-        <header>
-          <h1 className="text-xl font-semibold tracking-tight text-white">Import</h1>
-          <p className="mt-1 text-[13px] text-slate-400">Bring designs, code and data into {project.name}.</p>
-        </header>
+        <PageTitle title="Import" />
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {sources.map((source) => (
@@ -56,7 +54,7 @@ function ImportPage() {
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[13px] font-semibold text-white">Imported</h2>
+            <PageTitle as="h2" title="Imported" />
             {hasImportedCode && (
               <button
                 type="button"

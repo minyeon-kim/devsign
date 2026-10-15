@@ -93,7 +93,7 @@ export function useImportSources() {
     {
       id: 'github',
       icon: FolderGit2,
-      tone: 'bg-slate-700',
+      tone: 'bg-white/[0.08]',
       title: 'GitHub',
       description: "Import a repository's files into this project's file tree.",
       formats: ['owner/repo', 'https://github.com/…'],
@@ -108,7 +108,7 @@ export function useImportSources() {
     {
       id: 'figma',
       icon: Frame,
-      tone: 'bg-violet-500',
+      tone: 'bg-white/[0.08]',
       title: 'Figma design',
       description: 'Link a Figma file; its frames are available from Assets.',
       formats: ['figma.com/design/…', '.fig'],
@@ -126,7 +126,7 @@ export function useImportSources() {
     {
       id: 'zip',
       icon: FileArchive,
-      tone: 'bg-amber-500',
+      tone: 'bg-white/[0.08]',
       title: 'Zip file',
       description: "Upload a project archive. It's kept with the project's assets.",
       formats: ['.zip'],
@@ -135,7 +135,7 @@ export function useImportSources() {
     {
       id: 'spreadsheet',
       icon: FileSpreadsheet,
-      tone: 'bg-emerald-600',
+      tone: 'bg-white/[0.08]',
       title: 'Spreadsheet',
       description: 'CSV and TSV open as data files you can edit; Excel files join Assets.',
       formats: ['.csv', '.tsv', '.xlsx'],
@@ -144,7 +144,7 @@ export function useImportSources() {
     {
       id: 'code',
       icon: FileCode2,
-      tone: 'bg-sky-600',
+      tone: 'bg-white/[0.08]',
       title: 'Code files',
       description: 'Components, styles and config — added to the file tree and opened.',
       formats: ['.jsx', '.tsx', '.js', '.css', '.json', '.md'],
@@ -153,7 +153,7 @@ export function useImportSources() {
     {
       id: 'design',
       icon: PenTool,
-      tone: 'bg-rose-500',
+      tone: 'bg-white/[0.08]',
       title: 'Illustrator & images',
       description: 'Vector and image files for the canvas, kept in Assets.',
       formats: ['.ai', '.svg', '.png', '.jpg', '.pdf'],
@@ -166,7 +166,7 @@ export function FormatChips({ formats, className }) {
   return (
     <div className={cn('flex flex-wrap gap-1', className)}>
       {formats.map((f) => (
-        <span key={f} className="rounded-md bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10.5px] text-slate-400">
+        <span key={f} className="rounded-full bg-white/[0.06] px-2 py-0.5 font-mono text-[10.5px] text-slate-400">
           {f}
         </span>
       ))}
@@ -180,14 +180,14 @@ export function ImportedItems({ className, showPath = true }) {
   const importedCode = workspaceFiles.filter((f) => f.imported)
 
   if (importedCode.length + importedAssets.length === 0) {
-    return <p className="rounded-2xl bg-white/[0.03] px-4 py-8 text-center text-xs text-slate-500">Nothing imported yet.</p>
+    return <p className="rounded-[24px] border border-white/10 bg-card px-4 py-8 text-center text-xs text-slate-500">Nothing imported yet.</p>
   }
   return (
     <div className={className}>
       {importedCode.map((file) => {
         const { Icon, colorClass } = getFileIconMeta(file.name)
         return (
-          <div key={file.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px]">
+          <div key={file.id} className="flex items-center gap-2.5 rounded-[18px] px-3 py-2 text-[13px] transition-colors hover:bg-white/[0.04]">
             <Icon className={cn('size-4 shrink-0', colorClass)} />
             <span className="min-w-0 flex-1 truncate text-slate-200">{file.name}</span>
             {showPath && <span className="shrink-0 font-mono text-[11px] text-slate-500">{file.path}</span>}
@@ -197,8 +197,8 @@ export function ImportedItems({ className, showPath = true }) {
       {importedAssets.map((asset) => {
         const Icon = assetIcon(asset.kind)
         return (
-          <div key={asset.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px]">
-            <Icon className="size-4 shrink-0 text-violet-300" />
+          <div key={asset.id} className="flex items-center gap-2.5 rounded-[18px] px-3 py-2 text-[13px] transition-colors hover:bg-white/[0.04]">
+            <Icon className="size-4 shrink-0 text-slate-400" />
             <span className="min-w-0 flex-1 truncate text-slate-200">{asset.name}</span>
             <span className="shrink-0 text-[11px] text-slate-500">{showPath ? `Assets · ${asset.kind}` : 'Assets'}</span>
           </div>

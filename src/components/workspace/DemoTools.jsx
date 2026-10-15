@@ -40,7 +40,7 @@ export default function DemoTools({ onDone }) {
   }
   return (
     <section aria-label="Workspace data" className="mt-1 border-t border-white/10 pt-1">
-      <button type="button" disabled={busy} aria-busy={busy} className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-60" onClick={reset}>
+      <button type="button" disabled={busy} aria-busy={busy} className="flex h-8 w-full items-center gap-2 rounded-full px-2.5 text-left text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-60" onClick={reset}>
         {busy && <Loader2 className="size-3 animate-spin" aria-hidden />}
         Reset workspace data
       </button>

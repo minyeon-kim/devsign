@@ -146,17 +146,16 @@ const BADGE = {
   problem: 'bg-white/[0.07] text-slate-200',
   pending: 'bg-white/[0.06] text-slate-400',
 }
-// The card each step is, by where it stands — told apart by lightness, not
-// colour. Done: the plain card. Under way (or needing a person): a step
-// lighter, with a brighter hairline. Waiting: a dashed outline on no fill,
-// its text at half strength.
+// The card each step is, by where it stands: one solid, quiet surface (#232323 — a step above the panel's
+// #1C1C1C, not the lighter see-through white it was), told apart by its outline. Done: a faint hairline.
+// Under way (or needing a person): a brighter one. Waiting: a dashed outline on no fill, its text at half strength.
 const CARD = {
-  done: 'border-[var(--ds-border-subtle)] bg-[var(--ds-surface-1)]',
-  current: 'border-[var(--ds-border-strong)] bg-[var(--ds-surface-2)]',
-  problem: 'border-[var(--ds-border-strong)] bg-[var(--ds-surface-2)]',
+  done: 'border-[var(--ds-border-subtle)] bg-[#232323]',
+  current: 'border-[var(--ds-border-strong)] bg-[#232323]',
+  problem: 'border-[var(--ds-border-strong)] bg-[#232323]',
   pending: 'border-dashed border-white/[0.12] bg-transparent',
 }
-const HOVER = { done: 'hover:bg-white/[0.055]', current: 'hover:bg-white/[0.085]', problem: 'hover:bg-white/[0.085]', pending: '' }
+const HOVER = { done: 'hover:bg-[#272727]', current: 'hover:bg-[#272727]', problem: 'hover:bg-[#272727]', pending: '' }
 // (`last`, `arrive`, `strong`: kept for the callers — the record has no line between its cards any more.)
 // A card that's a section rather than a step (the detail's impact & evidence): `icon` in place of the
 // step's icon, `chip` — what to judge by without opening it — in place of its badge, and lighter while open.

@@ -1031,8 +1031,9 @@ export function WorkspaceProvider({ children, projectId }) {
     setComparePanelMode('regions')
     setCompareItemId(null)
     setSelectedMergeItemId(null)
-    setActiveView('mergeStudio')
-  }, [setCompareItemId, setSelectedMergeItemId, requestCompareDrawer, setActiveView])
+    // (The view stays as it is — the board, the code — with the list beside it: Merge Studio's canvas has
+    // nothing on it until a set is composed, so it comes up only with 조합하기 (openMergeStudio).)
+  }, [setCompareItemId, setSelectedMergeItemId, requestCompareDrawer])
 
   const exitMergeStudio = useCallback(() => {
     setActiveView('workspace')

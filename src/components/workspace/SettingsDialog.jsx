@@ -10,10 +10,8 @@ const LANGUAGES = [
   ['ko', '한국어'],
 ]
 
-// Plain rows, no boxes or rules: "Language ··· English 한국어" with both
-// choices right in the row as text toggles — two options don't need a
-// menu of their own popping out of the popover — then, under a rule, the
-// reset row.
+// As the Workspace's controls: "Language" with its two choices as the segmented capsule (미리보기 · 화면 ·
+// 코드's), then, under a rule, the reset row.
 export function SettingsContent({ onDone }) {
   const language = useLanguage()
   useDemoStorageWarnings()
@@ -21,7 +19,7 @@ export function SettingsContent({ onDone }) {
     <div className="space-y-0.5">
       <section className="flex h-8 items-center justify-between gap-2 px-2">
         <span id="app-language-label" className="text-xs text-slate-300">Language</span>
-        <div role="radiogroup" aria-labelledby="app-language-label" className="flex items-center gap-x-3">
+        <div role="radiogroup" aria-labelledby="app-language-label" className="flex h-7 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5">
           {LANGUAGES.map(([id, label]) => (
             <button
               key={id}
@@ -31,8 +29,8 @@ export function SettingsContent({ onDone }) {
               translate="no"
               onClick={() => setLanguage(id)}
               className={cn(
-                'ds-intrinsic inline-flex h-5 items-center text-xs whitespace-nowrap transition-colors',
-                language === id ? 'font-medium text-white' : 'text-slate-500 hover:text-slate-300'
+                'ds-intrinsic inline-flex h-6 items-center rounded-full px-2.5 text-xs whitespace-nowrap transition-colors',
+                language === id ? 'bg-white/[0.16] font-semibold text-white shadow-[0_1px_2px_rgb(0_0_0/0.35)]' : 'text-slate-400 hover:text-slate-200'
               )}
             >
               {label}
@@ -54,8 +52,8 @@ export default function SettingsDialog({ triggerClassName }) {
       <PopoverTrigger aria-label="Settings" title="Settings" className={triggerClassName}>
         <Settings className="size-[18px]" />
       </PopoverTrigger>
-      <PopoverContent side="right" align="end" sideOffset={14} alignOffset={8} className="w-56 gap-1 rounded-xl border-white/10 bg-popover p-1.5 shadow-xl">
-        <PopoverTitle className="px-2 pt-1 pb-0.5 text-[11px] font-medium text-slate-500">Settings</PopoverTitle>
+      <PopoverContent side="right" align="end" sideOffset={14} alignOffset={8} className="w-64 gap-1 rounded-[20px] border-white/10 bg-popover p-2 shadow-xl">
+        <PopoverTitle className="px-2 pt-1 pb-1 text-[13px] font-semibold text-foreground">Settings</PopoverTitle>
         <SettingsContent onDone={() => setOpen(false)} />
       </PopoverContent>
     </Popover>

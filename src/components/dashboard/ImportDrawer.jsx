@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from 'cn'
+import { LocalizedText } from '@/i18n/runtime'
 import { FormatChips, ImportedItems, useImportSources } from '@/components/import/importSources'
 
 // The drawer behind the activity bar's Import icon — beside the Workspace
@@ -20,15 +21,15 @@ function ImportDrawer({ project }) {
         const Icon = source.icon
         const open = openId === source.id
         return (
-          <div key={source.id} className={cn('rounded-xl transition-colors', open ? 'bg-white/[0.04]' : 'hover:bg-white/[0.03]')}>
+          <div key={source.id} className={cn('rounded-[18px] transition-colors', open ? 'bg-white/[0.04]' : 'hover:bg-white/[0.03]')}>
             <button
               type="button"
               aria-expanded={open}
               onClick={() => setOpenId(open ? null : source.id)}
               className="flex w-full items-center gap-2.5 px-2.5 py-2 text-left"
             >
-              <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', source.tone)}>
-                <Icon className="size-3.5 text-white" />
+              <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full', source.tone)}>
+                <Icon className="size-3.5 text-slate-200" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium text-slate-100">{source.title}</span>
@@ -47,7 +48,8 @@ function ImportDrawer({ project }) {
         )
       })}
 
-      <p className="mt-5 mb-1 px-2.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Imported</p>
+      {/* (A section title as the Workspace's lists have: no capitals.) */}
+      <h3 className="mt-5 mb-1 px-2.5 text-[13px] font-semibold text-slate-300"><LocalizedText text="Imported" /></h3>
       <ImportedItems showPath={false} />
     </div>
   )
