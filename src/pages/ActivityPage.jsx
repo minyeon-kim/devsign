@@ -48,18 +48,16 @@ function ActivityPage() {
   }, [activeFilter, projectFilter])
 
   return (
-    <DashboardLayout
-      projectProportions
-      rightColumn={
-        <>
-          <ActivityOverview />
-          <MostActiveProjects />
-          <StayInSync />
-        </>
-      }
-    >
+    <DashboardLayout projectProportions>
       {/* (The path in the top bar says where you are: no back arrow, no icon, no line of explanation.) */}
       <PageTitle title="All activities" />
+
+      {/* The week at a glance first — how much happened, where — then the feed under it. */}
+      <div data-activity-summary className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <ActivityOverview />
+        <MostActiveProjects />
+        <StayInSync />
+      </div>
 
       <ActivityFilterBar
         activeFilter={activeFilter}
