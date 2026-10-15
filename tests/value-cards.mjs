@@ -14,7 +14,8 @@ try {
   assert.deepEqual([CROP_PAD, CARD_PAD, MAX_SCALE], [16, 12, 8])
   // The element, not the screen: the icon 16 + 16 + 16, the button 240 × 44 + 16 round it.
   assert.deepEqual(cropOf(byId('CON-013'), canvasPages).box, { x: 4, y: 281, width: 48, height: 48 })
-  assert.deepEqual(cropOf(byId('CON-014'), canvasPages).box, { x: 4, y: 478, width: 272, height: 76 })
+  // (The button's "Total" label right above it, which 16px would cut in half, is taken in whole.)
+  assert.deepEqual(cropOf(byId('CON-014'), canvasPages).box, { x: 4, y: 452, width: 272, height: 102 })
   // Fitted to the inside, never past 8×; 1:1 for a near-square crop, 4:3 for a wide one.
   assert.equal(fitOf({ width: 48, height: 48 }, { width: 124, height: 124 }), 124 / 48)
   assert.equal(fitOf({ width: 10, height: 10 }, { width: 124, height: 124 }), 8)

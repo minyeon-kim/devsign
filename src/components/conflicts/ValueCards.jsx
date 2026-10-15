@@ -23,11 +23,27 @@ export const CARD_PAD = 12
 export const MAX_SCALE = 8
 
 // The element's box on its screen, 16px round it — and the screen. Null when it isn't on one.
+// (A neighbour right above or below that the 16px would cut through — a label over a button — is taken in
+// whole, then 16px round that: a crop never shows half a line of text. The screen's own backdrops, over half
+// its size, aren't.)
 export function cropOf(conflict, pages) {
   for (const page of pages) {
     for (const frame of page.frames ?? []) {
       const layer = frame.layers?.find((entry) => entry.id === conflict?.layerId)
-      if (layer) return { frame, box: { x: layer.x - CROP_PAD, y: layer.y - CROP_PAD, width: layer.width + CROP_PAD * 2, height: layer.height + CROP_PAD * 2 } }
+      if (!layer) continue
+      const padded = { x: layer.x - CROP_PAD, y: layer.y - CROP_PAD, right: layer.x + layer.width + CROP_PAD, bottom: layer.y + layer.height + CROP_PAD }
+      let area = { x: layer.x, y: layer.y, right: layer.x + layer.width, bottom: layer.y + layer.height }
+      for (const other of frame.layers) {
+        if (other === layer || other.width * other.height > (frame.width * frame.height) / 2) continue
+        // (Only one right above or below it — sharing its columns. One beside it, an icon's label, stays out.)
+        const cut = other.x < layer.x + layer.width && other.x + other.width > layer.x && other.y < padded.bottom && other.y + other.height > padded.y
+        if (cut) area = { x: Math.min(area.x, other.x), y: Math.min(area.y, other.y), right: Math.max(area.right, other.x + other.width), bottom: Math.max(area.bottom, other.y + other.height) }
+      }
+      const x = Math.max(0, area.x - CROP_PAD)
+      const y = Math.max(0, area.y - CROP_PAD)
+      const right = Math.min(frame.width ?? Infinity, area.right + CROP_PAD)
+      const bottom = Math.min(frame.height ?? Infinity, area.bottom + CROP_PAD)
+      return { frame, box: { x, y, width: right - x, height: bottom - y } }
     }
   }
   return null

@@ -104,15 +104,16 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
         : 'absolute inset-y-2 right-2 z-30 flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-2xl shadow-black/50 animate-in fade-in slide-in-from-right-2 duration-200 motion-reduce:animate-none'}
       style={{ width: picked ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH, maxWidth: host || docked ? undefined : 'calc(100% - 16px)', '--background': '#1C1C1C' }}
     >
-      {/* (No header row: the list's is the tab row's end over it — Conflict · Merge and × — and a change's
-          detail has its way back and its comparison on its own title's line.) */}
+      {/* (No header row: the tab row's end over it is — Conflict · Merge and ×, and on a change's detail the
+          way back at its left. The detail's comparison is at its own title line's end.) */}
       {picked ? (
         // (The change's own detail — the same as the pane's, in this panel's column.)
         <div data-board-conflict-detail className="min-h-0 flex-1 overflow-hidden">
           <ReviewDetail
             page
             conflict={picked}
-            onBack={onBack}
+            // (Floating, with no tab row over it: the way back on the title's line instead.)
+            onBack={host || docked ? null : onBack}
             headerAside={compareItem && onOpenCompare ? <button type="button" data-board-conflicts-compare onClick={() => onOpenCompare(compareItem)} aria-label={translateText('Open in Design Compare', language)} title={translateText('Open in Design Compare', language)} className={HEADER_BUTTON}><Layers3 className="size-4" /></button> : null}
           />
         </div>

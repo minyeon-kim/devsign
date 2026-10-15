@@ -3,7 +3,7 @@ import { MergeDeckSlotContext } from '@/components/mergestudio/MergeDeckSlot'
 import { DOCUMENT_DRAG_TYPE, documentTarget, openWorkspaceDocument } from '@/lib/workspaceDocuments'
 import DocumentPanel from '@/components/dockview/panels/DocumentPanel'
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
-import { TriangleAlert, X } from 'lucide-react'
+import { ChevronLeft, TriangleAlert, X } from 'lucide-react'
 import { BOARD_DETAIL_WIDTH, BOARD_PANEL_WIDTH } from '@/components/screens/BoardConflicts'
 import { designComparePanelWidth } from '@/components/workspace/WorkspaceDesignComparePanel'
 import { designSetsOf } from '@/lib/designSets'
@@ -643,7 +643,17 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     // (Its width: the panel's, less the row's 8px at the right — so its left edge is the panel's.)
     <div data-panel-tabs={openPanel ?? undefined} onPointerDown={(event) => event.stopPropagation()}
       style={panelWidth ? { width: panelWidth - 8 } : undefined}
-      className={cn('flex shrink-0 items-center gap-1.5 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'pl-2')}>
+      className={cn('flex shrink-0 items-center gap-1.5 transition-[width] duration-[260ms] ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none', panelWidth && 'relative isolate pl-2')}>
+      {/* (Open, the row behind it is the panel's: its surface and left hairline run up to the window's top, so
+          the capsule is the panel's header — not a pill on the tab row over a panel that starts under it.) */}
+      {openPanel === 'conflicts' && <span aria-hidden data-panel-tabs-backdrop className="absolute -inset-y-1 left-0 -right-2 -z-10 border-l border-white/[0.06] bg-[#1C1C1C]" />}
+      {/* (On a change's detail: the way back to the list, at the header's left.) */}
+      {openPanel === 'conflicts' && boardConflicts.conflictId && (
+        <button type="button" data-board-conflicts-back onClick={() => setBoardConflicts({ conflictId: null })}
+          className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full pr-2.5 pl-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 animate-in fade-in duration-150 motion-reduce:animate-none">
+          <ChevronLeft aria-hidden className="size-4" />Back to the list
+        </button>
+      )}
       {/* (One capsule — Conflict · Merge, and × as its last segment while either is open — at the right.) */}
       <div className={cn('flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/[0.06] p-0.5', openPanel && 'ml-auto')}>
         <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
