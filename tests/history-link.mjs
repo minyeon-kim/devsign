@@ -90,15 +90,12 @@ console.log('history-link: ok')
   console.log('history-link (structure): ok')
 }
 
-// ── The top bar: the other layers' own — 워크스페이스 › 히스토리, Close, Esc. ──
+// ── The path: the app's top bar's — … › 워크스페이스 › 히스토리 (워크스페이스 closes it), and Esc; no bar of the layer's own. ──
 {
   const overlay = read('src/components/history/HistoryOverlay.jsx')
-  const BAR = 'className="h-16 pt-0" rowClassName="h-12">'
-  for (const file of ['src/components/history/HistoryOverlay.jsx', 'src/components/docs/DocsOverlay.jsx', 'src/components/conflicts/ConflictReviewOverlay.jsx']) assert.ok(read(file).includes(BAR), `${file}: the same bar`)
-  const CLOSE = 'className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"'
-  assert.ok(overlay.includes(CLOSE) && read('src/components/conflicts/ConflictReviewOverlay.jsx').includes(CLOSE), 'the same Close button')
-  assert.ok(overlay.includes("title={`${translateText('Close', language)} · Esc`}"))
-  assert.ok(overlay.includes("items={[{ label: 'Workspace', onClick: closeHistory }, { label: 'History', onClick: requestHistoryDrawer }]}") && overlay.includes('onClick={closeHistory}') && !overlay.includes('projectCrumbs'))
+  for (const file of ['src/components/history/HistoryOverlay.jsx', 'src/components/docs/DocsOverlay.jsx', 'src/components/conflicts/ConflictReviewOverlay.jsx']) assert.ok(!read(file).includes('<BreadcrumbBar') && read(file).includes('absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10'), `${file}: in the canvas window's place, no bar of its own`)
+  const topBar = read('src/components/layout/TopBar.jsx')
+  assert.ok(topBar.includes("historyOpen ? { label: 'History', close: closeHistory, list: requestHistoryDrawer }") && topBar.includes("{ label: 'Workspace', onClick: layer.close }"))
   // The count, the ⓘ and the filter's badge stay after the path.
   // (The path says nothing after it: the count is the drawer's title's, the filters' state is their chips'.)
   assert.ok(!overlay.includes('checkpoints`}') && !overlay.includes('data-history-info') && !overlay.includes('data-history-scope') && !overlay.includes('meta={'))
@@ -115,7 +112,7 @@ console.log('history-link: ok')
 // ── The viewer and the timeline start on the path's line, in the page's column. ──
 {
   const overlay = read('src/components/history/HistoryOverlay.jsx')
-  assert.ok(overlay.includes("<div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-2 pb-4')}>"), 'the path\'s column, 8px under the bar — as Docs and a change\'s title row')
+  assert.ok(overlay.includes("<div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-6 pb-4')}>"), 'the page\'s column, 24px under the window\'s top')
   assert.ok(!overlay.includes('flex-col gap-3 p-4'))
   // The viewer fills what's left; the timeline is under it.
   const body = overlay.slice(overlay.indexOf('data-history-body'))

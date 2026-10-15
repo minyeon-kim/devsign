@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Layers3, X } from 'lucide-react'
+import { Layers3 } from 'lucide-react'
+import { cn } from 'cn'
 import { conflictListRecord } from '@/lib/conflicts'
 import { reviewForDesign } from '@/lib/designReview'
 import { translateText } from '@/i18n/translate'
 import { useLanguage } from '@/i18n/language'
 import ReviewDetail from '@/components/conflicts/ReviewDetail'
 import { useWorkspace } from '@/state/WorkspaceProvider'
-import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
 import { ReviewHeaderSlotContext } from '@/components/conflicts/ReviewHeaderSlot'
 
 // A conflict's detail, full-screen: it covers the whole work area (editor,
@@ -18,7 +18,7 @@ import { ReviewHeaderSlotContext } from '@/components/conflicts/ReviewHeaderSlot
 // there's never a second copy and closing it always returns to where you
 // were: the Close button, Escape, or the review's own back arrow.
 function ConflictReviewOverlay({ inMergeStudio = false }) {
-  const { conflicts, mergeItems, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost, openCompareView, selectConflictPin } = useWorkspace()
+  const { conflicts, mergeItems, reviewConflictId, reviewView, openConflictReview, workPane, workPaneHost, openCompareView, selectConflictPin } = useWorkspace()
   const conflict = reviewView === 'overlay' ? conflicts.find((c) => c.id === reviewConflictId && conflictListRecord(c)) ?? null : null
   const closeRef = useRef(null)
   // (The header's slot for the detail's view controls — 원안 보기, 전체 화면 — beside Close.)
@@ -61,19 +61,10 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
   // there and the Workspace stays in view beside it. Without the pane it covers the work area, as before.
   const inPane = !inMergeStudio && workPane === 'conflicts' && workPaneHost
   const layer = (
-    <div data-review-overlay data-in-pane={inPane ? '' : undefined} role="dialog" aria-label="Conflict detail" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-background">
-      {/* Where this is: a layer over the Workspace — 워크스페이스 › 변경확인. The
-          path's first item goes where Close goes (it closes the detail: back to
-          the Workspace's canvas); the last is where you are — the change list —
-          and pressing it brings the left list up when it's been closed. The
-          project isn't named here: the Workspace's own top bar already does.
-          Close is at the end of the row: its right edge is the title's and the
-          side panel's too. */}
-      {/* (The full-page detail's top bar: against the top of the screen, 48px tall, the path and
-          Close centred in it. The bar's place is still 64px, so everything under it is where it was.) */}
-      <BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">
-        <Breadcrumb items={[{ label: 'Workspace', onClick: () => openConflictReview(null) }, { label: 'Conflicts', onClick: () => requestConflictDrawer(conflict.id) }]} />
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+    <div ref={closeRef} tabIndex={-1} data-review-overlay data-in-pane={inPane ? '' : undefined} role="dialog" aria-label="Conflict detail" className={cn(inPane ? 'absolute inset-0 z-[650] flex min-h-0 flex-col' : 'absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10', 'bg-background outline-none')}>
+      {/* (No path or Close of its own: the app's top bar says where this is — … › 워크스페이스 › 변경확인 — and
+          Esc closes it. What's left of the row, the detail's own view controls, sits at its top right.) */}
+      <div className="absolute top-3 right-4 z-10 flex shrink-0 items-center gap-1">
         {designSet && (
           <button
             type="button"
@@ -87,20 +78,8 @@ function ConflictReviewOverlay({ inMergeStudio = false }) {
           </button>
         )}
         <div ref={setActionsSlot} data-review-actions className="flex shrink-0 items-center gap-0.5 empty:hidden" />
-        <button
-          ref={closeRef}
-          type="button"
-          data-review-overlay-close
-          aria-label="Close"
-          title={`${translateText('Close', language)} · Esc`}
-          onClick={() => openConflictReview(null)}
-          className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
-        >
-          <X className="size-4" />
-        </button>
-        </div>
-      </BreadcrumbBar>
-      <div className="min-h-0 flex-1">
+      </div>
+      <div className="min-h-0 flex-1 pt-4">
         <ReviewHeaderSlotContext.Provider value={actionsSlot}>
           <ReviewDetail page conflict={conflict} inMergeStudio={inMergeStudio} />
         </ReviewHeaderSlotContext.Provider>

@@ -1,11 +1,8 @@
 import { toast } from '@/i18n/toast'
 import { useHistoryPlayback } from '@/components/history/useHistoryPlayback'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X } from 'lucide-react'
 import { cn } from 'cn'
-import Breadcrumb, { BREADCRUMB_COLUMN, BreadcrumbBar } from '@/components/layout/Breadcrumb'
-import { translateText } from '@/i18n/translate'
-import { useLanguage } from '@/i18n/language'
+import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
 import HistoryCompare from '@/components/history/HistoryCompare'
 import HistoryTimeline from '@/components/history/HistoryTimeline'
 import RollbackCheckpointModal from '@/components/history/RollbackCheckpointModal'
@@ -27,8 +24,7 @@ import { branchColors, foldConflictCheckpoints, withBranches } from '@/lib/histo
 // as a new checkpoint.
 // (Mounted only while the layer is open: nothing here runs — no keys, no playback — when it isn't.)
 function HistoryLayer() {
-  const { closeHistory, requestHistoryDrawer, historyEntries, conflicts, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
-  const language = useLanguage()
+  const { closeHistory, historyEntries, conflicts, historyFilter, archiveHistoryEntry, restoreHistoryEntry } = useWorkspace()
   const [selectedId, select] = useSelectedCheckpoint()
   const [rollbackId, setRollbackId] = useState(null)
   // What the checkpoint in view is compared with — the one before it, or the
@@ -105,34 +101,14 @@ function HistoryLayer() {
   return (
     // (In the canvas window's place — under the app's top bar, 8px in from the right and the bottom, the windows'
     // 24px corners — not over the whole screen: the path, the search and the bell stay, as for any other view.)
-    <div data-history-overlay role="dialog" aria-label="History" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
-      {/* The same top bar as the other layers: against the top, a 48px row in a
-          64px place, Close at its right. The path says where this is —
-          워크스페이스 › 히스토리 — its first item going where Close goes; "히스토리"
-          is where you are, and pressing it brings the drawer up when it's been
-          closed. Nothing after the path: how many versions there are, and the
-          filter narrowing the playback, are the drawer's to say. */}
-      <BreadcrumbBar data-history-title className="h-16 pt-0" rowClassName="h-12">
-        <Breadcrumb
-          items={[{ label: 'Workspace', onClick: closeHistory }, { label: 'History', onClick: requestHistoryDrawer }]}
-        />
-        <button
-          ref={closeRef}
-          type="button"
-          data-history-overlay-close
-          aria-label="Close"
-          title={`${translateText('Close', language)} · Esc`}
-          onClick={closeHistory}
-          className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
-        >
-          <X className="size-4" />
-        </button>
-      </BreadcrumbBar>
+    <div ref={closeRef} tabIndex={-1} data-history-overlay role="dialog" aria-label="History" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card outline-none text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
+      {/* (No bar of its own: the app's top bar says where this is — … › 워크스페이스 › 히스토리, 워크스페이스
+          closing it — and Esc closes it too.) */}
 
       {/* The viewer and the timeline, in the page's column: the same left line as the path, starting 8px
           under the bar — where a change's detail has its title row. The viewer takes the height that's
           left; the timeline stays at the foot. */}
-      <div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-2 pb-4')}>
+      <div data-history-body className={cn(BREADCRUMB_COLUMN, 'flex min-h-0 flex-1 flex-col gap-3 pt-6 pb-4')}>
         <div className="min-h-0 flex-1">
           <HistoryCompare
             entryId={selectedId}

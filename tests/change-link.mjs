@@ -68,9 +68,10 @@ console.log('change-link: ok')
 // ── The detail's path: 워크스페이스 › 확인할 변경점 — its first item goes where Close goes. ──
 {
   const overlay = read('src/components/conflicts/ConflictReviewOverlay.jsx')
-  assert.ok(overlay.includes("<Breadcrumb items={[{ label: 'Workspace', onClick: () => openConflictReview(null) }, { label: 'Conflicts', onClick: () => requestConflictDrawer(conflict.id) }]} />"))
-  assert.ok(overlay.includes('onClick={() => openConflictReview(null)}') && !overlay.includes('projectCrumbs'), 'Close and the first item do the same thing; the project isn\'t in the path')
-  assert.ok(overlay.includes('<BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">'), 'the bar is where it was')
+  // (The path is the app's top bar's: … › 워크스페이스 › 변경확인 — 워크스페이스 closes the detail.)
+  const topBar = read('src/components/layout/TopBar.jsx')
+  assert.ok(topBar.includes("{ label: 'Conflicts', close: () => openConflictReview(null), list: () => requestConflictDrawer(reviewConflictId) }") && !overlay.includes('<Breadcrumb'))
+  assert.ok(!overlay.includes('projectCrumbs') && !overlay.includes('<BreadcrumbBar'), 'no path or Close of its own: the top bar\'s 워크스페이스 closes it')
   // Where you are stays marked when it's pressable.
   assert.ok(read('src/components/layout/Breadcrumb.jsx').includes('<button type="button" aria-current="page" onClick={item.onClick}'))
   console.log('change-link (path): ok')

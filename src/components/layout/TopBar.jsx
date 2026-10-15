@@ -42,8 +42,20 @@ function ActionTooltip({ label, children }) {
 }
 
 function TopBar({ project }) {
+  const { historyOpen, closeHistory, requestHistoryDrawer, docParam, docsParam, openDocs, closeDocs, requestDocsDrawer, reviewConflictId, reviewView, openConflictReview, requestConflictDrawer, workPane, workPaneHost } = useWorkspace()
   const { conflicts, mergeItems, exitMergeStudio, activeView, requestMergeFocus, openMergeStudio, openConflictFromNotification, mergeDrawer, setMergeDrawer, aiChat, setAiChat, chatUnread, chatAwaitingApproval } = useWorkspace()
   const inboxOpen = mergeDrawer === 'inbox'
+  // A layer open in the canvas window's place (History, Docs, a change's detail) is the path's last step:
+  // … › 워크스페이스 › 히스토리 — 워크스페이스 closes it, the last brings its list up in the sidebar.
+  const changeOpen = Boolean(reviewConflictId) && reviewView === 'overlay' && !(workPane === 'conflicts' && workPaneHost)
+  const layer = historyOpen ? { label: 'History', close: closeHistory, list: requestHistoryDrawer }
+    // (문서: back to the list — the drawer up, the index if a document or the updates are showing.)
+    : docParam || docsParam ? { label: 'Docs', close: closeDocs, list: () => { requestDocsDrawer(); if (docParam || docsParam !== 'index') openDocs({ docs: 'index' }) }, then: docsParam === 'updates' ? 'Document updates' : null }
+      : changeOpen ? { label: 'Conflicts', close: () => openConflictReview(null), list: () => requestConflictDrawer(reviewConflictId) }
+        : null
+  const crumbs = layer
+    ? [...projectCrumbs(project), { label: 'Workspace', onClick: layer.close }, { label: layer.label, onClick: layer.list }, ...(layer.then ? [{ label: layer.then }] : [])]
+    : [...projectCrumbs(project), { label: 'Workspace' }]
 
   return (
     <>
@@ -51,7 +63,7 @@ function TopBar({ project }) {
           typing filters commands, ⌘K focuses it), then who else is here, Share, the Inbox and AI Chat. */}
       <AppTopBar
         className="absolute inset-x-0 top-0 z-40"
-        crumbs={[...projectCrumbs(project), { label: 'Workspace' }]}
+        crumbs={crumbs}
         search={<HeaderCommandSearch className="w-full" />}
         actions={<div className="workspace-canvas-toolbar flex items-center gap-2">
         <div className="ds-header-pill flex h-8 items-center gap-2 rounded-full px-2">

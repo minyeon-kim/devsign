@@ -1,9 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { FileText, X } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { cn } from 'cn'
-import Breadcrumb, { BreadcrumbBar } from '@/components/layout/Breadcrumb'
-import { translateText } from '@/i18n/translate'
-import { useLanguage } from '@/i18n/language'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ReferenceDocView, { DOC_TYPES } from '@/components/archive/ReferenceDocView'
 import DesignSystemUpdates from '@/components/archive/DesignSystemUpdates'
@@ -105,8 +102,7 @@ function resolveView(docId, docsView, referenceDocs) {
 // goes where Close goes; the project and a document's categories aren't in it
 // (the category path is the document's own meta line).
 function DocsOverlay() {
-  const { referenceDocs, docParam, docsParam, openDoc, openDocs, closeDocs, requestDocsDrawer, openHistory: openHistoryLayer } = useWorkspace()
-  const language = useLanguage()
+  const { referenceDocs, docParam, docsParam, openDoc, closeDocs, openHistory: openHistoryLayer } = useWorkspace()
   const view = resolveView(docParam, docsParam, referenceDocs)
   const open = Boolean(view)
   const closeRef = useRef(null)
@@ -134,35 +130,13 @@ function DocsOverlay() {
 
   if (!view) return null
   const tree = buildDocTree(referenceDocs)
-  // "문서": where you are. From a document (or the updates) it goes to the list; the drawer comes up if it's been closed.
-  const toIndex = () => { requestDocsDrawer(); if (view.kind !== 'index') openDocs({ docs: 'index' }) }
   // (To the History layer, on that checkpoint: a step of its own — Back returns here.)
   const openHistory = (checkpointId) => openHistoryLayer(checkpointId ?? null, { flash: true })
 
   return (
-    <div data-docs-overlay={view.kind} role="dialog" aria-label="Docs" className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
-      <BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">
-        <Breadcrumb
-          items={[
-            { label: 'Workspace', onClick: closeDocs },
-            ...(view.kind === 'dsUpdates'
-              ? [{ label: 'Docs', onClick: toIndex }, { label: 'Document updates' }]
-              : [{ label: 'Docs', onClick: toIndex }]),
-          ]}
-        />
-        <button
-          ref={closeRef}
-          type="button"
-          data-docs-overlay-close
-          aria-label="Close"
-          title={`${translateText('Close', language)} · Esc`}
-          onClick={closeDocs}
-          className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"
-        >
-          <X className="size-4" />
-        </button>
-      </BreadcrumbBar>
-      <div data-docs-scroll className="min-h-0 flex-1 overflow-y-auto">
+    <div ref={closeRef} tabIndex={-1} data-docs-overlay={view.kind} role="dialog" aria-label="Docs" className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card outline-none text-foreground animate-in fade-in duration-150 motion-reduce:animate-none">
+      {/* (No bar of its own: the app's top bar says where this is — … › 워크스페이스 › 문서. Esc closes it.) */}
+      <div data-docs-scroll className="min-h-0 flex-1 overflow-y-auto pt-4">
         {view.kind === 'doc' && <ReferenceDocView key={view.doc.id} doc={view.doc} path={docPath(tree, view.doc.id) ?? []} page />}
         {view.kind === 'dsUpdates' && <div data-docs-updates className={READING}><DesignSystemUpdates onOpenDoc={openDoc} onOpenHistory={openHistory} className="px-0 py-0" /></div>}
         {view.kind === 'index' && <DocsIndex tree={tree} onOpen={openDoc} />}

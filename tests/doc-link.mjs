@@ -70,10 +70,10 @@ console.log('doc-link: ok')
 // ── The layer's structure: the Workspace's, with the Docs drawer beside it — as a change's detail has its list. ──
 {
   const overlay = read('src/components/docs/DocsOverlay.jsx')
-  assert.ok(overlay.includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-card') && overlay.includes('animate-in fade-in duration-150'), 'the same layer as the change\'s detail: over the work area, same level, same surface')
+  assert.ok(overlay.includes('className="absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-card') && overlay.includes('animate-in fade-in duration-150'), 'the same layer as the change\'s detail: in the canvas window\'s place, same level')
   // (The change's detail: the same layer, on the app's own ground (#141414), and in place at once — swapped
   // for the list it's opened from, never faded over it.)
-  assert.ok(read('src/components/conflicts/ConflictReviewOverlay.jsx').includes('className="absolute inset-0 z-[650] flex min-h-0 flex-col bg-background">'))
+  assert.ok(read('src/components/conflicts/ConflictReviewOverlay.jsx').includes("'absolute top-[var(--ds-chrome-size)] right-2 bottom-2 left-0 z-[650] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10', 'bg-background outline-none'"))
   const provider = read('src/state/WorkspaceProvider.jsx')
   const rule = provider.slice(provider.indexOf('const openedDocs = useRef(false)'), provider.indexOf('  const value = {'))
   assert.ok(rule.includes('exitMergeStudio()') && rule.includes('requestDocsDrawer()'), 'open ⇒ the Workspace\'s own view and the Docs drawer')
@@ -89,15 +89,12 @@ console.log('doc-link: ok')
 {
   const overlay = read('src/components/docs/DocsOverlay.jsx')
   const change = read('src/components/conflicts/ConflictReviewOverlay.jsx')
-  const BAR = '<BreadcrumbBar className="h-16 pt-0" rowClassName="h-12">'
-  assert.ok(overlay.includes(BAR) && change.includes(BAR))
-  const CLOSE = 'className="ds-intrinsic ml-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300"'
-  assert.ok(overlay.includes(CLOSE) && change.includes(CLOSE), 'the same Close button')
-  assert.ok(overlay.includes("title={`${translateText('Close', language)} · Esc`}"))
-  // 워크스페이스 › 문서 (› 문서 업데이트): the first item closes, as Close does; the project and the categories aren't in it.
-  assert.ok(overlay.includes("{ label: 'Workspace', onClick: closeDocs }") && overlay.includes('onClick={closeDocs}'))
-  assert.ok(overlay.includes("[{ label: 'Docs', onClick: toIndex }, { label: 'Document updates' }]") && overlay.includes(": [{ label: 'Docs', onClick: toIndex }]"))
-  assert.ok(!overlay.includes('projectCrumbs') && overlay.includes("requestDocsDrawer(); if (view.kind !== 'index') openDocs({ docs: 'index' })"))
+  // (Neither has a bar of its own: the app's top bar says where they are.)
+  assert.ok(!overlay.includes('<BreadcrumbBar') && !change.includes('<BreadcrumbBar'))
+  // … › 워크스페이스 › 문서 (› 문서 업데이트), in the top bar: 워크스페이스 closes it; 문서 goes back to the list.
+  const topBar = read('src/components/layout/TopBar.jsx')
+  assert.ok(topBar.includes("{ label: 'Docs', close: closeDocs,") && topBar.includes("openDocs({ docs: 'index' })") && topBar.includes("'Document updates'"))
+  assert.ok(!overlay.includes('projectCrumbs'))
   // The category path is the document's own meta line.
   assert.ok(overlay.includes('path={docPath(tree, view.doc.id) ?? []}') && read('src/components/archive/ReferenceDocView.jsx').includes('data-doc-path'))
   // Esc and focus, as the change's detail does.
