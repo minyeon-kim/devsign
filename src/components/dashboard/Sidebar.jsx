@@ -55,6 +55,11 @@ export const RAIL_WIDTH = 'w-[var(--ds-chrome-size)]'
 // An icon-only activity bar button, named by its tooltip.
 // (`side`: where the tooltip goes — away from the edge the rail is on.)
 // (`hint`: its shortcut, said after the name.)
+// A hairline between the rail's groups (the switch, the pages, the panels).
+function RailRule() {
+  return <span aria-hidden data-rail-rule className="mx-auto my-1 h-px w-5 shrink-0 bg-white/10" />
+}
+
 export function RailButton({ label, icon: Icon, className, iconClassName, side = 'right', hint = null, ...triggerProps }) {
   return (
     <Tooltip>
@@ -153,27 +158,22 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         </span>
       </div>
 
-      {/* (The sidebar's switch: under the project's mark, in the same place open or folded.) */}
+      {/* (The sidebar's switch: under the project's mark, in the same place open or folded — set apart from the
+          places below by a rule: it folds the sidebar, it doesn't go anywhere.) */}
       {project && <SidebarToggle />}
+      {project && <RailRule />}
 
       <nav aria-label="Main" className="flex flex-col gap-1">
         {project ? (
           <>
-            {/* Home (outside a project) and this button lead to the same
-                /dashboard route — the same name and the same icon, so it reads
-                as one destination in both places, not two different ones. */}
-            {/* Inside a project, Home is the project's own home (its overview); the global Home is the project
-                switcher's first item (the mark above) and the path's first crumb. */}
+            {/* Pages — the view changes: the project's home (the global Home is the project switcher's first item,
+                the mark above, and the path's first crumb), then the Workspace. */}
             <RailButton label="Project home" icon={House} render={<Link to={base} />} aria-current={path === base ? 'page' : undefined} className={cn(path === base && !drawer && activeClass)} />
             {/* The split code-editor/canvas layout, same shape as the icon. */}
             <RailButton label="Workspace" icon={LayoutPanelLeft} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
-            <RailButton
-              label="Docs"
-              icon={BookOpen}
-              onClick={() => onToggleDrawer('docs')}
-              aria-expanded={drawer === 'docs'}
-              className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
-            />
+            <RailRule />
+            {/* Panels — a list opens in the sidebar beside the view (what the switch above folds): History first,
+                the one used most while working, then Docs. */}
             {/* Open the list first; choosing a checkpoint opens its viewer. */}
             <RailButton
               label="History"
@@ -183,16 +183,15 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
               aria-current={onHistory ? 'page' : undefined}
               className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
+            <RailButton
+              label="Docs"
+              icon={BookOpen}
+              onClick={() => onToggleDrawer('docs')}
+              aria-expanded={drawer === 'docs'}
+              className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
+            />
             {/* (No Conflict Points here: the changes are on the canvas — the Screens board's list and counts,
                 the canvas's pins — and a notice or a link still opens their pane.) */}
-            {/* A drawer beside the current view, like Docs. */}
-            <RailButton
-              label="Import"
-              icon={Import}
-              onClick={() => onToggleDrawer('import')}
-              aria-expanded={drawer === 'import'}
-              className={cn((drawer === 'import' || (path.startsWith(`${base}/import`) && !drawer)) && activeClass)}
-            />
           </>
         ) : (
           globalItems.map(({ id, label, icon, path: to }) => {
@@ -212,8 +211,18 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       </nav>
 
 
-      {/* (48px tall, as the top bar is.) */}
+      {/* (48px tall, as the top bar is.) Import — used now and then, at a project's start — waits down here, over
+          your account and the settings. */}
       <div className="mt-auto flex shrink-0 flex-col items-center gap-1">
+        {project && (
+          <RailButton
+            label="Import"
+            icon={Import}
+            onClick={() => onToggleDrawer('import')}
+            aria-expanded={drawer === 'import'}
+            className={cn((drawer === 'import' || (path.startsWith(`${base}/import`) && !drawer)) && activeClass)}
+          />
+        )}
         <UserBadge projectId={project?.id} />
         <div className="flex h-12 items-center">
           <SettingsDialog triggerClassName={iconButtonClass} />
