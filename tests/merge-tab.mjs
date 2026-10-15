@@ -47,7 +47,7 @@ try {
   assert.ok(!read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('Decided ${decidedCount}'), 'no decided pill')
   // (The right panel's place: the board's list, not while Merge is up — else Merge's own panel, at the same width.)
   const side = read('components/workspace/CanvasSideViews.jsx')
-  assert.ok(side.includes("(activeView !== 'mergeStudio' && boardShown) || (designComparePanelOpen ? 'merge' : false)") && side.split('dockShownOf({ boardShown, activeView, designComparePanelOpen })').length === 3, 'the board’s list is out of the row while Merge is up')
+  assert.ok(side.includes("(activeView !== 'mergeStudio' && boardShown) || (designComparePanelOpen ? 'merge' : false)") && side.split('dockShownOf({ boardShown, activeView, designComparePanelOpen })').length === 2 && side.split('const boardDockShown = useDockShown()').length === 3, 'the board’s list is out of the row while Merge is up')
   // No bottom panel: Design Compare is the left menu (drafts ticked there), the studio fills to the window's foot.
   assert.ok(!work.includes('WorkspaceBottomPanel') && !work.includes('bottomPanelTabs'), 'no bottom panel in the studio')
   assert.ok(read('components/mergestudio/DesignDetail.jsx').includes('data-detail-selection') && read('components/mergestudio/DesignDetail.jsx').includes('data-detail-pick'), 'the drafts are ticked in the sidebar')

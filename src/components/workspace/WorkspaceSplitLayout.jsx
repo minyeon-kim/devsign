@@ -637,7 +637,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
   // (Each its own pill: the same height and ground; the open one a step lighter.)
   const PILL = 'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300'
   const PILL_REST = 'bg-white/[0.06] hover:bg-white/[0.1]'
-  const PILL_OPEN = 'bg-white/[0.16] font-semibold'
+  const PILL_OPEN = 'bg-white/[0.16]'
   const conflictPill = (
     // (Its width: the panel's, less the row's 8px at the right — so its left edge is the panel's.)
     <div data-panel-tabs={openPanel ?? undefined} onPointerDown={(event) => event.stopPropagation()}

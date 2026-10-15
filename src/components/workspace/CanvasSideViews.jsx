@@ -70,11 +70,26 @@ export const DOCK_MOTION = 'duration-200 ease-out motion-reduce:transition-none'
 // then AI Chat at the right (the app sidebar stays).
 // What has the right panel's place: the board's change list (not while Merge is up), else Merge's panel.
 const dockShownOf = ({ boardShown, activeView, designComparePanelOpen }) => (activeView !== 'mergeStudio' && boardShown) || (designComparePanelOpen ? 'merge' : false)
+// (Switching between them — 변경확인 ⇄ 병합 — one closes a moment before the other says it's up: a close waits a
+// beat, so a handoff keeps the place as it is instead of folding it and opening it again.)
+const HANDOFF_MS = 120
+function useDockShown() {
+  const { boardDockShown: boardShown, activeView, designComparePanelOpen } = useWorkspace()
+  const now = dockShownOf({ boardShown, activeView, designComparePanelOpen })
+  const [held, setHeld] = useState(now)
+  if (now && now !== held) setHeld(now)
+  useEffect(() => {
+    if (now || !held) return undefined
+    const timer = setTimeout(() => setHeld(false), HANDOFF_MS)
+    return () => clearTimeout(timer)
+  }, [now, held])
+  return now || held
+}
 
 export function CanvasViewPanel() {
   const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown: boardShown, setBoardConflicts, activeView, designComparePanelOpen, setDesignComparePanelOpen, rightPanelWidth } = useWorkspace()
   // (The board's list is the Screens view's: while Merge is up it's out of the row. Merge's panel takes the place too.)
-  const boardDockShown = dockShownOf({ boardShown, activeView, designComparePanelOpen })
+  const boardDockShown = useDockShown()
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
   // (The view it showed stays while it eases shut.)
   const [last, setLast] = useState(open)
@@ -151,7 +166,7 @@ export function BoardDockSlot() {
   const { boardDockShown: boardShown, setBoardDockHost, activeView, designComparePanelOpen, rightPanelWidth, setRightPanelWidth } = useWorkspace()
   // (The board's list is the Screens view's: while Merge is up it's out of the row — kept, and back with the view.
   // Merge's panel docks here too, at the same width — WorkspaceDesignComparePanel.)
-  const boardDockShown = dockShownOf({ boardShown, activeView, designComparePanelOpen })
+  const boardDockShown = useDockShown()
   const [resizing, setResizing] = useState(false)
   const dragStart = useRef(rightPanelWidth)
   const target = boardDockShown ? rightPanelWidth : 0
