@@ -1077,6 +1077,7 @@ Code files|코드 파일
 Code Editor|코드 편집기
 Canvas|캔버스
 AI Chat|AI 채팅
+Assistant|어시스턴트
 Layers|레이어
 Bottom panel|하단 패널
 Layout|레이아웃
