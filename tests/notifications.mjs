@@ -97,6 +97,6 @@ try {
   assert.ok(provider.includes("notifyPerson(id, conflict, text, 'comment', currentUser.id, 'comment')") && provider.includes("'merged')"), 'comments and merges tell the people involved')
   assert.ok(provider.includes('return prune([...alerts, ...rest], now)'))
   const drawer = readFileSync(new URL('../src/components/mergestudio/MergeInboxDrawer.jsx', import.meta.url), 'utf8')
-  assert.ok(drawer.includes("useState(() => defaultTabOf(notifications))") && drawer.includes("'새 알림이 없어요'") && drawer.includes("'아직 받은 알림이 없어요'") && drawer.includes('전체 알림 보기') && drawer.includes('data-inbox-toggle-read') && drawer.includes('badgeOf(notifications)'))
+  assert.ok(drawer.includes("useState(() => defaultTabOf(notifications))") && drawer.includes("'새 알림이 없어요'") && drawer.includes("'아직 받은 알림이 없어요'") && drawer.includes('전체 알림 보기') && !drawer.includes('data-inbox-toggle-read') && drawer.includes('badgeOf(notifications)'))
   console.log('Passed: notifications are kept — read marks when, tabs filter by read state and kind, 30 days / 200 are kept, and a project’s changes seed its history.')
 } finally { await server.close() }

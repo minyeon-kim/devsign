@@ -465,11 +465,6 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
     setExpandedId(group.id)
     group.notifications.forEach(n => markNotificationRead(n.id))
   }
-  // Read ↔ unread, by hand (the whole card: every notification it holds).
-  const setRead = (group, read) => {
-    group.notifications.forEach((n) => markNotificationRead(n.id, !read))
-    if (!read) setUnreadIds((current) => (current ? new Set([...current, ...group.notifications.map((n) => n.id)]) : current))
-  }
   // Unread: not read yet. All: everything, read or not. Approvals / Comments: their kind, read or not.
   const matching = groups.filter((group) => (tab === 'unread'
     ? group.notifications.some((n) => isUnread(n) || unreadIds?.has(n.id))
@@ -506,17 +501,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
               {(index === 0 || dayOf(visible[index - 1]) !== day) && <h3 data-inbox-day={day} className="flex h-7 items-center px-3 pt-2 text-[12px] font-semibold text-slate-400 first:pt-0">{DAY_GROUP_LABEL[day]}</h3>}
               <div className="group/inbox relative">
                 <InboxCard group={group} day={day} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
-                {/* On hover or focus: read ↔ unread, without opening it. */}
-                <button
-                  type="button"
-                  data-inbox-toggle-read
-                  aria-label={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
-                  title={group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
-                  onClick={(event) => { event.stopPropagation(); setRead(group, group.unread) }}
-                  className="ds-intrinsic absolute top-2.5 right-8 flex h-6 items-center rounded-md bg-[#1c1e22] px-1.5 text-[10.5px] whitespace-nowrap text-slate-300 opacity-0 ring-1 ring-white/10 transition-opacity hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-300 group-hover/inbox:opacity-100"
-                >
-                  {group.unread ? '읽음으로 표시' : '안 읽음으로 표시'}
-                </button>
+                {/* (No read ↔ unread on each card: opening one reads it; the head's 모두 읽음으로 표시 reads them all.) */}
               </div>
             </Fragment>
           )
