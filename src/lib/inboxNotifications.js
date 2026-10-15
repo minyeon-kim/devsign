@@ -39,10 +39,29 @@ export function supersededDigest(notification, liveAlerts) {
   return Boolean(today && (notification.reviewConflictIds ?? []).every((id) => today.reviewConflictIds.includes(id)))
 }
 
+// What a change's notices say, most to least worth a card's title: a request or a decision over its
+// finding, a finding over its deadline (the deadline is said on the card's meta line anyway).
+const NOTICE_RANK = { request: 0, decision: 1, detected: 2, due: 3 }
 export function groupInboxNotifications(notifications) {
   const groups = []
   const threads = new Map()
+  const notices = new Map()
   for (const n of notifications) {
+    // (Several notices about one change — asked, due — are one card: the change, its most telling notice on top.)
+    const conflictId = n.target?.conflictId
+    if (conflictId && n.type in NOTICE_RANK && !(n.reviewConflictIds?.length > 1)) {
+      const group = notices.get(conflictId)
+      if (group) {
+        group.notifications.push(n)
+        group.notifications.sort((a, b) => NOTICE_RANK[a.type] - NOTICE_RANK[b.type])
+        group.unread ||= n.unread
+        continue
+      }
+      const created = { id: n.id, kind: n.kind, text: n.text, severity: n.severity, reviewConflictIds: n.reviewConflictIds, notifications: [n], unread: n.unread, timeLabel: n.timeLabel, target: n.target }
+      notices.set(conflictId, created)
+      groups.push(created)
+      continue
+    }
     if (n.kind !== 'comment' && n.kind !== 'feedback') {
       groups.push({ id: n.id, kind: n.kind, text: n.text, severity: n.severity, reviewConflictIds: n.reviewConflictIds, notifications: [n], unread: n.unread, timeLabel: n.timeLabel, target: n.target })
       continue

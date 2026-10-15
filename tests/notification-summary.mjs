@@ -64,8 +64,8 @@ try {
   // Wired: a place of fixed height (88px, half the card's width each), a 150ms fade, 200ms height, made once in the provider.
   assert.deepEqual([t.THUMB.width, t.THUMB.height], [140, 88])
   const drawer = readFileSync(new URL('../src/components/mergestudio/MergeInboxDrawer.jsx', import.meta.url), 'utf8')
-  assert.ok(drawer.includes('duration-150') && drawer.includes('duration-200') && !drawer.includes('animate-pulse'))
-  assert.ok(drawer.includes("if (!gaps && thumb.status === 'failed') return null"), 'a failed picture hides its place (one drawn live has no picture to fail)')
+  // (The Inbox no longer draws them: a notice says who did what and the values; the comparison is the change's.)
+  assert.ok(drawer.includes('duration-200') && !drawer.includes('animate-pulse') && !drawer.includes('<NoticeThumbs'))
   assert.ok(readFileSync(new URL('../src/state/WorkspaceProvider.jsx', import.meta.url), 'utf8').includes('useNotificationThumbs({ projectId, notifications, conflicts, pages: projectPages })'))
   console.log('Passed: change notifications summarise by template; pictures are kept once, shared, and hidden when they fail.')
 } finally { await server.close() }

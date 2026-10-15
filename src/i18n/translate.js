@@ -370,6 +370,16 @@ const enRules = [
   [/^(.+)님의 (.+)을 기다리는 중$/, (_, name, what) => `Waiting for ${name}'s ${coreEn(what).toLowerCase()}`],
   [/^(.+)님의 (.+)를 기다리는 중$/, (_, name, what) => `Waiting for ${name}'s ${coreEn(what).toLowerCase()}`],
   [/^외 (\d+)건$/, (_, n) => `+${n} more`],
+  // The Inbox's titles: who did what.
+  [/^(.+)님이 승인을 요청했어요$/, (_, name) => `${name} asked for approval`],
+  [/^(.+)님이 수정을 요청했어요$/, (_, name) => `${name} asked for changes`],
+  [/^(.+)님이 승인했어요$/, (_, name) => `${name} approved`],
+  [/^(.+)님이 병합했어요$/, (_, name) => `${name} merged`],
+  [/^(.+)님이 변경을 감지했어요$/, (_, name) => `${name} found a change`],
+  [/^(.+)님이 댓글을 남겼어요$/, (_, name) => `${name} commented`],
+  [/^승인 요청이 왔어요$/, () => 'Approval requested'],
+  [/^마감이 다가와요$/, () => 'Due soon'],
+  [/^변경이 감지됐어요$/, () => 'Change detected'],
   [/^(.+)님에게 승인 요청$/, (_, name) => `Request approval from ${name}`],
   [/^검토자 (\d+)명에게 승인 요청$/, (_, n) => `Request approval from ${n} reviewers`],
   // The source's own templates, values in their places (en.js).

@@ -44,16 +44,13 @@ try {
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const drawer = read('src/components/mergestudio/MergeInboxDrawer.jsx')
 const body = drawer.slice(drawer.indexOf('function NoticeBody('), drawer.indexOf('// What a notification is, worked out once'))
-// The order: what was said → the diff chip → file and who → the pictures → the button.
-const order = ['data-notice-lead', 'data-notice-changes', 'data-notice-meta', '<NoticeThumbs', 'className={ACTION_BUTTON}'].map((mark) => body.indexOf(mark))
+// The order: what was said (the request's reason) → the values in one quiet line → the button. No pictures,
+// no code chips, no file line: the comparison is the change's, a press away.
+const order = ['data-notice-lead', 'data-notice-changes', 'className={ACTION_BUTTON}'].map((mark) => body.indexOf(mark))
 assert.ok(order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), `the card's order (${order})`)
-assert.ok(body.includes('rounded-[4px] bg-white/[0.06]') && body.includes('font-mono'), 'the change is a monospace diff chip')
-// The pictures' place: a surface token, a hairline, 8px corners, the same height, 8px apart — no white, no inner frame.
-const thumbs = drawer.slice(drawer.indexOf('function NoticeThumbs('), drawer.indexOf('// What opens under a change\'s notification'))
-assert.ok(thumbs.includes('h-[88px] w-full overflow-hidden rounded-[8px] border border-white/[0.08] bg-[var(--ds-surface-overlay-hover)]'))
-assert.ok(thumbs.includes('className="flex gap-2"') && thumbs.includes('min-w-0 flex-1'))
-assert.ok(thumbs.includes("side === 'after' && <span aria-hidden className=\"size-1.5 shrink-0 rounded-full bg-emerald-400\""), 'the accent dot is the proposal\'s alone')
-assert.ok(thumbs.includes('text-xs leading-4 text-slate-400'), 'labels: 12px, secondary text')
+assert.ok(!drawer.includes('<NoticeThumbs') && !body.includes('font-mono') && !body.includes('data-notice-meta'), 'no pictures, no chips, no file line')
+// The card's lines: who did what (a sentence), then what it's on and when it's due.
+assert.ok(drawer.includes('data-inbox-title') && drawer.includes('data-inbox-meta') && drawer.includes("님이 승인을 요청했어요"))
 // A notice's body starts on the title's text line; other cards are as they were.
 assert.ok(drawer.includes("card.type === 'thread' ? 'pl-3 pt-1' : notice ? 'pl-[50px]' : 'pl-[42px]'"))
 // A stale "Today" is said as its date and time.
