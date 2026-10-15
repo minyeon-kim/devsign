@@ -4,7 +4,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import Logo from '@/components/layout/Logo'
 import { readHistoryParams } from '@/lib/historyLink'
 import { readDocParams } from '@/lib/docLink'
-import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PANELS, SPLIT, defaultRatio, isSplit, paneWidth, ratioFor, ratioOf, readSplit, writeSplit } from '@/lib/workPane'
 import { AI_CHAT, clampWidth, COMPARE_DETAIL_WIDTH, COMPARE_LIST_WIDTH } from '@/lib/panelPrefs'
 import { Link, useLocation } from 'react-router-dom'
@@ -50,7 +50,7 @@ const iconButtonClass =
 const activeClass = 'bg-white/[0.08] text-foreground'
 // (Shared with the workspace's right rail: one look for every rail button.)
 export const RAIL_ACTIVE = activeClass
-export const RAIL_WIDTH = 'w-[var(--ds-rail-size)]'
+export const RAIL_WIDTH = 'w-[var(--ds-chrome-size)]'
 
 // An icon-only activity bar button, named by its tooltip.
 // (`side`: where the tooltip goes — away from the edge the rail is on.)
@@ -60,32 +60,10 @@ function RailRule() {
   return <span aria-hidden data-rail-rule className="mx-auto my-1 h-px w-5 shrink-0 bg-white/10" />
 }
 
-// `labeled`: a place or a panel in the rail — the icon in a capsule (lit while `active`) with its name under it,
-// Slack's way, so the rail reads without hovering; `caption`, a shorter name for under the icon. (No tooltip then:
-// the name is showing.) Without it: an icon alone, named by its tooltip.
-export function RailButton({ label, caption = null, labeled = false, active = false, icon: Icon, className, iconClassName, side = 'right', hint = null, render, ...triggerProps }) {
-  if (labeled) {
-    const props = {
-      ...triggerProps,
-      'aria-label': label,
-      'data-rail-item': '',
-      'data-control-tooltip': 'off',
-      'data-active': active || undefined,
-      className: cn('group/rail mx-auto flex w-[calc(var(--ds-rail-size)-4px)] shrink-0 flex-col items-center gap-1 rounded-lg py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-white/60', active && 'text-foreground', className),
-      children: (
-        <>
-          <span className={cn('flex h-7 w-10 items-center justify-center rounded-full transition-colors group-hover/rail:bg-muted', active && 'bg-white/[0.08] group-hover/rail:bg-white/[0.08]')}>
-            <Icon aria-hidden className={cn('size-[18px]', iconClassName)} />
-          </span>
-          <span aria-hidden className="w-full truncate text-center text-[10px] leading-3 font-medium tracking-tight"><LocalizedText text={caption ?? label} /></span>
-        </>
-      ),
-    }
-    return isValidElement(render) ? cloneElement(render, props) : <button type="button" {...props} />
-  }
+export function RailButton({ label, icon: Icon, className, iconClassName, side = 'right', hint = null, ...triggerProps }) {
   return (
     <Tooltip>
-      <TooltipTrigger aria-label={label} render={render} className={cn(iconButtonClass, className)} {...triggerProps}>
+      <TooltipTrigger aria-label={label} className={cn(iconButtonClass, className)} {...triggerProps}>
         <Icon className={cn('size-[18px]', iconClassName)} />
       </TooltipTrigger>
       <TooltipContent side={side}>{label}{hint && <span className="ml-1.5 opacity-60">{hint}</span>}</TooltipContent>
@@ -153,7 +131,7 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
       data-activity-bar
       onKeyDown={railArrowKeys}
       className={cn(
-        'flex h-full w-[var(--ds-rail-size)] shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
+        'flex h-full w-[var(--ds-chrome-size)] shrink-0 flex-col gap-1 pt-2 pb-0 transition-colors duration-300 ease-out',
         // The chrome's color (--ds-bg-base, with the top and bottom bars),
         // drawer open or not — the drawer is a window beside it.
         'bg-background'
@@ -185,9 +163,9 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
           <>
             {/* Pages — the view changes: the project's home (the global Home is the project switcher's first item,
                 the mark above, and the path's first crumb), then the Workspace. */}
-            <RailButton label="Project home" icon={House} render={<Link to={base} />} caption="Home" labeled aria-current={path === base ? 'page' : undefined} active={path === base && !drawer} />
+            <RailButton label="Project home" icon={House} render={<Link to={base} />} aria-current={path === base ? 'page' : undefined} className={cn(path === base && !drawer && activeClass)} />
             {/* The split code-editor/canvas layout, same shape as the icon. */}
-            <RailButton label="Workspace" icon={LayoutPanelLeft} render={<Link to={`${base}/workspace`} />} labeled aria-current={path === `${base}/workspace` ? 'page' : undefined} active={path === `${base}/workspace` && !drawer} />
+            <RailButton label="Workspace" icon={LayoutPanelLeft} render={<Link to={`${base}/workspace`} />} aria-current={path === `${base}/workspace` ? 'page' : undefined} className={cn(path === `${base}/workspace` && !drawer && activeClass)} />
             <RailRule />
             {/* Panels — a list opens in the sidebar beside the view (what the switch above folds): History first,
                 the one used most while working, then Docs. */}
@@ -195,19 +173,17 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
             <RailButton
               label="History"
               icon={History}
-              labeled
               onClick={() => onToggleDrawer('history')}
               aria-expanded={drawer === 'history'}
               aria-current={onHistory ? 'page' : undefined}
-              active={drawer === 'history' || (onHistory && !drawer)}
+              className={cn((drawer === 'history' || (onHistory && !drawer)) && activeClass)}
             />
             <RailButton
               label="Docs"
               icon={BookOpen}
-              labeled
               onClick={() => onToggleDrawer('docs')}
               aria-expanded={drawer === 'docs'}
-              active={drawer === 'docs' || (onDocs && !drawer)}
+              className={cn((drawer === 'docs' || (onDocs && !drawer)) && activeClass)}
             />
             {/* (No Conflict Points here: the changes are on the canvas — the Screens board's list and counts,
                 the canvas's pins — and a notice or a link still opens their pane.) */}
@@ -221,9 +197,8 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
                 label={label}
                 icon={icon}
                 render={<Link to={to} />}
-                labeled
                 aria-current={active ? 'page' : undefined}
-                active={active}
+                className={cn(active && activeClass)}
               />
             )
           })
@@ -238,10 +213,9 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
           <RailButton
             label="Import"
             icon={SquareArrowDown}
-            labeled
             onClick={() => onToggleDrawer('import')}
             aria-expanded={drawer === 'import'}
-            active={drawer === 'import' || (path.startsWith(`${base}/import`) && !drawer)}
+            className={cn((drawer === 'import' || (path.startsWith(`${base}/import`) && !drawer)) && activeClass)}
           />
         )}
         <UserBadge projectId={project?.id} />
@@ -276,7 +250,7 @@ export function PanelToggleButton({ label, tip = label, hint = null, onClick, mi
 }
 
 const DRAWER_TITLES = Object.fromEntries(Object.entries(PANELS).map(([id, panel]) => [id, panel.label]))
-const RAIL_PX = 68
+const RAIL_PX = 48
 const DRAWER_WIDTH = 272
 const DRAWER_MIN = 220
 const DRAWER_MAX = 480
