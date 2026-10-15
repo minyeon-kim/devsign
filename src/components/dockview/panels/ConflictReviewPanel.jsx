@@ -54,7 +54,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, ScreenLocation, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
-import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY } from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY, differenceLineOf } from '@/components/conflicts/DesignDecisionFlow'
 import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
@@ -2742,6 +2742,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // last looked at (more than that since puts a dot on the tab).
   // (On the page the tabs are at its top, the change itself — 'details' — first and open.)
   const [sideTab, setSideTab] = useState(page ? 'details' : 'info')
+  // A design decision's page: its header says what differs in a line and keeps the meta to plain words.
+  const decisionPage = Boolean(page && conflict?.decisionFlow)
   // (Scrolled: a hairline under the tabs, so what passes under them reads as going under — not cut off.)
   const [scrolled, setScrolled] = useState(false)
   // A design decision's History: its events, in order (lib/conflictEvents)
@@ -3748,7 +3750,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
     </div>
   )
   return (
-    <div className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
+    <div style={{ '--review-ground': page ? 'var(--background)' : 'var(--card)' }} className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
         {conflict && (
           <>
             <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3', page ? 'bg-background' : 'bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-1 pb-3') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
@@ -3773,12 +3775,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="shrink-0 font-mono text-[11px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                   {page && headerAside && <span className="ml-auto flex shrink-0 items-center gap-0.5 self-center">{headerAside}</span>}
                 </div>
+                {/* A decision's page: what differs, in one sentence, right under the title. */}
+                {decisionPage && differenceLineOf(conflict) && <p data-difference-line className={cn('m-0 text-[13px] leading-5 text-slate-300 [word-break:keep-all]', onBack && 'pl-[38px]')}><LocalizedText text={differenceLineOf(conflict)} /></p>}
                 {/* (On the page, a size down: 20px badges, 11px words — the title leads.) */}
                 {/* (On the page one quiet line: the kind its one chip; the risk, when, and where it stands as words.) */}
-                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-3 gap-y-1 text-[12px]', onBack && 'pl-[38px]') : 'gap-1.5 pl-10')}>
-                  <ConflictTypeTag conflict={conflict} header={!page} quiet={page} />
+                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-2 gap-y-1 text-[12px]', onBack && 'pl-[38px]', decisionPage && "[&>*+*]:before:mr-2 [&>*+*]:before:text-slate-600 [&>*+*]:before:content-['·']") : 'gap-1.5 pl-10')}>
+                  <ConflictTypeTag conflict={conflict} header={!page} quiet={page} plain={decisionPage} />
                   {severity && (
                     <span data-risk-badge className={page ? cn('inline-flex items-center gap-1 text-xs', severity.label.toLowerCase() === 'high' ? 'text-rose-300' : 'text-slate-400') : cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                        {decisionPage && <span aria-hidden className={cn('size-1.5 rounded-full', severity.label.toLowerCase() === 'high' ? 'bg-rose-400' : severity.label.toLowerCase() === 'medium' ? 'bg-amber-400' : 'bg-slate-500')} />}
                         <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
                         <LocalizedText text={severity.label} />
                       </span>
