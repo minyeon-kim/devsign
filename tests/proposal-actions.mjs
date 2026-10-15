@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 const flow = readFileSync(new URL('../src/components/conflicts/DesignDecisionFlow.jsx', import.meta.url), 'utf8')
 
 // 다른 값: a stepper in its row (28px, step 0.25), no 원안/현재 boxes, no "직접 입력".
-assert.ok(flow.includes('function ValueStepper(') && flow.includes('h-7') && flow.includes("step={scale.unit === 'px' ? 1 : 0.25}"))
+assert.ok(flow.includes('function ValueStepper(') && flow.includes('data-way-value') && flow.includes("step={scale.unit === 'px' ? 1 : 0.25}"))
 assert.ok(!flow.includes('<ValueScale') && !flow.includes('data-proposal-scale'), 'the scale under the row is gone')
 // No sentences under the list.
 for (const text of ['캔버스에서 미리보는 중', '원안과 다른 수정안이라 승인이 필요해요', '원안대로 맞추는 거라 승인 없이 바로 적용돼요', 'data-request-note']) assert.ok(!flow.includes(text), `"${text}" is gone`)

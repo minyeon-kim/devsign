@@ -12,6 +12,7 @@ import { allPeople, projects } from '@/data/mockData'
 import { DECISION_LABEL, DEV_STAGE_LABEL, PRIMARY_CONTROLS, ownCustomOf, builtSpecOf, controlsOf, decisionOutcomeOf, decisionStageOf, designSpecOf, drawableOf, fixLineOf, proposalOf, proposalPhraseOf, proposalsOf, reasonChipsFor, seedValuesFor, withEul, fixPhaseOf, isDeferred, scheduleOf, scheduleWordOf } from '@/lib/designDecisions'
 import { ElementCrop, PreviewFrame, SampleCrop, hasElement } from '@/components/conflicts/ElementPreview'
 import WayPicker from '@/components/conflicts/WayPicker'
+import { LocalizedText } from '@/i18n/runtime'
 import { drawingOf, elementShows } from '@/lib/elementPreview'
 import { adapterOf, customValueOf, scaleOf, typeOf, wayOfStep } from '@/lib/changeAdapters'
 import ValueCards from '@/components/conflicts/ValueCards'
@@ -235,7 +236,7 @@ function ValueStepper({ value, from, step, unit, onChange }) {
   }
   const BUTTON = 'flex h-full w-7 items-center justify-center text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-40'
   return (
-    <div data-value-stepper onClick={(event) => event.stopPropagation()} className="absolute top-1/2 right-2 flex h-7 -translate-y-1/2 items-center overflow-hidden rounded-md border border-white/[0.12] bg-black/30">
+    <div data-value-stepper onClick={(event) => event.stopPropagation()} className="flex h-8 shrink-0 items-center overflow-hidden rounded-lg border border-white/[0.12] bg-black/30">
       <button type="button" aria-label="값 줄이기" disabled={!Number.isFinite(at)} onClick={() => stepTo(-1)} className={BUTTON}><Minus className="size-3" /></button>
       <input
         data-value-stepper-input
@@ -770,7 +771,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       {/* The ways forward: one dropdown, as every change's — the way picked (its value after its name), what it
           does under it. Not pickable (looked at, or done): the way taken, in the same line. (Asked and waiting:
           none — the request says which.) */}
-      {mode === 'pending' ? null : (
+      {mode === 'pending' || (readOnly && !proposal) ? null : (
         <WayPicker
           className="mt-6"
           label="수정안"
@@ -792,8 +793,9 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
         >
           {/* 다른 값, picked: its value set right under the line — a stepper, or a layout's own controls. */}
           {!readOnly && proposal === 'other' && scale && (
-            <div data-way-value className="flex items-center justify-between gap-3 px-0.5">
-              <span className="text-[12px] text-slate-400">값</span>
+            // (Its value, in its own row under the dropdown: the property's name at the left, the stepper at the right.)
+            <div data-way-value className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/[0.08] px-3.5">
+              <span className="text-[12.5px] text-slate-300"><LocalizedText text={conflict.comparisonFields?.find((field) => field.current !== field.expected)?.label ?? '값'} /></span>
               <ValueStepper value={typed || (ownValue ? String(ownValue).replace(/px$/, '') : '')} from={builtNumberOf(scale)} step={scale.unit === 'px' ? 1 : 0.25} unit={scale.unit} onChange={typeValue} />
             </div>
           )}
