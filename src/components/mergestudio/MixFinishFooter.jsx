@@ -11,8 +11,8 @@ export default function MixFinishFooter({ live }) {
   const pending = finish.total - finish.picked
   const disabled = finish.readOnly || pending > 0 || finish.total === 0
   const warnings = finish.checks?.failing ?? []
-  const button = 'ds-intrinsic flex h-8 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed'
-  return <footer data-mix-finish className="flex shrink-0 items-center justify-between gap-2 border-t border-white/[0.06] px-3 py-2">
+  const button = 'ds-intrinsic flex h-8 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed'
+  return <footer data-mix-finish className="flex shrink-0 items-center justify-between gap-2 border-t border-white/[0.06] px-4 py-3">
     <span aria-live="polite" className="text-[11px] text-slate-500">{finish.picked}/{finish.total} 선택{warnings.length > 0 && ` · 확인 ${warnings.length}개`}</span>
     {finish.requested || finish.done ? <span className="text-xs text-emerald-300">{finish.done ? '저장됨' : '병합 요청됨'}</span>
       : finish.kind === 'save' ? <button type="button" data-mix-save disabled={disabled} onClick={finish.onSave} className={button}><Check className="size-3.5" />조합 저장</button>

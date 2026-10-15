@@ -42,7 +42,7 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, group, onBack, onReady }) {
+export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, group, onBack, backInTabs = false, onReady }) {
   const { mergeItems, conflicts, compareItemId: pickedId, setCompareItemId, conflictPin, boardConflicts, setSelectedMergeItemId, setDesignCompareRequest, openMergeStudio, currentUser } = useWorkspace()
   // (`itemId`: the set shown while the detail eases away — the address has already let go of it.)
   const compareItemId = itemId ?? pickedId
@@ -84,7 +84,7 @@ export default function WorkspaceDesignCompare({ itemId = undefined, titleRef, g
 
   if (!item) return <ErrorState message="이 주소의 디자인 시안을 찾을 수 없어요. 목록에서 다른 항목을 골라 주세요." onRetry={() => setAttempt((n) => n + 1)} />
   if (loading) return <Skeleton_ />
-  const detail = { group, titleRef, onBack, onDone: onBack, readOnly: currentUser?.canEdit === false }
+  const detail = { group, titleRef, onBack, backInTabs, onDone: onBack, readOnly: currentUser?.canEdit === false }
   return (
     <ErrorBoundary key={`${item.id}:${attempt}`} fallback={(error, reset) => <ErrorState message={error?.message} onRetry={() => { reset(); setAttempt((n) => n + 1) }} />}>
       <DesignComparePanel items={items} itemId={item.id} selectedKeys={selectedKeys} detail={detail}

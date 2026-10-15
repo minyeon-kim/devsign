@@ -70,11 +70,13 @@ export const DOCK_MOTION = 'duration-200 ease-out motion-reduce:transition-none'
 // The canvas (or the comparison) keeps at least MIN_CANVAS: with less than that, this panel folds first,
 // then AI Chat at the right (the app sidebar stays).
 const boardDockWidth = (shown) => (shown === 'detail' ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
+// What has the right panel's place: the board's change list (not while Merge is up), else Merge's panel.
+const dockShownOf = ({ boardShown, activeView, designComparePanelOpen }) => (activeView !== 'mergeStudio' && boardShown) || (designComparePanelOpen ? 'merge' : false)
 
 export function CanvasViewPanel() {
-  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown: boardShown, setBoardConflicts, activeView } = useWorkspace()
-  // (The board's list is the Screens view's: while Merge is up it's out of the row.)
-  const boardDockShown = activeView === 'mergeStudio' ? false : boardShown
+  const { sidePanel, filesWindow, setSidePanel, toolPanelWidth, setToolPanelWidth, aiChat, setAiChat, boardDockShown: boardShown, setBoardConflicts, activeView, designComparePanelOpen, setDesignComparePanelOpen } = useWorkspace()
+  // (The board's list is the Screens view's: while Merge is up it's out of the row. Merge's panel takes the place too.)
+  const boardDockShown = dockShownOf({ boardShown, activeView, designComparePanelOpen })
   const open = inCanvasViewOf(sidePanel, filesWindow.tab)
   // (The view it showed stays while it eases shut.)
   const [last, setLast] = useState(open)
@@ -98,7 +100,7 @@ export function CanvasViewPanel() {
       if (!row.clientWidth) return
       const fold = foldForRoom({ room: row.clientWidth, tool: { open: toolOpen, width: toolPanelWidth }, right: { open: rightWidth > 0, width: rightWidth }, chat: chatOpen })
       if (fold === 'tool') setSidePanel({ open: false })
-      else if (fold === 'right') setBoardConflicts({ open: false, conflictId: null })
+      else if (fold === 'right') { if (boardShown) setBoardConflicts({ open: false, conflictId: null }); else setDesignComparePanelOpen(false) }
       else if (fold === 'chat') setAiChat({ open: false })
     }
     check()
@@ -148,9 +150,10 @@ export function CanvasViewPanel() {
 // canvas (or the comparison) in the same row, its width easing like the tool panel's. BoardConflicts renders
 // into it (a portal, from the board — which keeps its data and its camera); this is only its place.
 export function BoardDockSlot() {
-  const { boardDockShown: boardShown, setBoardDockHost, activeView } = useWorkspace()
-  // (The board's list is the Screens view's: while Merge is up it's out of the row — kept, and back with the view.)
-  const boardDockShown = activeView === 'mergeStudio' ? false : boardShown
+  const { boardDockShown: boardShown, setBoardDockHost, activeView, designComparePanelOpen } = useWorkspace()
+  // (The board's list is the Screens view's: while Merge is up it's out of the row — kept, and back with the view.
+  // Merge's panel docks here too, at the same width — WorkspaceDesignComparePanel.)
+  const boardDockShown = dockShownOf({ boardShown, activeView, designComparePanelOpen })
   const target = boardDockShown ? boardDockWidth(boardDockShown) : 0
   const width = useAfterPaint(target)
   return (

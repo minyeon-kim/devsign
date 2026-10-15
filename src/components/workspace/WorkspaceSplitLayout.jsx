@@ -161,7 +161,7 @@ function zoneRect(rect, zone) {
 // `studio`: Merge Studio, when the Merge tab is up — it fills the main window's content (over the view that
 // stays mounted under it).
 function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) {
-  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing, mixBridge, comparePanelMode } = useWorkspace()
+  const { setDockApi, filesWindow, setFilesWindow, referenceDocs, setChatTargetOverride, openMergeItem, projectId, sidePanel, setSidePanel, aiChat, setAiChat, chatUnread, chatAwaitingApproval, workspaceView, setWorkspaceView, activeView, openMergeTab, exitMergeStudio, conflicts, boardConflicts, setBoardConflicts, mergeItems, designComparePanelOpen, setDesignComparePanelOpen, compareItemId, closeCompareView, compositionEditing } = useWorkspace()
   // In Merge Studio, the code editor rides along in AI Chat's window only
   // when the open item actually changes code — otherwise it's a file that
   // has nothing to do with what's on the canvas.
@@ -632,7 +632,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
   // panel's left edge, over the canvas), the open one on the raised thumb, and × at the end puts it away.
   const openPanel = boardConflicts.open ? 'conflicts' : designComparePanelOpen ? 'merge' : null
   const panelWidth = openPanel === 'conflicts' ? (boardConflicts.conflictId ? BOARD_DETAIL_WIDTH : BOARD_PANEL_WIDTH)
-    : openPanel === 'merge' ? designComparePanelWidth({ compareItemId, compositionEditing, mixBridge, comparePanelMode }) : null
+    : openPanel === 'merge' ? designComparePanelWidth() : null
   const closePanel = () => {
     if (openPanel === 'conflicts') setBoardConflicts({ open: false, conflictId: null })
     else { if (!compositionEditing) closeCompareView(); setDesignComparePanelOpen(false) }
@@ -647,9 +647,11 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
       {/* (Open, the row behind it is the panel's: its surface and left hairline run up to the window's top, so
           the capsule is the panel's header — not a pill on the tab row over a panel that starts under it.) */}
       {openPanel && <span aria-hidden data-panel-tabs-backdrop className="absolute -inset-y-1 left-0 -right-2 -z-10 border-l border-white/[0.06] bg-[#1C1C1C]" />}
-      {/* (On a change's detail: the way back to the list, at the header's left.) */}
-      {openPanel === 'conflicts' && boardConflicts.conflictId && (
-        <button type="button" data-board-conflicts-back onClick={() => setBoardConflicts({ conflictId: null })}
+      {/* (On a change's detail, or a set of Merge's: the way back to the list, at the header's left — one place
+          for both panels.) */}
+      {((openPanel === 'conflicts' && boardConflicts.conflictId) || (openPanel === 'merge' && compareItemId)) && (
+        <button type="button" data-board-conflicts-back={openPanel === 'conflicts' ? '' : undefined} data-compare-back={openPanel === 'merge' ? '' : undefined}
+          onClick={() => (openPanel === 'conflicts' ? setBoardConflicts({ conflictId: null }) : closeCompareView())}
           className="ds-intrinsic flex h-7 shrink-0 items-center gap-1 rounded-full pr-2.5 pl-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300 animate-in fade-in duration-150 motion-reduce:animate-none">
           <ChevronLeft aria-hidden className="size-4" />Back to the list
         </button>

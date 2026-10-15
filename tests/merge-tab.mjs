@@ -45,7 +45,9 @@ try {
   // The canvas is the Screens canvas's — the ground is #1C1C1C, flush with the tab row: no frame, no gap — and no pill says "n/m 선택" or "결정 n/m" beside what the parts bar says.
   assert.ok(work.includes('data-studio-stage') && work.includes('className="relative flex min-h-0 flex-1 overflow-hidden bg-[#1C1C1C]"') && !/mt-12|rounded-\[20px\]/.test(work.slice(work.indexOf('data-studio-stage'), work.indexOf('data-studio-stage') + 260)), 'flush, on the canvas ground')
   assert.ok(!read('components/mergestudio/MergeInfiniteCanvas.jsx').includes('Decided ${decidedCount}'), 'no decided pill')
-  assert.ok(read('components/workspace/CanvasSideViews.jsx').split("activeView === 'mergeStudio' ? false : boardShown").length === 3, 'the board’s list is out of the row while Merge is up')
+  // (The right panel's place: the board's list, not while Merge is up — else Merge's own panel, at the same width.)
+  const side = read('components/workspace/CanvasSideViews.jsx')
+  assert.ok(side.includes("(activeView !== 'mergeStudio' && boardShown) || (designComparePanelOpen ? 'merge' : false)") && side.split('dockShownOf({ boardShown, activeView, designComparePanelOpen })').length === 3, 'the board’s list is out of the row while Merge is up')
   // No bottom panel: Design Compare is the left menu (drafts ticked there), the studio fills to the window's foot.
   assert.ok(!work.includes('WorkspaceBottomPanel') && !work.includes('bottomPanelTabs'), 'no bottom panel in the studio')
   assert.ok(read('components/mergestudio/DesignDetail.jsx').includes('data-detail-selection') && read('components/mergestudio/DesignDetail.jsx').includes('data-detail-pick'), 'the drafts are ticked in the sidebar')

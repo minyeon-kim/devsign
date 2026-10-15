@@ -111,7 +111,7 @@ export default function ComparePanel({ project, expanded, overlay, closeButton, 
         {mountedId && (
           <div key={mountedId} className="flex min-h-0 min-w-0 flex-1 animate-in fade-in duration-150 motion-reduce:animate-none">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <WorkspaceDesignCompare itemId={mountedId} titleRef={titleRef} group={group} onBack={closeCompareView} onReady={detailReady} />
+              <WorkspaceDesignCompare itemId={mountedId} titleRef={titleRef} group={group} onBack={closeCompareView} backInTabs={docked} onReady={detailReady} />
             </div>
           </div>
         )}

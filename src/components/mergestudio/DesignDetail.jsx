@@ -80,7 +80,8 @@ function Overlay({ drawn, opacity, marks, onPress }) {
   )
 }
 
-export default function DesignDetail({ item, drawn, identical, conflict, status, compose, next, edit, selection = null, titleRef, onBack, readOnly = false, onDone }) {
+// `backInTabs`: docked at the canvas's right — its way back is the tab row's (‹ 목록으로 over it), not an arrow here.
+export default function DesignDetail({ item, drawn, identical, conflict, status, compose, next, edit, selection = null, titleRef, onBack, backInTabs = false, readOnly = false, onDone }) {
   const { comments, addComment, showScreenIn, focusConflictPin, mixBridge, compositionEditing, comparePanelMode: comparisonMode, setComparePanelMode: setComparisonMode } = useWorkspace()
   // While the studio is mixing this set's drafts, they're drawn live here — the place the picking is done from
   // (a part into the Result, one whole draft); otherwise they're thumbnails.
@@ -113,12 +114,14 @@ export default function DesignDetail({ item, drawn, identical, conflict, status,
   const waiting = status?.id === 'in_review' || status?.id === 'requested'
   const composeReason = live ? '지금 이 시안들을 조합하고 있어요 — 캔버스에서 이어서 하세요' : readOnly ? '이 항목을 조합할 권한이 없어요' : waiting ? '검토 대기 중에는 조합할 수 없어요' : identical ? '두 버전이 동일해서 조합할 게 없어요' : composeAction?.disabled ? '비교할 시안을 2개 이상 골라 주세요' : !composeAction ? '지금은 조합할 수 없어요' : null
   const reviewReason = readOnly ? '이 항목을 검토할 권한이 없어요' : !next ? '검토할 변경이 아직 없어요' : null
-  const rootButton = 'ds-intrinsic inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45'
+  // (The panel's foot, as Merge's other one (MixFinishFooter): a hairline, then pill buttons at the right.)
+  const rootButton = 'ds-intrinsic inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-4 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-45'
 
   return (
     <div data-design-detail className="flex h-full min-h-0 flex-col bg-background text-[13px] text-foreground">
       {/* (Its back arrow on the content's left line, 12px in — as the cards under it.) */}
       <header className="flex h-12 shrink-0 items-center gap-2 pr-3 pl-3">
+        {backInTabs ? <span ref={titleRef} tabIndex={-1} className="flex min-w-0 flex-1 outline-none"><MergeContextTitle item={item} /></span> : <>
         <Tooltip>
           <TooltipTrigger ref={titleRef} data-compare-back aria-label="목록으로 (Esc)" onClick={onBack} className="ds-intrinsic flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary">
             <ArrowLeft className="size-4" />
@@ -126,6 +129,7 @@ export default function DesignDetail({ item, drawn, identical, conflict, status,
           <TooltipContent side="bottom">목록으로 <span className="opacity-60">Esc</span></TooltipContent>
         </Tooltip>
         <MergeContextTitle item={item} />
+        </>}
       </header>
 
       <div className="min-h-0 flex-1 overflow-hidden px-3 pb-2">
@@ -213,11 +217,11 @@ export default function DesignDetail({ item, drawn, identical, conflict, status,
       </div>
 
       {/* The actions, always in reach: review (quiet) and compose (the one in green). */}
-      {live ? <MixFinishFooter live={live} /> : <div data-detail-actions className="grid shrink-0 grid-cols-2 gap-2 border-t border-white/[0.06] px-3 py-2">
+      {live ? <MixFinishFooter live={live} /> : <div data-detail-actions className="flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] px-4 py-3">
         <span title={reviewReason ?? undefined} className="block">
           <button type="button" data-design-next disabled={Boolean(reviewReason) || Boolean(busy)} aria-busy={busy === 'next' || undefined}
             onClick={() => run('next', next.run, next.label === MIX_ACTION_LABEL.request ? '병합 요청을 보냈어요' : null, next.label === MIX_ACTION_LABEL.request ? onDone : null)}
-            className={cn(rootButton, 'border border-border bg-card hover:bg-[var(--ds-surface-raised)]')}>
+            className={cn(rootButton, 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.1] hover:text-white')}>
             {busy === 'next' && <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />}
             {next?.label ?? '변경 검토'}
           </button>

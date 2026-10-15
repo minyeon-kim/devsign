@@ -18,8 +18,10 @@ import { conflictTypeOf } from '@/lib/conflictInsight'
 //
 //   groups: [{ id, n, name, conflicts }] — the screens with changes, then
 //   (id: null) those about no screen. picked: the change whose detail shows.
-export const BOARD_PANEL_WIDTH = 380
-export const BOARD_DETAIL_WIDTH = 460
+// (One width for the panel at the canvas's right, whatever it shows — the change list, a change, Merge's list
+// or a set being composed: it never grows or shrinks under you, so the canvas beside it stays put.)
+export const BOARD_PANEL_WIDTH = 420
+export const BOARD_DETAIL_WIDTH = BOARD_PANEL_WIDTH
 
 // ── A row, as an issue list says it ──
 // Its title in two parts — what it's about, and which property — whatever form the title came in
