@@ -1226,8 +1226,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   const afterCard = cards.find((card) => card.id === afterId) ?? null
   // (As a value change's cards: the product's light grey, the name a tag in the corner, the drawing enlarged —
   // a 20px button drawn at its own size is a speck.)
-  const PICTURE = 'relative m-0 flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-[#F5F5F5]'
-  const TAG = 'pointer-events-none absolute top-2 right-2 flex h-5 items-center rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur-sm'
+  const PICTURE = 'relative m-0 flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-[#2E2E2E]'
+  const TAG = 'pointer-events-none absolute top-2 right-2 flex h-5 max-w-[calc(100%-1rem)] items-center truncate rounded-full bg-black/55 px-2 text-[11px] font-medium whitespace-nowrap text-white backdrop-blur-sm'
   const small = Math.max(conflict.preview?.before?.width ?? 0, conflict.preview?.before?.height ?? 0)
   const enlarge = small > 0 && small <= 48 ? Math.min(4, 96 / small) : 1
   const drawing = (side, override) => (
@@ -1274,6 +1274,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
         const customCard = cards.find((card) => card.id === 'C')
         const empty = !custom
         const picks = Boolean(flow?.controls)
+        // (Nothing picked, and nothing to pick here: no empty line saying "choose".)
+        if ((readOnly || !editing) && !choice) return null
         return (
           <WayPicker
             data-choice-list
@@ -1608,7 +1610,8 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
               <div data-merged-code className="min-w-0 space-y-1.5">
                 {/* (No title of its own — the step, 병합, names it: what was merged in a line and a short list, then
                     the code folded behind its file's line.) */}
-                {codeConflict ? <CodeDifferenceSummary conflict={conflict} /> : conflict.comparisonFields?.length > 0 && <DifferenceSummary compact conflict={conflict} resolved mergedSide={choice ?? 'A'} />}
+                {/* (Its values are already said under the pictures, when there are pictures.) */}
+                {codeConflict ? <CodeDifferenceSummary conflict={conflict} /> : conflict.comparisonFields?.length > 0 && !(page && conflict.preview) && <DifferenceSummary compact conflict={conflict} resolved mergedSide={choice ?? 'A'} />}
                 <button type="button" data-merged-code-toggle aria-expanded={mergedCodeOpen} onClick={() => setMergedCodeOpen((open) => !open)} className="ds-intrinsic mt-1 flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1 text-left text-[11.5px] text-slate-400 transition-colors hover:text-white">
                   <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform', !mergedCodeOpen && '-rotate-90')} />
                   <FileCode2 className="size-3 shrink-0" />

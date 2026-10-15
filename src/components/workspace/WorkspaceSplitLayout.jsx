@@ -667,7 +667,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
           {conflictCount > 0 && <span className="text-xs tabular-nums">{conflictCount}</span>}
         </button>
         <button type="button" data-workspace-view-tab="merge" id={viewTabId('merge')} aria-pressed={activeView === 'mergeStudio'} aria-expanded={designComparePanelOpen} aria-controls={VIEW_PANEL_ID} onClick={openMergeTab}
-          className={cn(PILL, openPanel === 'merge' ? cn(PILL_OPEN, 'text-white') : cn(PILL_REST, 'text-slate-400 hover:text-slate-200'))}><Sparkles aria-hidden className="size-3.5 shrink-0" />병합 <span data-merge-count className="text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
+          className={cn(PILL, openPanel === 'merge' ? cn(PILL_OPEN, 'text-white') : cn(PILL_REST, 'text-slate-400 hover:text-slate-200'))}><Sparkles aria-hidden className="size-3.5 shrink-0" /><span translate="no">Merge</span> <span data-merge-count className="text-xs tabular-nums text-slate-400">{mergeCount}</span></button>
         {openPanel && (
           <button type="button" data-panel-close data-board-conflicts-close={openPanel === 'conflicts' ? '' : undefined} data-design-compare-close={openPanel === 'merge' ? '' : undefined}
             aria-label={openPanel === 'conflicts' ? '변경확인 닫기' : '디자인 비교 닫기'} onClick={closePanel}

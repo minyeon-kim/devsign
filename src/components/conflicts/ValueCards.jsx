@@ -16,7 +16,7 @@ import { overridesFor, previewTargetsOf } from '@/lib/canvasPreview'
 //   · The card's shape follows the crop's: 1:1 for a near-square one (an icon), 4:3 for a wide one; a long
 //     one (a full-width button, a line — over 2:1) keeps its own shape, up to 4:1, and the two cards stack,
 //     each the column's width — side by side it would be drawn at half size in a box of white.
-//     The drawing sits on the product's light grey; its label under it (the values are the table's).
+//     The drawing — the screen's own white — sits on the card's dark ground (#2E2E2E); its label a tag in the corner.
 
 export const CROP_PAD = 16
 export const CARD_PAD = 12
@@ -76,7 +76,7 @@ export function valueChipOf(conflict, values) {
 
 function CropDrawing({ frame, box, overrides }) {
   return (
-    <div data-card-crop className="relative overflow-hidden" style={{ width: box.width, height: box.height }}>
+    <div data-card-crop className="relative overflow-hidden rounded-[6px] bg-white" style={{ width: box.width, height: box.height }}>
       <div className="absolute top-0 left-0" style={{ width: frame.width, height: frame.height, transform: `translate(${-box.x}px, ${-box.y}px)` }}>
         {frame.layers.map((layer) => <StaticLayer key={layer.id} layer={layer} override={overrides?.[layer.id]} editHint={false} />)}
       </div>
@@ -102,7 +102,7 @@ function FitArea({ ratio, scale, onFit, label = null, children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
-    <div ref={areaRef} data-card-area className="relative w-full overflow-hidden bg-[#F5F5F5]" style={{ aspectRatio: String(ratio) }}>
+    <div ref={areaRef} data-card-area className="relative w-full overflow-hidden bg-[#2E2E2E]" style={{ aspectRatio: String(ratio) }}>
       <div ref={drawingRef} data-card-drawing data-scale={scale ?? undefined} className="absolute top-1/2 left-1/2 w-max" style={{ transform: `translate(-50%, -50%) scale(${scale ?? 1})`, transformOrigin: 'center', visibility: scale ? 'visible' : 'hidden' }}>
         {children}
       </div>
@@ -135,7 +135,7 @@ export default function ValueCards({ conflict, pages, sides }) {
           {/* (Its name a small tag in the drawing's corner — no line of its own under it, no frame round it:
               the card is the drawing. The values are the table's, above.) */}
           <FitArea ratio={ratio} scale={scale} onFit={report(side.id)} label={
-            <figcaption className="pointer-events-none absolute top-2 right-2 flex h-5 items-center rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur-sm">
+            <figcaption className="pointer-events-none absolute top-2 right-2 flex h-5 max-w-[calc(100%-1rem)] items-center truncate rounded-full bg-black/55 px-2 text-[11px] font-medium whitespace-nowrap text-white backdrop-blur-sm">
               <span {...(side.id === 'before' ? { 'data-before-title': '' } : { 'data-after-title': '' })}>{side.title}</span>
             </figcaption>
           }>

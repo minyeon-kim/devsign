@@ -140,7 +140,7 @@ function FoldTitle({ open, onToggle, children, ...rest }) {
 function PictureCaption({ title, sub, titleProps = {}, subProps = {}, tag = false }) {
   // (`tag`: a small tag in the drawing's corner, as a value change's cards have — on the light ground.)
   if (tag) return (
-    <figcaption className="pointer-events-none absolute top-2 right-2 flex h-5 items-center rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur-sm">
+    <figcaption className="pointer-events-none absolute top-2 right-2 flex h-5 max-w-[calc(100%-1rem)] items-center truncate rounded-full bg-black/55 px-2 text-[11px] font-medium whitespace-nowrap text-white backdrop-blur-sm">
       <span {...titleProps}>{title}</span>
     </figcaption>
   )
@@ -614,7 +614,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     : { title: peeking ? '미리보기' : mode === 'done' ? '수정 후' : asked ? '요청한 결과' : '선택한 결과' }
   // (A layout's screens: on the product's light grey, stacked, each as wide as the column — as a value change's cards.)
   const PICTURE = conflict.layouts
-    ? 'relative m-0 min-w-0 overflow-hidden rounded-xl border bg-[#F5F5F5] px-3 py-8'
+    ? 'relative m-0 min-w-0 overflow-hidden rounded-xl border bg-[#2E2E2E] px-3 py-8'
     : 'grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border bg-black/20 p-4 h-[240px]'
   const LAYOUT_WIDTH = 360
   // The two pictures open large (PictureViewer): what's built now, and the result — drawn from the
