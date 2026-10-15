@@ -17,41 +17,43 @@ function CommentItem({ comment }) {
   const author = allPeople.find((p) => p.id === comment.authorId)
 
   return (
-    <div className="rounded-2xl border bg-background p-3">
+    // (A row of the app's lists — History, the change list, Merge's, the Inbox: no box, 14px round on hover; the
+    // name as the title, the time at the right, quieter; then what was said, and its actions a step quieter still.)
+    <div data-comment-row className="rounded-[14px] px-3 py-2.5 transition-colors hover:bg-white/[0.04]">
       <div className="flex items-start gap-2">
         <span
           className={cn(
-            'flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white',
+            'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[8px] font-semibold text-white',
             author?.colorClass
           )}
         >
           {author?.initials}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <div className="truncate text-xs">
-              <span className="font-medium">{author?.name}</span>{' '}
-              <span className="text-muted-foreground">({author?.role})</span>
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="min-w-0 truncate text-[13px] leading-5">
+              <span className="font-medium text-slate-100">{author?.name}</span>{' '}
+              <span className="text-[11.5px] text-slate-500">{author?.role}</span>
             </div>
-            <span className="shrink-0 text-[10px] text-muted-foreground">
+            <span className="shrink-0 text-[11.5px] text-slate-500 tabular-nums">
               {comment.timeLabel}
             </span>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-foreground/90">{comment.text}</p>
+          <p className="mt-0.5 text-[13px] leading-5 text-slate-300">{comment.text}</p>
 
-          <div className="mt-2 flex items-center gap-3">
+          <div className="mt-1.5 flex items-center gap-3">
             <button
               type="button"
               onClick={() => toggleCommentLike(comment.id)}
               className={cn(
-                'flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground',
+                'flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-slate-200',
                 comment.liked && 'text-destructive hover:text-destructive'
               )}
             >
               <Heart className={cn('size-3', comment.liked && 'fill-current')} />
               {comment.likes}
             </button>
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-[11.5px] text-slate-500">
               <Reply className="size-3" />
               {comment.replies}
             </span>
@@ -59,10 +61,10 @@ function CommentItem({ comment }) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  'ml-auto flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+                  'ml-auto flex h-5 items-center gap-1 rounded-full px-1.5 text-[10.5px] font-medium',
                   comment.status === 'open'
-                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-500'
-                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                    ? 'bg-amber-300/[0.14] text-amber-200'
+                    : 'bg-emerald-400/[0.14] text-emerald-200'
                 )}
               >
                 {comment.status === 'open' ? 'Open' : 'Resolved'}
@@ -110,14 +112,15 @@ function CommentsPanel() {
     // elsewhere. A single count line replaces it; each comment's own status
     // badge still shows (and can change) its open/resolved state.
     <div className="flex h-full min-h-0 flex-1 flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-xs">
-        <span className="font-medium text-foreground">Comments</span>
-        <span className="text-muted-foreground">
-          {comments.length} total · {openCount} open
+      {/* (Its head as the lists' group heads: the name and how many, quiet.) */}
+      <div className="flex h-9 shrink-0 items-center justify-between px-4 text-[12px]">
+        <span className="font-semibold text-slate-400">Comments <span className="font-normal text-slate-500 tabular-nums">{comments.length}</span></span>
+        <span className="text-[11.5px] text-slate-500">
+          {openCount} open
         </span>
       </div>
 
-      <div className="scroll-fade-bottom min-h-0 flex-1 space-y-2 overflow-auto p-2">
+      <div className="scroll-fade-bottom min-h-0 flex-1 space-y-0.5 overflow-auto px-1.5 pb-2">
         {comments.length === 0 && (
           <p className="p-2 text-xs text-muted-foreground">No comments yet.</p>
         )}

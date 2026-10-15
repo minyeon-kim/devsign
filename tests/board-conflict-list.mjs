@@ -25,6 +25,6 @@ try {
   assert.ok(list.includes('sticky top-0') && list.includes('aria-expanded={open}') && list.includes('h-7'), 'sticky, folding 28px headers')
   assert.ok(list.includes("conflict.dueBucket === 'overdue' ? 'font-semibold text-rose-400' : conflict.dueBucket === 'today' ? 'text-rose-400'"), 'only today (and overdue) in red')
   assert.ok(list.includes("medium: ['Risk medium'") && !list.includes("low: ['Risk"), 'no chip for low risk')
-  assert.ok(list.includes("event.key !== 'ArrowDown' && event.key !== 'ArrowUp'") && list.includes("'bg-[var(--ds-surface-2)] ring-1 ring-[var(--ds-border-strong)] ring-inset'"))
+  assert.ok(list.includes("event.key !== 'ArrowDown' && event.key !== 'ArrowUp'") && list.includes("selected ? 'bg-white/[0.08]'"))
   console.log('Passed: the board’s change list — groups, fixed columns, one title form, the risk only when it matters.')
 } finally { await server.close() }

@@ -102,7 +102,7 @@ function Title({ children, ...rest }) {
       data-row-title
       {...rest}
       onMouseEnter={(event) => { const el = event.currentTarget; el.title = el.scrollWidth > el.clientWidth ? el.textContent : '' }}
-      className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-white"
+      className="min-w-0 flex-1 truncate text-[13px] leading-5 font-medium text-slate-100"
     >{children}</span>
   )
 }

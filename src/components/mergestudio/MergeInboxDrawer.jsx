@@ -364,8 +364,8 @@ function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJu
 
   return (
     // (A flat list: no box per notification — only the open one, and the one under the pointer, are lit.)
-    <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-xl transition-colors', expanded && 'bg-white/[0.04]')}>
-      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-xl py-3 pr-3 pl-2 text-left transition-colors', !expanded && 'hover:bg-white/[0.03]')}>
+    <div data-inbox-card={group.unread ? 'unread' : 'read'} className={cn('rounded-[14px] transition-colors', expanded && 'bg-white/[0.04]')}>
+      <button type="button" aria-expanded={expanded} onClick={onToggle} className={cn('flex w-full items-start gap-2 rounded-[14px] px-3 py-2.5 text-left transition-colors', !expanded && 'hover:bg-white/[0.04]')}>
         {/* Unread: a dot at the left (its place is kept when read, so the rows line up). */}
         <span aria-label={group.unread ? 'Unread' : undefined} data-inbox-dot={group.unread ? '' : undefined} className={cn('mt-2 size-1.5 shrink-0 rounded-full', group.unread ? 'bg-[#5EEAB5]' : 'bg-transparent')} />
         {!openThread && <span className="mt-0.5 flex w-5 shrink-0 justify-center">
@@ -389,13 +389,13 @@ function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJu
             ) : (
               <span className={cn('min-w-0 flex-1 text-[13px] leading-5 font-medium', group.unread || expanded ? 'text-white' : 'text-slate-300', expanded ? 'break-words' : 'truncate')}><LocalizedText text={card.title} /></span>
             )}
-            <span className="shrink-0 text-[11px] text-slate-500 tabular-nums"><LocalizedText text={timeIn(group.timeLabel, day)} /></span>
+            <span className="shrink-0 text-[11.5px] text-slate-500 tabular-nums"><LocalizedText text={timeIn(group.timeLabel, day)} /></span>
           </span>
           {notice && (
             // The closed card's second line gives way to the full text below as it opens (a collapsing row, so nothing pops).
             <span className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}>
               <span className="min-h-0 overflow-hidden">
-                <span data-notice-line className="mt-0.5 block min-w-0 truncate text-xs leading-5 text-slate-400">
+                <span data-notice-line className="mt-0.5 block min-w-0 truncate text-[11.5px] leading-4 text-slate-500">
                   {card.closed.lead && <LocalizedText text={card.closed.lead} />}
                   {card.closed.lead && card.closed.change && <span aria-hidden> · </span>}
                   {card.closed.change && <ChangeText change={card.closed.change} />}
@@ -406,12 +406,12 @@ function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJu
             </span>
           )}
           {!notice && (card.summary || card.severity) && !openThread && (
-            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-slate-400">
+            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] leading-4 text-slate-500">
               {/* (The level is the icon's colour; said in words only when there's nothing else to say.) */}
               {card.severity && !card.summary && <span className={cn('shrink-0 font-medium', card.severity === 'high' ? 'text-rose-300' : 'text-slate-300')}><LocalizedText text={RISK_LABEL[card.severity]} /></span>}
               {card.summary && (
                 <span className="min-w-0 flex-1 truncate">
-                  {card.summaryLead && <span className="text-slate-300"><LocalizedText text={card.summaryLead} />: </span>}
+                  {card.summaryLead && <span className="text-slate-400"><LocalizedText text={card.summaryLead} />: </span>}
                   <LocalizedText text={card.summary} />
                 </span>
               )}
@@ -544,7 +544,7 @@ function MergeInboxDrawer({ onJump, onClose, inset }) {
           return (
             <Fragment key={group.id}>
               {/* 오늘 / 어제 / 이번 주 / 이전 — said once, over the first of each. */}
-              {(index === 0 || dayOf(visible[index - 1]) !== day) && <h3 data-inbox-day={day} className="px-1 pt-2 pb-0.5 text-[11px] font-medium text-slate-500 first:pt-0">{DAY_GROUP_LABEL[day]}</h3>}
+              {(index === 0 || dayOf(visible[index - 1]) !== day) && <h3 data-inbox-day={day} className="flex h-7 items-center px-3 pt-2 text-[12px] font-semibold text-slate-400 first:pt-0">{DAY_GROUP_LABEL[day]}</h3>}
               <div className="group/inbox relative">
                 <InboxCard group={group} day={day} expanded={expandedId === group.id} onToggle={() => toggleGroup(group)} conflicts={conflicts} mergeItems={mergeItems} onJump={onJump} />
                 {/* On hover or focus: read ↔ unread, without opening it. */}

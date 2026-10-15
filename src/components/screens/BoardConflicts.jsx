@@ -151,7 +151,7 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
                       return (
                         <li key={conflict.id}>
                           <button type="button" data-board-conflict={conflict.id} data-selected={selected ? '' : undefined} onClick={() => onPick(conflict)}
-                            className={cn('ds-intrinsic grid h-[52px] w-full grid-cols-[16px_minmax(0,1fr)_56px] grid-rows-2 items-center gap-x-2.5 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', selected ? 'bg-[var(--ds-surface-2)] ring-1 ring-[var(--ds-border-strong)] ring-inset' : 'hover:bg-white/[0.04]')}>
+                            className={cn('ds-intrinsic grid h-[52px] w-full grid-cols-[16px_minmax(0,1fr)_56px] grid-rows-2 items-center gap-x-2.5 rounded-[14px] px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', selected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}>
                             <StatusIcon status={status?.id ?? 'detected'} label={translateText(status?.label ?? '', language)} />
                             {/* (As the change names them — a component and its property aren't words to translate.) */}
                             <span data-row-title translate="no" title={property ? `${target} · ${property}` : target} className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
