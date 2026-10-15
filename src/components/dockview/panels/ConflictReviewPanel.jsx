@@ -2617,39 +2617,28 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
   const { reveal, ref } = useStepReveal(conflict.id, states)
   const [hovered, setHovered] = useState(null)
   const folds = useFoldState(`record:${conflict.id}:${states.join(',')}`)
-  // (`current` stands above the record, on its own: the record is a fold under it, closed until asked for.)
-  const lifted = Boolean(current)
-  const [recordOpen, setRecordOpen] = useState(false)
   if (!steps.length) return null
   const host = (steps.find((step) => step.state === 'current') ?? steps.at(-1))?.key
-  const foldable = steps.filter((step) => hasBody(step)).map((step) => step.key)
+  // (`current` is inside the step under way — its card — as every record has it; that step is open to start with.)
+  const foldable = steps.filter((step) => hasBody(step) || (current && step.key === host)).map((step) => step.key)
   // (The step under way is open to start with — the others folded — and one step is open at a time.)
-  const isOpen = (key) => folds.get(key, key === host && !lifted && steps.find((step) => step.key === host)?.state !== 'done')
+  const isOpen = (key) => folds.get(key, key === host && (Boolean(current) || steps.find((step) => step.key === host)?.state !== 'done'))
   const toggle = accordionToggle(folds, foldable, isOpen, host)
   const allOpen = foldable.length > 0 && foldable.every(isOpen)
   return (
     // (40px under what's above it; 24px to the first step; 48px from step to step.)
     <>
-    {lifted && <div data-record-current className="min-w-0 shrink-0">{current}</div>}
-    <section data-step-record aria-label="진행 기록" className={cn('mt-1 shrink-0 pb-2', lifted && 'border-t border-white/[0.07] pt-1')}>
-      <div data-step-list-head className={cn('flex items-center gap-2', lifted ? 'min-h-9' : 'mb-3')}>
-        {lifted ? (
-          <button type="button" data-record-toggle aria-expanded={recordOpen} onClick={() => setRecordOpen((open) => !open)} className="ds-intrinsic flex h-9 items-center gap-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-            <ChevronRight aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform', recordOpen && 'rotate-90')} />
-            <h3 className="text-[12px] font-semibold tracking-wide text-slate-300"><LocalizedText text="Progress record" /></h3>
-            <StepProgressCount states={states} ticks={reveal.live} />
-          </button>
-        ) : (<>
-          <h3 className="text-[12px] font-semibold tracking-wide text-slate-400"><LocalizedText text="Progress record" /></h3>
-          <StepProgressCount states={states} ticks={reveal.live} />
-        </>)}
-        {foldable.length > 0 && (!lifted || recordOpen) && (
+    {/* (No title over it: each step is its own card. Where it stands, and 모두 펼치기.) */}
+    <section data-step-record aria-label="진행 기록" className="mt-1 shrink-0 pb-2">
+      <div data-step-list-head className="mb-3 flex items-center gap-2">
+        <StepProgressCount states={states} ticks={reveal.live} />
+        {foldable.length > 0 && (
           <button type="button" data-fold-all onClick={() => folds.setMany(foldable, !allOpen)} className="ml-auto cursor-pointer text-xs font-medium text-slate-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-emerald-300">
             {allOpen ? '모두 접기' : '모두 펼치기'}
           </button>
         )}
       </div>
-      <ol ref={ref} data-step-list hidden={lifted && !recordOpen} className="m-0 flex list-none flex-col gap-2 p-0">
+      <ol ref={ref} data-step-list className="m-0 flex list-none flex-col gap-2 p-0">
         {steps.map((step, index) => (
           <StepRow
             key={step.key}
@@ -2669,8 +2658,9 @@ function ReviewRecord({ conflict, choice, choiceLabel, reason, given = null, cur
             strong={hovered != null && index < hovered}
             onHover={(on) => setHovered(on ? index : null)}
           >
-            {hasBody(step) && (
+            {(hasBody(step) || (current && step.key === host)) && (
               <>
+                {current && step.key === host && <div data-record-current className="min-w-0">{current}</div>}
                 {/* What was found, drawn: what's built beside the reference (24px apart, 12px to their labels). */}
                 {step.preview && (
                   <div data-record-preview className="grid max-w-[560px] grid-cols-2 gap-6">
@@ -3290,7 +3280,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   }
   const broken = choice ? violations[choice] : []
   const reasonOf = (kind) => (conflict?.deviation?.kind === kind ? conflict.deviation.text ?? '' : '')
-  const flowReason = choice === 'C' ? {
+  // (The reason is the author's to give: a reviewer — the designer — doesn't fill it in; what was given shows in the record.)
+  const flowReason = myReviewer && !ownChange ? null : choice === 'C' ? {
     title: broken.length ? 'Reason for adjustment and exception' : 'Why was it adjusted?',
     hint: 'Required · choose all that apply',
     reasons: ADJUSTMENT_REASONS,
@@ -3901,7 +3892,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     {/* (On the page the ways forward are in the record's current step — ReviewRecord's `current`.) */}
                     {(!page || conflict.rollback) && diffArea}
                     {/* Then how far it has come: the record, light — a line a step. */}
-                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} current={diffArea} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? ''} 
+                    {page && !conflict.rollback && <ReviewRecord key={`record:${conflict.id}`} conflict={conflict} current={diffArea} choice={cardFlow ? choice : null} choiceLabel={recordChoiceLabel} reason={flowReason?.value ?? (choice === 'C' ? conflict.adjustmentReason?.text : conflict.deviation?.text) ?? ''} 
                       given={mergeRequest ? mergeRequestRecordOf(conflict, requestRows.map((row) => ({ ...row, label: tr(row.label), options: row.options.map((option) => ({ ...option, value: option.literal ? option.value : tr(String(option.value)) })) })), {
                         nameOf: personNameOf,
                         drafts: (requestRows[0]?.options ?? []).map((option) => ({ letter: option.letter, name: tr(option.name) })),

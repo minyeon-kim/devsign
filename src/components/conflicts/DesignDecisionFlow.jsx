@@ -1289,11 +1289,9 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // check, a go-ahead to give): that one opens. (What's under way or waiting
   // for the merge is the status block's to say.)
   const current = askingNow ? 'request' : stage === 'requested' ? 'decision' : post && stage !== 'resolved' ? 'fix' : null
-  // (Asked, the request, the picture and the decision stand together above the record — a fold — so the step has nothing of
-  // its own to open.)
-  const lifted = stage === 'requested'
-  const [recordOpen, setRecordOpen] = useState(false)
-  const isOpen = (key) => folds.get(key, key === current && !lifted)
+  // (Every stage the same way: what's under way is inside its own step's card, open; the rest fold. Asked, the
+  // request, the picture and the decision are the 결정 step's.)
+  const isOpen = (key) => folds.get(key, key === current)
   const allOpen = FOLD_STEPS.every(isOpen)
   // (One step open at a time; the one under way stays open until it's folded by hand.)
   const toggle = accordionToggle(folds, FOLD_STEPS, isOpen, current)
@@ -1426,32 +1424,16 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
           }}
         />
       )}
-      {/* Asked: the question first — who asked what and why, the picture, the decision — then the record under it. */}
-      {lifted && (
-        <div data-decision-block className="flex flex-col gap-4">
-          <RequestSummary conflict={conflict} />
-          {card}
-          {decides ? <DecisionForm conflict={conflict} onDecide={decideNow} /> : reviewerIds[0] && <WaitingLine id={reviewerIds[0]} what="결정" />}
-        </div>
-      )}
-      <section data-step-record aria-label="진행 기록" className={cn('mt-1', lifted && 'border-t border-white/[0.07] pt-1')}>
-        <div data-step-list-head className={cn('flex items-center gap-2', lifted ? 'min-h-9' : 'mb-2')}>
-          {lifted ? (
-            <button type="button" data-record-toggle aria-expanded={recordOpen} onClick={() => setRecordOpen((open) => !open)} className="ds-intrinsic flex h-9 items-center gap-1.5 text-left focus-visible:outline-2 focus-visible:outline-emerald-300">
-              <ChevronRight aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform', recordOpen && 'rotate-90')} />
-              <h3 className="text-[12px] font-semibold tracking-wide text-slate-300">진행 기록</h3>
-              <StepProgressCount states={stepStates} ticks={reveal.live} />
-            </button>
-          ) : (<>
-            <h3 className="text-[12px] font-semibold tracking-wide text-slate-400">진행 기록</h3>
-            <StepProgressCount states={stepStates} ticks={reveal.live} />
-          </>)}
-          {(!lifted || recordOpen) && <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="ml-auto cursor-pointer text-xs text-slate-400 hover:text-white">
+      {/* (No title over it: each step is its own card, and they say what this is. Where it stands, and 모두 펼치기.) */}
+      <section data-step-record aria-label="진행 기록" className="mt-1">
+        <div data-step-list-head className="mb-2 flex items-center gap-2">
+          <StepProgressCount states={stepStates} ticks={reveal.live} />
+          <button type="button" data-fold-all onClick={() => folds.setMany(FOLD_ALL, !allOpen)} className="ml-auto cursor-pointer text-xs text-slate-400 hover:text-white">
             {allOpen ? '모두 접기' : '모두 펼치기'}
-          </button>}
+          </button>
           {post && onReplay && <button type="button" data-replay-open onClick={() => onReplay('start')} className={SECONDARY}><Play className="size-3 fill-current" />리플레이</button>}
         </div>
-        <ol ref={listRef} data-step-list hidden={lifted && !recordOpen} className="m-0 flex list-none flex-col gap-1 p-0">
+        <ol ref={listRef} data-step-list className="m-0 flex list-none flex-col gap-1 p-0">
           {steps.map((step, index) => (
             <StepRow key={step.key} data-fold={step.key} state={step.state} title={step.title} who={step.who} summary={step.summary} time={step.time}
               open={isOpen(step.key)} onToggle={() => toggle(step.key)} last={index === steps.length - 1}
@@ -1461,7 +1443,15 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               {/* (A value change's cause is its values — the table's to say; a layout's is said here.) */}
               {step.key === 'detect' && <DetectionFacts conflict={conflict} cause={Boolean(conflict.layouts)} />}
               {step.key === 'request' && request && !askingNow && post && <RequestCard bare conflict={conflict} />}
-              {!lifted && step.key === (current ?? 'fix') && card}
+              {stage !== 'requested' && step.key === (current ?? 'fix') && card}
+              {/* Asked: the question, inside the 결정 step — who asked what and why, the picture, the decision. */}
+              {step.key === 'decision' && stage === 'requested' && (
+                <div data-decision-block className="flex flex-col gap-4">
+                  <RequestSummary conflict={conflict} />
+                  {card}
+                  {decides ? <DecisionForm conflict={conflict} onDecide={decideNow} /> : reviewerIds[0] && <WaitingLine id={reviewerIds[0]} what="결정" />}
+                </div>
+              )}
               {step.key === 'request' && askingNow && !asking && authorId && <WaitingLine id={authorId} what="승인 요청" />}
               {step.key === 'decision' && decision && stage !== 'requested' && <DecisionCard bare conflict={conflict} viewerId={viewer?.id} />}
               {step.key === 'fix' && post && <FixPanel conflict={conflict} folds={folds} onPropose={(note) => {

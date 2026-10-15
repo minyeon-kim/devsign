@@ -228,7 +228,7 @@ export function StepProgressCount({ states, ticks }) {
   return (
     <span data-step-count aria-label={`${states.length}단계 중 ${done}단계${done === states.length ? ' 완료' : ''}`} className="text-xs text-slate-400 tabular-nums">
       <span aria-hidden>
-        · <span key={done} className={cn('inline-block', ticks && 'ds-step-tick')}>{done}</span>/{rest}
+        <span key={done} className={cn('inline-block', ticks && 'ds-step-tick')}>{done}</span>/{rest}
       </span>
     </span>
   )
