@@ -13,8 +13,9 @@ try {
   const byId = (id) => allConflictRecords().find((c) => c.id === id)
   assert.deepEqual([CROP_PAD, CARD_PAD, MAX_SCALE], [16, 12, 8])
   // The element, not the screen: the icon 16 + 16 + 16, the button 240 × 44 + 16 round it.
-  // (Its label beside it, which 16px would cut into, is left out whole: the crop stops 4px short of it.)
-  assert.deepEqual(cropOf(byId('CON-013'), canvasPages).box, { x: 4, y: 281, width: 36, height: 48 })
+  // (Its label beside it is left out whole, and the icon stays in the middle: the same room on every side — the
+  // least any side has.)
+  assert.deepEqual(cropOf(byId('CON-013'), canvasPages).box, { x: 16, y: 293, width: 24, height: 24 })
   // (The button's "Total" label right above it, which 16px would cut in half, is taken in whole.)
   assert.deepEqual(cropOf(byId('CON-014'), canvasPages).box, { x: 4, y: 452, width: 272, height: 102 })
   // Fitted to the inside, never past 8×; 1:1 for a near-square crop, 4:3 for a wide one.

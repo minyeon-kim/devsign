@@ -51,7 +51,10 @@ export function cropOf(conflict, pages) {
         if (other.x + other.width <= area.x && other.x + other.width > x) x = Math.min(area.x - 4, other.x + other.width + 4)
       }
       const bottom = Math.min(frame.height ?? Infinity, area.bottom + CROP_PAD)
-      return { frame, box: { x, y, width: right - x, height: bottom - y } }
+      // (The element in the middle: the same room on every side — the least any side has — so a crop cut short
+      // on one side by a neighbour, or by the screen's edge, doesn't push it off-centre.)
+      const pad = Math.max(0, Math.min(area.x - x, right - area.right, area.y - y, bottom - area.bottom))
+      return { frame, box: { x: area.x - pad, y: area.y - pad, width: area.right - area.x + pad * 2, height: area.bottom - area.y + pad * 2 } }
     }
   }
   return null

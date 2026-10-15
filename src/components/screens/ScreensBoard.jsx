@@ -101,7 +101,8 @@ function MarkerButton({ marker, lit, faded, onHover, onPress }) {
       onFocus={() => onHover(true)}
       onBlur={() => onHover(false)}
       className="ds-intrinsic ds-pin absolute block cursor-pointer rounded-full outline-none transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 motion-reduce:transition-none"
-      // (Its tip at the anchor: the element's top right corner, a little inside.)
+      // (Its tip at the anchor: just above the element's top edge, over its middle — it marks the element without
+      // covering any of it.)
       style={{ left: -head / 2, top: -height, width: head, height, opacity: faded ? 0.4 : 1 }}
     >
       <PinShape head={head} height={height} color={lit ? HEAD_COLOR.selected : HEAD_COLOR.default} />
@@ -773,7 +774,7 @@ function ScreensBoard() {
                       return (
                         <Fragment key={marker.layer.id}>
                           {lit && !current && <span aria-hidden data-marker-outline className="pointer-events-none absolute z-10 rounded-[4px]" style={{ left: marker.layer.x - 2, top: 32 + marker.layer.y - 2, width: marker.layer.width + 4, height: marker.layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #F04E5A`, background: 'color-mix(in srgb, #F04E5A 12%, transparent)' }} />}
-                          <div data-board-chrome className={cn('absolute', current ? 'z-20' : 'z-10')} style={{ left: marker.layer.x + marker.layer.width - BOARD_PIN.inset, top: 32 + marker.layer.y + BOARD_PIN.inset, transform: `scale(${Math.max(0.65, Math.min(1, (card.width * shown.zoom) / 420)) / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
+                          <div data-board-chrome className={cn('absolute', current ? 'z-20' : 'z-10')} style={{ left: marker.layer.x + Math.min(marker.layer.width - BOARD_PIN.inset, Math.max(BOARD_PIN.inset, marker.layer.width / 2)), top: 32 + marker.layer.y - 2, transform: `scale(${Math.max(0.65, Math.min(1, (card.width * shown.zoom) / 420)) / shown.zoom})`, transformOrigin: '0 0' }} {...stop}>
                             <MarkerButton
                               marker={marker}
                               lit={current}
