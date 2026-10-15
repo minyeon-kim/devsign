@@ -131,9 +131,10 @@ export function DrawerRow({ title, titleAdornment = null, time = null, timeStron
       <span className="flex h-5 min-w-0 items-center gap-2">
         <Title>{title}</Title>
         {titleAdornment}
-        {time != null && <span data-row-time className={cn('shrink-0 text-xs tabular-nums', timeStrong ? 'font-medium text-white' : 'text-slate-400')}>{time}</span>}
+        {time != null && <span data-row-time className={cn('shrink-0 text-[11.5px] tabular-nums', timeStrong ? 'font-medium text-white' : 'text-slate-500')}>{time}</span>}
       </span>
-      <span data-row-meta className="flex h-4 min-w-0 items-center gap-1.5 text-xs text-slate-400">{meta}</span>
+      {/* (Under the title, a step down: smaller and quieter, so the title leads — as the change list's rows.) */}
+      <span data-row-meta className="flex h-4 min-w-0 items-center gap-1.5 text-[11.5px] text-slate-500">{meta}</span>
       {children}
     </div>
   )

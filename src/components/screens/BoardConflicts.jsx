@@ -131,11 +131,13 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
             const here = group.id && group.id === currentScreenId
             return (
               <section key={key} data-board-conflicts-screen={key} data-focus={group.id && group.id === focusScreenId ? '' : undefined} data-current={here ? '' : undefined} className="mt-4 scroll-mt-0">
+                {/* (A section's label, not a row: its name and how many, the fold's chevron at the right end —
+                    lined up with the rows' status icons under it.) */}
                 <h3 className="sticky top-0 z-10 m-0 bg-[#1C1C1C]">
-                  <button type="button" data-group-toggle={key} aria-expanded={open} onClick={() => toggle(key)} className="ds-intrinsic flex h-7 w-full items-center gap-1.5 rounded-md px-1.5 text-left text-[12px] transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                    <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform duration-150 motion-reduce:transition-none', !open && '-rotate-90')} />
+                  <button type="button" data-group-toggle={key} aria-expanded={open} onClick={() => toggle(key)} className="ds-intrinsic flex h-7 w-full items-center gap-1.5 rounded-lg px-3 text-left text-[12px] transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
                     <span data-group-name className={cn('min-w-0 truncate font-semibold', here ? 'text-slate-100' : 'text-slate-400')}><LocalizedText text={group.name} /></span>
-                    <span data-group-meta className="shrink-0 font-normal text-slate-500 tabular-nums">{group.n != null ? `${group.n} · ${group.conflicts.length}` : group.conflicts.length}</span>
+                    <span data-group-meta className="shrink-0 font-normal text-slate-500 tabular-nums">{group.conflicts.length}</span>
+                    <ChevronDown aria-hidden className={cn('ml-auto size-3.5 shrink-0 text-slate-500 transition-transform duration-150 motion-reduce:transition-none', !open && '-rotate-90')} />
                   </button>
                 </h3>
                 {open && (
@@ -154,12 +156,12 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
                             {/* (As the change names them — a component and its property aren't words to translate.) */}
                             <span data-row-title translate="no" title={property ? `${target} · ${property}` : target} className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
                               <span data-row-target className="min-w-0 shrink-0 truncate font-medium text-slate-100" style={{ maxWidth: property ? '62%' : '100%' }}>{target}</span>
-                              {property && <span data-row-property className="min-w-0 truncate text-slate-400">{property}</span>}
+                              {property && <span data-row-property className="min-w-0 truncate text-slate-500">{property}</span>}
                             </span>
-                            <span data-row-due={conflict.dueBucket} className={cn('justify-self-end text-right text-[12px] tabular-nums', conflict.dueBucket === 'overdue' ? 'font-semibold text-rose-400' : conflict.dueBucket === 'today' ? 'text-rose-400' : 'text-slate-500')}>{due && <LocalizedText text={due} />}</span>
-                            <span data-row-kind className="col-start-2 flex min-w-0 items-center gap-1.5 text-[12px] leading-4 text-slate-500">
+                            <span data-row-due={conflict.dueBucket} className={cn('justify-self-end text-right text-[11.5px] tabular-nums', conflict.dueBucket === 'overdue' ? 'font-semibold text-rose-400' : conflict.dueBucket === 'today' ? 'text-rose-400' : 'text-slate-500')}>{due && <LocalizedText text={due} />}</span>
+                            <span data-row-kind className="col-start-2 flex min-w-0 items-center gap-1.5 text-[11.5px] leading-4 text-slate-500">
                               <span className="truncate"><LocalizedText text={rowKindOf(conflict)} /></span>
-                              {chip && <span data-row-risk={conflict.severity} className={cn('shrink-0 rounded px-1.5 text-[11px] leading-[18px] font-medium', chip[1])}><LocalizedText text={chip[0]} /></span>}
+                              {chip && <span data-row-risk={conflict.severity} className={cn('shrink-0 rounded-full px-1.5 text-[10.5px] leading-4 font-medium', chip[1])}><LocalizedText text={chip[0]} /></span>}
                             </span>
                           </button>
                         </li>

@@ -53,7 +53,7 @@ function DesignSetRow({ item, state, count, selected, onOpen }) {
         <>
           {merged ? <Check aria-hidden className="size-3 shrink-0" /> : <span aria-hidden data-status-dot className={cn('size-1.5 shrink-0 rounded-full', state.id === 'draft' ? 'bg-slate-500' : 'bg-white')} />}
           <span className="min-w-0 truncate"><LocalizedText text={state.label} /></span>
-          <span className="shrink-0 text-slate-500">· {designRegionsOf(item).length}개 영역 조합</span>
+          <span className="shrink-0 text-slate-500">· 영역 {designRegionsOf(item).length}개</span>
         </>
       )}
     />
@@ -122,10 +122,11 @@ function CompareDrawer() {
           // (As the change list's groups: no box — a header held at the top, its name then how many, and the rows under it.)
           <section key={label} data-drawer-group={label} data-compare-group={label} className="mt-4">
             <h4 style={{ height: GROUP_HEIGHT }} className="sticky top-0 z-10 m-0 flex items-center bg-background text-[12px] leading-4">
-              <button type="button" aria-expanded={open_} onClick={() => toggleGroup(label)} className="ds-intrinsic flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
-                <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform duration-150 motion-reduce:transition-none', !open_ && '-rotate-90')} />
+              {/* (As the change list's: its name and how many, the chevron at the right end.) */}
+              <button type="button" aria-expanded={open_} onClick={() => toggleGroup(label)} className="ds-intrinsic flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-lg px-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">
                 <span className="min-w-0 truncate font-semibold text-slate-400"><LocalizedText text={label} /></span>
                 <span className="shrink-0 font-normal text-slate-500 tabular-nums">{list.length}</span>
+                <ChevronDown aria-hidden className={cn('ml-auto size-3.5 shrink-0 text-slate-500 transition-transform duration-150 motion-reduce:transition-none', !open_ && '-rotate-90')} />
               </button>
             </h4>
             {open_ && (
