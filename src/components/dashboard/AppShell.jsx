@@ -64,8 +64,9 @@ function AppShell({ topBar, project, children }) {
     if (workPane) workspace?.setWorkPane(null)
     setDrawer(shown === panel ? null : panel)
   }
-  // The top bar's switch (WorkspaceProvider's `toggleLeft`): the whole sidebar drawer off, and the last one back on.
-  const lastShown = useRef('docs')
+  // The rail's switch (WorkspaceProvider's `toggleLeft`): the whole sidebar drawer off, and the last one back on —
+  // History the first time (the list used most while working; Docs only from its own icon).
+  const lastShown = useRef('history')
   if (shown) lastShown.current = shown
   const toggleSidebar = () => {
     if (shown) { setDrawer(null); if (workPane) workspace?.setWorkPane(null); return }

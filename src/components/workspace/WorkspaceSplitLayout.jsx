@@ -516,7 +516,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
     if (before.side !== sideSplitOpen) {
       // (A frame later: the window has stopped being inert by then.)
       if (sideSplitOpen) { opened = 'side'; if (sideByKey.current) requestAnimationFrame(() => (leaf('side')?.querySelector('[role="tab"][aria-selected="true"]') ?? leaf('side')?.querySelector('button'))?.focus()) }
-      else if (held('side')) (document.querySelector(`[data-side-view="${filesWindow.tab}"]`) ?? document.querySelector('[data-side-view]'))?.focus()
+      else if (held('side')) (document.querySelector('[data-sidebar-toggle]') ?? document.querySelector(`[data-side-view="${filesWindow.tab}"]`) ?? document.querySelector('[data-side-view]'))?.focus()
       sideByKey.current = false
     }
     if (before.chat !== aiChat.open) {

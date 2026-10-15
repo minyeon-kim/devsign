@@ -44,12 +44,11 @@ export function BreadcrumbBar({ children, className, rowClassName, ...props }) {
   )
 }
 
-// The crumbs every project page starts with: just the project's name, as plain text. The path only says where
-// you are — going somewhere is the rail's (Project home, Workspace) and the project mark's menu (Home, the other
-// projects), so none of it is said twice. (`current`: the project's home, where the name is the page you're on.)
-export function projectCrumbs(project) {
+// The crumbs every project page starts with: the project — a link to its home, or, with `current`, the page
+// you're on. (No "Home" before it: the project mark's menu goes there.) Every parent in the path is a way back.
+export function projectCrumbs(project, { current = false } = {}) {
   // (The project's name as its title says it — translated with the page, so the path and the title agree.)
-  return [{ label: project?.name ?? '', key: `project:${project?.id}` }]
+  return [{ label: project?.name ?? '', key: `project:${project?.id}`, ...(!current && { to: `/projects/${project?.id}` }) }]
 }
 
 // `items`: `{ label, to?, onClick?, key?, translate? }`, the page you're on

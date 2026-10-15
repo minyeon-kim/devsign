@@ -90,9 +90,9 @@ try {
   assert.ok(layout.includes('data-chat-awaiting') && layout.indexOf('data-chat-awaiting') < layout.indexOf('data-chat-unread'))
   assert.ok(chat.includes('if (chatOpen && awaiting) requestAnimationFrame(showPending)'))
 
-  // --- No sidebar switch in the rail (the drawers close from their own icons; Files / Layers fold in the canvas) ---
+  // --- The sidebar's switch, in the rail under the project's mark (History first, never Docs on its own) ---
   const sidebarSource = readFileSync(new URL('../src/components/dashboard/Sidebar.jsx', import.meta.url), 'utf8')
-  assert.ok(!sidebarSource.includes('<SidebarToggle') && !topBar.includes('<SidebarToggle'))
+  assert.ok(sidebarSource.indexOf('<SidebarToggle />') < sidebarSource.indexOf('<nav aria-label="Main"') && !topBar.includes('<SidebarToggle'))
   assert.ok(!sidebarSource.includes('activity-project-switcher-tooltip') && !sidebarSource.includes('Switch project`') && sidebarSource.includes('<div data-control-tooltip="off" className="flex h-9'), 'no hover label over the top bar')
-  console.log('Passed: approval cards from the request’s own data, above the message and folded once decided; no sidebar switch in the rail.')
+  console.log('Passed: approval cards from the request’s own data, above the message and folded once decided; the rail's sidebar switch.')
 } finally { await server.close() }

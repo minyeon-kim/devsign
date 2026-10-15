@@ -1,4 +1,5 @@
 import SettingsDialog from '@/components/workspace/SettingsDialog'
+import SidebarToggle from '@/components/layout/SidebarToggle'
 import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import Logo from '@/components/layout/Logo'
 import { readHistoryParams } from '@/lib/historyLink'
@@ -148,10 +149,14 @@ function ActivityBar({ project, drawer, onToggleDrawer }) {
         </ProjectSwitcher>
       </div>
 
-      {/* (A rule under the mark, so the rail reads mark │ pages. No hover label on the mark — it spilled over the
-          path in the top bar — and no sidebar switch: the drawers close from their own icons, and Files / Layers
-          fold inside the canvas, ⌘B.) */}
-      <RailRule />
+      {/* (No hover label on the mark: it spilled over the path in the top bar.) */}
+      {/* (Outside a project: the same rule under the mark, so both rails read mark │ pages.) */}
+      {!project && <RailRule />}
+
+      {/* (The sidebar's switch: under the project's mark, in the same place open or folded — set apart from the
+          places below by a rule: it folds the sidebar, it doesn't go anywhere.) */}
+      {project && <SidebarToggle />}
+      {project && <RailRule />}
 
       <nav aria-label="Main" className="flex flex-col gap-1">
         {project ? (
@@ -262,6 +267,11 @@ const ROLE_BADGE = {
   Designer: { text: 'D', className: 'bg-violet-500' },
   Developer: { text: 'Dev', className: 'bg-sky-500' },
 }
+// The account menu in the workspace's popover look (the Share panel's, the way picker's menu): #262626, a 16px
+// round, 13px rows rounding to 8px, faint rules.
+const USER_MENU = 'min-w-64 rounded-2xl bg-[#262626] p-1.5 shadow-xl shadow-black/40 ring-white/10'
+const USER_MENU_ITEM = "gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-white [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-slate-400"
+const USER_MENU_RULE = 'mx-1 my-1 bg-white/[0.06]'
 function UserBadge({ projectId }) {
   // (In a project: "Follow me" — the others follow your view; it was on your own avatar in the top bar's stack.)
   const workspace = useWorkspaceOptional()
@@ -292,30 +302,30 @@ function UserBadge({ projectId }) {
         <TooltipContent side="right">{user.name} · <LocalizedText text={role} /></TooltipContent>
       </Tooltip>
       {/* (The one account menu — the top bar's is gone: who, their profile, switching, signing out.) */}
-      <DropdownMenuContent side="right" align="end" className="min-w-60">
-        <div data-user-menu-head className="flex items-center gap-2.5 px-2 py-2">
+      <DropdownMenuContent side="right" align="end" sideOffset={8} data-user-menu className={USER_MENU}>
+        <div data-user-menu-head className="flex items-center gap-2.5 px-2.5 pt-2 pb-2.5">
           <Avatar size="sm">
             <AvatarFallback className={cn('text-[10px] font-medium text-white', user.colorClass)}>{user.initials}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-[13px] font-medium text-foreground">{user.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{[user.team && translateText(user.team, getLanguage()), role && role !== 'Me' && translateText(role, getLanguage())].filter(Boolean).join(' · ')}</p>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] leading-5 font-medium text-white">{user.name}</p>
+            <p className="truncate text-[11.5px] leading-4 text-slate-400">{[user.team && translateText(user.team, getLanguage()), role && role !== 'Me' && translateText(role, getLanguage())].filter(Boolean).join(' · ')}</p>
           </div>
         </div>
-        <DropdownMenuItem onClick={() => toast('Viewing profile', { description: user.name })}>
+        <DropdownMenuItem className={USER_MENU_ITEM} onClick={() => toast('Viewing profile', { description: user.name })}>
           <UserIcon />
           <LocalizedText text="View profile" />
         </DropdownMenuItem>
         {projectId && workspace?.startFollowMe && (
-          <DropdownMenuItem data-follow-me={workspace.followingMe ? 'on' : 'off'} onClick={() => (workspace.followingMe ? workspace.cancelFollowMe() : workspace.startFollowMe())}>
+          <DropdownMenuItem className={USER_MENU_ITEM} data-follow-me={workspace.followingMe ? 'on' : 'off'} onClick={() => (workspace.followingMe ? workspace.cancelFollowMe() : workspace.startFollowMe())}>
             <Radio />
             <LocalizedText text={workspace.followingMe ? 'Stop others following me' : 'Follow me'} />
           </DropdownMenuItem>
         )}
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className={USER_MENU_RULE} />
         <SwitchUserItems />
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={() => toast('Signed out')}>
+        <DropdownMenuSeparator className={USER_MENU_RULE} />
+        <DropdownMenuItem variant="destructive" className={USER_MENU_ITEM} onClick={() => toast('Signed out')}>
           <LocalizedText text="Sign out" />
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -373,7 +383,7 @@ function Sidebar({ project, drawer, onToggleDrawer, onCloseDrawer, openConflicts
     const before = wasOpen.current
     wasOpen.current = drawer
     if (isSplit(drawer) && before !== drawer) requestAnimationFrame(() => asideRef.current?.querySelector('input, button:not([data-pane-chrome]), [tabindex="0"]')?.focus({ preventScroll: true }))
-    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view-tab="merge"]' : '[data-activity-bar] a[aria-current="page"]')?.focus()
+    else if (!drawer && (isSplit(before) || before === 'compare') && (!document.activeElement || document.activeElement === document.body)) document.querySelector(before === 'compare' ? '[data-workspace-view-tab="merge"]' : '[data-sidebar-toggle]')?.focus()
   }, [drawer])
   const setHost = context?.setWorkPaneHost
   const targetWidth = drawer ? (overlay ? COMPARE_LIST_WIDTH : shownWidth) + 8 : 0

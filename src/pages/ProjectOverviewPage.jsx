@@ -280,7 +280,7 @@ function ProjectOverviewPage() {
       {/* The same top bar as Home and the Workspace (AppTopBar): the path, the search, then who else is here and the Inbox. */}
       <div className="sticky top-0 z-20 bg-background">
         <DashboardTopBar
-          crumbs={projectCrumbs(project)}
+          crumbs={projectCrumbs(project, { current: true })}
           actions={<>
             <div className="ds-header-pill flex h-8 items-center gap-2 rounded-full px-2"><span className={PRESENCE_STACK}><UserPresence /></span></div>
             <InboxButton open={inboxOpen} onToggle={() => setMergeDrawer(inboxOpen ? null : 'inbox')} />
