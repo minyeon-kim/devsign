@@ -33,7 +33,7 @@ try {
     assert.match(html, /data-drawer-filters/, `${name}: the filters`)
     assert.match(html, /data-drawer-group=/, `${name}: grouped`)
     // The same row classes and the same selected mark in both.
-    assert.ok(rows.every((row) => row.includes('rounded-lg px-3') && row.includes('hover:bg-white/[0.04]') && row.includes('aria-[current=true]:bg-white/[0.08]')), `${name}: one row shape`)
+    assert.ok(rows.every((row) => row.includes('rounded-[14px] px-3') && row.includes('hover:bg-white/[0.04]') && row.includes('aria-[current=true]:bg-white/[0.08]')), `${name}: one row shape`)
     assert.equal((html.match(/data-row-meta/g) ?? []).length, rows.length, `${name}: a meta line under each title`)
   }
   assert.equal(rowsOf(conflicts).length, (conflicts.match(/data-row-title/g) ?? []).length)
@@ -42,10 +42,10 @@ try {
   const chip = chipClass(false)
   for (const html of [conflicts, history]) {
     const filters = html.match(/data-drawer-filters[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? ''
-    assert.ok(filters.includes('h-6') && filters.includes('rounded-md') && filters.includes('text-xs'), 'filters are chips')
+    assert.ok(filters.includes('h-7') && filters.includes('rounded-full') && filters.includes('text-xs'), 'filters are capsules')
     assert.ok(!filters.includes('flex-wrap'))
   }
-  assert.ok(chip.includes('h-6') && chip.includes('rounded-md'))
+  assert.ok(chip.includes('h-7') && chip.includes('rounded-full'))
   // Conflicts: four filters with counts; the empty one (done: 0) can't be picked.
   // (The four standing filters — "This screen" is a switch of its own, before them.)
   const filterButtons = [...conflicts.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>/g)].map((m) => m[0]).filter((tag) => !tag.includes('data-screen-only'))
@@ -66,8 +66,9 @@ try {
   assert.doesNotMatch(list(history), /bg-emerald|text-emerald/)
   assert.match(history, /data-conflict-mark="open"/)
   assert.match(history, /변경 확인/)
-  // The selected checkpoint: a fill and a bar.
-  assert.match(history, /aria-current="true"[^>]*>[\s\S]*?data-drawer-row-bar/, 'the selected row has its bar')
+  // The selected checkpoint: a fill, no bar.
+  assert.match(history, /aria-current="true"/, 'the selected row is marked (its fill)')
+  assert.doesNotMatch(history, /data-drawer-row-bar/, 'and no bar at its left')
   assert.match(history, /data-history-id/)
 
   // Groups. Conflicts: by when it's due; History: by day.

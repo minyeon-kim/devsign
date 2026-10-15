@@ -63,7 +63,7 @@ export function DrawerSearch({ value, onChange, placeholder, label }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => { if (event.key === 'Escape' && value) { event.stopPropagation(); onChange('') } }}
-        className="h-8 w-full min-w-0 appearance-none rounded-lg bg-white/5 pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-slate-500 focus-visible:bg-white/[0.08] [&::-webkit-search-cancel-button]:appearance-none"
+        className="h-8 w-full min-w-0 appearance-none rounded-full bg-white/[0.06] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-slate-500 focus-visible:bg-white/[0.08] [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && <button type="button" aria-label={translateText('Clear search', language)} onClick={() => onChange('')} className="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:text-white"><X className="size-3" /></button>}
     </div>
@@ -72,7 +72,8 @@ export function DrawerSearch({ value, onChange, placeholder, label }) {
 
 // A filter: one shape for every one — a button or a menu's trigger. On, it's
 // filled; off, a plain label (the menu's arrow says it can be opened).
-export const chipClass = (on = false) => cn('ds-intrinsic inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-white/60', on ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white')
+// (Capsules, as every control in the Workspace's rows.)
+export const chipClass = (on = false) => cn('ds-intrinsic inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-white/60', on ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white')
 
 // The filters, on one line.
 export function DrawerFilters({ children, label, ...rest }) {
@@ -85,7 +86,7 @@ export function DrawerFilters({ children, label, ...rest }) {
 export function DrawerGroup({ label, lead = null, children, ...rest }) {
   return (
     <section data-drawer-group={label} {...rest}>
-      <h4 style={{ height: GROUP_HEIGHT }} className="sticky top-0 z-10 flex items-center bg-background text-[11px] leading-4 font-semibold text-slate-400">
+      <h4 style={{ height: GROUP_HEIGHT }} className="sticky top-0 z-10 flex items-center bg-background text-[12px] leading-4 font-semibold text-slate-400">
         {lead}
         <span className="px-3"><LocalizedText text={label} /></span>
       </h4>
@@ -108,7 +109,7 @@ function Title({ children, ...rest }) {
 
 // A row: title and time on the first line, meta under it. 56px, 12px at the
 // sides, no rule between rows; hover is a faint fill, the selected row a
-// stronger one with a 2px bar at its left — nothing that moves its layout.
+// stronger one (no bar at its left) — nothing that moves its layout.
 // `title` / `time` / `meta` are nodes; `timeStrong` lifts the time to white.
 export function DrawerRow({ title, titleAdornment = null, time = null, timeStrong = false, meta, selected = false, onOpen, className, children, ...rest }) {
   return (
@@ -125,9 +126,8 @@ export function DrawerRow({ title, titleAdornment = null, time = null, timeStron
       }}
       style={{ height: ROW_HEIGHT }}
       {...rest}
-      className={cn('relative flex w-full min-w-0 cursor-pointer flex-col justify-center rounded-lg px-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white/60 data-[pin-hover]:bg-white/[0.04] aria-[current=true]:bg-white/[0.08]', className)}
+      className={cn('relative flex w-full min-w-0 cursor-pointer flex-col justify-center rounded-[14px] px-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white/60 data-[pin-hover]:bg-white/[0.04] aria-[current=true]:bg-white/[0.08]', className)}
     >
-      {selected && <span aria-hidden data-drawer-row-bar className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-white" />}
       <span className="flex h-5 min-w-0 items-center gap-2">
         <Title>{title}</Title>
         {titleAdornment}

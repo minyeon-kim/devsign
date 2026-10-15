@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { FileText } from 'lucide-react'
 import { cn } from 'cn'
 import { PageTitle } from '@/components/layout/PagePieces'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -25,10 +24,7 @@ function DocRow({ doc, onOpen }) {
       onClick={() => onOpen(doc.id)}
       className="flex w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
     >
-      {/* (As the Workspace's lists: a neutral icon, the title over one quiet line, when and who at the right.) */}
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/[0.06]">
-        <FileText className="size-3.5 text-slate-300" />
-      </span>
+      {/* (As the Workspace's lists: no icon — the title over one quiet line, when and who at the right.) */}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-slate-100">{doc.title}</p>
         <p className="mt-0.5 truncate text-[12px] text-slate-500">{doc.summary ?? `Updated ${doc.updatedAtLabel}`}</p>

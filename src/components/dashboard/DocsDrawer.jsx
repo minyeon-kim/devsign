@@ -4,12 +4,12 @@ import { useState } from 'react'
 import { useLanguage } from '@/i18n/language'
 import { translateText } from '@/i18n/translate'
 import { Link } from 'react-router-dom'
-import { ChevronRight, FileText, Folder, FolderOpen, Library, BookOpen, Search, X } from 'lucide-react'
+import { ChevronRight, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 import { buildDocTree, countDocs, docPath, searchDocs } from '@/lib/docCategories'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
-const activeClass = 'bg-muted text-foreground'
+const activeClass = 'bg-white/[0.08] text-foreground'
 // Each tree level indents by one step, with a hairline guide down the
 // left of its children so the parent → child structure reads at a glance.
 const GUIDE = 'ml-[15px] border-l border-white/[0.06] pl-1.5'
@@ -36,11 +36,11 @@ function DocLink({ doc, href, active, onOpen, onToggle }) {
       aria-current={active ? 'page' : undefined}
       title={`${doc.title} · 워크스페이스 작업창으로 드래그`}
       className={cn(
-        'flex h-8 min-w-0 items-center gap-2 rounded-lg px-2 text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+        'flex h-8 min-w-0 items-center gap-2 rounded-[12px] px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground',
         active && activeClass
       )}
     >
-      <FileText className="size-3.5 shrink-0" />
+      {/* (No icon: in the tree, a name without a chevron is a document.) */}
       <span className="min-w-0 truncate">{doc.title}</span>
     </Link>
   )
@@ -50,7 +50,6 @@ function DocLink({ doc, href, active, onOpen, onToggle }) {
 // contents in place, then its docs and sub-categories one level in.
 function Category({ node, depth, open, onToggle, hrefOf, activeDocId, onOpenDoc, onToggleViewer }) {
   const expanded = open.has(node.id)
-  const FolderIcon = expanded ? FolderOpen : Folder
 
   return (
     <div>
@@ -59,16 +58,15 @@ function Category({ node, depth, open, onToggle, hrefOf, activeDocId, onOpenDoc,
         onClick={() => onToggle(node.id)}
         aria-expanded={expanded}
         className={cn(
-          'flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg pr-2 pl-1 text-left transition-colors hover:bg-muted',
-          depth === 0 ? 'text-[12px] font-semibold tracking-wide text-slate-300 uppercase' : 'text-[12.5px] font-medium text-slate-300'
+          'flex h-8 w-full min-w-0 items-center gap-1.5 rounded-[12px] pr-2.5 pl-1 text-left transition-colors hover:bg-white/[0.04]',
+          depth === 0 ? 'text-[12.5px] font-semibold text-slate-300' : 'text-[12.5px] font-medium text-slate-300'
         )}
       >
         <ChevronRight
           className={cn('size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200 motion-reduce:transition-none', expanded && 'rotate-90')}
         />
-        {depth > 0 && <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />}
         <span className="min-w-0 flex-1 truncate">{node.label}</span>
-        <span className="shrink-0 text-[11px] font-normal tracking-normal text-muted-foreground/60 normal-case tabular-nums">{countDocs(node)}</span>
+        <span className="shrink-0 text-[11px] font-normal text-slate-500 tabular-nums">{countDocs(node)}</span>
       </button>
       {expanded && (
         <div className={cn(GUIDE, 'mt-0.5 mb-1 flex flex-col gap-0.5')}>
@@ -165,7 +163,7 @@ function DocsDrawer({ project }) {
   }
 
   const rowClass =
-    'flex h-9 min-w-0 items-center gap-2 rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+    'flex h-9 min-w-0 items-center gap-2 rounded-[12px] px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground'
 
   return (
     <nav aria-label="Docs" className="flex flex-col gap-0.5 pb-2">
@@ -178,7 +176,7 @@ function DocsDrawer({ project }) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Escape') setQuery('') }}
-          className="h-8 w-full min-w-0 appearance-none rounded-full border border-white/10 bg-[#090909] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 [&::-webkit-search-cancel-button]:appearance-none"
+          className="h-8 w-full min-w-0 appearance-none rounded-full border-0 bg-white/[0.06] pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary/50 [&::-webkit-search-cancel-button]:appearance-none"
         />
         {query && <button type="button" aria-label="Clear docs search" onClick={() => setQuery('')} className="absolute top-1/2 right-2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-3" /></button>}
       </div>
@@ -188,7 +186,6 @@ function DocsDrawer({ project }) {
         onClick={press(onIndex, { docs: 'index' })}
         className={cn(rowClass, onIndex && activeClass)}
       >
-        <Library className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate">All docs</span>
         <span className="text-[11px] text-muted-foreground/60 tabular-nums">{referenceDocs.length}</span>
       </Link>
@@ -198,7 +195,6 @@ function DocsDrawer({ project }) {
         onClick={press(onUpdates, { docs: 'updates' })}
         className={cn(rowClass, 'mb-2', onUpdates && activeClass)}
       >
-        <BookOpen className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate">Document updates</span>
         <span className="text-[11px] text-muted-foreground/60 tabular-nums">
           {dsUpdates.filter((u) => u.stage !== 'archived').length || ''}
