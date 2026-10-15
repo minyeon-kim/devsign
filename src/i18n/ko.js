@@ -431,7 +431,7 @@ Enter why you’re keeping it|유지하는 이유를 입력하세요
 Enter why it was adjusted|조정한 이유를 입력하세요
 Enter the reason for the exception|예외 요청 이유를 입력하세요
 Resolve the failing checks before merging.|실패한 검사를 해결해야 병합할 수 있어요.
-Merge Conflict|같은 부분을 둘이 고쳤어요
+Merge Conflict|코드 충돌
 Type|유형
 Adjusted manually|직접 조정
 Takes a merged change back.|병합된 변경을 되돌려요.
@@ -465,7 +465,7 @@ Color mismatch|색상 불일치
 Stroke mismatch|선 두께 불일치
 Size mismatch|크기 불일치
 Value mismatch|값 불일치
-Merge conflict|같은 부분을 둘이 고쳤어요
+Merge conflict|코드 충돌
 Drafts to choose between|시안 선택 필요
 Below the standard on both sides|양쪽 모두 기준 미달
 Production baseline|운영 기준
@@ -762,7 +762,7 @@ Conflict detected|변경 감지됨
 Design decision|디자인 결정
 asked for a design decision on|디자인 결정을 요청했어요 ·
 made a design decision on|디자인을 결정했어요 ·
-Structural Drift|구조 차이 (Structural Drift)
+Structural Drift|구조 차이
 The implemented layout is structured differently from the design; a design decision is needed.|구현된 레이아웃의 구조가 디자인과 달라요. 디자인 결정이 필요해요.
 All kinds|전체 종류
 All files|모든 파일
@@ -2495,7 +2495,7 @@ Object.assign(ko, {
 
 Object.assign(ko, {
   'Needs your review': '내 검토',
-  'Deployed': '배포 중',
+  'Deployed': '운영 코드',
   'Design Drift': '디자인 불일치',
   'Merge cancellation': '병합 취소',
   'Restore previous version': '이전 버전 복원',

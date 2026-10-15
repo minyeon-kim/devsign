@@ -30,6 +30,7 @@
 //   sides: { local, remote } — each branch's change: { title, did }
 //   code: { conflict, merged } — the lines with their markers, and the suggested merge
 //   approvedBy — the reviewers who've already signed off
+//   changedBy — who made it, and so who asks (steps.requested.by); never one of its reviewers
 
 export const SEED = {
   project: { id: 'dashboard-redesign', name: 'Dashboard Redesign', screen: 'Dashboard', pageId: 'page-dashboard', devStage: 'mid' },
@@ -489,8 +490,9 @@ export const CHECKOUT_SEED = {
       ruleIds: ['touch-target'],
       resolution: 'manual',
       adjustment: { from: { width: 20, height: 20 }, to: { width: 24, height: 24 } },
-      adjustmentReason: { text: '접근성 최소 기준으로 키움', by: 'min', at: 'Just now' },
+      adjustmentReason: { text: '접근성 최소 기준으로 키움', by: 'james', at: 'Just now' },
       preview: { kind: 'button', label: '×', built: { width: 20, height: 20, radius: 4, background: '#475569' }, design: { width: 20, height: 20, radius: 4, background: '#475569' } },
+      changedBy: 'james',
       branch: { source: 'feature/coupon-touch-area', target: 'develop' },
       mergeItemId: 'merge-checkout-touch-adjusted',
       reviewers: ['jane'],
@@ -558,6 +560,7 @@ export const CHECKOUT_SEED = {
       riskReason: '두 버전 모두 작아요 · 터치 영역 확대 필요',
       ruleIds: ['touch-target'],
       preview: { kind: 'button', label: '×', built: { width: 20, height: 20, radius: 4, background: '#475569' }, design: { width: 20, height: 20, radius: 8, background: '#475569' } },
+      changedBy: 'james',
       branch: { source: 'feature/coupon-dismiss', target: 'develop' },
       mergeItemId: 'merge-checkout-manual-target',
       reviewers: ['jane'],
@@ -606,11 +609,11 @@ export const CHECKOUT_SEED = {
           '}',
         ],
       },
-      changedBy: 'min',
-      reviewers: ['james', 'jane'],
+      changedBy: 'james',
+      reviewers: ['min', 'jane'],
       assignee: 'james',
       stage: 'in_review',
-      steps: { detected: { day: 0, at: '09:45' } },
+      steps: { detected: { day: 0, at: '09:45' }, requested: { by: 'james', day: 0, at: '09:52' } },
     },
     {
       id: 'CON-023',
@@ -642,11 +645,11 @@ export const CHECKOUT_SEED = {
           'const total = Math.round(discounted * 100) / 100;',
         ],
       },
-      changedBy: 'min',
-      reviewers: ['james', 'jane'],
+      changedBy: 'james',
+      reviewers: ['min', 'jane'],
       assignee: 'james',
       stage: 'in_review',
-      steps: { detected: { day: 0, at: '09:50' } },
+      steps: { detected: { day: 0, at: '09:50' }, requested: { by: 'james', day: 0, at: '09:58' } },
     },
     {
       id: 'CON-025',
@@ -687,11 +690,11 @@ export const CHECKOUT_SEED = {
         ],
       },
       changedBy: 'min',
-      reviewers: ['james', 'min'],
+      reviewers: ['james', 'jane'],
       approvedBy: ['james'],
-      assignee: 'james',
+      assignee: 'min',
       stage: 'in_review',
-      steps: { detected: { day: 0, at: '08:05' } },
+      steps: { detected: { day: 0, at: '08:05' }, requested: { by: 'min', day: 0, at: '08:15' } },
     },
   ],
 }

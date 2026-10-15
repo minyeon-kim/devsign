@@ -148,7 +148,7 @@ const rules = [
   [/^(\d+) open$/, (_, n) => `미해결 ${n}개`],
   [/^(\d+) merged$/, (_, n) => `병합 완료 ${n}개`],
   [/^(\d+) pending$/, (_, n) => `대기 ${n}개`],
-  [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '같은 부분을 둘이 고쳤어요'}`],
+  [/^(High|Medium|Low) (risk|merge conflict)$/, (_, level, type) => `${ko[level]} ${type === 'risk' ? '위험도' : '코드 충돌'}`],
   [/^Updated (.+)$/, (_, when) => `${core(when)} 수정됨`],
   [/^Waiting for (.+)$/, (_, name) => `${core(name)} 대기 중`],
   [/^Create a revert request\?$/, () => '병합을 취소할까요?'],

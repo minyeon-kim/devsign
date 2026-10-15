@@ -92,7 +92,7 @@ try {
     }
   }
   // (The seeds cover a way being picked, one waiting, and one that went in — seen by both.)
-  for (const state of ['detected:developer:pick', 'detected:designer:pick', 'requested:developer:pending', 'requested:designer:pending', 'resolved:developer:done', 'resolved:designer:done']) assert.ok(seen.has(state), `no seeded change is ${state}`)
+  for (const state of ['detected:developer:pick', 'detected:designer:view', 'requested:developer:pending', 'requested:designer:pending', 'resolved:developer:done', 'resolved:designer:done']) assert.ok(seen.has(state), `no seeded change is ${state}`)
   assert.ok(['layout', 'spacing', 'color', 'weight', 'breakpoint', 'size'].every((type) => kinds.has(type)), 'every kind is seeded')
 } finally {
   await server.close()

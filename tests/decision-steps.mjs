@@ -44,9 +44,11 @@ try {
   const requester = render(asked, jordan)
   assert.ok(requester.includes('data-waiting-on="jane"') && requester.replace(/<!-- -->/g, '').includes('Taylor님의 결정을 기다리는 중') && !requester.includes('data-decision-form'))
 
-  // Not asked yet (CON-013): the ways by name, no decision UI, no sub-title, the values in the table.
+  // Not asked yet (CON-013): to the designer, the ways by name, read-only, and whose turn it is — asking is
+  // the developer's (she never asks herself); no decision UI, no sub-title, the values in the table.
   const open = render(byId('CON-013'), taylor)
-  assert.ok(open.includes('data-choice="proposal:original"') && !open.includes('data-decision-form') && !open.includes('어떤 값으로 맞출지'))
+  assert.ok(open.includes('data-way="original"') && !open.includes('data-choice="proposal:') && open.includes('data-waiting-on="james"') && !open.includes('data-decision-form') && !open.includes('어떤 값으로 맞출지'))
+  assert.ok(render(byId('CON-013'), jordan).includes('data-choice="proposal:original"'), 'the developer picks the way')
   assert.ok(!open.includes('data-proposal-about'), 'no summary line over the table')
 
   const flow = read('components/conflicts/DesignDecisionFlow.jsx')

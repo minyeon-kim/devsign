@@ -341,7 +341,7 @@ export function mergedStructuralRecord(change, now = Date.now()) {
 
 // A merge conflict: two branches, the lines both changed, the suggested
 // merge. Resolved in its own way (Merge Studio), so only found and asked.
-function codeRecord(project, change) {
+function codeRecord(project, change, now) {
   const { local, remote } = change.sides
   return {
     id: change.id,
@@ -368,6 +368,7 @@ function codeRecord(project, change) {
     comparisonFields: [],
     reviewers: change.reviewers.map((id) => ({ id, status: change.approvedBy?.includes(id) ? 'approved' : 'pending' })),
     assigneeId: change.assignee,
+    ...(change.steps.requested && { requestedBy: change.steps.requested.by, requestedAtMs: momentOf(change.steps.requested, now).getTime() }),
     impact: { components: change.components, files: [change.file] },
     suggestion: change.suggestion ?? '두 브랜치의 변경을 함께 유지하는 해결 제안 코드를 검토하세요.',
     ...(change.previewPrompt && { previewPrompt: change.previewPrompt }),

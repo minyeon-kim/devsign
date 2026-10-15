@@ -1,6 +1,5 @@
 import { checkGuidance } from '@/components/conflicts/CheckExplanation'
 import { historyHref } from '@/lib/historyLink'
-import { PreviewFrame } from '@/components/conflicts/ElementPreview'
 import { RecentTime } from '@/components/ui/RecentTime'
 import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
@@ -1214,28 +1213,31 @@ function DiffTab({ conflict, code, flow, mergedLines, changeAfter, state, checkB
   // one picked, else the reference (never an empty box).
   const afterId = (hover && hover !== choice ? hover : choice) ?? (offered.some((card) => card.id === 'A') ? 'A' : offered[0]?.id ?? null)
   const afterCard = cards.find((card) => card.id === afterId) ?? null
-  const PICTURE = 'grid h-[240px] min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border-2 bg-black/20 p-4'
+  // (As a value change's cards: the product's light grey, the name a tag in the corner, the drawing enlarged —
+  // a 20px button drawn at its own size is a speck.)
+  const PICTURE = 'relative m-0 flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-xl border bg-[#F5F5F5]'
+  const TAG = 'pointer-events-none absolute top-2 right-2 flex h-5 items-center rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur-sm'
+  const small = Math.max(conflict.preview?.before?.width ?? 0, conflict.preview?.before?.height ?? 0)
+  const enlarge = small > 0 && small <= 48 ? Math.min(4, 96 / small) : 1
+  const drawing = (side, override) => (
+    <div className="flex items-center justify-center" style={{ transform: enlarge !== 1 ? `scale(${enlarge})` : undefined }}>
+      <ChangePreview preview={conflict.preview} side={side} showLabels={false} override={override} />
+    </div>
+  )
   const pageChoices = () => (
     <>
       {/* Before → After: what's built, beside what the way gives. */}
       {conflict.preview && (
-        <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <figure data-picture="before" className={cn(PICTURE, 'border-transparent')}>
-            {/* (A frame of fixed ratio, the drawing set in its middle: a 24px button beside a 20px one moves nothing.) */}
-            <div className="mx-auto w-full max-w-[300px] self-center"><PreviewFrame ratio={2}><span className="block w-56"><ChangePreview preview={conflict.preview} side="before" showLabels={false} /></span></PreviewFrame></div>
-            <figcaption className="min-w-0 self-end text-center">
-              <span className="block h-5 truncate text-[13px] leading-5 font-medium text-slate-200"><LocalizedText text={readOnly ? 'Before the change' : 'What’s built now'} /></span>
-            </figcaption>
+        <div data-before-after className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+          <figure data-picture="before" className={cn(PICTURE, 'border-[var(--ds-border-subtle)]')}>
+            {drawing('before')}
+            <figcaption className={TAG}><LocalizedText text={readOnly ? 'Before the change' : 'What’s built now'} /></figcaption>
           </figure>
-          <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 self-center text-slate-500 min-[769px]:rotate-0" />
-          <figure data-picture="after" data-after={afterId ?? 'none'} className={cn(PICTURE, choice && afterId === choice && !readOnly ? 'border-emerald-400' : 'border-transparent')}>
+          <ArrowRight aria-hidden data-before-after-arrow className="size-4 shrink-0 text-slate-500" />
+          <figure data-picture="after" data-after={afterId ?? 'none'} className={cn(PICTURE, choice && afterId === choice && !readOnly ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
             {/* (The same picture throughout — given the way's values, re-drawn in place; never keyed by the way.) */}
-            <div className="contents">
-              <div className="mx-auto w-full max-w-[300px] self-center"><PreviewFrame ratio={2}><span className="block w-56"><ChangePreview preview={conflict.preview} side={afterCard?.side ?? 'after'} showLabels={false} override={afterCard?.id === 'C' && custom ? custom.preview : undefined} /></span></PreviewFrame></div>
-              <figcaption className="min-w-0 self-end text-center">
-                <span data-after-title className="block h-5 truncate text-[13px] leading-5 font-medium text-slate-200"><LocalizedText text={readOnly ? 'After the change' : choice && afterId === choice ? '선택한 결과' : hover ? '미리보기' : 'Design reference'} /></span>
-              </figcaption>
-            </div>
+            {drawing(afterCard?.side ?? 'after', afterCard?.id === 'C' && custom ? custom.preview : undefined)}
+            <figcaption className={TAG}><span data-after-title><LocalizedText text={readOnly ? 'After the change' : choice && afterId === choice ? '선택한 결과' : hover ? '미리보기' : 'Design reference'} /></span></figcaption>
           </figure>
         </div>
       )}
@@ -3545,7 +3547,8 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
       blockingCount={checks?.blocking.length ?? 0}
       onUpdate={onUpdate ? update : undefined}
       onDismiss={workspace?.dismissChangeRequest}
-      request={!onUpdate || approvalNudge ? null : cardFlow
+      // (Asking is the author's: a reviewer — the designer, looking at it first — waits for the request.)
+      request={!onUpdate || approvalNudge || (myReviewer && !ownChange) ? null : cardFlow
         ? {
           run: flow.decide.run,
           onAssign: assignReviewer,

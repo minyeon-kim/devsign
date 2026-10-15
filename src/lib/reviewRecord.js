@@ -85,7 +85,7 @@ export function reviewRecordOf(conflict, { t = (text) => text, nameOf = (id) => 
   const code = changes ? { file: conflict.file, line: conflict.line ?? null, before: conflict.diff.before ?? [], after: conflict.diff.after ?? [] } : null
   // (Every reviewer a designer: it's the designer's decision, as the reference's is.)
   const designers = reviewers.length > 0 && reviewers.every((reviewer) => roleOf(reviewer.id) === 'Designer')
-  const requester = nameOf(conflict.requestedBy ?? conflict.assigneeId)
+  const requester = nameOf(conflict.requestedBy ?? conflict.changedBy?.id ?? conflict.assigneeId)
 
   const detect = {
     key: 'detect', title: '변경 감지', state: 'done',
@@ -94,7 +94,8 @@ export function reviewRecordOf(conflict, { t = (text) => text, nameOf = (id) => 
     time: labelTime(conflict.detectedAt ?? conflict.timestamp, t),
     preview: Boolean(conflict.preview) && fields.length > 0,
     rows: [
-      ...told.map((field) => ({ label: t(field.label), value: `${t(field.current)} → ${t(field.expected)}` })),
+      // (A value both sides share — the code's and the design's alike — said once, not "20px → 20px".)
+      ...told.map((field) => ({ label: t(field.label), value: field.current === field.expected ? `${t(field.current)} · 코드·디자인 동일` : `${t(field.current)} → ${t(field.expected)}` })),
       conflict.file && { label: '관련 파일', value: `${conflict.file}${conflict.line ? ` · ${conflict.line}행` : ''}`, mono: true },
       impact.length > 0 && { label: '영향 범위', value: impact.map(t).join(' · ') },
       conflict.cause && { label: '원인', value: t(conflict.cause) },
@@ -104,7 +105,7 @@ export function reviewRecordOf(conflict, { t = (text) => text, nameOf = (id) => 
 
   const request = {
     key: 'request', title: '승인 요청', state: asked ? 'done' : 'current',
-    who: asked ? `${requester} · 제안` : null,
+    who: asked ? `${requester} · 제안` : requester ?? null,
     // (One part of the line: its own " · " would break it in two.)
     summary: picked ? `${choiceLabel.replace(/ · /g, ', ')}${asked ? '' : ' · 요청 전'}` : asked ? '' : '해결 방법을 고르고 승인을 요청해요',
     time: asked ? clock(conflict.requestedAtMs) : null,

@@ -39,9 +39,17 @@ export function cropOf(conflict, pages) {
         const cut = other.x < layer.x + layer.width && other.x + other.width > layer.x && other.y < padded.bottom && other.y + other.height > padded.y
         if (cut) area = { x: Math.min(area.x, other.x), y: Math.min(area.y, other.y), right: Math.max(area.right, other.x + other.width), bottom: Math.max(area.bottom, other.y + other.height) }
       }
-      const x = Math.max(0, area.x - CROP_PAD)
+      let x = Math.max(0, area.x - CROP_PAD)
       const y = Math.max(0, area.y - CROP_PAD)
-      const right = Math.min(frame.width ?? Infinity, area.right + CROP_PAD)
+      let right = Math.min(frame.width ?? Infinity, area.right + CROP_PAD)
+      // (One beside it that the 16px would cut into — an icon's label — is left out whole: the crop stops short of it.)
+      for (const other of frame.layers) {
+        if (other === layer || other.width * other.height > (frame.width * frame.height) / 2) continue
+        const level = other.y < area.bottom && other.y + other.height > area.y
+        if (!level) continue
+        if (other.x >= area.right && other.x < right) right = Math.max(area.right + 4, other.x - 4)
+        if (other.x + other.width <= area.x && other.x + other.width > x) x = Math.min(area.x - 4, other.x + other.width + 4)
+      }
       const bottom = Math.min(frame.height ?? Infinity, area.bottom + CROP_PAD)
       return { frame, box: { x, y, width: right - x, height: bottom - y } }
     }

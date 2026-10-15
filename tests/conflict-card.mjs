@@ -15,7 +15,7 @@ try {
   assert.equal(deployed.id, 'production-priority', 'a drift whose code is on the production branch')
   // The name and its tooltip are CONFLICT_TYPES' — one place — and say what it means.
   assert.equal(deployed.label, CONFLICT_TYPES['production-priority'].label)
-  assert.equal(translateText(deployed.label, 'ko'), '배포 중')
+  assert.equal(translateText(deployed.label, 'ko'), '운영 코드')
   assert.equal(translateText(deployed.hint, 'ko'), '이미 배포된 값이라 바꾸면 운영 화면에 반영돼요')
   assert.equal(translateText(CONFLICT_TYPES['design-drift'].label, 'ko'), '디자인 불일치')
 

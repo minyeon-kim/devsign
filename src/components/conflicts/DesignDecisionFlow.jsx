@@ -132,7 +132,13 @@ function FoldTitle({ open, onToggle, children, ...rest }) {
   )
 }
 
-function PictureCaption({ title, sub, titleProps = {}, subProps = {} }) {
+function PictureCaption({ title, sub, titleProps = {}, subProps = {}, tag = false }) {
+  // (`tag`: a small tag in the drawing's corner, as a value change's cards have — on the light ground.)
+  if (tag) return (
+    <figcaption className="pointer-events-none absolute top-2 right-2 flex h-5 items-center rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur-sm">
+      <span {...titleProps}>{title}</span>
+    </figcaption>
+  )
   return (
     <figcaption className="min-w-0 self-end text-center">
       <span {...titleProps} title={typeof title === 'string' ? title : undefined} className="block h-5 truncate text-[13px] leading-5 font-medium text-slate-200 tabular-nums">{title}</span>
@@ -591,7 +597,11 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const after = !shown || holding ? { title: '디자인 원안' }
     : !drawable ? { title: '디자인 원안', sub: shown.described ? '미리보기 없음' : '값을 골라 주세요' }
     : { title: peeking ? '미리보기' : mode === 'done' ? '수정 후' : '선택한 결과' }
-  const PICTURE = cn('grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border bg-black/20 p-4', conflict.layouts ? 'h-[304px]' : 'h-[240px]')
+  // (A layout's screens: on the product's light grey, stacked, each as wide as the column — as a value change's cards.)
+  const PICTURE = conflict.layouts
+    ? 'relative m-0 min-w-0 overflow-hidden rounded-xl border bg-[#F5F5F5] px-3 py-8'
+    : 'grid min-w-0 grid-rows-[minmax(0,1fr)_40px] overflow-hidden rounded-xl border bg-black/20 p-4 h-[240px]'
+  const LAYOUT_WIDTH = 360
   // The two pictures open large (PictureViewer): what's built now, and the result — drawn from the
   // same state as here, so a way picked while it's open is what it shows.
   const afterWhich = holding ? 'original' : drawable ? shown : valueChange && shown && !shown.described ? 'implementation' : 'original'
@@ -694,21 +704,24 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
       ) : (
       // Before → After: the section's picture. Two cards of the same kind, side by side with an arrow
       // between; stacked (before first) when narrow.
-      <div data-before-after className="grid grid-cols-1 items-stretch gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div data-before-after className={cn('grid grid-cols-1 items-stretch', conflict.layouts ? 'gap-1' : 'gap-3 min-[769px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]')}>
         <figure data-layout={showDesign ? 'original' : 'implementation'} className={cn(PICTURE, 'border-[var(--ds-border-subtle)]')}>
-          <div className="grid min-h-0 items-center"><div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={1.5} /></div></div>
+          <div className="grid min-h-0 items-center"><div className="flex justify-center"><Picture conflict={conflict} which={showDesign ? 'original' : 'implementation'} scale={conflict.layouts ? 1 : 1.5} maxWidth={conflict.layouts ? LAYOUT_WIDTH : 200} /></div></div>
           <PictureCaption
+            tag={Boolean(conflict.layouts)}
             titleProps={{ 'data-before-title': '' }}
             title={showDesign ? '디자인 원안' : mode === 'done' ? '수정 전' : '현재 구현'}
           />
         </figure>
-        <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 self-center text-slate-500 min-[769px]:rotate-0" />
+        {conflict.layouts
+          ? <span aria-hidden data-before-after-arrow className="justify-self-center text-[12px] leading-none text-slate-500">↓</span>
+          : <ArrowRight aria-hidden data-before-after-arrow className="mx-auto size-4 shrink-0 rotate-90 self-center text-slate-500 min-[769px]:rotate-0" />}
         <figure data-layout="proposal" data-after={holding ? 'design' : peeking ? 'preview' : chosen && drawable ? 'picked' : 'design'} className={cn(PICTURE, 'ds-tone', chosen && drawable && !peeking && !holding ? 'border-[var(--ds-accent-border)]' : 'border-[var(--ds-border-subtle)]')}>
           {/* (The same picture throughout: what it shows is given new values and re-drawn in place.
               It is never keyed by them — that would take it down and put up a new one, empty for a frame.) */}
           <div data-after-picture className="contents">
-            <div className="grid min-h-0 items-center"><div className="flex justify-center"><Picture conflict={conflict} which={afterWhich} overlap={overlap} scale={1.5} /></div></div>
-            <PictureCaption titleProps={{ 'data-after-title': '' }} subProps={{ 'data-after-sub': '' }} title={after.title} sub={after.sub} />
+            <div className="grid min-h-0 items-center"><div className="flex justify-center"><Picture conflict={conflict} which={afterWhich} overlap={overlap} scale={conflict.layouts ? 1 : 1.5} maxWidth={conflict.layouts ? LAYOUT_WIDTH : 200} /></div></div>
+            <PictureCaption tag={Boolean(conflict.layouts)} titleProps={{ 'data-after-title': '' }} subProps={{ 'data-after-sub': '' }} title={after.title} sub={after.sub} />
           </div>
         </figure>
       </div>
@@ -1195,6 +1208,10 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // 다른 수정안's own fields are kept while another card is looked at. A new
   // round after a rework starts without one.
   const askingNow = stage === 'detected' || stage === 'rework'
+  // (Asking is the developer's — whoever made the change. A reviewer looking at it before then sees the
+  // ways forward and waits for the request: a designer never asks herself.)
+  const asking = askingNow && !decides
+  const authorId = conflict.changedBy?.id ?? request?.by ?? null
   const EMPTY_CUSTOM = { values: {}, note: '' }
   // (Nothing picked before: the recommended way — matching the design — is, so
   // the comparison shows at once and the button is ready. It's applied only when pressed.)
@@ -1258,7 +1275,9 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // One line a step: who, and the one thing worth knowing — each said once
   // (what was proposed is the request's; the decision doesn't repeat it, and
   // "passed" is the fix's alone).
-  const detectStep = { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected'),
+  // (When it was found — said as the other records say it, a time, whatever stage it's at.)
+  const detectedAt = eventsOf(conflict).findLast((entry) => entry.type === 'detected')?.createdAt
+  const detectStep = { key: 'detect', title: '변경 감지', state: 'done', who: '자동 감지', time: timeOf('detected') ?? (detectedAt ? formatTime(detectedAt) : null),
     summary: [conflict.layouts ? `${breakpoint}px` : told && `${told.label} ${told.current} → ${told.expected}`, conflict.layouts && '카드 겹침', components[0] && `${components[0]}${components.length > 1 ? ` 외 ${components.length - 1}` : ''}`].filter(Boolean).join(' · ') }
   const steps = post ? [
     detectStep,
@@ -1272,13 +1291,16 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
       time: timeOf('verified', 'fixed'),
       summary: fixPhase === 'deferred' ? scheduleWordOf(decision.timing, releaseOf(conflict)) : `${fileName}${conflict.line ? ` ${conflict.line}행` : ''}` },
     // The merge: the last step, once it's in (said by the banner above too).
-    ...(fixPhase === 'resolved' ? [{ key: 'resolve', title: '병합', state: 'done', who: nameOf(conflict.mergedBy ?? request?.by), time: timeOf('resolved'), summary: '반영 완료' }] : []),
+    fixPhase === 'resolved'
+      ? { key: 'resolve', title: '병합', state: 'done', who: nameOf(conflict.mergedBy ?? request?.by), time: timeOf('resolved'), summary: '반영 완료' }
+      : { key: 'resolve', title: '병합', state: 'pending' },
   ] : [
     detectStep,
     // (Asked: folded to a line — the way asked for, who, when.)
-    { key: 'request', title: '승인 요청', state: askingNow ? 'current' : 'done', who: request ? nameOf(request.by) : nameOf(viewer?.id), summary: '', time: askingNow || !request ? null : [proposalOf(request.proposal, request.custom, conflict)?.name, nameOf(request.by), agoOf(eventsOf(conflict).findLast((event) => event.type === 'requested')?.createdAt)].filter(Boolean).join(' · ') },
+    { key: 'request', title: '승인 요청', state: askingNow ? 'current' : 'done', who: request ? nameOf(request.by) : nameOf(asking ? viewer?.id : authorId), summary: '', time: askingNow || !request ? null : [proposalOf(request.proposal, request.custom, conflict)?.name, nameOf(request.by), agoOf(eventsOf(conflict).findLast((event) => event.type === 'requested')?.createdAt)].filter(Boolean).join(' · ') },
     { key: 'decision', title: '디자이너 결정', state: stage === 'requested' ? 'current' : 'pending', summary: stage === 'requested' ? '수정안 검토 · 결정' : '' },
     { key: 'fix', title: '수정 · 검증', state: 'pending' },
+    { key: 'resolve', title: '병합', state: 'pending' },
   ]
   const stepStates = steps.map((step) => step.state)
   const { reveal, ref: listRef } = useStepReveal(conflict.id, stepStates)
@@ -1288,12 +1310,12 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
   // is and wherever it stands: picked on (the developer, before asking),
   // held while it waits for the decision, and what went in once it's decided.
   const taken = decision && decision.choice !== 'rework' && stage !== 'detected' && stage !== 'requested'
-  const cardMode = askingNow ? 'pick' : stage === 'requested' ? 'pending' : taken ? 'done' : 'view'
+  const cardMode = asking ? 'pick' : askingNow ? 'view' : stage === 'requested' ? 'pending' : taken ? 'done' : 'view'
   const fix = conflict.decisionFix
   const donePhase = taken ? fixPhaseOf(conflict) : null
   const wentIn = stage === 'resolved' || donePhase === 'resolved' || donePhase === 'verified'
   // (Decided: the design as it is, unless the way asked for was approved.)
-  const cardWay = cardMode === 'pick' ? [proposal, custom]
+  const cardWay = askingNow ? [proposal, custom]
     : cardMode === 'done' ? (decision.choice === 'approve' ? [request?.proposal ?? 'original', request?.custom] : ['original', null])
       : [request?.proposal ?? null, request?.custom]
   const failedCheck = Boolean(taken && fix?.failed && !fix?.verified)
@@ -1379,6 +1401,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
               {step.key === 'detect' && <DetectionFacts conflict={conflict} cause={Boolean(conflict.layouts)} />}
               {step.key === 'request' && request && !askingNow && post && <RequestCard bare conflict={conflict} />}
               {step.key === (current ?? 'fix') && card}
+              {step.key === 'request' && askingNow && !asking && authorId && <WaitingLine id={authorId} what="승인 요청" />}
               {step.key === 'decision' && decision && stage !== 'requested' && <DecisionCard bare conflict={conflict} viewerId={viewer?.id} />}
               {/* Asked: the reviewer decides here; anyone else sees whose turn it is. */}
               {step.key === 'decision' && stage === 'requested' && !decides && reviewerIds[0] && <WaitingLine id={reviewerIds[0]} what="결정" />}
