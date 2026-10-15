@@ -246,9 +246,11 @@ function NoticeBody({ card, destination }) {
         </p>
       )}
       {destination && (
-        <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
-          <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
-        </button>
+        <div data-inbox-action className="flex justify-end">
+          <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
+            <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
+          </button>
+        </div>
       )}
     </>
   )
@@ -394,9 +396,11 @@ function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJu
               <>
                 <p className="text-xs leading-5 text-slate-300"><LocalizedText text={card.change.message ?? card.change.suggestion} /></p>
                 <p translate="no" className="font-mono text-[11.5px] break-all text-slate-400">{card.change.file}</p>
-                <button type="button" onClick={() => openChange(card.change)} className={ACTION_BUTTON}>
-                  <LocalizedText text={taskFor(card.change)?.label ?? 'Open review'} /><ArrowRight className="size-3.5 opacity-70" />
-                </button>
+                <div data-inbox-action className="flex justify-end">
+                  <button type="button" onClick={() => openChange(card.change)} className={ACTION_BUTTON}>
+                    <LocalizedText text={taskFor(card.change)?.label ?? 'Open review'} /><ArrowRight className="size-3.5 opacity-70" />
+                  </button>
+                </div>
               </>
             )}
             {card.type === 'changes' && (
@@ -413,17 +417,19 @@ function InboxCard({ group, day, expanded, onToggle, conflicts, mergeItems, onJu
               </div>
             )}
             {card.type === 'event' && destination && (
-              <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
-                <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
-              </button>
+              <div data-inbox-action className="flex justify-end">
+                <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
+                  <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
+                </button>
+              </div>
             )}
             {card.type === 'thread' && (
               <>
                 <CommentThread comments={card.comments} />
                 {/* Not part of the conversation: what the card as a whole
-                    does, set off at its foot under a hairline. */}
+                    does, set off at its foot under a hairline — at the card's right, where a card's way on goes. */}
                 {destination && (
-                  <div className="!mt-4 border-t border-white/[0.07] pt-3">
+                  <div data-inbox-action className="!mt-4 flex justify-end border-t border-white/[0.07] pt-3">
                     <button type="button" onClick={destination.go} className={ACTION_BUTTON}>
                       <LocalizedText text={destination.label} /><ArrowRight className="size-3.5 opacity-70" />
                     </button>
