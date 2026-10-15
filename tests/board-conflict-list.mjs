@@ -21,7 +21,8 @@ try {
 
   const list = read('components/screens/BoardConflicts.jsx')
   assert.ok(!list.includes('RISK_DOT') && !list.includes('sky-') && !list.includes('ring-[#F04E5A]'), 'no dots, no blue, no group outline')
-  assert.ok(list.includes('grid-cols-[16px_minmax(0,1fr)_56px]') && list.includes('h-[52px]') && list.includes('gap-x-2.5'), 'fixed columns, 52px rows')
+  // One line a change: status · what it's on · (risk dot) due — 36px rows; its kind is the tooltip.
+  assert.ok(list.includes('grid-cols-[16px_minmax(0,1fr)_auto]') && list.includes('grid h-9 w-full') && list.includes('gap-x-2.5') && !list.includes('data-row-kind'), 'one line a change, 36px rows')
   assert.ok(list.includes('sticky top-0') && list.includes('aria-expanded={open}') && list.includes('h-7'), 'sticky, folding 28px headers')
   assert.ok(list.includes("conflict.dueBucket === 'overdue' ? 'font-semibold text-rose-400' : conflict.dueBucket === 'today' ? 'text-rose-400'"), 'only today (and overdue) in red')
   assert.ok(list.includes("medium: ['Risk medium'") && !list.includes("low: ['Risk"), 'no chip for low risk')

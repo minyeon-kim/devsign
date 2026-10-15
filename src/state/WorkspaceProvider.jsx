@@ -117,6 +117,19 @@ function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+// Where a component goes on a screen: the top of the first empty band — under the status bar (48px), between the
+// layers already there, 16px clear each side — tall enough for it; with none, just over the screen's foot.
+export function freeBandOf(layers, frameHeight, height) {
+  const spans = layers.filter((layer) => layer.height < frameHeight * 0.9).map((layer) => [layer.y, layer.y + layer.height]).sort((a, b) => a[0] - b[0])
+  let top = 48
+  for (const [start, end] of spans) {
+    if (start - top >= height + 32) return top + 16
+    top = Math.max(top, end)
+  }
+  if (frameHeight - top >= height + 32) return top + 16
+  return Math.max(48, frameHeight - height - 24)
+}
+
 export function WorkspaceProvider({ children, projectId }) {
   // Who "you" are on this project (Taylor on the designer track, Jordan on
   // the developer track) — every reviewer/approval/"(you)" surface in this
@@ -487,6 +500,14 @@ export function WorkspaceProvider({ children, projectId }) {
   // Library components put on a screen outside Merge Studio: { [pageId]: [layer] } — drawn on the board with the
   // screen's own layers (ScreensBoard), their look the component's (assetAssemblies, as any layer's).
   const [assetAdded, setAssetAdded] = useDemoState(`project:${projectId}:assetAdded`, {})
+  const assetAddedRef = useRef(assetAdded)
+  assetAddedRef.current = assetAdded
+  // Taken back off the screen (the Layers panel's ✕ on an added component), with its look.
+  const removeAssetComponent = useCallback((pageId, layerId) => {
+    setAssetAdded((prev) => ({ ...prev, [pageId]: (prev[pageId] ?? []).filter((layer) => layer.id !== layerId) }))
+    assembleAsset(layerId, null)
+    setSelectedLayerId((current) => (current === layerId ? null : current))
+  }, [assembleAsset, setAssetAdded])
   // The Assets panel's three ways in, as Merge Studio's (MergeStudioWorkspace): Replace — the layer takes on the
   // component's role, look and size; Insert — a new one inside the layer; Add — a new one on the screen.
   const applyAssetComponent = useCallback((layer, def, frameWidth = 300) => {
@@ -512,8 +533,9 @@ export function WorkspaceProvider({ children, projectId }) {
         ? parent.type === 'bar' || parent.type === 'tabs'
           ? { x: parent.x + parent.width - width - 12, y: parent.y + Math.round((parent.height - def.height) / 2) }
           : { x: parent.x + 12, y: parent.y + 12 }
-        // (On the screen itself: centred, just over its foot — inside the artboard, which keeps its size.)
-        : { x: Math.max(8, Math.round((frame.width - width) / 2)), y: Math.max(48, frame.height - def.height - 24) }),
+        // (On the screen itself: centred, in the first empty band tall enough for it — under the status bar, between
+        // what's there — else just over its foot. Never over what's drawn when there's room.)
+        : { x: Math.max(8, Math.round((frame.width - width) / 2)), y: freeBandOf([...frame.layers, ...(assetAddedRef.current[pageId] ?? [])], frame.height, def.height) }),
       width,
       height: def.height,
     }
@@ -3066,6 +3088,7 @@ export function WorkspaceProvider({ children, projectId }) {
     assetAdded,
     applyAssetComponent,
     addAssetComponent,
+    removeAssetComponent,
     openConflictReview,
     focusChange,
     chatDraft,

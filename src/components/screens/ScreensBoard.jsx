@@ -171,7 +171,7 @@ function ScreenDrawing({ frame, overrides = null }) {
 }
 
 function ScreensBoard() {
-  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded } = useWorkspace()
+  const { prototype, activePageId, setActivePageId, setWorkspaceView, showScreenIn, boardView, dockApi, conflicts, continuePrototype, boardConflicts, setBoardConflicts, mergeItems, compareItemId, openCompareView, boardDockHost, setBoardDockShown, assetAssemblies, assetAdded, selectedLayerId } = useWorkspace()
   // What the Assets panel did to a screen (outside Merge Studio): components added to it, and layers given a
   // component's look — drawn with the screen's own.
   const withAssets = (frame, pageId) => (assetAdded?.[pageId]?.length ? { ...frame, layers: [...frame.layers, ...assetAdded[pageId]] } : frame)
@@ -678,6 +678,12 @@ function ScreensBoard() {
                 style={{ width: card.width, height: card.height }}
               >
                 {drawn.has(card.id) && <ScreenDrawing frame={withAssets(screen.frame, card.id)} overrides={overridesFor(screen.frame, card.id, preview?.pages.includes(card.id) ? previewOverrides : null)} />}
+                {/* The layer selected (Layers, Assets): outlined where it is, so what Replace / Insert acts on — or what
+                    was just added — is seen on the screen. */}
+                {!proto && selectedLayerId && (() => {
+                  const layer = withAssets(screen.frame, card.id).layers.find((entry) => entry.id === selectedLayerId)
+                  return layer ? <span aria-hidden data-selected-layer={layer.id} className="pointer-events-none absolute z-10 rounded-[3px]" style={{ left: layer.x - 2, top: layer.y - 2, width: layer.width + 4, height: layer.height + 4, boxShadow: `0 0 0 ${1.5 / shown.zoom}px #5EEAB5` }} /> : null
+                })()}
               </button>
               )}
               {previewWay && !proto && preview.pages.includes(card.id) && (
@@ -806,17 +812,7 @@ function ScreensBoard() {
       {/* (While a prototype plays, its ‹ n / total › hold the bottom centre: the tools sit just above them.) */}
       <div className={cn('pointer-events-none absolute inset-x-0 z-20 flex justify-center', proto ? 'bottom-[72px]' : 'bottom-4')}>
       <div data-board-chrome data-board-toolbar role="toolbar" aria-label="Board" onPointerDown={(event) => event.stopPropagation()} className={cn('pointer-events-auto flex items-center gap-0.5', BAR)}>
-        {prototype.flows.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger data-board-flows title="Go to a flow" className={cn(TOOL, 'px-2')}><LocalizedText text="Flows" /></DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-40">
-              {layout.groups.map((group) => (
-                <DropdownMenuItem key={group.id} onClick={() => fit(group)} className="text-xs"><LocalizedText text={group.name ?? 'Screens'} /></DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
+        {/* (No flow menu: the board's flows are its regions, each named on it — fit and zoom are all it needs here.) */}
         <button type="button" data-board-fit title={focusAt !== -1 ? 'Back to the full view · Esc' : 'Fit all'} aria-label="Fit all" onClick={() => { if (!focusOut()) fit() }} className={TOOL}><Maximize className="size-3.5" /></button>
         <button type="button" title="Zoom out" aria-label="Zoom out" disabled={shown.zoom <= ZOOM_MIN} onClick={() => zoomBy(1 / 1.25)} className={TOOL}><Minus className="size-3.5" /></button>
         <button type="button" data-board-zoom title="Zoom to 100%" aria-label="Zoom to 100%" onClick={() => zoomTo(1)} className={cn(TOOL, 'w-11 tabular-nums')}>{Math.round(shown.zoom * 100)}%</button>

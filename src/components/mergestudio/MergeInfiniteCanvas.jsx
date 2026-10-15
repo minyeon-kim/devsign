@@ -3,7 +3,7 @@ import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useContext, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Redo2, RotateCcw, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Redo2, RotateCcw, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap, Maximize, Expand } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -2236,48 +2236,11 @@ function MergeInfiniteCanvas({
           // bottom centre, as the Screens board's are: the tab row over it keeps the views alone.)
           const tools = (
             <div data-result-header data-merge-canvas-bar className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-card/95 p-0.5 shadow-lg backdrop-blur-sm">
-              {/* The frame: one icon (with the frame it's in); pressing it
-                  slides the choices out beside it, and picking one — or the
-                  icon again — folds them away. */}
-              {/* (No title: the pane is the Result by its green-framed
-                  screen; its tools sit at the right, clear of the merge
-                  button above.) */}
-              <div data-view-frames className="pointer-events-auto ml-auto flex h-7 shrink-0 items-center gap-0.5 rounded-md p-0.5 ">
-                <button
-                  type="button"
-                  data-frame-toggle
-                  aria-expanded={framesOpen}
-                  title={ko ? '프레임 고르기' : 'Pick a frame'}
-                  onClick={() => setFramesOpen((value) => !value)}
-                  className={cn('flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors', framesOpen ? 'bg-white/[0.12] text-white' : 'text-slate-300 hover:text-white')}
-                >
-                  {resultDevice === 'ipad' ? <Tablet className="size-3.5" /> : resultDevice ? <Smartphone className="size-3.5" /> : <Monitor className="size-3.5" />}
-                  {!framesOpen && <span>{RESULT_DEVICES.find((entry) => entry.id === resultDevice)?.short ?? (ko ? '전체' : 'Full')}</span>}
-                </button>
-                <div role="tablist" aria-label={ko ? '프레임' : 'Frame'} className={cn('flex items-center gap-0.5 overflow-hidden transition-[max-width,opacity] duration-200 ease-out', framesOpen ? 'max-w-[420px] opacity-100' : 'max-w-0 opacity-0')}>
-                  {[{ id: null, short: ko ? '전체' : 'Full', label: ko ? '화면 전체' : 'Whole screen' }, ...RESULT_DEVICES].map((entry) => {
-                    const on = (resultDevice ?? null) === entry.id
-                    return (
-                      <button
-                        key={entry.id ?? 'full'}
-                        type="button"
-                        role="tab"
-                        tabIndex={framesOpen ? 0 : -1}
-                        aria-selected={on}
-                        data-view-frame={entry.id ?? 'full'}
-                        title={entry.w ? `${entry.label} · ${entry.w}×${entry.h}` : entry.label}
-                        onClick={() => { pickResultFrame(entry.id); setFramesOpen(false) }}
-                        className={cn('flex h-7 shrink-0 items-center rounded-md px-2 text-[11px] font-medium whitespace-nowrap transition-colors', on ? 'bg-emerald-300/15 text-emerald-200' : 'text-slate-400 hover:text-slate-200')}
-                      >
-                        {entry.short}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              {/* (The same tools as the Screens board's capsule — fit and zoom, then undo / redo — and the result seen
+                  large (in a device's frame, picked there): nothing the tab row or the 미리보기 view already offers.) */}
               {/* Its zoom and the full preview, at the pane's top right. */}
               <div data-result-zoom className="pointer-events-auto flex h-7 shrink-0 items-center gap-0.5 rounded-md p-0.5 ">
-                <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
+                <button type="button" data-view-fit title={ko ? '맞춤' : 'Fit'} aria-label={ko ? '맞춤' : 'Fit'} onClick={() => setView(fitView(layout, { only: ['result'] }))} className={BUTTON}><Maximize className="size-3.5" /></button>
                 <button type="button" aria-label={ko ? '축소' : 'Zoom out'} onClick={() => zoomFromCenter(-10)} className={BUTTON}><Minus className="size-3.5" /></button>
                 <span data-view-zoom className="min-w-10 text-center text-[11px] text-slate-300 tabular-nums">{Math.round(view.zoom)}%</span>
                 <button type="button" aria-label={ko ? '확대' : 'Zoom in'} onClick={() => zoomFromCenter(10)} className={BUTTON}><Plus className="size-3.5" /></button>
@@ -2287,15 +2250,14 @@ function MergeInfiniteCanvas({
                 data-result-preview
                 title={ko ? '결과를 크게 미리보기 · 기기별 (Esc로 닫기)' : 'Preview the result large · per device (Esc closes)'}
                 onClick={() => setMergePreviewOpen(true)}
-                className="pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+                aria-label={ko ? '결과 크게 보기' : 'View the result large'}
+                className={BUTTON}
               >
-                <Play className="size-3" />
-                {ko ? '크게 보기' : 'View large'}
+                <Expand className="size-3.5" />
               </button>
               <span aria-hidden className="mx-0.5 h-4 w-px bg-white/10" />
               <button type="button" aria-label="Undo" title="Undo" disabled={!editHistory?.canUndo} onClick={editHistory?.undo} className={BUTTON}><Undo2 className="size-3.5" /></button>
               <button type="button" aria-label="Redo" title="Redo" disabled={!editHistory?.canRedo} onClick={editHistory?.redo} className={BUTTON}><Redo2 className="size-3.5" /></button>
-              <MergeCanvasControls inline history={editHistory} showZoom={false} showHistory={false} />
             </div>
           )
           return <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">{tools}</div>

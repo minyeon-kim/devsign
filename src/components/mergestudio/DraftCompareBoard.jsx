@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, LayoutGrid, Minus, Plus } from 'lucide-react'
+import { Maximize, Check, LayoutGrid, Minus, Plus } from 'lucide-react'
 import { cn } from 'cn'
 import { StaticLayer } from '@/components/mergestudio/MergeInfiniteCanvas'
 import { optionEffects } from '@/components/mergestudio/DesignComparison'
@@ -300,7 +300,8 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
       className={cn('flex h-full min-h-0 min-w-0 flex-col', embedded ? 'w-full' : 'shrink-0 px-3')}
       style={embedded ? undefined : { width: `${share * 100}%`, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      <div className="mb-3 flex shrink-0 items-center gap-1.5">
+      {/* (One row while it fits; in a narrow panel the zoom goes under it rather than being cut off.) */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1">
         {/* The view: all of them, or the drafts picked here, side by side. */}
         <div role="tablist" aria-label={ko ? '시안 보기' : 'Draft view'} data-draft-view-tabs className="flex h-7 shrink-0 items-center gap-0.5">
           <button
@@ -331,14 +332,16 @@ export default function DraftCompareBoard({ item, options: compared, frame, deci
           ))}
         </div>
         {/* (How many are picked, and all / none — on this row, not one of their own over it.) */}
-        {draftSelection && <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-slate-500">
-          <span data-detail-selection aria-live="polite" className="tabular-nums">{draftSelection.count}/{draftSelection.total} 선택</span>
-          <button type="button" data-detail-select-all onClick={draftSelection.all} className="ds-intrinsic rounded px-1 text-[11px] transition-colors hover:text-slate-200">{draftSelection.allSelected ? '선택 해제' : '모두 선택'}</button>
-        </span>}
+        {/* (The count is the switch: pressed, all — or, all picked, none.) */}
+        {draftSelection && (
+          <button type="button" data-detail-select-all title={draftSelection.allSelected ? '선택 해제' : '모두 선택'} onClick={draftSelection.all} className="ds-intrinsic flex h-6 shrink-0 items-center rounded-md px-1.5 text-[11px] text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-200">
+            <span data-detail-selection aria-live="polite" className="tabular-nums">{draftSelection.count}/{draftSelection.total} 선택</span>
+          </button>
+        )}
         <span className="min-w-0 flex-1" />
         {/* One group: fit · zoom. */}
         <div data-board-zoom className="flex h-7 shrink-0 items-center gap-0.5">
-          <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}>{ko ? '맞춤' : 'Fit'}</button>
+          <button type="button" data-board-fit title={ko ? '칸에 맞춤' : 'Fit to cells'} aria-label={ko ? '칸에 맞춤' : 'Fit to cells'} onClick={() => setView(null)} className={BUTTON}><Maximize className="size-3" /></button>
           <button type="button" aria-label={ko ? '축소' : 'Zoom out'} disabled={current.scale <= MIN_SCALE} onClick={() => zoomAtCenter(1 / ZOOM_STEP)} className={BUTTON}><Minus className="size-3" /></button>
           <span data-board-percent className="min-w-8 text-center text-[10px] text-slate-300 tabular-nums">{Math.round(current.scale * 100)}%</span>
           <button type="button" aria-label={ko ? '확대' : 'Zoom in'} disabled={current.scale >= MAX_SCALE} onClick={() => zoomAtCenter(ZOOM_STEP)} className={BUTTON}><Plus className="size-3" /></button>

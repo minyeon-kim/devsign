@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, Circle, Component, Eye, EyeOff, File, Frame, Group, Lock, Type, Unlock } from 'lucide-react'
+import { ChevronRight, Circle, Component, Eye, EyeOff, File, Frame, Group, Lock, Trash2, Type, Unlock } from 'lucide-react'
 import { cn } from 'cn'
 import { useWorkspace } from '@/state/WorkspaceProvider'
 
@@ -43,7 +43,7 @@ function RowAction({ icon: Icon, label, active, show, onClick }) {
   )
 }
 
-function LayerRow({ id, name, kind, depth, selected, expanded, collapsible, hidden, locked, onSelect, onToggle, onToggleHidden, onToggleLocked }) {
+function LayerRow({ id, name, kind, depth, selected, expanded, collapsible, hidden, locked, onSelect, onToggle, onToggleHidden, onToggleLocked, onRemove = null }) {
   const Icon = kindIcons[kind] ?? Group
   const Chevron = ChevronRight
 
@@ -78,6 +78,8 @@ function LayerRow({ id, name, kind, depth, selected, expanded, collapsible, hidd
         <span className="truncate">{name}</span>
       </button>
       <div className="flex shrink-0 items-center gap-0.5 pr-1.5">
+        {/* (A component added from Assets can be taken off again.) */}
+        {onRemove && <RowAction icon={Trash2} label="Remove from the screen" onClick={() => onRemove(id)} />}
         <RowAction icon={locked ? Lock : Unlock} label="Toggle layer locking" show={locked} active={locked} onClick={() => onToggleLocked(id)} />
         <RowAction icon={hidden ? EyeOff : Eye} label="Toggle layer visibility" show={hidden} active={hidden} onClick={() => onToggleHidden(id)} />
       </div>
@@ -90,7 +92,7 @@ function LayerRow({ id, name, kind, depth, selected, expanded, collapsible, hidd
 // Locking and hiding are cosmetic here (this session only, not wired into
 // the canvas) — the point is the row affordance, matching Figma's own.
 function LayersPanel() {
-  const { selectCanvasLayer, selectedLayerId, activePageId, projectPages } = useWorkspace()
+  const { selectCanvasLayer, selectedLayerId, activePageId, projectPages, assetAdded, removeAssetComponent } = useWorkspace()
   // The layer tree of whichever page is open on the canvas.
   const page = projectPages.find((p) => p.id === activePageId) ?? projectPages[0]
   const [collapsed, setCollapsed] = useState(new Set())
@@ -126,7 +128,9 @@ function LayersPanel() {
           {page?.name}
         </div>
 
-        {page.frames.map((frame) => {
+        {page.frames.map((frame, frameIndex) => {
+          // (What Assets added to this screen is listed with its own layers — last, as it's drawn on top.)
+          const added = frameIndex === 0 ? assetAdded?.[page.id] ?? [] : []
           const expanded = !collapsed.has(frame.id)
           return (
             <div key={frame.id}>
@@ -159,6 +163,23 @@ function LayersPanel() {
                     onSelect={selectCanvasLayer}
                     onToggleHidden={toggleHidden}
                     onToggleLocked={toggleLocked}
+                  />
+                ))}
+              {expanded &&
+                added.map((layer) => (
+                  <LayerRow
+                    key={layer.id}
+                    id={layer.id}
+                    name={layer.name}
+                    kind="component"
+                    depth={2}
+                    selected={selectedLayerId === layer.id}
+                    hidden={hiddenLayers.has(layer.id)}
+                    locked={locked.has(layer.id)}
+                    onSelect={selectCanvasLayer}
+                    onToggleHidden={toggleHidden}
+                    onToggleLocked={toggleLocked}
+                    onRemove={(id) => removeAssetComponent(page.id, id)}
                   />
                 ))}
             </div>

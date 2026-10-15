@@ -150,18 +150,19 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
                       const selected = conflict.id === (marked ?? lastId)
                       return (
                         <li key={conflict.id}>
-                          <button type="button" data-board-conflict={conflict.id} data-selected={selected ? '' : undefined} onClick={() => onPick(conflict)}
-                            className={cn('ds-intrinsic grid h-[52px] w-full grid-cols-[16px_minmax(0,1fr)_56px] grid-rows-2 items-center gap-x-2.5 rounded-[14px] px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', selected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}>
+                          {/* One line a change: its status, what it's on (the component, then the property, quieter), and
+                              at the right its risk as a dot (medium, high) and when it's due. Its kind is the row's tooltip. */}
+                          <button type="button" data-board-conflict={conflict.id} data-selected={selected ? '' : undefined} onClick={() => onPick(conflict)} title={translateText(rowKindOf(conflict), language)}
+                            className={cn('ds-intrinsic grid h-9 w-full grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-[12px] px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-300', selected ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]')}>
                             <StatusIcon status={status?.id ?? 'detected'} label={translateText(status?.label ?? '', language)} />
                             {/* (As the change names them — a component and its property aren't words to translate.) */}
-                            <span data-row-title translate="no" title={property ? `${target} · ${property}` : target} className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
+                            <span data-row-title translate="no" className="flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5">
                               <span data-row-target className="min-w-0 shrink-0 truncate font-medium text-slate-100" style={{ maxWidth: property ? '62%' : '100%' }}>{target}</span>
                               {property && <span data-row-property className="min-w-0 truncate text-slate-500">{property}</span>}
                             </span>
-                            <span data-row-due={conflict.dueBucket} className={cn('justify-self-end text-right text-[11.5px] tabular-nums', conflict.dueBucket === 'overdue' ? 'font-semibold text-rose-400' : conflict.dueBucket === 'today' ? 'text-rose-400' : 'text-slate-500')}>{due && <LocalizedText text={due} />}</span>
-                            <span data-row-kind className="col-start-2 flex min-w-0 items-center gap-1.5 text-[11.5px] leading-4 text-slate-500">
-                              <span className="truncate"><LocalizedText text={rowKindOf(conflict)} /></span>
-                              {chip && <span data-row-risk={conflict.severity} className={cn('shrink-0 rounded-full px-1.5 text-[10.5px] leading-4 font-medium', chip[1])}><LocalizedText text={chip[0]} /></span>}
+                            <span className="flex shrink-0 items-center gap-2">
+                              {chip && <span data-row-risk={conflict.severity} aria-label={translateText(chip[0], language)} title={translateText(chip[0], language)} className={cn('size-1.5 rounded-full', conflict.severity === 'high' ? 'bg-rose-400' : 'bg-amber-300')} />}
+                              <span data-row-due={conflict.dueBucket} className={cn('text-right text-[11.5px] tabular-nums', conflict.dueBucket === 'overdue' ? 'font-semibold text-rose-400' : conflict.dueBucket === 'today' ? 'text-rose-400' : 'text-slate-500')}>{due && <LocalizedText text={due} />}</span>
                             </span>
                           </button>
                         </li>
