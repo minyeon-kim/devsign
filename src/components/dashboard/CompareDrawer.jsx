@@ -120,7 +120,7 @@ function CompareDrawer() {
         const open_ = terms.length > 0 || !folded.has(label)
         return (
           // (As the change list's groups: no box — a header held at the top, its name then how many, and the rows under it.)
-          <section key={label} data-drawer-group={label} data-compare-group={label} className="mt-4">
+          <section key={label} data-drawer-group={label} data-compare-group={label} className="mt-4 first:mt-1">
             <h4 style={{ height: GROUP_HEIGHT }} className="sticky top-0 z-10 m-0 flex items-center bg-background text-[12px] leading-4">
               {/* (As the change list's: its name and how many, the chevron at the right end.) */}
               <button type="button" aria-expanded={open_} onClick={() => toggleGroup(label)} className="ds-intrinsic flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-lg px-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-emerald-300">

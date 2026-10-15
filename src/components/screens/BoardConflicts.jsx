@@ -130,7 +130,7 @@ export default function BoardConflicts({ groups, picked, onPick, onBack, focusSc
             const open = !folded.has(key)
             const here = group.id && group.id === currentScreenId
             return (
-              <section key={key} data-board-conflicts-screen={key} data-focus={group.id && group.id === focusScreenId ? '' : undefined} data-current={here ? '' : undefined} className="mt-4 scroll-mt-0">
+              <section key={key} data-board-conflicts-screen={key} data-focus={group.id && group.id === focusScreenId ? '' : undefined} data-current={here ? '' : undefined} className="mt-4 scroll-mt-0 first:mt-1">
                 {/* (A section's label, not a row: its name and how many, the fold's chevron at the right end —
                     lined up with the rows' status icons under it.) */}
                 <h3 className="sticky top-0 z-10 m-0 bg-[#1C1C1C]">

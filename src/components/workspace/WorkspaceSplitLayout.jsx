@@ -661,7 +661,7 @@ function WorkspaceSplitLayout({ mergeStudio = false, studio = null, children }) 
         <button type="button" data-conflict-toggle aria-label="변경확인" aria-expanded={boardConflicts.open}
           onClick={() => setBoardConflicts({ open: !boardConflicts.open, conflictId: null, screenId: null })}
           onPointerDown={(event) => event.stopPropagation()}
-          className={cn(SEGMENT, openPanel === 'conflicts' && RAISED, conflictCount > 0 ? 'text-amber-300 hover:text-amber-200' : openPanel === 'conflicts' ? 'text-white' : 'text-slate-400 hover:text-slate-200', openPanel === 'conflicts' && 'font-semibold')}>
+          className={cn(SEGMENT, openPanel === 'conflicts' && RAISED, conflictCount > 0 ? 'text-[#F04E5A] hover:text-[#F46A74]' : openPanel === 'conflicts' ? 'text-white' : 'text-slate-400 hover:text-slate-200', openPanel === 'conflicts' && 'font-semibold')}>
           <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
           Conflict
           {conflictCount > 0 && <span className="text-xs tabular-nums">{conflictCount}</span>}
