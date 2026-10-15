@@ -270,12 +270,16 @@ export function regionLayout(itemId, decisions) {
   // (Only a part that's there can hold one, and nothing holds what holds.)
   const parents = Object.fromEntries(Object.entries(saved.parents ?? {})
     .filter(([child, parent]) => child !== parent && ids.includes(child) && ids.includes(parent) && !removed.includes(parent) && !saved.parents?.[parent]))
-  return { order, removed, extras, parents }
+  // `offsets`: parts placed by hand where they were dropped ({ id: { dx, dy } }) — moved from their place in the
+  // stack, the others staying where they are (as a free-positioned layer in an auto layout frame).
+  const offsets = Object.fromEntries(Object.entries(saved.offsets ?? {}).filter(([id, at]) => ids.includes(id) && !removed.includes(id) && (at?.dx || at?.dy)))
+  return { order, removed, extras, parents, offsets }
 }
 // The decision that records an arrangement (null: the screen's own).
-export function layoutDecision(itemId, { order, removed, extras = [], parents = {} }) {
+export function layoutDecision(itemId, { order, removed, extras = [], parents = {}, offsets = {} }) {
   const ids = (draftScreens[itemId]?.regions ?? []).map((region) => region.id)
-  return order.join() === ids.join() && !removed.length && !extras.length && !Object.keys(parents).length ? null : { custom: { order, removed, extras, parents } }
+  const moved = Object.fromEntries(Object.entries(offsets).filter(([, at]) => at?.dx || at?.dy))
+  return order.join() === ids.join() && !removed.length && !extras.length && !Object.keys(parents).length && !Object.keys(moved).length ? null : { custom: { order, removed, extras, parents, offsets: moved } }
 }
 
 // (`layout`: regionLayout's — the screen's own order, all of it, without.)
@@ -297,39 +301,49 @@ export function composeDraftFrame(itemId, base, picks, fallback = null, layout =
     return base ? { ...base, id: extra.id, base: base.id, draftKey: extra.draftKey } : null
   }
   const parents = layout?.parents ?? {}
+  const offsets = layout?.offsets ?? {}
+  // (How far down anything placed by hand reaches — the screen grows to hold it too.)
+  let reach = 0
   const arranged = layout ? layout.order.filter((id) => !layout.removed.includes(id)).map(regionOf).filter(Boolean) : screen.regions
   // One part's layers, from `top` down: how tall it is.
-  const place = (region, top, extra = {}) => {
+  // `at`: where it was placed by hand, if it was (its own, or the part it's inside) — drawn there, its place in the
+  // stack kept for the parts around it.
+  const place = (region, top, extra = {}, at = null) => {
     const draftKey = picks[region.id] ?? region.draftKey ?? fallback
     const part = draftKey && screen.drafts[draftKey]?.[region.base ?? region.id]
     if (!part) return null
+    const dx = at?.dx ?? 0
+    const dy = at?.dy ?? 0
     for (const layer of part.layers) {
-      layers.push({ ...layer, id: `${draftKey}--${region.id}--${layer.id}`, y: top + layer.y, regionId: region.id, draftKey })
+      layers.push({ ...layer, id: `${draftKey}--${region.id}--${layer.id}`, x: layer.x + dx, y: top + layer.y + dy, regionId: region.id, draftKey })
     }
     const height = Math.max(part.height || 0, 24)
-    return { draftKey, height, entry: { id: region.id, label: region.label, draftKey, picked: Boolean(picks[region.id] ?? region.base), copyOf: region.base, ...extra } }
+    if (dy) reach = Math.max(reach, top + dy + height)
+    return { draftKey, height, entry: { id: region.id, label: region.label, draftKey, picked: Boolean(picks[region.id] ?? region.base), copyOf: region.base, ...(at && { dx, dy }), ...extra } }
   }
   for (const region of arranged.filter((entry) => !parents[entry.id])) {
-    const own = place(region, y)
+    const at = offsets[region.id] ?? null
+    const own = place(region, y, {}, at)
     if (!own) continue
     // What's inside it: under its own content, each its own band in it.
     let inner = y + own.height
     const children = []
     for (const child of arranged.filter((entry) => parents[entry.id] === region.id)) {
-      const placed = place(child, inner + INNER_GAP, { parentId: region.id })
+      const placed = place(child, inner + INNER_GAP, { parentId: region.id }, at)
       if (!placed) continue
-      children.push({ ...placed.entry, y: inner + INNER_GAP / 2, height: placed.height + INNER_GAP })
+      children.push({ ...placed.entry, y: inner + INNER_GAP / 2 + (at?.dy ?? 0), height: placed.height + INNER_GAP })
       inner += INNER_GAP + placed.height
     }
     const height = inner - y
-    regions.push({ ...own.entry, y: y - GAP / 2, height: height + GAP, ...(children.length && { children: children.map((child) => child.id) }) })
+    regions.push({ ...own.entry, y: y - GAP / 2 + (at?.dy ?? 0), height: height + GAP, ...(children.length && { children: children.map((child) => child.id) }) })
     regions.push(...children)
     y += height + GAP
   }
   // The screen grows to hold everything in it — a part added never spills
   // past the artboard's bottom edge.
-  const height = Math.max(base.height, y + GAP)
-  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => `${region.id}${parents[region.id] ? `>${parents[region.id]}` : ''}`).join('-')}` : ''}`, height, layers, regions }
+  const height = Math.max(base.height, y + GAP, reach + GAP)
+  const moved = Object.entries(offsets).map(([id, at]) => `${id}@${at.dx},${at.dy}`).join('-')
+  return { ...base, id: `${base.id}:${Object.values(picks).join('-')}${layout ? `:${arranged.map((region) => `${region.id}${parents[region.id] ? `>${parents[region.id]}` : ''}`).join('-')}${moved ? `:${moved}` : ''}` : ''}`, height, layers, regions }
 }
 
 // A whole draft as a screen.

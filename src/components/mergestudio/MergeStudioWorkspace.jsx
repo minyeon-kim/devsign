@@ -1216,7 +1216,22 @@ function MergeStudioWorkspace({ item }) {
     const id = layerSource(syncSelection?.layerId)?.regionId
     return id && !mixLayout.removed.includes(id) ? id : null
   })() : null
-  const arrange = (next) => decide(LAYOUT_KEY, layoutDecision(item.id, { extras: mixLayout.extras, parents: mixLayout.parents, ...next }))
+  // (A part put somewhere new in the stack — reordered, put inside, taken out — loses where it was placed by hand.)
+  const arrange = (next, { keepPlaced = null } = {}) => {
+    const offsets = keepPlaced ? next.offsets ?? mixLayout.offsets : without(mixLayout.offsets ?? {}, ...(next.moved ?? []))
+    const { moved: _moved, ...rest } = next
+    decide(LAYOUT_KEY, layoutDecision(item.id, { extras: mixLayout.extras, parents: mixLayout.parents, ...rest, offsets }))
+  }
+  // Dropped in the open — not between parts, not in one: it stays where it was let go, the others where they are.
+  function placeRegion(id, dx, dy) {
+    const at = mixLayout.offsets?.[id] ?? { dx: 0, dy: 0 }
+    const next = { dx: Math.round(at.dx + dx), dy: Math.round(at.dy + dy) }
+    // (Within 8px of its column, it keeps the column.)
+    if (Math.abs(next.dx) < 8) next.dx = 0
+    arrange({ order: mixLayout.order, removed: mixLayout.removed, parents: mixLayout.parents, offsets: { ...(mixLayout.offsets ?? {}), [id]: next } }, { keepPlaced: true })
+  }
+  // Back to its place in the stack.
+  const unplaceRegion = (id) => arrange({ order: mixLayout.order, removed: mixLayout.removed, parents: mixLayout.parents, moved: [id] })
   const shown = (layout) => layout.order.filter((id) => !layout.removed.includes(id))
   const without = (parents, ...ids) => Object.fromEntries(Object.entries(parents).filter(([child]) => !ids.includes(child)))
   // A part put among the screen's top-level parts, at `index` among them —
@@ -1227,7 +1242,7 @@ function MergeStudioWorkspace({ item }) {
     const before = top[Math.max(0, Math.min(index, top.length))]
     const rest = mixLayout.order.filter((entry) => entry !== id)
     rest.splice(before ? rest.indexOf(before) : rest.length, 0, id)
-    arrange({ order: rest, removed: mixLayout.removed, parents })
+    arrange({ order: rest, removed: mixLayout.removed, parents, moved: [id] })
   }
   // A part put inside another, last in it (as in an auto layout frame); what
   // was inside it comes along, into the same one.
@@ -1236,7 +1251,7 @@ function MergeStudioWorkspace({ item }) {
     const parents = { ...mixLayout.parents, [id]: parentId }
     for (const [child, parent] of Object.entries(parents)) if (parent === id) parents[child] = parentId
     const rest = mixLayout.order.filter((entry) => entry !== id)
-    arrange({ order: [...rest, id], removed: mixLayout.removed, parents })
+    arrange({ order: [...rest, id], removed: mixLayout.removed, parents, moved: [id] })
   }
   // ↑ / ↓: one place among the parts beside it — the top level, or the
   // ones inside the same part.
@@ -1658,6 +1673,8 @@ function MergeStudioWorkspace({ item }) {
             onDuplicate: duplicateRegion,
             onReorder: reorderRegion,
             onNest: nestRegion,
+            onPlace: placeRegion,
+            onUnplace: unplaceRegion,
             onUnnest: unnestRegion,
             // The stack's spacing, said while a part is dragged: the gap
             // between parts and the screen's side padding.
