@@ -6,7 +6,7 @@ import { comparisonBlockers } from '@/lib/driftDecisions'
 import { ListStatusLabel, NAV_BUTTON, NAV_BUTTON_ICON, REVIEW_HEADER_BADGE } from '@/components/conflicts/ConflictBadges'
 import { BREADCRUMB_COLUMN } from '@/components/layout/Breadcrumb'
 import { Fragment, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Ban, Bell, BookCheck, Check, ChevronDown, CircleCheck, FileCode2, ChevronLeft, Clock3, GitCompareArrows, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, Users, X } from 'lucide-react'
+import { ArrowRight, Ban, Bell, BookCheck, Check, ChevronDown, ChevronRight, CircleCheck, FileCode2, ChevronLeft, Clock3, GitCompareArrows, GitMerge, Layers3, LoaderCircle, Pencil, MapPin, Minus, Plus, RotateCcw, Send, ShieldCheck, Sparkles, TriangleAlert, Users, X } from 'lucide-react'
 import { cn } from 'cn'
 import { LocalizedText } from '@/i18n/runtime'
 import { translateText } from '@/i18n/translate'
@@ -54,7 +54,7 @@ import { useWorkspaceOptional } from '@/state/WorkspaceProvider'
 import { isDeveloperViewer } from '@/lib/viewerRole'
 import { decisionOutcomeOf } from '@/lib/designDecisions'
 import DesignLinkThumb, { BreakpointScreen, DesignLinkChip, ScreenLocation, useDesignLink } from '@/components/conflicts/DesignLinkThumb'
-import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY } from '@/components/conflicts/DesignDecisionFlow'
+import DesignDecisionFlow, { PRIMARY as DECISION_PRIMARY, differenceLineOf } from '@/components/conflicts/DesignDecisionFlow'
 import { RECORD_ROWS, ReplayStepRail, StepProgressCount, StepRow, accordionToggle, useStepReveal } from '@/components/conflicts/StepTimeline'
 import { canMerge, hasBody, reviewFixPhaseOf, reviewRecordOf, reviewStatusOf } from '@/lib/reviewRecord'
 import { MERGE_REQUEST_LABEL, isMergeRequest, mergeRequestRecordOf, mergeRequestStateOf, mergeRequestStatusOf } from '@/lib/mergeRequest'
@@ -109,6 +109,8 @@ const REVIEWER_STATUS = {
 }
 
 const REVIEW_GUTTER = 'gap-4 xl:gap-5'
+// (A decision's page reads in a 720px column — its content, the padding is outside it.)
+const DECISION_COLUMN = 'mx-auto w-full max-w-[800px] px-6 sm:px-10'
 const REVIEW_CARD = 'rounded-xl bg-white/[0.03]'
 const REVIEW_INFO_LABEL = 'text-xs leading-[18px] font-medium text-slate-400'
 
@@ -2742,6 +2744,11 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
   // last looked at (more than that since puts a dot on the tab).
   // (On the page the tabs are at its top, the change itself — 'details' — first and open.)
   const [sideTab, setSideTab] = useState(page ? 'details' : 'info')
+  // A decision's page reads top to bottom — what differs, the comparison, the choice — with no tabs: its
+  // impact & evidence and its activity are folds at the foot, closed until asked for.
+  const simple = Boolean(page && conflict?.decisionFlow)
+  const [folds, setFolds] = useState({ info: false, history: false })
+  const toggleFold = (key) => setFolds((prev) => ({ ...prev, [key]: !prev[key] }))
   // (Scrolled: a hairline under the tabs, so what passes under them reads as going under — not cut off.)
   const [scrolled, setScrolled] = useState(false)
   // A design decision's History: its events, in order (lib/conflictEvents)
@@ -3747,11 +3754,66 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     ))}
     </div>
   )
+  // (One of the evidence section's panels: by tab, or — on a decision's page — by fold.)
+  const renderEvidence = (tab) => (
+  tab === 'info' ? (
+                      <div data-review-tab="info" role="tabpanel" className={cn('min-w-0', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3')}>
+                        {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
+                        {/* (On the page the steps are the record in the main view.) */}
+                        {!page && !conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
+                        {!page && reviewersSection}
+                        <OverviewTab
+                          key={`overview:${conflict.id}`}
+                          page={page}
+                          reviewers={page && reviewersBody ? { body: reviewersBody, count: conflict.reviewers.length, approved: reviewersApproved, open: !conflict.reviewers.length } : null}
+                          rationale={rationale}
+                          onOpenEvidence={openEvidence}
+                          checks={checks}
+                          conflict={conflict}
+                          stage={stage}
+                          showProject={!workspace}
+                          blockedCount={decisionState.required.length}
+                          adjustment={adjustment}
+                          cause={causeVersion}
+                          onOpenCause={openProjectHistory}
+                          reasonNeeded={decisionState.reasonNeeded}
+                          hideTodo={approvalNudge}
+                          mix={!conflict.rollback && driftItem && draftColumns(driftItem)
+                            ? draftRows(conflict, driftItem, (stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {})
+                            : null}
+                        />
+                      </div>
+                    ) : tab === 'history' && conflict.decisionFlow ? (
+                      <div role="tabpanel" className={cn('flex min-h-0 flex-col', page ? 'min-h-[280px] flex-1' : 'h-[480px]')}>
+                        <ConflictHistory
+                          key={conflict.id}
+                          events={historyEvents}
+                          viewerId={viewerId}
+                          focus={historyFocus}
+                          // (The sample history is for looking at: nothing is written to it.)
+                          canWrite={!historyPreview && Boolean(workspace?.addConflictOpinion)}
+                          onSend={(body, replyTo) => workspace.addConflictOpinion(conflict.id, body, replyTo)}
+                          // A record opens the replay at its step; while it plays, the
+                          // step it's on is lit here.
+                          onOpenStep={activity.entries.length ? (event) => openReplay(replayEntryFor(EVENT_STEP_KEY[event.type] ?? 'start')) : undefined}
+                          activeStep={replayId ? recordStepOf(replayId) : null}
+                        />
+                      </div>
+                    ) : tab === 'activity' ? (
+                      <div data-review-tab="activity" role="tabpanel" className="min-w-0">
+                        <ConflictActivityList conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onOpenProjectHistory={openProjectHistory} />
+                      </div>
+                    ) : (
+                      <div role="tabpanel" className={cn('flex min-h-0 flex-col', page ? 'min-h-[280px] flex-1' : 'h-[480px]')}>
+                        <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
+                      </div>
+                    )
+  )
   return (
-    <div className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
+    <div style={{ '--review-ground': page ? 'var(--background)' : 'var(--card)' }} className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden', page ? 'bg-background' : 'bg-card')}>
         {conflict && (
           <>
-            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3', page ? 'bg-background' : 'bg-card', page ? cn(BREADCRUMB_COLUMN, 'min-h-0 pt-1 pb-3') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
+            <div data-review-header className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3', page ? 'bg-background' : 'bg-card', page ? cn(simple ? DECISION_COLUMN : BREADCRUMB_COLUMN, 'min-h-0 pt-1 pb-3') : 'min-h-[76px] px-4 py-4 sm:px-6')}>
               <div className={cn('flex min-w-0 flex-1 flex-col', page ? 'gap-2' : 'gap-3')}>
                 <div className={cn('flex min-w-0 gap-2.5', page ? 'items-baseline' : 'flex-wrap items-center')}>
                   {!page && <button
@@ -3773,12 +3835,15 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                   {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="shrink-0 font-mono text-[11px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                   {page && headerAside && <span className="ml-auto flex shrink-0 items-center gap-0.5 self-center">{headerAside}</span>}
                 </div>
+                {/* A decision's page: what differs, in one sentence, right under the title. */}
+                {simple && differenceLineOf(conflict) && <p data-difference-line className={cn('m-0 text-[13px] leading-5 text-slate-300', onBack && 'pl-[38px]')}><LocalizedText text={differenceLineOf(conflict)} /></p>}
                 {/* (On the page, a size down: 20px badges, 11px words — the title leads.) */}
                 {/* (On the page one quiet line: the kind its one chip; the risk, when, and where it stands as words.) */}
-                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-3 gap-y-1 text-[12px]', onBack && 'pl-[38px]') : 'gap-1.5 pl-10')}>
-                  <ConflictTypeTag conflict={conflict} header={!page} quiet={page} />
+                <div data-conflict-meta className={cn('flex flex-wrap items-center', page ? cn('gap-x-2 gap-y-1 text-[12px]', onBack && 'pl-[38px]', simple && "[&>*+*]:before:mr-2 [&>*+*]:before:text-slate-600 [&>*+*]:before:content-['·']") : 'gap-1.5 pl-10')}>
+                  <ConflictTypeTag conflict={conflict} header={!page} quiet={page} plain={simple} />
                   {severity && (
                     <span data-risk-badge className={page ? cn('inline-flex items-center gap-1 text-xs', severity.label.toLowerCase() === 'high' ? 'text-rose-300' : 'text-slate-400') : cn(REVIEW_HEADER_BADGE, RISK_TONE[severity.label.toLowerCase()])}>
+                        {simple && <span aria-hidden className={cn('size-1.5 rounded-full', severity.label.toLowerCase() === 'high' ? 'bg-rose-400' : severity.label.toLowerCase() === 'medium' ? 'bg-amber-400' : 'bg-slate-500')} />}
                         <span className="font-normal opacity-80"><LocalizedText text="Risk" /></span>
                         <LocalizedText text={severity.label} />
                       </span>
@@ -3830,9 +3895,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
             {/* One column that scrolls as a whole, under the header: what to decide first, then — at its
                 foot — its impact and evidence, the comments and the activity (no column of its own beside
                 it: the pane stays narrow, so the canvas next to it keeps its room). */}
-            <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
+            <div data-review-body className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', page ? cn(simple ? DECISION_COLUMN : BREADCRUMB_COLUMN, 'pb-6') : 'px-4 pt-2 pb-4 sm:px-6 sm:pb-6')}>
               {/* (No hairline under them: the selected tab's underline is the only line there.) */}
-              {page && reviewTabBar(cn('flex shrink-0 items-stretch gap-4 border-b transition-colors', scrolled ? 'border-white/[0.08]' : 'border-transparent'))}
+              {page && !simple && reviewTabBar(cn('flex shrink-0 items-stretch gap-4 border-b transition-colors', scrolled ? 'border-white/[0.08]' : 'border-transparent'))}
               <div data-review-scroll="main" data-scrolled={scrolled ? '' : undefined} onScroll={page ? (event) => setScrolled(event.currentTarget.scrollTop > 0) : undefined} className={cn(
                 'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto',
                 page ? 'pt-4' : 'pt-1',
@@ -3841,7 +3906,7 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                 {/* (Stacked, a replay keeps its height — the page scrolls —
                     rather than sharing the window with the sidebar below:
                     its preview would shrink to nothing.) */}
-                <div data-review-tab-panel="details" className={cn('flex min-w-0 shrink-0 flex-col', replayId && 'min-h-[576px]', page && sideTab !== 'details' && 'hidden')}>
+                <div data-review-tab-panel="details" className={cn('flex min-w-0 shrink-0 flex-col', replayId && 'min-h-[576px]', page && !simple && sideTab !== 'details' && 'hidden')}>
                   {/* (A merge is said by the title's badge and the approval
                       area; a rollback, which has neither, says it here.) */}
                   {!conflict.decisionFlow && !mergeRequest && mergedBanner}
@@ -3918,61 +3983,24 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     comparison beside it takes all the rest. */}
                 {/* (In the grid's own row beside the main view: its top is the first container's top,
                     whatever the header's height. Each scrolls on its own, so it stays put.) */}
-                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className={cn('flex min-w-0 shrink-0 flex-col', page ? (sideTab === 'details' ? 'hidden' : sideTab === 'comments' || sideTab === 'history' ? 'min-h-0 flex-1' : '') : 'border-t border-white/[0.07] pt-4')}>
+                <section data-review-sidebar data-review-evidence aria-label="Impact & evidence" className={cn('flex min-w-0 shrink-0 flex-col', page ? (simple ? 'mt-1' : sideTab === 'details' ? 'hidden' : sideTab === 'comments' || sideTab === 'history' ? 'min-h-0 flex-1' : '') : 'border-t border-white/[0.07] pt-4')}>
                   {/* (On the page the tabs are at its top — reviewTabBar — not here.) */}
                   {!page && reviewTabBar('mb-4 flex shrink-0 items-stretch gap-4 border-b border-white/[0.07]')}
-                  {sideTab === 'info' ? (
-                    <div data-review-tab="info" role="tabpanel" className={cn('min-w-0', page && '[&_[data-info-section]]:mb-0 [&_[data-info-section]+[data-info-section]]:border-t [&_[data-info-section]+[data-info-section]]:pt-3')}>
-                      {/* (A design decision's steps are the cards in the main view — not repeated here.) */}
-                      {/* (On the page the steps are the record in the main view.) */}
-                      {!page && !conflict.rollback && !conflict.decisionFlow && <FlowSteps key={`flow:${conflict.id}`} conflict={conflict} className="mb-5" />}
-                      {!page && reviewersSection}
-                      <OverviewTab
-                        key={`overview:${conflict.id}`}
-                        page={page}
-                        reviewers={page && reviewersBody ? { body: reviewersBody, count: conflict.reviewers.length, approved: reviewersApproved, open: !conflict.reviewers.length } : null}
-                        rationale={rationale}
-                        onOpenEvidence={openEvidence}
-                        checks={checks}
-                        conflict={conflict}
-                        stage={stage}
-                        showProject={!workspace}
-                        blockedCount={decisionState.required.length}
-                        adjustment={adjustment}
-                        cause={causeVersion}
-                        onOpenCause={openProjectHistory}
-                        reasonNeeded={decisionState.reasonNeeded}
-                        hideTodo={approvalNudge}
-                        mix={!conflict.rollback && driftItem && draftColumns(driftItem)
-                          ? draftRows(conflict, driftItem, (stage === 'resolved' ? mergedDecisionsForConflict(conflict, workspace) : null) ?? workspace?.decisionsFor?.(driftItem.id) ?? {})
-                          : null}
-                      />
+                  {simple ? (
+                    <div data-review-folds className="flex flex-col">
+                      {[['info', 'Impact & evidence', null], ['history', '활동', humanEventCount(historyEvents)]].filter(([key, , count]) => key !== 'history' || count > 0).map(([key, label, count]) => (
+                        <div key={key} data-review-fold={key} className="border-t border-white/[0.07]">
+                          <button type="button" data-side-tab={key} aria-expanded={folds[key]} onClick={() => toggleFold(key)}
+                            className="ds-intrinsic flex h-10 w-full items-center gap-1.5 text-left text-[12px] font-semibold text-slate-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-300">
+                            <ChevronRight aria-hidden className={cn('size-3.5 shrink-0 text-slate-500 transition-transform', folds[key] && 'rotate-90')} />
+                            <LocalizedText text={label} />
+                            {count != null && <span data-history-count className="text-[11px] font-normal text-slate-400 tabular-nums">{count}</span>}
+                          </button>
+                          {folds[key] && <div className="pb-4">{renderEvidence(key)}</div>}
+                        </div>
+                      ))}
                     </div>
-                  ) : sideTab === 'history' && conflict.decisionFlow ? (
-                    <div role="tabpanel" className={cn('flex min-h-0 flex-col', page ? 'min-h-[280px] flex-1' : 'h-[480px]')}>
-                      <ConflictHistory
-                        key={conflict.id}
-                        events={historyEvents}
-                        viewerId={viewerId}
-                        focus={historyFocus}
-                        // (The sample history is for looking at: nothing is written to it.)
-                        canWrite={!historyPreview && Boolean(workspace?.addConflictOpinion)}
-                        onSend={(body, replyTo) => workspace.addConflictOpinion(conflict.id, body, replyTo)}
-                        // A record opens the replay at its step; while it plays, the
-                        // step it's on is lit here.
-                        onOpenStep={activity.entries.length ? (event) => openReplay(replayEntryFor(EVENT_STEP_KEY[event.type] ?? 'start')) : undefined}
-                        activeStep={replayId ? recordStepOf(replayId) : null}
-                      />
-                    </div>
-                  ) : sideTab === 'activity' ? (
-                    <div data-review-tab="activity" role="tabpanel" className="min-w-0">
-                      <ConflictActivityList conflict={conflict} rationale={rationale} activity={activity} replayId={replayId} onReplay={openReplay} onOpenProjectHistory={openProjectHistory} />
-                    </div>
-                  ) : (
-                    <div role="tabpanel" className={cn('flex min-h-0 flex-col', page ? 'min-h-[280px] flex-1' : 'h-[480px]')}>
-                      <CommentThread key={conflict.id} conflict={conflict} workspace={workspace} flashId={flashComment} />
-                    </div>
-                  )}
+                  ) : renderEvidence(sideTab)}
                 </section>
               </div>
             </div>
