@@ -505,7 +505,6 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
   const [open, setOpen] = useState(true)
   // (Picking is the request's step alone: once asked, the ways are the request's — said, not picked again here.)
   const readOnly = mode !== 'pick'
-  const modeChip = chip ?? CARD_MODES[mode].chip
   const resultWord = resultLabel ?? CARD_MODES[mode].result
   const previous = conflict.decisionRequest
   const rework = conflict.designDecision?.choice === 'rework'
@@ -662,7 +661,7 @@ function ProposalSection({ conflict, proposal, onProposal, custom, onCustom, onS
     <section ref={sectionRef} data-proposal-section data-proposal-card={mode} data-change-type={typeOf(conflict)} aria-label={readOnly ? '해결 방법' : '수정안 선택'} className={cn(CARD, 'scroll-mt-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
         <FoldTitle open={open} onToggle={() => setOpen((value) => !value)} data-fold-section="proposal">해결 방법{!readOnly && <> <span aria-hidden className="text-rose-300">*</span></>}</FoldTitle>
-        {readOnly && modeChip && <span data-proposal-state className={cn('inline-flex h-[18px] items-center rounded px-1.5 text-[10.5px] font-medium', modeChip[1])}>{modeChip[0]}</span>}
+        {/* (No state chip beside it: where the change stands is the step's and the header's to say.) */}
       </div>
       {open && (<>
       {/* A value change's values — said once, here, and nowhere else in the detail (ValueTable); under it,

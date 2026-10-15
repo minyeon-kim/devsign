@@ -3750,9 +3750,9 @@ function ConflictModal({ conflict, onOpenChange, onUpdate, onApprove, onRequestC
                     <LocalizedText text={conflict.rollback ? (conflict.rollback.component ?? conflict.rollback.target ?? conflict.title) : conflict.title} />
                   </h2>
                   {!page && (!conflict.rollback || stage === 'resolved') && <span translate="no" className="shrink-0 font-mono text-base font-medium text-slate-400">#{conflictRef(conflict, workspace?.conflicts)}</span>}
+                  {/* (On the page its code sits on the title's line, right after it — a quiet mono label, not a line of its own.) */}
+                  {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="shrink-0 font-mono text-[11px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 </div>
-                {/* (On the page its code is under the title — the title has the whole width.) */}
-                {page && (!conflict.rollback || stage === 'resolved') && <span data-review-ref translate="no" className="-mt-1.5 font-mono text-[11px] font-medium text-slate-500">#{conflictRef(conflict, workspace?.conflicts)}</span>}
                 {/* (On the page, a size down: 20px badges, 11px words — the title leads.) */}
                 <div data-conflict-meta className={cn('flex flex-wrap items-center gap-1.5', page ? '[&>span]:h-5 [&>span]:px-1.5 [&>span]:text-[10.5px] text-[11px]' : 'pl-10')}>
                   <ConflictTypeTag conflict={conflict} header />
