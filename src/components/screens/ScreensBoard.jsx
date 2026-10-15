@@ -769,18 +769,10 @@ function ScreensBoard() {
                     {/* (The pins a size down on a screen drawn small — its width under 420px on screen — so a dense
                     screen at a low zoom isn't covered by them: full size from 420px, 65% at the least.) */}
                 {markers.map((marker) => {
-                      // (Above the element, over its middle — unless something sits right above it there: then at
-                      // its right, level with it, so the pin never covers another element.)
+                      // (Always above the element, over its middle — its tip just clear of the element's top edge, so it
+                      // never covers the element it marks.)
                       const pinScale = Math.max(0.65, Math.min(1, (card.width * shown.zoom) / 420)) / shown.zoom
-                      const reach = (BOARD_PIN.height + 4) * pinScale
-                      const tipX = marker.layer.x + Math.min(marker.layer.width - BOARD_PIN.inset, Math.max(BOARD_PIN.inset, marker.layer.width / 2))
-                      const frameArea = (screen.frame.width ?? 0) * (screen.frame.height ?? 0)
-                      const crowded = screen.frame.layers.some((other) => other !== marker.layer && other.width * other.height < frameArea / 2
-                        && other.x < tipX + BOARD_PIN.head * pinScale && other.x + other.width > tipX - BOARD_PIN.head * pinScale
-                        && other.y + other.height > marker.layer.y - reach && other.y + other.height <= marker.layer.y + 1)
-                      const anchor = crowded
-                        ? { left: marker.layer.x + marker.layer.width + (BOARD_PIN.head / 2 + 4) * pinScale, top: 32 + marker.layer.y + marker.layer.height / 2 + (BOARD_PIN.height / 2) * pinScale }
-                        : { left: tipX, top: 32 + marker.layer.y - 2 }
+                      const anchor = { left: marker.layer.x + Math.min(marker.layer.width - BOARD_PIN.inset, Math.max(BOARD_PIN.inset, marker.layer.width / 2)), top: 32 + marker.layer.y - 6 / shown.zoom }
                       const current = Boolean(focused) && focused.screenId === card.id && marker.conflicts.some((conflict) => conflict.id === focused.conflict.id)
                       const lit = current || hotMarker === `${card.id}:${marker.layer.id}`
                       return (
