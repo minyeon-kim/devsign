@@ -156,6 +156,13 @@ function PictureCaption({ title, sub, titleProps = {}, subProps = {}, tag = fals
 // What the check looks at, in a word: the breakpoint's render, or the value.
 const checkWordOf = (conflict) => (conflict.layouts ? `${conflict.breakpoint ?? 768}px 렌더링` : '수정한 값')
 
+// The decision step, named for who decides: a designer's (the code drifted from the design), or — a change a
+// designer made to the design herself — the developer's.
+export function decisionTitleOf(conflict) {
+  const ids = (conflict?.reviewers ?? []).map((reviewer) => reviewer.id ?? reviewer)
+  return ids.length && ids.every((id) => allPeople.find((person) => person.id === id)?.role === 'Developer') ? '개발자 결정' : '디자이너 결정'
+}
+
 // Where the decision is, as steps — worded for whoever's looking.
 const DEV_STEPS = ['변경 감지', '승인 요청', '디자이너 결정', '수정 · 검증', '해결']
 const DESIGN_STEPS = ['요청 확인', '비교', '결정 · 반영 시점', 'Alex에게 전달', '개발 반영']
@@ -175,7 +182,7 @@ export function decisionFlowOf(conflict, viewer) {
   const developer = viewer?.jobRole === 'Developer'
   const stage = decisionStageOf(conflict)
   const designer = nameOf(conflict.reviewers[0]?.id ?? 'jane')
-  const labels = developer ? DEV_STEPS : DESIGN_STEPS
+  const labels = developer ? DEV_STEPS.map((label, index) => (index === 2 ? decisionTitleOf(conflict) : label)) : DESIGN_STEPS
   const at = developer
     ? (stage === 'decided' ? 3 : STAGE_INDEX[stage] ?? 0)
     : (stage === 'requested' ? 1 : stage === 'rework' ? 3 : stage === 'decided' ? 4 : stage === 'resolved' ? 5 : 4)
@@ -1304,7 +1311,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     detectStep,
     { key: 'request', title: '승인 요청', state: 'done', who: `${nameOf(request?.by)} · ${request?.direct ? '바로 수정' : request?.round > 1 ? `${request.round}차 제안` : '제안'}`, time: timeOf('requested'),
       summary: (proposalPhraseOf(proposalOf(request?.proposal, request?.custom, conflict)) ?? '').replace(/ · /g, ', ') },
-    { key: 'decision', title: '디자이너 결정', state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
+    { key: 'decision', title: decisionTitleOf(conflict), state: 'done', who: `${decision.by === viewer.id ? '나' : nameOf(decision.by)} · ${DECIDED_WORD[decision.choice] ?? outcome?.label}`, time: timeOf('decided'),
       // (Put off: when it goes in. At once: nothing more to say.)
       summary: isDeferred(decision) ? `${scheduleWordOf(decision.timing, releaseOf(conflict))} 반영` : '' },
     { key: 'fix', title: '수정 · 검증', state: verified ? 'done' : needsPerson ? 'problem' : 'current',
@@ -1319,7 +1326,7 @@ export default function DesignDecisionFlow({ conflict, workspace, viewer, banner
     detectStep,
     // (Asked: folded to a line — the way asked for, who, when.)
     { key: 'request', title: '승인 요청', state: askingNow ? 'current' : 'done', who: request ? nameOf(request.by) : nameOf(asking ? viewer?.id : authorId), summary: '', time: askingNow || !request ? null : [proposalOf(request.proposal, request.custom, conflict)?.name, nameOf(request.by), agoOf(eventsOf(conflict).findLast((event) => event.type === 'requested')?.createdAt)].filter(Boolean).join(' · ') },
-    { key: 'decision', title: '디자이너 결정', state: stage === 'requested' ? 'current' : 'pending', summary: stage === 'requested' ? '수정안 검토 · 결정' : '' },
+    { key: 'decision', title: decisionTitleOf(conflict), state: stage === 'requested' ? 'current' : 'pending', summary: stage === 'requested' ? '수정안 검토 · 결정' : '' },
     { key: 'fix', title: '수정 · 검증', state: 'pending' },
     { key: 'resolve', title: '병합', state: 'pending' },
   ]

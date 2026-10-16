@@ -36,10 +36,13 @@ try {
       if (change.kind === 'value') assert.equal(Boolean(record.decisionFlow), change.check !== 'accessibility', `${change.id}: reviewed as a design decision`)
       // A request asks for something other than the design (following it needs no asking).
       if (change.kind === 'value' && change.steps.requested) assert.notEqual(change.steps.requested.proposal, 'original', `${change.id}: asks for a way that differs`)
-      // As the reference's: a developer asks, the designer decides.
+      // As the reference's: a developer asks, the designer decides — unless the designer made the change herself
+      // (she changed the design): then she asks, and a developer decides.
       if (change.kind !== 'code') {
-        assert.deepEqual(change.reviewers ?? [seed.people.designer], [seed.people.designer], `${change.id}: the designer decides`)
-        if (change.steps.requested) assert.notEqual(change.steps.requested.by, seed.people.designer, `${change.id}: a developer asks`)
+        const designersOwn = change.changedBy === seed.people.designer
+        if (designersOwn) assert.ok(change.reviewers?.length && !change.reviewers.includes(seed.people.designer) && change.changedWhat, `${change.id}: the designer's own change — a developer decides`)
+        else assert.deepEqual(change.reviewers ?? [seed.people.designer], [seed.people.designer], `${change.id}: the designer decides`)
+        if (change.steps.requested && !designersOwn) assert.notEqual(change.steps.requested.by, seed.people.designer, `${change.id}: a developer asks`)
       }
       if (change.kind === 'value') assert.equal(Boolean(change.steps.requested), record.reviewStage !== 'detected', `${change.id}: asked ⇔ past 변경 감지`)
     }

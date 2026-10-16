@@ -30,7 +30,9 @@
 //   sides: { local, remote } — each branch's change: { title, did }
 //   code: { conflict, merged } — the lines with their markers, and the suggested merge
 //   approvedBy — the reviewers who've already signed off
-//   changedBy — who made it, and so who asks (steps.requested.by); never one of its reviewers
+//   changedBy — who made it, and so who asks (steps.requested.by); never one of its reviewers. Mostly a developer
+//     (the code drifted); a designer when she changed the design itself (changedWhat says so) — then she picks the
+//     way and a developer decides.
 //   reviewers — developers only: a merge of code is no designer's to approve
 
 export const SEED = {
@@ -529,10 +531,12 @@ export const CHECKOUT_SEED = {
       suggestion: '디자인 크기를 고르거나, Merge Studio에서 아이콘의 W와 H를 정하세요.',
       riskReason: 'Low: 결제 탭의 아이콘 하나예요.',
       preview: { kind: 'icon', built: { size: 20, stroke: 2 }, design: { size: 24, stroke: 2 } },
-      changedBy: 'min',
+      // (Taylor's own: she made the tab icons 24px in the design — she picks how the code follows, Alex decides.)
+      changedBy: 'jane',
+      changedWhat: 'Changed the tab icon size in the design',
       branch: { source: 'feature/tab-icon-size', target: 'develop' },
       mergeItemId: 'merge-checkout-tab-icon',
-      reviewers: ['jane'],
+      reviewers: ['min'],
       due: 7,
       stage: 'detected',
       steps: { detected: { day: 0, at: '09:35' } },
@@ -565,10 +569,12 @@ export const CHECKOUT_SEED = {
       riskReason: '두 버전 모두 작아요 · 터치 영역 확대 필요',
       ruleIds: ['touch-target'],
       preview: { kind: 'button', label: '×', built: { width: 20, height: 20, radius: 4, background: '#475569' }, design: { width: 20, height: 20, radius: 8, background: '#475569' } },
-      changedBy: 'james',
+      // (Taylor's own: she rounded the close button to 8px in the design — she picks the way, Jordan decides.)
+      changedBy: 'jane',
+      changedWhat: 'Changed the close button corner in the design',
       branch: { source: 'feature/coupon-dismiss', target: 'develop' },
       mergeItemId: 'merge-checkout-manual-target',
-      reviewers: ['jane'],
+      reviewers: ['james'],
       due: 1,
       stage: 'detected',
       steps: { detected: { day: 0, at: '09:40' } },
