@@ -54,7 +54,9 @@ export const LAYER_MOCKUP = {
   'co-statusbar': { role: 'status' },
   'co-title': { text: 'Checkout', tone: 'strong', weight: 700 },
   'co-step': { text: 'Step 3 of 3 · Payment', tone: 'muted' },
-  'order-summary': { icon: 'shield', title: 'Order summary', body: '2 items · $128.00' },
+  // (As designed, as the whole canvas is: the summary's rows under its divider in the border token (CON-016: the code
+  // has slate-200); the card number label at normal tracking (CON-015: the code has tracking-wide).)
+  'order-summary': { icon: 'shield', title: 'Order summary', body: '2 items · $128.00', rows: [['Subtotal', '$128.00'], ['Shipping', 'Free']], divider: '#e4e4e7' },
   'payment-label': { text: 'Card number', tone: 'muted', weight: 500 },
   'card-input': { placeholder: '1234 5678 9012 3456' },
   'shipping-label': { text: 'Standard shipping · 3–5 days', tone: 'muted' },

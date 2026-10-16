@@ -19,7 +19,8 @@ export const DEMO_PREFIX = 'devsign:demo:'
 // 19: CON-002 starts the walkthrough from 변경 감지 again (not merged); two saved versions.
 // 20: every design change is a design decision, as CON-002 is (request, decision, fix on the record).
 // 21: Taylor made two of Checkout's changes herself (CON-018, CON-019) — she picks their way, a developer decides.
-export const DEMO_VERSION = 21
+// 22: the canvas opens as the design throughout (no Place order drawn as built).
+export const DEMO_VERSION = 22
 
 export function readDemo(key, fallback) {
   try {

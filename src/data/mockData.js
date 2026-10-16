@@ -1831,9 +1831,12 @@ export const canvasPages = [
         { id: 'ctb-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24, mock: { role: 'status' } },
         { id: 'tab-title', name: 'Checkout tabs', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Payment', mock: { text: 'Payment method', tone: 'strong', weight: 700 } },
         { id: 'ctb-sub', name: 'Subtitle', kind: 'text', type: 'text', x: 20, y: 64, width: 240, height: 12, mock: { text: 'Choose how you’d like to pay.', tone: 'muted' } },
-        { id: 'ctb-tab-card', name: 'Card tab', kind: 'component', type: 'chip', x: 20, y: 118, width: 72, height: 24, label: 'Card' },
-        { id: 'tab-icon', name: 'Tab icon', kind: 'component', type: 'iconbtn', x: 128, y: 118, width: 24, height: 24, label: '⌂' },
-        { id: 'ctb-tab-bank', name: 'Bank tab', kind: 'component', type: 'chip', x: 188, y: 118, width: 72, height: 24, label: 'Bank' },
+        // (The payment tabs, each an icon and its name — CheckoutTabs. Drawn as designed, as the whole canvas is: the
+        // icons 24px (CON-018: the code has 20px).)
+        { id: 'tab-icon', name: 'Tab icon', kind: 'vector', type: 'glyph', x: 20, y: 108, width: 24, height: 24, mock: { icon: 'card', stroke: 2, component: 'CheckoutTabs' } },
+        { id: 'ctb-tab-card', name: 'Card tab', kind: 'text', type: 'text', x: 50, y: 114, width: 60, height: 12, mock: { text: 'Card', tone: 'strong', weight: 600 } },
+        { id: 'ctb-tab-bank-icon', name: 'Bank tab icon', kind: 'vector', type: 'glyph', x: 140, y: 108, width: 24, height: 24, mock: { icon: 'bank', stroke: 2, component: 'CheckoutTabs' } },
+        { id: 'ctb-tab-bank', name: 'Bank tab', kind: 'text', type: 'text', x: 170, y: 114, width: 60, height: 12, mock: { text: 'Bank', tone: 'muted' } },
         { id: 'ctb-saved', name: 'Saved card', kind: 'component', type: 'card', x: 20, y: 164, width: 240, height: 96, mock: { icon: 'shield', title: 'Visa ·· 3456', body: 'Expires 08/28 · default' } },
         { id: 'ctb-card-input', name: 'Card number', kind: 'component', type: 'input', x: 20, y: 280, width: 240, height: 40, label: 'Add another card' },
         { id: 'ctb-billing', name: 'Billing', kind: 'text', type: 'text', x: 20, y: 340, width: 240, height: 12, mock: { text: 'Billing address · same as shipping', tone: 'muted' } },
@@ -1849,7 +1852,8 @@ export const canvasPages = [
       layers: [
         { id: 'cpn-statusbar', name: 'Status Bar', kind: 'group', type: 'bar', x: 0, y: 0, width: 280, height: 24, mock: { role: 'status' } },
         { id: 'coupon-title', name: 'Coupon notice', kind: 'text', type: 'text', x: 20, y: 36, width: 200, height: 20, label: 'Coupon applied', mock: { text: 'Coupon applied', tone: 'strong', weight: 700 } },
-        { id: 'coupon-close', name: 'Coupon close button', kind: 'component', type: 'iconbtn', x: 236, y: 36, width: 20, height: 20, label: '×' },
+        // (As designed: 20 × 20, its corners 8px — CON-019: the code has 4px; CON-017: 20 × 20 is short of 24 either way.)
+        { id: 'coupon-close', name: 'Coupon close button', kind: 'component', type: 'iconbtn', x: 236, y: 36, width: 20, height: 20, label: '×', look: { radius: 8 } },
         { id: 'cpn-art', name: 'Coupon', kind: 'vector', type: 'image', x: 20, y: 84, width: 240, height: 120, mock: { role: 'photo' } },
         { id: 'cpn-code', name: 'Code', kind: 'text', type: 'text', x: 20, y: 222, width: 240, height: 18, mock: { text: 'MARU10 · 10% off', tone: 'strong', weight: 700 } },
         { id: 'cpn-terms', name: 'Terms', kind: 'text', type: 'text', x: 20, y: 250, width: 240, height: 12, mock: { text: 'On orders over $100 · until Oct 31', tone: 'muted' } },

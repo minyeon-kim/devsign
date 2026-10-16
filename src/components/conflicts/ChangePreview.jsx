@@ -1,4 +1,4 @@
-import { Truck } from 'lucide-react'
+import { CreditCard, Truck } from 'lucide-react'
 import { LocalizedText } from '@/i18n/runtime'
 
 // Before / after of the element a Conflict Point changes, drawn from the
@@ -124,9 +124,11 @@ function ChangePreview({ preview, side, showLabels = true, override }) {
   if (kind === 'icon') {
     // Magnified (the stroke scales with it), so a 2.5 vs 2 stroke reads.
     const ZOOM = 2
+    // (The icon the change is about — `preview.icon`; a truck, the shipping option's, when none is said.)
+    const Glyph = { card: CreditCard, truck: Truck }[preview.icon] ?? Truck
     const sample = (s) => (
       <span className="flex w-full items-center justify-center rounded-lg bg-white py-2">
-        <Truck className="text-slate-800" style={{ width: s.size * ZOOM, height: s.size * ZOOM }} strokeWidth={s.stroke} />
+        <Glyph className="text-slate-800" style={{ width: s.size * ZOOM, height: s.size * ZOOM }} strokeWidth={s.stroke} />
       </span>
     )
     // (As tall as the larger icon and its 8px above and below — at least the usual 56px.)

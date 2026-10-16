@@ -530,7 +530,7 @@ export const CHECKOUT_SEED = {
       says: '아이콘 20px → 디자인은 24px',
       suggestion: '디자인 크기를 고르거나, Merge Studio에서 아이콘의 W와 H를 정하세요.',
       riskReason: 'Low: 결제 탭의 아이콘 하나예요.',
-      preview: { kind: 'icon', built: { size: 20, stroke: 2 }, design: { size: 24, stroke: 2 } },
+      preview: { kind: 'icon', icon: 'card', built: { size: 20, stroke: 2 }, design: { size: 24, stroke: 2 } },
       // (Taylor's own: she made the tab icons 24px in the design — she picks how the code follows, Alex decides.)
       changedBy: 'jane',
       changedWhat: 'Changed the tab icon size in the design',

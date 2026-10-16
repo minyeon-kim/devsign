@@ -3,7 +3,7 @@ import MergeCanvasControls from '@/components/mergestudio/MergeCanvasControls'
 import { useCallback, useContext, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpacingOverlay from '@/components/canvas/SpacingOverlay'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, House, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Redo2, RotateCcw, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap, Maximize, Expand } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpLeft, BatteryFull, Copy, Bell, Blocks, ChartColumn, ChevronLeft, ChevronRight, CircleCheck, CreditCard, House, Landmark, Mail, Menu, Minus, Monitor, Pencil, Play, Plus, Redo2, RotateCcw, Search, ShieldCheck, Signal, Smartphone, Sparkles, Tablet, Trash2, TrendingUp, Truck, Undo2, User, Wifi, X, Zap, Maximize, Expand } from 'lucide-react'
 import { cn } from 'cn'
 import { allPeople, canvasPages, codeMergeVariants, designMergeVariants } from '@/data/mockData'
 import { assemblyToOverride, frameWithLayers, mergeOverride } from '@/components/mergestudio/mergeEffects'
@@ -331,6 +331,12 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
         </span>
         {slotText('title', copy?.title ?? mock.title ?? layer.name, { className: 'truncate font-semibold text-slate-900', style: { fontSize: 9, fontWeight: 600, color: override?.textColor } })}
         {slotText('body', copy?.body ?? mock.body ?? 'Component description', { className: 'line-clamp-2 leading-snug text-slate-500', style: { fontSize: 7.5 } })}
+        {/* (Rows under a divider — a summary's lines; the divider in its colour as built, `mock.divider`.) */}
+        {mock.rows && (
+          <div data-card-rows className="mt-auto flex flex-col gap-0.5 border-t pt-1.5 text-slate-500" style={{ borderColor: mock.divider ?? '#e2e8f0', fontSize: 7.5 }}>
+            {mock.rows.map(([name, value]) => <span key={name} className="flex justify-between"><span>{name}</span><span className="font-medium text-slate-700">{value}</span></span>)}
+          </div>
+        )}
       </div>
     )
   } else if (type === 'chart') {
@@ -420,7 +426,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
   } else if (type === 'glyph') {
     // An icon of the icon set, as the product draws it — its stroke as built, or as a preview puts it
     // (`override.strokeWidth`: the canvas's in-place preview of a fix, never a drawing of its own).
-    const Glyph = { truck: Truck }[mock.icon] ?? Blocks
+    const Glyph = { truck: Truck, card: CreditCard, bank: Landmark }[mock.icon] ?? Blocks
     const stroke = override?.strokeWidth ?? mock.stroke ?? 2
     content = <Glyph data-glyph={mock.icon} data-stroke={stroke} className={cn('h-full w-full text-slate-700', extra)} strokeWidth={stroke} />
   } else if (type === 'image' && mock.role === 'photo') {
@@ -517,7 +523,7 @@ export function StaticLayer({ layer, override: overrideProp, selected, onSelect,
     const text = copy?.text ?? mock.text ?? layer.name
     content = (
       <div
-        style={{ ...contentStyle, fontSize: Math.max(6, h * 0.85), lineHeight: `${h}px`, fontWeight: override?.fontWeight ?? mock.weight ?? 400 }}
+        style={{ ...contentStyle, fontSize: Math.max(6, h * 0.85), lineHeight: `${h}px`, fontWeight: override?.fontWeight ?? mock.weight ?? 400, ...(mock.letterSpacing && { letterSpacing: mock.letterSpacing }) }}
         // Strong copy (headings) may outgrow its box when a drift enlarges
         // it — let it spill rather than truncate so the change reads fully.
         className={cn(

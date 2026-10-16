@@ -175,14 +175,10 @@ export function WorkspaceProvider({ children, projectId }) {
     () => [...baseFiles, ...projectPrototypeFiles, ...importedFiles],
     [baseFiles, projectPrototypeFiles, importedFiles]
   )
-  // `app`'s starting lines (PlaceOrderButton.jsx's hard-coded violet,
-  // Button.jsx's h-9) already describe the two scripted conflicts' buggy
-  // *current* state — derive the canvas override that matches, so the
-  // canvas doesn't open already showing the fixed design regardless.
-  const [prototypeEdits, setPrototypeEdits] = useDemoState(
-    `project:${projectId}:prototypeEdits`,
-    () => deriveComponentOverride(projectId, 'app', baseFiles.find((f) => f.id === 'app')?.lines) ?? {}
-  )
+  // The canvas is the design, every element of it — what the code has is the changes' to say (their 현재), never
+  // drawn over the screens from the start. (It used to open with Place order as built — 40px, violet — the one
+  // element of the board that didn't show the design.) Edits made from here on still follow the code.
+  const [prototypeEdits, setPrototypeEdits] = useDemoState(`project:${projectId}:prototypeEdits`, () => ({}))
   // A line the editor should briefly highlight and scroll to — the code a
   // canvas edit or selection just touched: { fileId, line, nonce }.
   const [codeFlash, setCodeFlash] = useState(null)
