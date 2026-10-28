@@ -8,7 +8,16 @@ export function readLanguage() {
     return saved?.version === 1 && (saved.language === 'ko' || saved.language === 'en') ? saved.language : 'ko'
   } catch { return 'ko' }
 }
-let language = readLanguage()
+// `?lang=en|ko` on the URL picks the language for this load (the portfolio
+// embeds the prototype in the visitor's language); it is not saved, so a
+// visitor's own choice in Settings stays as it was.
+function languageFromUrl() {
+  try {
+    const wanted = new URLSearchParams(window.location.search).get('lang')
+    return wanted === 'ko' || wanted === 'en' ? wanted : null
+  } catch { return null }
+}
+let language = languageFromUrl() ?? readLanguage()
 export function getLanguage() { return language }
 export function setLanguage(next, persist = true) {
   next = next === 'ko' ? 'ko' : 'en'
